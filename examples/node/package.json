@@ -1,0 +1,27 @@
+{
+  "name": "@kaitencloud/example-node",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Kaiten's server-side packages in a Node backend: the catalog for a static pricing page, webhook verification and flag evaluation.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.ts",
+    "test": "vp test",
+    "check": "vp check"
+  },
+  "dependencies": {
+    "@kaitencloud/client": "workspace:*",
+    "@kaitencloud/server": "workspace:*",
+    "@openfeature/ofrep-provider": "catalog:",
+    "@openfeature/server-sdk": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vite-plus": "catalog:"
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  }
+}

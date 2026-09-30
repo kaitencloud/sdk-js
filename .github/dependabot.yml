@@ -1,0 +1,33 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    # Vite+ owns these versions: vite-plus depends on an exact Vitest, the `vite`
+    # alias names its core, and the @vitest/* packages publish in lockstep with that
+    # Vitest. They move only with vite-plus, through `vp migrate` (CONTRIBUTING.md),
+    # and scripts/check-version-invariants.mjs fails when they drift apart.
+    ignore:
+      - dependency-name: vite
+      - dependency-name: "@voidzero-dev/*"
+      - dependency-name: vitest
+      - dependency-name: "@vitest/*"
+      # TypeScript moves by hand. The `codegen` catalog pins TypeScript 6 because
+      # @hey-api/openapi-ts needs the compiler's JS API, which TypeScript 7 no longer
+      # ships, and Dependabot cannot edit a named catalog: its TypeScript updates end
+      # in "No files were updated".
+      - dependency-name: typescript
+    groups:
+      # vite-plus gets a pull request of its own. It fails `lint` until `vp migrate`
+      # has re-pinned the versions above on its branch, without holding up the rest.
+      vite-plus:
+        patterns: [vite-plus]
+      minor-and-patch:
+        update-types: [minor, patch]
+        exclude-patterns: [vite-plus]
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

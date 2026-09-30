@@ -1,0 +1,35 @@
+{
+  "name": "sdk-js",
+  "version": "0.0.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "type": "module",
+  "scripts": {
+    "build:packages": "vp run -r build",
+    "ready": "vp run -r build && node scripts/check-version-invariants.mjs && node scripts/check-openapi-drift.mjs && node scripts/check-graphql-drift.mjs && pnpm changeset status --since=origin/main && vp check && vp run -r test && node scripts/check-published-shape.mjs && node scripts/check-bundle-size.mjs",
+    "check:invariants": "node scripts/check-version-invariants.mjs",
+    "sync-openapi": "node scripts/sync-openapi.mjs",
+    "check:openapi-drift": "node scripts/check-openapi-drift.mjs",
+    "check:published-shape": "node scripts/check-published-shape.mjs",
+    "sync-graphql-schema": "node scripts/sync-graphql-schema.mjs",
+    "check:graphql-drift": "node scripts/check-graphql-drift.mjs",
+    "prepare": "vp config",
+    "changeset": "changeset",
+    "version-packages": "changeset version && vp fmt",
+    "check:bundle-size": "node scripts/check-bundle-size.mjs"
+  },
+  "devDependencies": {
+    "@arethetypeswrong/core": "catalog:",
+    "@changesets/changelog-github": "catalog:",
+    "@changesets/cli": "catalog:",
+    "esbuild": "catalog:",
+    "graphql": "catalog:",
+    "publint": "catalog:",
+    "typescript": "catalog:",
+    "vite-plus": "catalog:"
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "packageManager": "pnpm@12.4.1"
+}

@@ -1,0 +1,72 @@
+packages:
+  - packages/*
+  - examples/*
+
+catalog:
+  # Bundles the import scenarios scripts/check-bundle-size.mjs measures, the way a
+  # host bundler would. Pinned to the copy already in the lockfile (a vite dependency).
+  esbuild: 0.28.2
+  "@changesets/changelog-github": ^1.0.1
+  "@changesets/cli": ^3.0.3
+  "@graphql-codegen/cli": ^7.4.3
+  "@graphql-codegen/client-preset": ^6.2.0
+  "@graphql-typed-document-node/core": ^3.2.0
+  "@openfeature/ofrep-provider": ^0.2.5
+  "@openfeature/server-sdk": ^1.23.0
+  "@types/node": ^26.6.3
+  graphql: ^17.0.2
+  # TypeScript 7, the Go compiler, checks types and emits declarations. Tilde, not
+  # caret: TypeScript ships breaking changes in minor releases. The packages that
+  # run openapi-ts take TypeScript 6 from the `codegen` catalog below instead.
+  typescript: ~7.0.2
+  vite: npm:@voidzero-dev/vite-plus-core@1.0.0
+  vite-plus: 1.0.0
+  # vite-plus bundles upstream vitest and exposes it via `vite-plus/test`. Pin the
+  # exact version it ships (`vp toolchain vitest`), 5.0.1 for vite-plus 1.0.0, so the
+  # project shares a single Vitest copy. Dependabot leaves it to `vp migrate`, which
+  # re-pins it with vite-plus.
+  vitest: 5.0.1
+  publint: ^0.3.24
+  "@arethetypeswrong/core": ^0.18.5
+
+# @hey-api/openapi-ts drives the TypeScript compiler JS API (ts.SyntaxKind ...), which
+# the Go-based typescript@7 no longer exposes, so `vp run generate` crashes at import.
+# @kaitencloud/client and @kaitencloud/server run it, so they stay on the last
+# JS-based line while the rest of the tree runs TypeScript 7.
+catalogs:
+  codegen:
+    typescript: ~6.0.3
+
+catalogMode: prefer
+allowBuilds:
+  esbuild: true
+# No typescript override: it would force TypeScript 7 onto the codegen packages.
+overrides:
+  # `@*` keys, as `vp migrate` writes them: they pin the semver ranges transitive and
+  # peer declarations use, and leave `catalog:` references to the catalog.
+  vite@*: "catalog:"
+  # Force every Vitest (including vite-plus's own dep) onto the single pinned copy
+  # so mocks/expect/runner state aren't split across versions.
+  vitest@*: "catalog:"
+  "@types/node": "catalog:"
+peerDependencyRules:
+  allowAny:
+    - vite
+    - vitest
+  allowedVersions:
+    vite: "*"
+    vitest: "*"
+minimumReleaseAgeExclude:
+  - "@changesets/apply-release-plan@8.1.1"
+  - "@changesets/cli@3.0.3"
+  - "@changesets/config@4.0.1"
+  - "@voidzero-dev/vite-plus-core@1.0.0"
+  - "@voidzero-dev/vite-plus-darwin-arm64@1.0.0"
+  - "@voidzero-dev/vite-plus-darwin-x64@1.0.0"
+  - "@voidzero-dev/vite-plus-linux-arm64-gnu@1.0.0"
+  - "@voidzero-dev/vite-plus-linux-arm64-musl@1.0.0"
+  - "@voidzero-dev/vite-plus-linux-x64-gnu@1.0.0"
+  - "@voidzero-dev/vite-plus-linux-x64-musl@1.0.0"
+  - "@voidzero-dev/vite-plus-win32-arm64-msvc@1.0.0"
+  - "@voidzero-dev/vite-plus-win32-x64-msvc@1.0.0"
+  - vite-plus@1.0.0

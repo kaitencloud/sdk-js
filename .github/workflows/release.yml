@@ -1,0 +1,169 @@
+name: Release
+
+# Versions and publishes @kaitencloud/client and @kaitencloud/server to npm.
+#
+# On every push to main, Changesets picks what the run does:
+#   version  a changeset that bumps something is pending: open or refresh the
+#            "chore: version packages" pull request. Merging it cuts a release.
+#   publish  nothing is pending, and npm lacks a package's current version:
+#            check, build and pack in one job, publish the tarballs from another,
+#            then tag the commit and create the GitHub releases.
+#   none     neither, including when every pending changeset is empty.
+#
+# Authentication is npm trusted publishing: `id-token: write` lets pnpm trade
+# the publish job's OIDC token for a short-lived npm token, so there is no
+# NPM_TOKEN secret. The trusted publisher on npmjs.com names this repository and
+# this file, so a fork's copy of the workflow could not publish; it is skipped
+# there, as in any repository but kaitencloud/sdk-js. The permission sits on the
+# one job that publishes, which installs without running scripts and builds
+# nothing. npm adds provenance on its own once the repository is public.
+#
+# No job restores a dependency cache: a poisoned cache entry would reach the
+# tarballs.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  select-mode:
+    if: github.repository == 'kaitencloud/sdk-js'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      mode: ${{ steps.select-mode.outputs.mode }}
+      publish-plan-artifact-id: ${{ steps.select-mode.outputs.publish-plan-artifact-id }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v6.1.0
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Choose between versioning and publishing
+        id: select-mode
+        uses: changesets/action/select-mode@v2.1.2
+
+  version:
+    needs: select-mode
+    if: needs.select-mode.outputs.mode == 'version'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # the version commit, pushed through the GitHub API
+      pull-requests: write # the "chore: version packages" pull request
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          # @changesets/changelog-github finds the commit that added each
+          # changeset, to link its pull request.
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: pnpm/action-setup@v6.1.0
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - uses: voidzero-dev/setup-vp@v1.21.1
+        with:
+          # actions/setup-node and pnpm/action-setup own Node.js and pnpm. Vite+
+          # only provides vp, for the `vp fmt` in version-packages.
+          node-manager: false
+          package-manager: false
+          cache: false
+          run-install: false
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Open or update the release pull request
+        uses: changesets/action/version@v2.1.2
+        with:
+          # Changesets v3 no longer bundles Prettier and detects no formatter here,
+          # so `format` is off in .changeset/config.json and this script runs
+          # `vp fmt` after `changeset version`.
+          script: pnpm run version-packages
+          pr-title: "chore: version packages"
+          commit-message: "chore: version packages"
+
+  pack:
+    needs: select-mode
+    if: needs.select-mode.outputs.mode == 'publish'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      pack-dir-artifact-id: ${{ steps.pack.outputs.pack-dir-artifact-id }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v6.1.0
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - uses: voidzero-dev/setup-vp@v1.21.1
+        with:
+          # actions/setup-node and pnpm/action-setup own Node.js and pnpm. Vite+
+          # only provides vp, at the catalog's vite-plus version.
+          node-manager: false
+          package-manager: false
+          cache: false
+          run-install: false
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      # The publish gate. This workflow and CI run on the same push to main, in
+      # parallel, and `needs:` cannot cross workflow boundaries: nothing else
+      # would stop a publish from a commit whose CI is still running, or red.
+      # Re-running the checks here is what holds. A published version cannot be
+      # replaced.
+      - name: Build packages
+        run: vp run -r build
+      - name: Check formatting, linting and types
+        run: vp check
+      - name: Check coupled dependency versions
+        run: node scripts/check-version-invariants.mjs
+      - name: Run package tests
+        run: vp run -r test
+      - name: Check the published shape of every package
+        run: node scripts/check-published-shape.mjs
+      # pnpm packs, so the tarballs carry the catalog's real ranges rather than
+      # `catalog:`. The publish job below uploads these tarballs as they are.
+      - name: Pack the packages npm does not have yet
+        id: pack
+        uses: changesets/action/pack@v2.1.2
+        with:
+          publish-plan-artifact-id: ${{ needs.select-mode.outputs.publish-plan-artifact-id }}
+
+  publish:
+    needs: pack
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # the tags and the GitHub releases
+      id-token: write # npm trusted publishing
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v6.1.0
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      # The Changesets CLI is all this job needs, and no install script runs
+      # where an npm token can be minted.
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Publish the tarballs, tag them and create the releases
+        uses: changesets/action/publish@v2.1.2
+        with:
+          pack-dir-artifact-id: ${{ needs.pack.outputs.pack-dir-artifact-id }}

@@ -1,0 +1,748 @@
+"""
+AuditTrail records a single domain event captured from the outbox CDC pipeline.
+"""
+type AuditTrail {
+  eventName: String!
+
+  """
+  Versioned event type identifier (e.g. com.kaiten.instance.entitlement.v1.value_get)
+  """
+  eventType: String!
+  id: UUID!
+  instanceId: UUID
+  instanceSlug: String!
+
+  """
+  Event payload as a JSON object. Event-specific data such as status lives here.
+  """
+  payload: Map
+  timestamp: Time!
+}
+
+"""A cursor-paginated page of instance-scoped audit trail entries."""
+type AuditTrailPage {
+  hasMore: Boolean!
+  items: [AuditTrail!]!
+
+  """Opaque cursor for the next page. Null when hasMore is false."""
+  nextCursor: String
+}
+
+"""
+Component represents a software component, optionally included in releases.
+"""
+type Component {
+  createdAt: Time!
+  createdBy: User!
+  description: String
+  id: UUID!
+  name: String!
+  previousComponentId: UUID
+  slug: String!
+  version: String!
+}
+
+"""A cursor-paginated page of components."""
+type ComponentPage {
+  hasMore: Boolean!
+  items: [Component!]!
+
+  """Opaque cursor for the next page. Null when hasMore is false."""
+  nextCursor: String
+}
+
+"""Customer represents a client organization of a organization."""
+type Customer {
+  createdAt: Time!
+  createdBy: User!
+  domain: String
+  externalCustomerId: String
+  id: UUID!
+
+  """Instances associated with this customer"""
+  instances: [Instance!]!
+  integrations: Map!
+  name: String!
+  slug: String!
+  updatedAt: Time!
+  updatedBy: User!
+}
+
+"""A cursor-paginated page of customers."""
+type CustomerPage {
+  hasMore: Boolean!
+  items: [Customer!]!
+
+  """Opaque cursor for the next page. Null when hasMore is false."""
+  nextCursor: String
+}
+
+"""
+Deployment is one entry in a zone's deployment log: a release was put on a zone
+at a moment in time. The same release can appear against the same zone more
+than once -- that is a rollback.
+"""
+type Deployment {
+  createdAt: Time!
+  createdBy: User!
+  deploymentZoneId: UUID!
+  id: UUID!
+  releaseId: UUID!
+}
+
+"""
+One place a customer of this Kaiten runs a release: a target they name and
+classify themselves ("AWS us-west-2", "on-prem staging"), carrying typed
+metadata, the instances in it and the release currently on it.
+
+Not an installation of Kaiten. Kaiten's own operations vocabulary uses the same
+two words for one -- a Kubernetes namespace plus a Clerk application plus a DNS
+name plus a reporting credential plus the organizations inside it -- and that
+kind of zone is not reachable through this API at all.
+"""
+type DeploymentZone {
+  createdAt: Time!
+  createdBy: User!
+  description: String!
+  id: UUID!
+  metadata: Map
+  name: String!
+  releaseId: UUID
+  slug: String!
+
+  """
+  Environment class of the zone -- production, staging or development are the
+  values the console labels, but the field is free-form.
+  """
+  type: String!
+  updatedAt: Time!
+  updatedBy: User!
+}
+
+"""A cursor-paginated page of deployment zones."""
+type DeploymentZonePage {
+  hasMore: Boolean!
+  items: [DeploymentZone!]!
+
+  """Opaque cursor for the next page. Null when hasMore is false."""
+  nextCursor: String
+}
+
+"""
+An entitlement definition: a usage right or quota, with its customer-facing
+presentation metadata (icon, units, visibility, display order).
+"""
+type Entitlement {
+  description: String
+
+  """
+  Sort order of this entitlement in customer-facing components (ascending).
+  """
+  displayOrder: Int
+
+  """Groups associated with this entitlement"""
+  entitlementGroups: [EntitlementGroupSummary!]
+
+  """
+  Optional icon, stored as a provider-namespaced token (provider:name).
+  Decoupled from any specific icon library.
+  """
+  icon: String
+  id: UUID!
+  name: String!
+
+  """
+  Phase of the periodic usage window. Required exactly when resetPeriod is
+  set; defaults to CALENDAR when omitted. Immutable once set.
+  """
+  resetAnchor: EntitlementResetAnchor
+
+  """
+  Cadence at which usage automatically resets (NUMBER only). Null means a
+  lifetime counter. Immutable once set.
+  """
+  resetPeriod: EntitlementResetPeriod
+
+  """
+  Number of base units one sale unit represents (1 sale unit = N base units).
+  """
+  saleUnitFactor: Float
+
+  """Plural label of the unit this entitlement is sold in."""
+  saleUnitPlural: String
+
+  """
+  Singular label of the unit this entitlement is sold in, when it differs from
+  the base unit.
+  """
+  saleUnitSingular: String
+  slug: String!
+  type: EntitlementType
+
+  """
+  Plural label of the base unit this entitlement is measured in (NUMBER only).
+  """
+  unitPlural: String
+
+  """
+  Singular label of the base unit this entitlement is measured in (NUMBER only).
+  """
+  unitSingular: String
+
+  """
+  Whether this entitlement is displayed in customer-facing components
+  (e.g. plan and pricing pages). Defaults to false.
+  """
+  userFacing: Boolean
+
+  """
+  Percentage of the cap at which an early-warning event fires before the cap
+  is reached. 0 disables the warning (default).
+  """
+  warningThresholdPercent: Int
+}
+
+"""
+Lightweight reference to an entitlement group (category axis for presentation).
+"""
+type EntitlementGroupSummary {
+  id: UUID!
+  name: String!
+  slug: String!
+}
+
+"""A cursor-paginated page of entitlements."""
+type EntitlementPage {
+  """Whether more rows exist beyond this page."""
+  hasMore: Boolean!
+  items: [Entitlement!]!
+
+  """Opaque cursor for the next page. Absent when hasMore is false."""
+  nextCursor: String
+}
+
+"""
+Phase of a periodic usage window: CALENDAR (UTC calendar-aligned) or
+LICENSE_START (phased off the instance's license start date).
+"""
+enum EntitlementResetAnchor {
+  CALENDAR
+  LICENSE_START
+}
+
+"""Cadence at which usage automatically resets for a NUMBER entitlement."""
+enum EntitlementResetPeriod {
+  DAY
+  HOUR
+  MONTH
+  WEEK
+  YEAR
+}
+
+"""Entitlement type enumeration"""
+enum EntitlementType {
+  BOOLEAN
+  CONFIG
+  NUMBER
+  NUMBER_AI_CREDIT
+}
+
+"""
+Current usage of an entitlement on an instance. One row per license grant:
+NUMBER entitlements carry the accumulated usage (zeroed when nothing has been
+reported yet); other types carry the license value.
+"""
+type EntitlementUsage {
+  """
+  End of the current usage window (exclusive). Null for a lifetime
+  entitlement (no configured reset period).
+  """
+  currentPeriodEnd: Time
+
+  """
+  Start of the current usage window (inclusive). Null for a lifetime
+  entitlement (no configured reset period).
+  """
+  currentPeriodStart: Time
+  entitlementId: UUID!
+  entitlementSlug: String!
+  licenseId: UUID!
+  licenseSlug: String!
+
+  """
+  License grant this usage is measured against, same shape as value. Null when
+  the license grants no value; -1 means unlimited for a NUMBER entitlement.
+  """
+  limit: Map
+
+  """
+  Typed usage value. Shapes: {type:"number",value:N,event_count:C},
+  {type:"boolean",value:B}, {type:"object",value:{...}}
+  """
+  value: Map!
+}
+
+type Instance {
+  """Cursor-paginated audit trail entries for this instance."""
+  auditTrails(
+    after: Time
+    before: Time
+
+    """Opaque cursor from a previous response's nextCursor"""
+    cursor: String
+    eventName: String
+
+    """Maximum number of entries to return (default 50, max 200)"""
+    limit: Int
+  ): AuditTrailPage!
+  createdAt: Time!
+  createdBy: User!
+
+  """The customer that owns this instance"""
+  customer: Customer!
+  customerId: UUID!
+  customerSlug: String!
+
+  """The deployment zone associated with this instance"""
+  deploymentZone: DeploymentZone
+  deploymentZoneId: UUID
+  deploymentZoneSlug: String
+  description: String!
+  endLicenseDate: Time!
+
+  """
+  Current entitlement usage for this instance (one row per license grant)
+  """
+  entitlementUsage: [EntitlementUsage!]!
+  id: UUID!
+  integrations: Map!
+
+  """The license associated with this instance"""
+  license: License!
+  licenseId: UUID!
+  licenseSlug: String!
+  lifecycleStage: String
+  metadata: Map
+  name: String!
+  slug: String!
+  startLicenseDate: Time!
+  status: InstanceStatus!
+  updatedAt: Time!
+  updatedBy: User!
+}
+
+"""A cursor-paginated page of instances."""
+type InstancePage {
+  hasMore: Boolean!
+  items: [Instance!]!
+
+  """Opaque cursor for the next page. Null when hasMore is false."""
+  nextCursor: String
+}
+
+"""
+Instance represents a deployed environment of the SaaS product for a customer.
+"""
+enum InstanceStatus {
+  DEGRADED
+  HEALTHY
+  INCIDENT
+  MAINTENANCE
+}
+
+"""
+License defines the commercial and functional rules for one or more instances.
+"""
+type License {
+  description: String!
+
+  """Entitlements granted by this license"""
+  entitlements: [LicenseEntitlement!]!
+
+  """
+  The family this license is a version of. Two licenses sharing it are the same
+  product, whatever their names say.
+  """
+  family: LicenseFamily!
+  id: UUID!
+
+  """Instances using this license"""
+  instances: [Instance!]!
+  isDefault: Boolean!
+
+  """Whether this version may be served."""
+  lifecycleState: LicenseLifecycleState!
+  name: String!
+  slug: String!
+  type: LicenseType!
+  version: String!
+  versionName: String
+}
+
+"""
+An entitlement granted by a license, with its contractual value and the full
+entitlement definition (presentation metadata included).
+"""
+type LicenseEntitlement {
+  """
+  Full entitlement definition (icon, units, userFacing, displayOrder, groups).
+  """
+  entitlement: Entitlement!
+  entitlementName: String!
+  entitlementSlug: String!
+  entitlementType: String!
+  licenseId: UUID!
+  licenseSlug: String!
+
+  """
+  Derives this grant's enforcement from its own numeric value, with no
+  separate hard/soft/unlimited flag: -1 when the value is unlimited (no cap,
+  no overage); otherwise 0 rejects usage above the value (hard limit) and a
+  positive percentage allows usage to exceed it by that much before being
+  rejected (soft limit). Null for non-numeric (BOOLEAN/CONFIG) grants.
+  """
+  limitCapExceededOveragePercent: Int
+
+  """
+  True when this grant carries the unlimited sentinel (no cap enforced), with
+  the exact semantics of the usage reporter. Clients must use this flag instead
+  of interpreting raw numeric values.
+  """
+  unlimited: Boolean!
+
+  """
+  Typed entitlement value. Shapes: {type:"number",value:N},
+  {type:"boolean",value:B}, {type:"object",value:{...}}
+  """
+  value: Map!
+}
+
+"""
+LicenseFamily is the product a license is a version of. It carries identity and
+nothing else: no display name, because the display name is the current version's
+own name. Renaming a version or publishing a new one never changes it, which is
+what makes its slug safe to put in a public pricing URL -- for as long as the
+family has a version: deleting its last version deletes the family and frees the
+slug.
+"""
+type LicenseFamily {
+  id: UUID!
+  slug: String!
+}
+
+"""
+LicenseFamilyView is a family together with the version it currently resolves
+to -- the answer to "the current version of this product", which addressing a
+version slug cannot give.
+
+Distinct from LicenseFamily, which License.family returns: that one is identity
+alone, this one is a resolved view of the product.
+"""
+type LicenseFamilyView {
+  """
+  The version this family currently serves: its default version, or its
+  highest-numbered PUBLISHED version. Null when every version is a draft or has
+  been archived.
+  """
+  currentVersion: License
+  id: UUID!
+  slug: String!
+
+  """Number of versions in this family, whatever their lifecycle state."""
+  versionCount: Int!
+
+  """Every version of the family, oldest first."""
+  versions: [License!]!
+}
+
+"""
+Whether a version of a license may be served.
+
+Several versions of one family can be PUBLISHED at once, so this is not a
+"current version" marker: which version a family resolves to is decided on top
+of it, by taking the family's default version, or its highest-numbered published
+one. DRAFT and ARCHIVED are both unservable and resolution treats them alike,
+but one has never been offered and the other has been withdrawn.
+"""
+enum LicenseLifecycleState {
+  ARCHIVED
+  DRAFT
+  PUBLISHED
+}
+
+"""A cursor-paginated page of licenses."""
+type LicensePage {
+  hasMore: Boolean!
+  items: [License!]!
+
+  """Opaque cursor for the next page. Null when hasMore is false."""
+  nextCursor: String
+}
+
+"""License type enumeration"""
+enum LicenseType {
+  COMMUNITY
+  DEVELOPMENT
+  PAID
+  TRIAL
+}
+
+"""Custom scalar for JSON maps"""
+scalar Map
+
+"""
+MetadataField defines the typed schema for one key of a resource's `metadata`
+jsonb column. Org-scoped, soft-deletable via `archivedAt`.
+
+Mutations (create / update / archive / reorder) are exposed via the REST API,
+under `/api/metadata-fields`. The GraphQL surface is intentionally
+read-only, consistent with the rest of the Kaiten GraphQL aggregator.
+"""
+type MetadataField {
+  """
+  Soft-delete marker. Absent if the field is active.
+  Archived fields stay readable so the admin UI can surface legacy values.
+  """
+  archivedAt: Time
+  createdAt: Time!
+  createdBy: User!
+  displayOrder: Int!
+  id: UUID!
+
+  """
+  JSON Schema 2020-12 document describing the value space (e.g. {"type":"string","enum":["a","b"]}).
+  """
+  jsonSchema: Map!
+  key: String!
+  label: String!
+  resourceType: MetadataFieldResourceType!
+  updatedAt: Time!
+  updatedBy: User!
+}
+
+"""A cursor-paginated page of metadata fields."""
+type MetadataFieldPage {
+  hasMore: Boolean!
+  items: [MetadataField!]!
+
+  """Opaque cursor for the next page. Null when hasMore is false."""
+  nextCursor: String
+}
+
+"""
+Resource types that can carry typed metadata managed by a MetadataField.
+Mirrors the sqlc enum `metadata_field_resource_type`.
+"""
+enum MetadataFieldResourceType {
+  DEPLOYMENT_ZONE
+  INSTANCE
+}
+
+"""
+OrganizationAuditTrail is an organization-wide audit trail entry. Instance and
+customer context is only present for instance-scoped events; organization-level
+events (e.g. customer or entitlement lifecycle) carry null instance fields.
+"""
+type OrganizationAuditTrail {
+  customerId: UUID
+  customerName: String
+  customerSlug: String
+  eventName: String!
+
+  """
+  Versioned event type identifier (e.g. com.kaiten.instance.entitlement.v1.value_get)
+  """
+  eventType: String!
+  id: UUID!
+  instanceId: UUID
+  instanceName: String
+  instanceSlug: String
+
+  """
+  Event payload as a JSON object. Event-specific data such as status lives here.
+  """
+  payload: Map
+  timestamp: Time!
+}
+
+"""A cursor-paginated page of organization-wide audit trail entries."""
+type OrganizationAuditTrailPage {
+  hasMore: Boolean!
+  items: [OrganizationAuditTrail!]!
+
+  """Opaque cursor for the next page. Null when hasMore is false."""
+  nextCursor: String
+}
+
+"""Health check endpoint"""
+type Query {
+  _health: String!
+
+  """List audit trail entries for a given instance slug."""
+  auditTrails(
+    after: Time
+    before: Time
+
+    """Opaque cursor from a previous response's nextCursor"""
+    cursor: String
+    eventName: String
+    instanceSlug: String!
+
+    """Maximum number of entries to return (default 50, max 200)"""
+    limit: Int
+  ): AuditTrailPage!
+
+  """Get a specific component by ID or slug (at least one required)"""
+  component(id: UUID, slug: String): Component
+
+  """Get components for the current organization, cursor-paginated."""
+  components(cursor: String, limit: Int): ComponentPage!
+
+  """
+  Get a specific customer by ID, slug, or the external ID you assigned it
+  (at least one required; they are tried in that order).
+  
+  `externalCustomerId` is the id your own system uses for the tenant, so an
+  embedded client can ask for "my" customer without first learning Kaiten's
+  slug. It carries no uniqueness constraint, so a value matching more than one
+  customer is an error rather than an arbitrary pick.
+  """
+  customer(externalCustomerId: String, id: UUID, slug: String): Customer
+
+  """
+  Get customers for the current organization, cursor-paginated. When
+  hasIntegration is set, only customers synced with that integration
+  adapter are returned; the page is cursor-paginated either way.
+  """
+  customers(cursor: String, hasIntegration: String, limit: Int): CustomerPage!
+
+  """Get a specific deployment zone by ID or slug (at least one required)"""
+  deploymentZone(id: UUID, slug: String): DeploymentZone
+
+  """Get deployment zones for the current organization, cursor-paginated."""
+  deploymentZones(cursor: String, limit: Int): DeploymentZonePage!
+
+  """
+  Get a cursor-paginated page of entitlement definitions for the current
+  organization
+  """
+  entitlements(cursor: String, limit: Int): EntitlementPage!
+
+  """Get a specific instance by ID or slug (at least one required)"""
+  instance(id: UUID, slug: String): Instance
+
+  """
+  Get instances for the current organization, cursor-paginated. When
+  hasIntegration is set, only instances synced with that integration
+  adapter are returned; the page is cursor-paginated either way.
+  """
+  instances(cursor: String, hasIntegration: String, limit: Int): InstancePage!
+
+  """Get a specific license by ID or slug (at least one required)"""
+  license(id: UUID, slug: String): License
+
+  """
+  Resolve a license family to the version it currently serves. Null when no
+  family carries this slug; a family with nothing published resolves with a null
+  currentVersion rather than being reported as missing.
+  """
+  licenseFamily(slug: String!): LicenseFamilyView
+
+  """Get licenses for the current organization, cursor-paginated."""
+  licenses(cursor: String, limit: Int): LicensePage!
+
+  """
+  List MetadataField rows for the current organization and the given resource
+  type, cursor-paginated. By default only active fields are returned; pass
+  `includeArchived: true` to also return soft-deleted ones (useful for the
+  admin UI surfacing legacy values stored on resources).
+  
+  Fields come back in the admin-controlled display order, so paging through
+  them yields the same sequence as `GET /metadata-fields`; the two surfaces
+  share a cursor format, and a token from either resumes on the other.
+  """
+  metadataFields(
+    """Opaque cursor from a previous response's nextCursor"""
+    cursor: String
+    includeArchived: Boolean = false
+
+    """Maximum number of entries to return (default 50, max 200)"""
+    limit: Int
+    resourceType: MetadataFieldResourceType!
+  ): MetadataFieldPage!
+
+  """
+  List every audit trail entry of the current organization, newest first,
+  including events not attached to an instance (e.g. CUSTOMER_CREATED).
+  """
+  organizationAuditTrails(
+    after: Time
+    before: Time
+
+    """Opaque cursor from a previous response's nextCursor"""
+    cursor: String
+    eventName: String
+
+    """Maximum number of entries to return (default 200, max 1000)"""
+    limit: Int
+  ): OrganizationAuditTrailPage!
+
+  """Get a specific release by ID or slug (at least one required)"""
+  release(id: UUID, slug: String): Release
+
+  """Get releases for the current organization, cursor-paginated."""
+  releases(cursor: String, limit: Int): ReleasePage!
+}
+
+"""
+Release represents a software release with its components. A release is
+immutable: it is created with its component list and can only be deleted
+afterwards -- there is no update, so it carries no updated_* fields.
+"""
+type Release {
+  """Components included in this release, fixed at creation"""
+  components: [Component!]!
+  createdAt: Time!
+  createdBy: User!
+
+  """
+  Deployment zones this release has been deployed to at least once, each listed once
+  """
+  deploymentZones: [DeploymentZone!]!
+
+  """
+  Every deployment of this release, newest first -- one entry per deployment,
+  so a zone it was rolled back to appears more than once
+  """
+  deployments: [Deployment!]!
+  description: String
+  id: UUID!
+
+  """
+  Instances linked to deployment zones where this release has been deployed historically
+  """
+  instances: [Instance!]!
+  slug: String!
+  version: String!
+}
+
+"""A cursor-paginated page of releases."""
+type ReleasePage {
+  hasMore: Boolean!
+  items: [Release!]!
+
+  """Opaque cursor for the next page. Null when hasMore is false."""
+  nextCursor: String
+}
+
+"""Custom scalar for timestamps"""
+scalar Time
+
+"""Custom scalar for UUIDs"""
+scalar UUID
+
+"""A user reference (id + name)"""
+type User {
+  id: UUID!
+  name: String!
+}

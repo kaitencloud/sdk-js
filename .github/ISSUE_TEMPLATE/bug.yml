@@ -1,0 +1,36 @@
+name: Bug report
+description: A package does not behave as its documentation says.
+labels: [bug]
+body:
+  - type: dropdown
+    id: package
+    attributes:
+      label: Package
+      options:
+        - "@kaitencloud/client"
+        - "@kaitencloud/server"
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what you got instead.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: A minimal snippet or repository. Never paste a real credential.
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      placeholder: Node 24, Chrome 140, Vite 7

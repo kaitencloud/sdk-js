@@ -1,0 +1,73 @@
+name: Contract drift
+
+# Compares the committed contract snapshots with what the Kaiten API publishes:
+#
+#   openapi   contracts/openapi.yaml    vs  @kaitencloud/openapi@latest
+#   graphql   contracts/schema.graphql  vs  @kaitencloud/graphql-schema@latest
+#
+# Both contracts are fetched from npm, where they are public: no token, so a pull
+# request from a fork runs this check too. Both are required: a fetch that fails
+# (nothing published, registry unreachable) fails its job.
+#
+# The GraphQL schema is published as the concatenation of the API's schema
+# fragments, not as a printed SDL: printCanonicalSchema in
+# scripts/graphql-schema-source.mjs stays the single definition of the canonical
+# form, so the byte-equality diff cannot flake on two printers disagreeing.
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  schedule:
+    # Weekly, to catch a contract published between two pushes.
+    - cron: "23 5 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  openapi:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version-file: .node-version
+      - name: Fetch the published contract (@kaitencloud/openapi@latest)
+        id: contract
+        run: |
+          set -euo pipefail
+          dir="$(mktemp -d)"
+          npm pack @kaitencloud/openapi@latest --pack-destination "$dir"
+          tar -xzf "$dir"/*.tgz -C "$dir"
+          echo "spec=$dir/package/openapi.yaml" >> "$GITHUB_OUTPUT"
+      - name: Compare the committed snapshot with the published contract
+        env:
+          KAITEN_OPENAPI: ${{ steps.contract.outputs.spec }}
+        run: node scripts/check-openapi-drift.mjs
+
+  graphql:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: pnpm/action-setup@v6.1.0
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - name: Install dependencies
+        # The drift script parses the operations and builds the schema with graphql.
+        run: pnpm install --frozen-lockfile
+      - name: Fetch the published schema (@kaitencloud/graphql-schema@latest)
+        id: contract
+        run: |
+          set -euo pipefail
+          dir="$(mktemp -d)"
+          npm pack @kaitencloud/graphql-schema@latest --pack-destination "$dir"
+          tar -xzf "$dir"/*.tgz -C "$dir"
+          echo "schema=$dir/package/schema.graphqls" >> "$GITHUB_OUTPUT"
+      - name: Compare the committed snapshot with the published schema
+        env:
+          KAITEN_GRAPHQL_SCHEMA: ${{ steps.contract.outputs.schema }}
+        run: node scripts/check-graphql-drift.mjs

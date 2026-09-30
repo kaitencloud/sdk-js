@@ -1,0 +1,153 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  # The three jobs the main-branch ruleset requires: lint, build, test.
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: pnpm/action-setup@v6.1.0
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - uses: voidzero-dev/setup-vp@v1.21.1
+        with:
+          # actions/setup-node and pnpm/action-setup own Node.js and pnpm. Vite+
+          # only provides vp, at the catalog's vite-plus version.
+          node-manager: false
+          package-manager: false
+          cache: true
+          run-install: false
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      # Packages resolve each other through their built dist/, so types are
+      # checked against a fresh build, never a stale one.
+      - name: Build packages
+        run: vp run -r build
+      - name: Check formatting, linting and types
+        run: vp check
+      - name: Check coupled dependency versions
+        run: node scripts/check-version-invariants.mjs
+      - name: Check the shipped GraphQL operations against the schema snapshot
+        run: node scripts/check-graphql-drift.mjs --operations-only
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: pnpm/action-setup@v6.1.0
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - uses: voidzero-dev/setup-vp@v1.21.1
+        with:
+          # actions/setup-node and pnpm/action-setup own Node.js and pnpm. Vite+
+          # only provides vp, at the catalog's vite-plus version.
+          node-manager: false
+          package-manager: false
+          cache: true
+          run-install: false
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build packages
+        run: vp run -r build
+      # Every published package is checked for its LICENSE, NOTICE and
+      # THIRD_PARTY_NOTICES.md, each the root's copy, and for a manifest npm can
+      # install from; publint and attw already run inside each package's `vp pack`.
+      - name: Check the published shape of every package
+        run: node scripts/check-published-shape.mjs
+      # What the browser package costs a host is invisible in review: each import
+      # scenario is held to a gzip budget.
+      - name: Check bundle-size budgets
+        run: node scripts/check-bundle-size.mjs
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: pnpm/action-setup@v6.1.0
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - uses: voidzero-dev/setup-vp@v1.21.1
+        with:
+          # actions/setup-node and pnpm/action-setup own Node.js and pnpm. Vite+
+          # only provides vp, at the catalog's vite-plus version.
+          node-manager: false
+          package-manager: false
+          cache: true
+          run-install: false
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build packages
+        run: vp run -r build
+      - name: Run workspace tests
+        run: vp run -r test
+
+  changeset:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v6.1.0
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Verify a changeset is included
+        # The release pull request consumes changesets by design.
+        if: github.head_ref != 'changeset-release/main'
+        run: pnpm changeset status --since=origin/${{ github.base_ref }}
+
+  generated-sdk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: pnpm/action-setup@v6.1.0
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - uses: voidzero-dev/setup-vp@v1.21.1
+        with:
+          # actions/setup-node and pnpm/action-setup own Node.js and pnpm. Vite+
+          # only provides vp, at the catalog's vite-plus version.
+          node-manager: false
+          package-manager: false
+          cache: true
+          run-install: false
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Regenerate the client's REST code from the committed snapshot
+        working-directory: packages/client
+        run: vp run generate
+      - name: Regenerate the server SDK from the committed snapshot
+        working-directory: packages/server
+        run: vp run generate
+      # GraphQL is the client's primary read path, so it gets the same guarantee
+      # as REST: generated == snapshot here, operations ⊆ snapshot below.
+      - name: Regenerate GraphQL types from the committed snapshot
+        working-directory: packages/client
+        run: vp run generate-graphql
+      - name: Format generated clients
+        run: vp check --fix packages/client/src/core/generated packages/server/src/generated packages/client/src/graphql/generated
+      - name: Verify generated clients are committed
+        run: git diff --exit-code -- contracts packages/client/src/core/generated packages/server/src/generated packages/client/src/graphql/generated
+      - name: Verify shipped GraphQL operations validate against the snapshot
+        run: node scripts/check-graphql-drift.mjs --operations-only
