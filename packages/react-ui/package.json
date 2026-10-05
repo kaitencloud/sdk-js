@@ -1,0 +1,97 @@
+{
+  "name": "@kaitencloud/react-ui",
+  "version": "1.0.0",
+  "description": "Kaiten React SDK — styled licensing & monetization components on the headless core",
+  "homepage": "https://github.com/kaitencloud/sdk-js/tree/main/packages/react-ui#readme",
+  "bugs": {
+    "url": "https://github.com/kaitencloud/sdk-js/issues"
+  },
+  "license": "Apache-2.0",
+  "author": "Kaiten",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kaitencloud/sdk-js.git",
+    "directory": "packages/react-ui"
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "NOTICE",
+    "THIRD_PARTY_NOTICES.md"
+  ],
+  "type": "module",
+  "sideEffects": [
+    "**/*.css",
+    "./dist/kaiten.css"
+  ],
+  "types": "./dist/index.d.mts",
+  "exports": {
+    ".": "./dist/index.mjs",
+    "./package.json": "./package.json",
+    "./styles.css": "./dist/kaiten.css"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "scripts": {
+    "build": "vp pack",
+    "dev": "vp pack --watch",
+    "storybook": "env -u PLAYWRIGHT_BROWSERS_PATH storybook dev -p 6006",
+    "build-storybook": "env -u PLAYWRIGHT_BROWSERS_PATH storybook build",
+    "test": "env -u PLAYWRIGHT_BROWSERS_PATH vp test",
+    "test:coverage": "env -u PLAYWRIGHT_BROWSERS_PATH vp test --coverage",
+    "test:unit": "vp test --project unit",
+    "test:unit:coverage": "vp test --project unit --coverage --coverage.thresholds.lines=87 --coverage.thresholds.statements=86 --coverage.thresholds.functions=85 --coverage.thresholds.branches=74",
+    "test:storybook": "env -u PLAYWRIGHT_BROWSERS_PATH vp test --project storybook",
+    "test:storybook:coverage": "env -u PLAYWRIGHT_BROWSERS_PATH vp test --project storybook --coverage",
+    "test:browsers:install": "env -u PLAYWRIGHT_BROWSERS_PATH pnpm dlx playwright@1.63.0 install --with-deps chromium chromium-headless-shell",
+    "test:visual": "env -u PLAYWRIGHT_BROWSERS_PATH playwright test --project chromium",
+    "test:layout": "env -u PLAYWRIGHT_BROWSERS_PATH playwright test --project layout",
+    "test:visual:update": "env -u PLAYWRIGHT_BROWSERS_PATH playwright test --project chromium --update-snapshots",
+    "test:visual:report": "env -u PLAYWRIGHT_BROWSERS_PATH playwright show-report",
+    "check": "vp check"
+  },
+  "dependencies": {
+    "@kaitencloud/react": "workspace:^",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "tailwind-merge": "^3.7.0"
+  },
+  "devDependencies": {
+    "@kaitencloud/client": "workspace:*",
+    "@kaitencloud/theme": "1.0.3",
+    "@playwright/test": "catalog:",
+    "@storybook/addon-a11y": "^10.6.0",
+    "@storybook/addon-docs": "^10.6.0",
+    "@storybook/addon-themes": "^10.6.0",
+    "@storybook/addon-vitest": "^10.6.0",
+    "@storybook/react-vite": "^10.6.0",
+    "@tailwindcss/vite": "^4.3.3",
+    "@testing-library/react": "^16.3.3",
+    "@types/node": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "@vitest/browser-playwright": "catalog:",
+    "@vitest/coverage-v8": "catalog:",
+    "jsdom": "catalog:",
+    "playwright": "1.63.0",
+    "postcss": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "storybook": "^10.6.0",
+    "swr": "^2.5.1",
+    "tailwindcss": "^4.3.3",
+    "typescript": "catalog:",
+    "vite-plus": "catalog:",
+    "vitest": "catalog:"
+  },
+  "peerDependencies": {
+    "react": ">=18",
+    "react-dom": ">=18"
+  },
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "packageManager": "pnpm@12.4.1"
+}

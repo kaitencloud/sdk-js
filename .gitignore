@@ -11,8 +11,14 @@ node_modules
 .pnpm-store
 dist
 dist-ssr
+storybook-static
 *.local
 coverage
+
+# Playwright (visual regression)
+playwright-report
+test-results
+.playwright
 
 # Editor directories and files
 .vscode/*

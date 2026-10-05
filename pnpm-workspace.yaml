@@ -13,11 +13,13 @@ catalog:
   "@graphql-typed-document-node/core": ^3.2.0
   "@openfeature/ofrep-provider": ^0.2.5
   "@openfeature/server-sdk": ^1.23.0
+  "@playwright/test": 1.63.0
   "@types/node": ^26.6.5
   "@types/react": ^19.3.0
   "@types/react-dom": ^19.3.0
   # In lockstep with the vitest pin below; scripts/check-version-invariants.mjs holds
   # every @vitest/* entry to it.
+  "@vitest/browser-playwright": 5.0.1
   "@vitest/coverage-v8": 5.0.1
   graphql: ^17.0.2
   jsdom: ^30.0.1
@@ -34,6 +36,7 @@ catalog:
   # project shares a single Vitest copy. Dependabot leaves it to `vp migrate`, which
   # re-pins it with vite-plus.
   vitest: 5.0.1
+  postcss: ^8.5.28
   publint: ^0.3.25
   # Reads contracts/openapi.yaml in the client's tests, to check the fixtures against it.
   yaml: 2.9.0
