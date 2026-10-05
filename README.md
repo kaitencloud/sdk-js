@@ -5,10 +5,15 @@ entitlements, report usage, show pricing and paywalls, and evaluate feature flag
 
 ## Packages
 
-| Package                                  | Use it for                                                                                                                                                    |
-| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [`@kaitencloud/server`](packages/server) | Node backends: the full API contract behind a `ksh_` token, and webhook verification.                                                                         |
-| [`@kaitencloud/client`](packages/client) | The catalogue, a customer's licensing snapshot, usage reports and flag evaluation. Built for browsers, where it never holds a secret; it runs on servers too. |
+| Package                                      | Use it for                                                                                                                                                    |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`@kaitencloud/server`](packages/server)     | Node backends: the full API contract behind a `ksh_` token, and webhook verification.                                                                         |
+| [`@kaitencloud/client`](packages/client)     | The catalogue, a customer's licensing snapshot, usage reports and flag evaluation. Built for browsers, where it never holds a secret; it runs on servers too. |
+| [`@kaitencloud/react`](packages/react)       | React, headless: the provider, the hooks and `Gate` / `Show`, for apps that draw their own UI.                                                                |
+| [`@kaitencloud/react-ui`](packages/react-ui) | React components: `PricingTable`, `Paywall`, `CustomerPortal` and more, themed through `appearance`. It re-exports `@kaitencloud/react`.                      |
+
+The design tokens the components use ship separately, as
+[`@kaitencloud/theme`](https://www.npmjs.com/package/@kaitencloud/theme).
 
 To evaluate feature flags through OpenFeature, use its generic OFREP providers:
 [`@openfeature/ofrep-web-provider`](https://www.npmjs.com/package/@openfeature/ofrep-web-provider)
@@ -23,17 +28,21 @@ customer's licensing snapshot and billing. `@kaitencloud/server` issues both, as
 [its README](packages/server#publishable-keys) explains, and `@kaitencloud/client` is
 the one that uses them. Everything else goes through your backend: `@kaitencloud/server`
 covers the whole API, and `@kaitencloud/client` runs there too, as
-[`examples/node`](examples/node) shows.
+[`examples/node`](examples/node) shows. A React page can render what a backend read:
+`<KaitenProvider mode="static">` takes a catalogue as plain data, with no credential and
+no request.
 
 ## Install
 
 ```bash
-npm install @kaitencloud/client    # catalogue, snapshot, usage and flags
-npm install @kaitencloud/server    # a Node backend
+npm install @kaitencloud/client      # catalogue, snapshot, usage and flags
+npm install @kaitencloud/server      # a Node backend
+npm install @kaitencloud/react-ui    # the React components, with the headless core
+npm install @kaitencloud/react       # the headless React core only
 ```
 
 Each package's README has its quick start, and [`examples/`](examples) holds a
-Node backend that runs without an account.
+React app and a Node backend that run without an account.
 
 ## Credentials
 

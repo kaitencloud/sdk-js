@@ -1,6 +1,6 @@
 # Architecture
 
-This repository publishes two packages. Two boundaries shape them, and each is
+This repository publishes four packages. Three boundaries shape them, and each is
 enforced by the package graph rather than by convention.
 
 ## Browser and server
@@ -18,6 +18,23 @@ boundary. A secret that reached a browser is already public and has to be rotate
 The Platform API (`/api/platform/**`, authenticated by `ksm_` credentials) is not
 modelled here. Its audience is Kaiten's own control plane, not the applications
 these packages serve, and its contract is not published.
+
+## Headless and components
+
+`@kaitencloud/react` is the headless core: the provider, the hooks and the control
+primitives (`Gate`, `Show`, `KaitenLoaded`, …). It renders no DOM and ships no
+stylesheet. An application that draws everything in its own design system installs
+it alone.
+
+`@kaitencloud/react-ui` adds the styled components (`PricingTable`, `Paywall`,
+`CustomerPortal`, …), `KaitenStyleRoot` and a precompiled stylesheet, and
+re-exports the core. An application that wants Kaiten's components installs it.
+
+The two version independently. The core is the stable surface; the components are
+`@experimental`, as [`packages/react/STABILITY.md`](packages/react/STABILITY.md)
+records. A change to a component never forces a release on an application that
+only uses the hooks, and a headless application never pays for the components'
+dependencies or stylesheet.
 
 ## Contracts, not sources
 
@@ -44,6 +61,10 @@ With any other credential, `@kaitencloud/client` composes the catalogue and a
 customer's licensing snapshot from the public API: a GraphQL aggregate first, and a
 REST fan-out over existing endpoints as the fallback for older APIs, which code
 comments call "Option A".
+
+The design tokens come from the published `@kaitencloud/theme` package.
+`@kaitencloud/react-ui` inlines them in its stylesheet, under the `--ktn-*` names
+that `appearance.variables` overrides.
 
 ## Internal code
 

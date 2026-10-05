@@ -3,7 +3,8 @@
 Kaiten's server-side packages in a small Node backend, with no framework:
 
 - **`GET /catalog`** reads the catalog with `@kaitencloud/client` and a read-only
-  `ksh_` token, for a static pricing page. The token stays on the server.
+  `ksh_` token, for a pricing page rendered with `<KaitenProvider mode="static">`.
+  The token stays on the server.
 - **`POST /webhooks/kaiten`** verifies a webhook's signature with
   `@kaitencloud/server` before trusting it.
 - **`GET /flags/:key?user=…`** evaluates a feature flag with OpenFeature and its

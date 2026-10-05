@@ -37,10 +37,15 @@ release. Add a tool name to select part of the graph. For example, run
   vp run -r build && vp check && vp test
   ```
 
-  `examples/node` is checked and tested against the **built `dist/`** of `client` and
-  `server` (their `exports` only point at `dist/`), so it needs the rebuild. A
-  regenerated contract is the usual way to get caught: the type errors it causes stay
-  invisible until the next build.
+  `packages/react` is checked and tested against the **built `dist/`** of `client`,
+  `packages/react-ui` against that of `react`, and `examples/node` and
+  `examples/react-vite` against those of the packages they use (their `exports` only
+  point at `dist/`), so every hop needs the rebuild. A regenerated contract is the
+  usual way to get caught: the type errors it causes stay invisible until the next
+  build.
+
+  `vp test` at the root runs every package's unit suites. `vp run -r test`, which CI
+  runs, also runs react-ui's Storybook stories in Chromium.
 
 - The API contracts live in `contracts/`: `openapi.yaml` feeds the generated REST clients of `@kaitencloud/client` and `@kaitencloud/server` (`vp run generate` in each package), and `schema.graphql` feeds the client GraphQL codegen (`packages/client/codegen.ts`, `vp run generate-graphql`). Both are committed snapshots of what the Kaiten API publishes; never edit them or the generated code by hand. `node scripts/check-graphql-drift.mjs` asserts that the shipped operations in `documents.ts` still validate against the snapshot (always hard-fails), and that the snapshot matches the API's schema, which it must be able to read: `KAITEN_GRAPHQL_SCHEMA`, or `KAITEN_PATH` for a local checkout of kaiten (default `../kaiten`). `--operations-only` runs the first check alone.
 - **Every JavaScript and TypeScript file opens with the license header**, two `//`
@@ -60,3 +65,5 @@ release. Add a tool name to select part of the graph. For example, run
 - **Vite+ owns the Vite and Vitest versions.** Never bump `vite`, `vitest` or a
   `@vitest/*` package by itself: upgrade `vite-plus` as CONTRIBUTING.md describes, and
   `node scripts/check-version-invariants.mjs` checks that the pins agree.
+- `@kaitencloud/react-ui` inlines the design tokens of `@kaitencloud/theme`, a published package pinned in its `devDependencies`. Token values are not edited in this repository.
+- react-ui's visual baselines (`tests/visual/__screenshots__/*-linux.png`) are rendered in CI's Playwright container, never on a developer machine: `vp run baselines:update` dispatches the workflow that regenerates them.

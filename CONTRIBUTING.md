@@ -90,21 +90,31 @@ vp check
 vp run -r test
 ```
 
-`examples/node` is tested against the builds of `@kaitencloud/client` and
-`@kaitencloud/server`. `pnpm run ready` runs the whole sequence, build first, with
-the contract and release checks; its GraphQL drift check needs a checkout of kaiten
-next to this repository, or a schema file named by `KAITEN_GRAPHQL_SCHEMA`.
+`packages/react` is tested against the build of `@kaitencloud/client`,
+`packages/react-ui` against the build of `@kaitencloud/react`, and `examples/node`
+against the builds of `@kaitencloud/client` and `@kaitencloud/server`. react-ui's
+`test` also runs its Storybook stories in Chromium, which Playwright installs with
+`vp run test:browsers:install` in `packages/react-ui`. `pnpm run ready` runs the
+whole sequence, build first, with the contract and release checks; its GraphQL drift
+check needs a checkout of kaiten next to this repository, or a schema file named by
+`KAITEN_GRAPHQL_SCHEMA`.
+
+The components have a Storybook playground: `vp run @kaitencloud/react-ui#storybook`.
 
 ## What CI runs
 
 - **lint**: the license headers, formatting, lint and types (`vp check`), version
-  invariants, and the GraphQL operations against the schema snapshot.
-- **build**: every package, the license and notice files and the manifest of each
-  tarball, the client's bundle-size budgets, and that no browser bundle carries a
-  token, the name of a secret variable or code of `@kaitencloud/server`.
-- **test**: the tests of every package and of the Node example, those of the
-  conformance example (which skip the live suite and rehearse its code), and those of
-  the repository's own scripts (`vp test run scripts`).
+  invariants, token contrast, and the GraphQL operations against the schema snapshot.
+- **build**: every package and example, the license and notice files and the
+  manifest of each tarball, publint and attw on the React tarballs, the bundle-size
+  budgets, and that no browser bundle carries a token, the name of a secret variable
+  or code of `@kaitencloud/server`.
+- **test**: the tests of every package and of the Node example, the React coverage
+  ratchets, Storybook, visual regression and layout invariants, in the Playwright
+  container, those of the conformance example (which skip the live suite and rehearse
+  its code), and those of the repository's own scripts (`vp test run scripts`).
+- **react-18-compat**: the React packages' unit tests against React 18, their peer
+  floor.
 - **compat-1.0**: code written against `@kaitencloud/client` 1.0.0 compiles against
   the tarball npm serves for 1.0.0 and against the one this tree would publish, and
   every name 1.0.0 exports is still exported, a value still a value, except
@@ -123,6 +133,10 @@ next to this repository, or a schema file named by `KAITEN_GRAPHQL_SCHEMA`.
 Four of these are scripts you can run yourself, after `vp run -r build`:
 `pnpm run check:no-secrets`, `pnpm run check:compat-1.0`,
 `pnpm run check:release-dependencies` and `pnpm run test:scripts`.
+
+Visual baselines are Linux screenshots. When a change moves pixels on purpose,
+regenerate them with the **Update visual baselines** workflow rather than locally:
+`vp run baselines:update` dispatches it on your pushed branch.
 
 ## License headers
 
