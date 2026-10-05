@@ -1,6 +1,7 @@
 name: Release
 
-# Versions and publishes @kaitencloud/client and @kaitencloud/server to npm.
+# Versions and publishes @kaitencloud/client, @kaitencloud/server,
+# @kaitencloud/react and @kaitencloud/react-ui to npm.
 #
 # On every push to main, Changesets picks what the run does:
 #   version  a changeset that bumps something is pending: open or refresh the
@@ -17,6 +18,12 @@ name: Release
 # there, as in any repository but kaitencloud/sdk-js. The permission sits on the
 # one job that publishes, which installs without running scripts and builds
 # nothing. npm adds provenance on its own once the repository is public.
+#
+# npm accepts a trusted publisher only on a package that already exists, so the
+# first version of a package is published by hand, from its packed tarball, and
+# its trusted publisher configured on npmjs.com before this workflow can publish
+# the next one. @kaitencloud/react and @kaitencloud/react-ui start that way, at
+# 1.0.0.
 #
 # No job restores a dependency cache: a poisoned cache entry would reach the
 # tarballs.
@@ -132,8 +139,15 @@ jobs:
         run: vp check
       - name: Check coupled dependency versions
         run: node scripts/check-version-invariants.mjs
+      # The visual regression is not repeated: it needs the Playwright container,
+      # and it guards pixels rather than whether a package works. For the same
+      # reason react-ui runs its unit project alone: its `test` script also runs
+      # the Storybook stories in a browser.
       - name: Run package tests
-        run: vp run -r test
+        run: vp run --filter '!@kaitencloud/react-ui' test
+      - name: Run React UI unit tests
+        working-directory: packages/react-ui
+        run: vp run test:unit
       - name: Check the published shape of every package
         run: node scripts/check-published-shape.mjs
       # pnpm packs, so the tarballs carry the catalog's real ranges rather than

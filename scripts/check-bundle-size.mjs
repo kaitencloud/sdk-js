@@ -1,25 +1,31 @@
 // Copyright 2026 KAITEN INC
 // SPDX-License-Identifier: Apache-2.0
 
-// Bundle-size budget for @kaitencloud/client, per import scenario.
+// Bundle-size budgets for @kaitencloud/client, @kaitencloud/react and
+// @kaitencloud/react-ui, per import scenario.
 //
-// Why: what the package costs a host is decided by its bundle graph, and the
-// graph is invisible in review. `vp check` and the tests stay green while one
-// import drags a dependency into every host's bundle; only a measurement notices.
+// Why: what a package costs a host is decided by its bundle graph, and the graph
+// is invisible in review. Before this gate, importing `Gate` from the root cost
+// 26.6 KB gzip, twenty of them the customer portal and tailwind-merge, retained
+// because `Gate` shared a chunk with them and their top-level `memo()`/`cva()`
+// calls read as side effects to every bundler. `vp check` and the tests stayed
+// green throughout; only a measurement notices.
 //
-// What: builds each scenario below the way a host's bundler would — esbuild,
-// ESM, minified, for the browser, React external — resolved through the node
-// example's node_modules so the package `exports` map applies, and holds the gzip
-// size to a budget. Headless scenarios also assert that nothing that draws made
-// it into the output: no UI-only dependency, and no import of React. The budget
-// catches a regression by size, the module list catches it by name, and the
-// second one does not drift with unrelated code.
+// What: builds each scenario below the way a host's bundler would, with esbuild,
+// ESM, minified, for the browser, React external, resolved through an example's
+// node_modules so the package `exports` map applies, and holds the gzip size to a
+// budget. Two kinds of scenario also assert what did not make it into the output.
+// A headless one (the client) holds nothing that draws: no UI-only dependency and
+// no import of React. An unstyled one (the React core) may import React but holds
+// none of the dependencies the styled components bring. The budget catches a
+// regression by size, the module list catches it by name, and the second one does
+// not drift with unrelated code.
 //
 //   node scripts/check-bundle-size.mjs            # after `vp run -r build`
 //   node scripts/check-bundle-size.mjs --report   # print, never fail
 //
 // When a scenario legitimately grows, raise its budget here in the same PR,
-// and say why in the changeset. The budgets carry ~15% headroom over the
+// and say why in the changeset. The budgets carry some headroom over the
 // measured value so that unrelated edits do not trip them.
 
 import { gzipSync } from "node:zlib";
@@ -31,18 +37,23 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const report = process.argv.includes("--report");
 
 /**
+ * What the styled components bring and the headless core must not: the Radix
+ * primitives, the class helpers, the scroll lock.
+ */
+const STYLED_ONLY = [
+  "tailwind-merge",
+  "class-variance-authority",
+  "@radix-ui/",
+  "react-remove-scroll",
+  "aria-hidden",
+];
+
+/**
  * Modules that draw. A headless bundle must not contain any of them. The prefix
  * `react` covers `react`, `react-dom` and every `react-*` helper, and
  * `@kaitencloud/react` covers the React packages of this repository.
  */
-const UI_ONLY = [
-  "react",
-  "@kaitencloud/react",
-  "tailwind-merge",
-  "class-variance-authority",
-  "@radix-ui/",
-  "aria-hidden",
-];
+const UI_ONLY = ["react", "@kaitencloud/react", ...STYLED_ONLY];
 
 /**
  * What the build leaves as an import instead of bundling, so that a headless
@@ -52,27 +63,102 @@ const UI_ONLY = [
 const EXTERNAL = ["react", "react-dom", "react/jsx-runtime", "react-dom/client"];
 
 /**
- * What a headless scenario also leaves as an import: every UI-only package, by
- * name, installed or not. A bundler that cannot resolve one stops with a stack
- * trace; left external it is reported by name, as the leak it is.
+ * What a scenario that holds something back also leaves as an import: every
+ * forbidden package, by name, installed or not. A bundler that cannot resolve one
+ * stops with a stack trace; left external it is reported by name, as the leak it
+ * is.
  */
-const UI_ONLY_EXTERNAL = UI_ONLY.flatMap((name) =>
-  name.endsWith("/") ? [`${name}*`] : [name, `${name}/*`, `${name}-*`],
-);
-
-/** Where imports resolve from: the node example links `@kaitencloud/client`. */
-const FROM_HOST = join(repoRoot, "examples/node/src");
+const externalOf = (names) =>
+  names.flatMap((name) => (name.endsWith("/") ? [`${name}*`] : [name, `${name}/*`, `${name}-*`]));
 
 /**
- * Each scenario is what a host file would import. `budgetGzip` is in bytes;
- * `headless` scenarios must also be free of everything in UI_ONLY.
+ * Where imports resolve from: the react-vite example links `@kaitencloud/react` and
+ * `@kaitencloud/react-ui`; the node example links `@kaitencloud/client`.
+ */
+const FROM_REACT = join(repoRoot, "examples/react-vite/src");
+const FROM_NODE = join(repoRoot, "examples/node/src");
+
+/**
+ * Each scenario is what a host file would import. `budgetGzip` is in bytes. A
+ * `headless` scenario must also be free of everything in UI_ONLY, and an
+ * `unstyled` one of everything in STYLED_ONLY.
+ *
+ * The core (`@kaitencloud/react`) scenarios are unstyled by construction, since
+ * the package has no styled dependency to leak, and pinned here so that a
+ * dependency added to it is a measured decision. The `react-ui` re-export scenario
+ * is the one that can regress silently: `@kaitencloud/react-ui` re-exports the
+ * whole core, so a host importing `Gate` through it must pay the core's price and
+ * nothing of the components'.
  */
 const SCENARIOS = [
+  {
+    name: "core · Gate + KaitenProvider",
+    code: `import { Gate, KaitenProvider } from "@kaitencloud/react"; console.log(Gate, KaitenProvider);`,
+    budgetGzip: 25_500,
+    unstyled: true,
+  },
+  {
+    name: "core · useEntitlementCheck + KaitenProvider",
+    code: `import { useEntitlementCheck, KaitenProvider } from "@kaitencloud/react"; console.log(useEntitlementCheck, KaitenProvider);`,
+    budgetGzip: 24_500,
+    unstyled: true,
+  },
+  {
+    name: "core · Show + KaitenProvider",
+    code: `import { Show, KaitenProvider } from "@kaitencloud/react"; console.log(Show, KaitenProvider);`,
+    budgetGzip: 24_500,
+    unstyled: true,
+  },
+  {
+    name: "core · formatKaitenMoney alone",
+    code: `import { formatKaitenMoney } from "@kaitencloud/react"; console.log(formatKaitenMoney);`,
+    budgetGzip: 1_000,
+    unstyled: true,
+  },
+  {
+    name: "core · everything",
+    code: `import * as all from "@kaitencloud/react"; console.log(all);`,
+    budgetGzip: 31_500,
+    unstyled: true,
+  },
+  {
+    name: "locales · fr alone",
+    code: `import { fr } from "@kaitencloud/react/locales"; console.log(fr);`,
+    budgetGzip: 3_000,
+    unstyled: true,
+  },
+  {
+    name: "react-ui · Gate + KaitenProvider through the re-export",
+    code: `import { Gate, KaitenProvider } from "@kaitencloud/react-ui"; console.log(Gate, KaitenProvider);`,
+    budgetGzip: 25_500,
+    unstyled: true,
+  },
+  {
+    name: "react-ui · PlanBadge + KaitenProvider + KaitenStyleRoot",
+    code: `import { PlanBadge, KaitenProvider, KaitenStyleRoot } from "@kaitencloud/react-ui"; console.log(PlanBadge, KaitenProvider, KaitenStyleRoot);`,
+    budgetGzip: 37_500,
+  },
+  {
+    name: "react-ui · PricingTable + KaitenProvider + KaitenStyleRoot",
+    code: `import { PricingTable, KaitenProvider, KaitenStyleRoot } from "@kaitencloud/react-ui"; console.log(PricingTable, KaitenProvider, KaitenStyleRoot);`,
+    budgetGzip: 48_000,
+  },
+  {
+    name: "react-ui · Paywall + KaitenProvider + KaitenStyleRoot",
+    code: `import { Paywall, KaitenProvider, KaitenStyleRoot } from "@kaitencloud/react-ui"; console.log(Paywall, KaitenProvider, KaitenStyleRoot);`,
+    budgetGzip: 48_000,
+  },
+  {
+    name: "react-ui · everything",
+    code: `import * as all from "@kaitencloud/react-ui"; console.log(all);`,
+    budgetGzip: 67_500,
+  },
   {
     name: "client · KaitenClient alone",
     code: `import { KaitenClient } from "@kaitencloud/client"; console.log(KaitenClient);`,
     budgetGzip: 13_800,
     headless: true,
+    resolveDir: FROM_NODE,
   },
   {
     // What a customer portal or a checkout ships: the customer-session client.
@@ -80,8 +166,16 @@ const SCENARIOS = [
     code: `import { KaitenSessionClient } from "@kaitencloud/client"; console.log(KaitenSessionClient);`,
     budgetGzip: 9_700,
     headless: true,
+    resolveDir: FROM_NODE,
   },
 ];
+
+/** What a scenario must not contain: nothing, the styled dependencies, or all UI. */
+function forbiddenOf(scenario) {
+  if (scenario.headless) return UI_ONLY;
+  if (scenario.unstyled) return STYLED_ONLY;
+  return [];
+}
 
 /** The package a bundled input file belongs to, from its path. */
 function packageOf(file) {
@@ -99,7 +193,7 @@ export async function measure(scenario) {
   const result = await esbuild.build({
     stdin: {
       contents: scenario.code,
-      resolveDir: FROM_HOST,
+      resolveDir: scenario.resolveDir ?? FROM_REACT,
       loader: "js",
       sourcefile: "host-entry.js",
     },
@@ -110,7 +204,7 @@ export async function measure(scenario) {
     minify: true,
     write: false,
     metafile: true,
-    external: scenario.headless ? [...EXTERNAL, ...UI_ONLY_EXTERNAL] : EXTERNAL,
+    external: [...EXTERNAL, ...externalOf(forbiddenOf(scenario))],
     define: { "process.env.NODE_ENV": '"production"' },
     logLevel: "silent",
   });
@@ -132,17 +226,19 @@ export async function measure(scenario) {
 }
 
 /**
- * What a headless scenario's bundle holds that draws: a UI-only package that made
- * it into the output, and anything the output imports instead of bundling.
- * Nothing for a scenario that is not headless.
+ * What a scenario's bundle holds that it must not: a forbidden package that made it
+ * into the output, and an import of the output left external that is forbidden too.
+ * A headless scenario forbids every import it leaves external, React included, since
+ * only React and the UI packages are left external. Nothing for a scenario that
+ * holds nothing back.
  */
 export function leaksOf(scenario, { packages, imported }) {
-  if (!scenario.headless) return [];
+  const forbidden = forbiddenOf(scenario);
+  if (forbidden.length === 0) return [];
+  const isForbidden = (name) => forbidden.some((prefix) => name.startsWith(prefix));
   return [
-    ...packages
-      .map(([pkg]) => pkg)
-      .filter((pkg) => UI_ONLY.some((forbidden) => pkg.startsWith(forbidden))),
-    ...imported,
+    ...packages.map(([pkg]) => pkg).filter(isForbidden),
+    ...imported.filter(scenario.headless ? () => true : isForbidden),
   ];
 }
 
@@ -168,7 +264,8 @@ async function main() {
       // MINIFIED bytes, not gzip: esbuild's metafile reports each input's
       // contribution to the output, and gzip is a property of the whole file, not
       // of a slice of it. Said out loud because the headline on the line above IS
-      // gzip, and these are easy to misread as gzip.
+      // gzip, and reading these as gzip is how `tailwind-merge` got quoted at
+      // 26 KB in a review when it costs 8.3.
       console.log(`    ${kb(bytes).padStart(9)}  ${pkg} (min)`);
     }
     if (overBudget) {
@@ -178,7 +275,9 @@ async function main() {
     }
     if (leaked.length > 0) {
       console.log(
-        `    UI-only code in a headless bundle: ${leaked.join(", ")} — a module reachable from this entry imports React, a styled component or a primitive that draws`,
+        scenario.headless
+          ? `    UI-only code in a headless bundle: ${leaked.join(", ")} — a module reachable from this entry imports React, a styled component or a primitive that draws`
+          : `    Styled dependencies in an unstyled bundle: ${leaked.join(", ")} — a module reachable from this entry imports a styled component, a Radix primitive or cva/tailwind-merge`,
       );
     }
   }
