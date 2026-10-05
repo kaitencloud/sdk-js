@@ -1,0 +1,129 @@
+import { useSWRConfig } from "swr";
+
+import { useKaitenContext } from "../providers/kaiten-provider.tsx";
+import { useTelemetry, useTrackHook } from "../telemetry/context.tsx";
+import { useKaitenMutation, type UseKaitenMutationResult } from "./use-kaiten-query.ts";
+import { useLicensingSnapshot } from "./use-licensing-snapshot.ts";
+import { kaitenKeys } from "./query-keys.ts";
+import type {
+  EntitlementUsage,
+  LicensingSnapshot,
+  ReportUsageInput,
+  ResolvedEntitlement,
+} from "../types.ts";
+
+export interface ReportUsageArgs {
+  entitlementSlug: string;
+  input: ReportUsageInput;
+}
+
+function optimisticStatus(
+  unlimited: boolean,
+  next: number,
+  limit: number,
+  ceiling: number,
+): ResolvedEntitlement["status"] {
+  if (unlimited) return "enabled";
+  // Terminal where the server starts refusing; warned about from 80% of what
+  // the customer bought, which is what the meter shows.
+  if (next >= ceiling) return "over_limit";
+  if (limit > 0 && next / limit >= 0.8) return "near_limit";
+  return "enabled";
+}
+
+/**
+ * Returns a copy of the snapshot with the reported entitlement's numeric usage
+ * bumped — so the gauge moves immediately, before the server round-trip.
+ * The server value reconciles it on the revalidation that follows.
+ */
+function bumpEntitlementUsage(
+  snapshot: LicensingSnapshot | undefined,
+  entitlementSlug: string,
+  input: ReportUsageInput,
+): LicensingSnapshot | undefined {
+  // Only numeric usage moves a meter; boolean/config reports leave it untouched.
+  if (!snapshot?.entitlements || input.value.type !== "number") return snapshot;
+  const delta = input.value.value;
+
+  return {
+    ...snapshot,
+    entitlements: snapshot.entitlements.map((entitlement) => {
+      if (entitlement.slug !== entitlementSlug || entitlement.limitValue.type !== "number") {
+        return entitlement;
+      }
+      const limit = entitlement.limitValue.value;
+      const previous =
+        entitlement.currentValue?.type === "number" ? entitlement.currentValue.value : 0;
+      const next = input.behavior === "set" ? delta : previous + delta;
+      const unlimited = entitlement.unlimited ?? limit === -1;
+      const ceiling = entitlement.maximumAllowedUsage ?? limit;
+
+      return {
+        ...entitlement,
+        currentValue: { type: "number", value: next },
+        remaining: unlimited ? null : Math.max(ceiling - next, 0),
+        percentageUsed: unlimited ? null : limit > 0 ? (next / limit) * 100 : null,
+        status: optimisticStatus(unlimited, next, limit, ceiling),
+      };
+    }),
+  };
+}
+
+export function useReportUsage(options?: {
+  onSuccess?: (data: EntitlementUsage) => void;
+  onError?: (error: Error) => void;
+}): UseKaitenMutationResult<ReportUsageArgs, EntitlementUsage> {
+  useTrackHook("useReportUsage");
+
+  const { mutate } = useSWRConfig();
+  const { client, mode, scopeKey } = useKaitenContext();
+  const telemetry = useTelemetry();
+  const snapshot = useLicensingSnapshot();
+  const resolvedInstanceSlug = snapshot.data?.instance?.slug ?? "";
+  // Same key the provider reads the snapshot under — both derive it from the
+  // one scopeKey, so an optimistic update cannot miss its target.
+  const snapshotKey = kaitenKeys.components.snapshot(scopeKey);
+
+  return useKaitenMutation({
+    mutationFn: async ({ entitlementSlug, input }: ReportUsageArgs) => {
+      if (mode !== "authenticated") {
+        throw new Error("useReportUsage is only available in authenticated mode.");
+      }
+
+      if (!resolvedInstanceSlug) {
+        throw new Error(
+          "useReportUsage requires a loaded licensing snapshot with an instance slug.",
+        );
+      }
+
+      const reportPromise = client.reportUsage(resolvedInstanceSlug, entitlementSlug, input);
+
+      // Optimistic update. SWR shows the bumped gauge immediately, keeps it
+      // while the report is in flight, revalidates against the server on success,
+      // and rolls back to the previous snapshot on error. `populateCache: false`
+      // because the report returns an `EntitlementUsage`, not the whole snapshot.
+      void mutate<LicensingSnapshot | undefined>(
+        snapshotKey,
+        reportPromise.then(() => undefined),
+        {
+          optimisticData: (current) => bumpEntitlementUsage(current, entitlementSlug, input),
+          populateCache: false,
+          rollbackOnError: true,
+          revalidate: true,
+        },
+      );
+
+      const result = await reportPromise;
+      // No once-key: report-usage is the event we want to count on EVERY call.
+      telemetry.track({
+        type: "action",
+        name: "report-usage",
+        metadata: { entitlementSlug, value: input.value, behavior: input.behavior },
+      });
+      return result;
+    },
+    onSuccess: options?.onSuccess,
+    onError: options?.onError,
+    // No `revalidateKeys` — the optimistic `mutate` above already revalidates the snapshot.
+  });
+}

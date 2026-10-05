@@ -14,7 +14,15 @@ catalog:
   "@openfeature/ofrep-provider": ^0.2.5
   "@openfeature/server-sdk": ^1.23.0
   "@types/node": ^26.6.5
+  "@types/react": ^19.3.0
+  "@types/react-dom": ^19.3.0
+  # In lockstep with the vitest pin below; scripts/check-version-invariants.mjs holds
+  # every @vitest/* entry to it.
+  "@vitest/coverage-v8": 5.0.1
   graphql: ^17.0.2
+  jsdom: ^30.0.1
+  react: ^19.3.0
+  react-dom: ^19.3.0
   # TypeScript 7, the Go compiler, checks types and emits declarations. Tilde, not
   # caret: TypeScript ships breaking changes in minor releases. The packages that
   # run openapi-ts take TypeScript 6 from the `codegen` catalog below instead.
@@ -51,6 +59,11 @@ overrides:
   # so mocks/expect/runner state aren't split across versions.
   vitest@*: "catalog:"
   "@types/node": "catalog:"
+  # One jsdom for the whole tree. Vitest takes jsdom as an optional peer, and the
+  # lockfile still resolved it to 29.1.1 where no package declares jsdom: two Vitest
+  # instances. Under `vp run -r test` the root then ran react's suites with one while
+  # the test files imported the other ("Vitest failed to find the current suite").
+  jsdom: "catalog:"
 peerDependencyRules:
   allowAny:
     - vite
