@@ -27,6 +27,14 @@
 // For @kaitencloud/client and @kaitencloud/server, publint and attw run inside
 // `vp pack` (see each vite.config.ts), so they are not repeated here.
 //
+// Private packages: @kaitencloud/react and @kaitencloud/react-ui are
+// `"private": true` until Kaiten billing ships, so nothing publishes them. They
+// are checked all the same, as the tarball they will ship, so that making them
+// public is a one-line change and not the first time their shape is looked at.
+// While private, each must keep the `publishConfig` a public package carries
+// (public access, the npm registry), and its packed manifest must still say
+// `private`, which makes `npm publish` refuse the tarball.
+//
 //   node scripts/check-published-shape.mjs          # build must have run first
 
 import { execFileSync } from "node:child_process";
@@ -69,7 +77,9 @@ function isExpectedProblem(problem) {
 /** The packages whose `vp pack` cannot validate them, checked here instead. */
 const VALIDATED_HERE = ["react", "react-ui"];
 
+/** Every package this repository ships, or will once it stops being private. */
 const PUBLISHED = ["client", "server", "react", "react-ui"];
+const NPM_REGISTRY = "https://registry.npmjs.org/";
 const LICENSE = "Apache-2.0";
 const LEGAL_FILES = ["LICENSE", "NOTICE", "THIRD_PARTY_NOTICES.md"];
 const DEPENDENCY_FIELDS = [
@@ -130,6 +140,15 @@ for (const dir of PUBLISHED) {
       execFileSync("tar", ["-xzOf", tarballPath, "package/package.json"], { encoding: "utf8" }),
     );
     problems.push(...manifestProblems(manifest));
+    const held = manifest.private === true;
+    if (held) {
+      const { publishConfig = {} } = manifest;
+      if (publishConfig.access !== "public" || publishConfig.registry !== NPM_REGISTRY) {
+        problems.push(
+          `it is private, and its publishConfig must still be { access: "public", registry: "${NPM_REGISTRY}" } for the day it is not`,
+        );
+      }
+    }
 
     if (VALIDATED_HERE.includes(dir)) {
       // publint reads the package directory, attw the tarball bytes.
@@ -156,8 +175,9 @@ for (const dir of PUBLISHED) {
       console.error(`✘ ${name} — ${problems.join("; ")}`);
     } else {
       const validated = VALIDATED_HERE.includes(dir) ? ", publint and attw clean" : "";
+      const status = held ? " (private: not published until it is made public)" : "";
       console.log(
-        `✔ ${name} — ${LEGAL_FILES.join(", ")} ship as the root's copies, the manifest is ${LICENSE} with no pnpm-only range${validated}`,
+        `✔ ${name}${status} — ${LEGAL_FILES.join(", ")} ship as the root's copies, the manifest is ${LICENSE} with no pnpm-only range${validated}`,
       );
     }
   } catch (error) {

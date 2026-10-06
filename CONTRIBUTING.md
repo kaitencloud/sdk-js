@@ -212,6 +212,49 @@ to date: it bumps versions and writes the changelogs. Merging it publishes the
 bumped packages to npm, tags them and creates the GitHub releases. The publish uses
 npm trusted publishing, so no npm token is stored anywhere.
 
+### The React packages are private until billing ships
+
+`@kaitencloud/react` and `@kaitencloud/react-ui` are `"private": true` in their
+`package.json` until Kaiten billing ships, and nothing publishes them before that.
+Changesets neither versions nor publishes a private package: a change to them needs
+no changeset, and a changeset that names them bumps nothing. Their changelogs are
+written by hand until their first release. CI still builds them, tests them, checks
+their bundle size and the shape of the tarball they will ship, so making them public
+is a change of two lines.
+
+Make them public together. `node scripts/check-version-invariants.mjs` fails when a
+public package depends on a private one, and Changesets itself refuses a tree where
+`react-ui` would be released without `react`.
+
+npm accepts a trusted publisher only on a package that already exists, so their
+first version is published by hand, once, by a maintainer of the `@kaitencloud`
+npm scope:
+
+1. On a branch from `main`, delete `"private": true` from both `package.json`
+   files, check that each `CHANGELOG.md` describes the version in its
+   `package.json` (1.0.0 today), and add an empty changeset
+   (`pnpm changeset --empty`).
+2. Build, check and pack both packages on that branch, as the Release workflow
+   does, so the tarballs carry the catalog's real ranges:
+
+   ```bash
+   vp run -r build
+   node scripts/check-published-shape.mjs
+   mkdir -p /tmp/kaiten-react-release
+   (cd packages/react && pnpm pack --pack-destination /tmp/kaiten-react-release)
+   (cd packages/react-ui && pnpm pack --pack-destination /tmp/kaiten-react-release)
+   ```
+
+3. Logged in to npmjs.com, publish `@kaitencloud/react` first, then
+   `@kaitencloud/react-ui`, from those tarballs:
+   `npm publish /tmp/kaiten-react-release/kaitencloud-react-1.0.0.tgz`. If your
+   `.npmrc` maps `@kaitencloud` to another registry, add
+   `--@kaitencloud:registry=https://registry.npmjs.org/`.
+4. On npmjs.com, add this repository's `release.yml` as the trusted publisher of
+   each package.
+5. Merge the branch. npm already has 1.0.0, so the Release workflow has nothing
+   to publish for them, and publishes their later versions itself.
+
 ## Pull requests
 
 For substantial features, architectural changes, or changes to public APIs,

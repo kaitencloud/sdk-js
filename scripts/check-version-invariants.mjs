@@ -408,6 +408,55 @@ const majorOf = (version) => Number(/(\d+)/.exec(version ?? "")?.[1]) || 0;
 }
 
 // ---------------------------------------------------------------------------
+// 7. A package npm publishes never depends on one it does not.
+//    @kaitencloud/react and @kaitencloud/react-ui stay `"private": true` until
+//    Kaiten billing ships, and Changesets publishes no private package. Flipping
+//    react-ui public while react stays private would publish a manifest whose
+//    `@kaitencloud/react` range nobody can install. A private package may depend
+//    on anything; the check is about what reaches npm. Unlike the rules above,
+//    this one guards a change still to come, the day the two are made public.
+// ---------------------------------------------------------------------------
+{
+  const manifests = new Map(
+    readdirSync(resolve(repoRoot, "packages"))
+      .filter((dir) => existsSync(resolve(repoRoot, "packages", dir, "package.json")))
+      .map((dir) => {
+        const manifest = JSON.parse(read(`packages/${dir}/package.json`));
+        return [manifest.name, manifest];
+      }),
+  );
+  const problems = [];
+  const held = [...manifests.values()].filter((m) => m.private === true).map((m) => m.name);
+
+  for (const manifest of manifests.values()) {
+    if (manifest.private === true) continue;
+    for (const field of ["dependencies", "peerDependencies", "optionalDependencies"]) {
+      for (const name of Object.keys(manifest[field] ?? {})) {
+        if (manifests.get(name)?.private === true) {
+          problems.push(
+            `${manifest.name} is published but its ${field} name ${name}, which is private`,
+          );
+        }
+      }
+    }
+  }
+
+  if (problems.length > 0) {
+    fail(
+      "private dependencies",
+      `${problems.join("; ")}. Make both public together, or keep the dependent private`,
+    );
+  } else {
+    pass(
+      "private dependencies",
+      held.length
+        ? `no published package depends on ${held.join(", ")}, which npm does not get`
+        : "every package is published",
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
 
 if (process.env.VERBOSE) {
   for (const { rule, detail } of passed) console.log(`  ok   ${rule}: ${detail}`);
