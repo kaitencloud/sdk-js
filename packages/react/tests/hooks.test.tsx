@@ -684,6 +684,69 @@ test("useReportUsage optimistically bumps the gauge before the server responds, 
   await waitFor(() => expect(result.current.gate.current).toBe(950));
 });
 
+test("useReportUsage hands the report's transactionId to the client, and its outcome back", async () => {
+  const { TransactionIdReusedError } = await import("@kaitencloud/client");
+  const onError = vi.fn();
+  // The first report is answered as a replay of one already applied under its
+  // key; the second, the same key with another value, is refused.
+  kaitenClientMock.reportUsage
+    .mockImplementationOnce(async (_instance, entitlementSlug, input) => ({
+      entitlementId: "ent-api",
+      entitlementSlug,
+      licenseId: "lic-1",
+      licenseSlug: "pro",
+      value: input.value,
+      idempotentReplayed: true,
+    }))
+    .mockImplementationOnce(async () => {
+      throw new TransactionIdReusedError(
+        {
+          status: 409,
+          title: "Conflict",
+          code: "ReportEntitlementUsageMetric.TransactionIdReused",
+        },
+        "llm:9f2c:tokens",
+      );
+    });
+
+  const { result } = renderHook(
+    () => ({ instance: useInstance(), report: useReportUsage({ onError }) }),
+    { wrapper: authenticatedWrapper() },
+  );
+  await waitFor(() => expect(result.current.instance.data?.slug).toBe("prod-instance"));
+
+  const input = {
+    behavior: "append" as const,
+    value: { type: "number" as const, value: 30 },
+    transactionId: "llm:9f2c:tokens",
+  };
+  let replayed: Awaited<ReturnType<typeof result.current.report.mutateAsync>> | undefined;
+  await act(async () => {
+    replayed = await result.current.report.mutateAsync({ entitlementSlug: "api_calls", input });
+  });
+
+  expect(kaitenClientMock.reportUsage).toHaveBeenLastCalledWith("prod-instance", "api_calls", {
+    behavior: "append",
+    value: { type: "number", value: 30 },
+    transactionId: "llm:9f2c:tokens",
+  });
+  expect(replayed?.idempotentReplayed).toBe(true);
+
+  await act(async () => {
+    await expect(
+      result.current.report.mutateAsync({
+        entitlementSlug: "api_calls",
+        input: { ...input, value: { type: "number", value: 31 } },
+      }),
+    ).rejects.toBeInstanceOf(TransactionIdReusedError);
+  });
+  expect(onError).toHaveBeenCalledWith(expect.any(TransactionIdReusedError));
+  expect(onError.mock.calls[0]![0]).toMatchObject({
+    transactionId: "llm:9f2c:tokens",
+    status: 409,
+  });
+});
+
 test("every kaitenKeys entry is prefixed by the provider scope", () => {
   const publicScope = "public:/api:pk_demo";
   const authedScope = "authenticated:/api:cust-1:inst-1";

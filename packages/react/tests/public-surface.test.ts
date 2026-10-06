@@ -39,6 +39,8 @@ const CORE_SURFACE = [
   "KaitenClient",
   "KaitenError",
   "KaitenNetworkError",
+  "TransactionIdReusedError",
+  "InvalidTransactionIdError",
   "KaitenApi",
   "isEvaluationFailure",
   "isEvaluationSuccess",

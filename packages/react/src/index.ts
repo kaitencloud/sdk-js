@@ -36,9 +36,11 @@ export {
 // ---------------------------------------------------------------------------
 
 export {
+  InvalidTransactionIdError,
   KaitenClient,
   KaitenError,
   KaitenNetworkError,
+  TransactionIdReusedError,
   getUsageScope,
   isEvaluationFailure,
   isEvaluationSuccess,

@@ -6,14 +6,21 @@ import { useKaitenMutation, type UseKaitenMutationResult } from "./use-kaiten-qu
 import { useLicensingSnapshot } from "./use-licensing-snapshot.ts";
 import { kaitenKeys } from "./query-keys.ts";
 import type {
-  EntitlementUsage,
   LicensingSnapshot,
   ReportUsageInput,
+  ReportUsageResult,
   ResolvedEntitlement,
 } from "../types.ts";
 
 export interface ReportUsageArgs {
   entitlementSlug: string;
+  /**
+   * The report, sent as it is. Give it a `transactionId` to make it
+   * idempotent: the client then retries it after a network failure or a 5xx,
+   * under the same key, and the API counts it once. Without one it is sent
+   * exactly once. A key reused with another value rejects with
+   * `TransactionIdReusedError`, through `onError`; see `ReportUsageInput`.
+   */
   input: ReportUsageInput;
 }
 
@@ -69,10 +76,19 @@ function bumpEntitlementUsage(
   };
 }
 
+/**
+ * Reports usage of an entitlement for the provider's instance, and moves its
+ * meter at once.
+ *
+ * The meter is bumped before the answer arrives, then reconciled with the
+ * server's snapshot. A report the API recognises as one it already applied
+ * under the same `transactionId` resolves with `idempotentReplayed: true` and
+ * counts nothing: the reconciliation takes the bump back.
+ */
 export function useReportUsage(options?: {
-  onSuccess?: (data: EntitlementUsage) => void;
+  onSuccess?: (data: ReportUsageResult) => void;
   onError?: (error: Error) => void;
-}): UseKaitenMutationResult<ReportUsageArgs, EntitlementUsage> {
+}): UseKaitenMutationResult<ReportUsageArgs, ReportUsageResult> {
   useTrackHook("useReportUsage");
 
   const { mutate } = useSWRConfig();
@@ -115,6 +131,10 @@ export function useReportUsage(options?: {
           populateCache: false,
           rollbackOnError: true,
           revalidate: true,
+          // The refusal reaches the caller through `reportPromise`, awaited
+          // below. Thrown here too, it was an unhandled rejection on every
+          // failed report: a `TransactionIdReusedError` in the host's console.
+          throwOnError: false,
         },
       );
 
