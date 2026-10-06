@@ -213,6 +213,12 @@ composing the same shape from existing REST endpoints (licenses, customers,
 instances, entitlement usage). Snapshot feature flags are resolved **live via OFREP**
 (bulk evaluation with the customer as targeting key) on both paths.
 
+An entitlement's `limitValue` is what the instance is entitled to: the usage read's
+`limit` when it carries one, the licence grant otherwise. A Kaiten server with add-ons
+and vouchers answers that read with the instance's effective value — the grant with its
+add-ons and boosts applied, which is what its usage gate enforces — and an older server
+with the grant itself.
+
 Commerce concepts the backend does not model — add-ons, credits, portal actions,
 billing capabilities, branding — are returned as client-side defaults.
 

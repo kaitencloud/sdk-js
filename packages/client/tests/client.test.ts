@@ -1072,8 +1072,17 @@ describe("the usage window travels only where it was actually read", () => {
     currentPeriodEnd: null,
   };
 
-  function installUsageApi(options: { graphqlAvailable: boolean; periodic?: boolean }): FetchMock {
-    const row = options.periodic === false ? lifetimeUsageRow : usageRow;
+  function installUsageApi(options: {
+    graphqlAvailable: boolean;
+    periodic?: boolean;
+    /** The instance's effective limit, as a server with add-ons answers it. */
+    limit?: number;
+  }): FetchMock {
+    const base = options.periodic === false ? lifetimeUsageRow : usageRow;
+    const row =
+      options.limit === undefined
+        ? base
+        : { ...base, limit: { type: "number", value: options.limit } };
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = new URL(input instanceof Request ? input.url : String(input)).pathname;
 
@@ -1149,6 +1158,27 @@ describe("the usage window travels only where it was actually read", () => {
     expect(tokens?.currentPeriodEnd).toBe("2026-04-01T00:00:00Z");
     expect(resolveUsageScope(tokens ?? {})).toBe("PERIODIC");
   });
+
+  // The licence grants 100 tokens; an add-on raised the instance to 300. The
+  // server gates reports on 300, so both read paths must measure against it.
+  test.each([false, true])(
+    "the usage row's effective limit wins over the licence grant (GraphQL: %s)",
+    async (graphqlAvailable) => {
+      installUsageApi({ graphqlAvailable, limit: 300 });
+
+      const snapshot = await new KaitenClient({
+        authScheme: "none",
+        apiUrl: "https://api.test",
+      }).getLicensingSnapshot("acme");
+      const tokens = snapshot.entitlements.find((entitlement) => entitlement.slug === "tokens");
+
+      expect(tokens).toMatchObject({
+        limitValue: { type: "number", value: 300 },
+        currentValue: { type: "number", value: 40 },
+        remaining: 260,
+      });
+    },
+  );
 
   // The other half of the same rule: bounds genuinely absent on a successful
   // read are the entitlement saying "lifetime counter", and now that the

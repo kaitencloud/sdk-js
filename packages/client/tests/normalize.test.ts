@@ -377,3 +377,112 @@ describe("soft limits", () => {
     expect(resolved.status).toBe("enabled");
   });
 });
+
+// A Kaiten server with add-ons and vouchers answers its gauges with the
+// instance's effective value, which is what its usage gate enforces. An older
+// server answers with the licence grant, so the row's `limit` is right on both.
+describe("effective limits", () => {
+  const usageRow = (limit: unknown, value: unknown = { type: "number", value: 6 }) =>
+    ({
+      entitlementSlug: "customers",
+      value,
+      limit,
+    }) as unknown as import("../src/client/types.ts").EntitlementUsage;
+
+  test("a numeric grant raised by add-ons is measured against the effective value", () => {
+    const [seats] = normalizeResolvedEntitlements(
+      [licenseEntitlement({ value: { type: "number", value: 5 } })],
+      [usageRow({ type: "number", value: 8 })],
+    );
+
+    expect(seats).toMatchObject({
+      limitValue: { type: "number", value: 8 },
+      currentValue: { type: "number", value: 6 },
+      maximumAllowedUsage: 8,
+      remaining: 2,
+      percentageUsed: 75,
+      status: "enabled",
+      unlimited: false,
+    });
+  });
+
+  test("an effective unlimited value uncaps a finite grant, and the reverse caps an unlimited one", () => {
+    const [boosted] = normalizeResolvedEntitlements(
+      [licenseEntitlement({ value: { type: "number", value: 5 } })],
+      [usageRow({ type: "number", value: -1 })],
+    );
+    expect(boosted).toMatchObject({ unlimited: true, maximumAllowedUsage: null, remaining: null });
+
+    const [capped] = normalizeResolvedEntitlements(
+      [
+        {
+          ...licenseEntitlement({ value: { type: "number", value: -1 } }),
+          unlimited: true,
+        } as unknown as LicenseEntitlementRow,
+      ],
+      [usageRow({ type: "number", value: 10 })],
+    );
+    expect(capped).toMatchObject({ unlimited: false, maximumAllowedUsage: 10, remaining: 4 });
+  });
+
+  test("a boolean switched on by an add-on is enabled", () => {
+    const [sso] = normalizeResolvedEntitlements(
+      [
+        licenseEntitlement({
+          entitlementSlug: "customers",
+          entitlementType: "BOOLEAN",
+          value: { type: "boolean", value: false },
+        }),
+      ],
+      [usageRow({ type: "boolean", value: true }, { type: "boolean", value: true })],
+    );
+
+    expect(sso).toMatchObject({
+      limitValue: { type: "boolean", value: true },
+      currentValue: { type: "boolean", value: true },
+      status: "enabled",
+    });
+  });
+
+  test("the overage percent applies to the effective value", () => {
+    const [soft] = normalizeResolvedEntitlements(
+      [
+        licenseEntitlement({
+          value: { type: "number", value: 100 },
+          limitCapExceededOveragePercent: 20,
+        } as Partial<LicenseEntitlement>),
+      ],
+      [usageRow({ type: "number", value: 200 }, { type: "number", value: 210 })],
+    );
+
+    expect(soft).toMatchObject({ maximumAllowedUsage: 240, remaining: 30, status: "near_limit" });
+  });
+
+  test("without a limit on the row, or with one of another type, the grant stands", () => {
+    const [absent] = normalizeResolvedEntitlements(
+      [licenseEntitlement({ value: { type: "number", value: 5 } })],
+      [usageRow(undefined)],
+    );
+    const [mismatched] = normalizeResolvedEntitlements(
+      [licenseEntitlement({ value: { type: "number", value: 5 } })],
+      [usageRow({ type: "boolean", value: true })],
+    );
+
+    expect(absent?.limitValue).toEqual({ type: "number", value: 5 });
+    expect(mismatched?.limitValue).toEqual({ type: "number", value: 5 });
+  });
+
+  test("a failed usage read falls back to the grant, and its usage stays unknown", () => {
+    const [unknown] = normalizeResolvedEntitlements(
+      [licenseEntitlement({ value: { type: "number", value: 5 } })],
+      null,
+      { usageUnavailable: true },
+    );
+
+    expect(unknown).toMatchObject({
+      limitValue: { type: "number", value: 5 },
+      currentValue: null,
+      usageUnavailable: true,
+    });
+  });
+});
