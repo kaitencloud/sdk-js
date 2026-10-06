@@ -83,6 +83,12 @@ conflicts, such as a slug already taken, so the predicate is safe in a shared er
 That refusal is the single most important response this package can return, and the easiest
 one to miss.
 
+A usage report sent with a `transactionId` under a key the API already accepted for another
+`behavior` or value is refused with a `TransactionIdReusedError` (409
+`ReportEntitlementUsageMetric.TransactionIdReused`), a `KaitenError` whose `transactionId` is
+the key it was sent with and whose `original` names the report the key was first accepted with. `isTransactionIdReused` recognizes it. It is a bug
+in the caller, never a transient failure: retrying it under the same key loops.
+
 Every `KaitenError` also carries the problem's `code`, a stable machine-readable identifier
 such as `License.NotFound`, and its `errorId`, the correlation id of the API's log entry for
 the failure: quote it when you report a problem.

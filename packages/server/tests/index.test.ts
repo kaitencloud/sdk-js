@@ -9,6 +9,8 @@ import {
   KaitenError,
   KaitenNetworkError,
   isThresholdExceeded,
+  isTransactionIdReused,
+  TransactionIdReusedError,
 } from "../src/index.ts";
 
 const jsonOk = async () =>
@@ -173,6 +175,69 @@ describe("@kaitencloud/server", () => {
 
       expect(isThresholdExceeded(error)).toBe(true);
       expect((error as KaitenError).status).toBe(409);
+    });
+
+    // A reused key is a client bug: the typed error names the report the key
+    // was first accepted with, so the caller can see what it collided with.
+    test("a usage report under a reused transactionId throws a TransactionIdReusedError", async () => {
+      const client = createKaitenClient({
+        token: "t",
+        baseUrl: "https://example.test",
+        fetch: async () =>
+          new Response(
+            JSON.stringify({
+              title: "Conflict",
+              status: 409,
+              detail: "transactionId already used",
+              code: "ReportEntitlementUsageMetric.TransactionIdReused",
+              errors: [
+                {
+                  message: "the report this transactionId was first accepted with",
+                  location: "body.transactionId",
+                  value: {
+                    reportSeq: 7,
+                    reportedAt: "2026-10-05T08:00:00.000Z",
+                    behavior: "append",
+                    value: 5,
+                  },
+                },
+              ],
+            }),
+            { status: 409, headers: { "content-type": "application/problem+json" } },
+          ),
+      });
+
+      const error = await Instances.reportEntitlementUsageMetric({
+        client,
+        path: { instanceSlug: "inst-1", entitlementSlug: "tokens" },
+        body: { value: { type: "number", value: 6 }, behavior: "append", transactionId: "job-42" },
+      }).catch((caught: unknown) => caught);
+
+      expect(error).toBeInstanceOf(TransactionIdReusedError);
+      expect(error).toBeInstanceOf(KaitenError);
+      expect(isTransactionIdReused(error)).toBe(true);
+      expect(isThresholdExceeded(error)).toBe(false);
+      expect((error as TransactionIdReusedError).status).toBe(409);
+      expect((error as TransactionIdReusedError).transactionId).toBe("job-42");
+      expect((error as TransactionIdReusedError).original).toEqual({
+        reportSeq: 7,
+        reportedAt: "2026-10-05T08:00:00.000Z",
+        behavior: "append",
+        value: 5,
+      });
+    });
+
+    test("isTransactionIdReused ignores other conflicts", () => {
+      expect(isTransactionIdReused(new Error("boom"))).toBe(false);
+      expect(
+        isTransactionIdReused(
+          new KaitenError({
+            title: "Conflict",
+            status: 409,
+            code: "ReportEntitlementUsageMetric.ThresholdExceeded",
+          }),
+        ),
+      ).toBe(false);
     });
 
     test("isThresholdExceeded ignores other failures", async () => {

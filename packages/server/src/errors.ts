@@ -75,11 +75,75 @@ export class KaitenNetworkError extends Error {
   }
 }
 
-/** Every error this package throws, as one discriminated union. */
-export type KaitenThrownError = KaitenError | KaitenNetworkError;
-
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
+
+/** The code the API returns when a usage report reuses a `transactionId` for another report. */
+const TRANSACTION_ID_REUSED = "ReportEntitlementUsageMetric.TransactionIdReused";
+
+/**
+ * The report a `transactionId` was first accepted with, as the API names it in
+ * the 409 that refuses another report under the same key.
+ */
+export interface TransactionIdReusedOriginal {
+  /** Position of that report among the pair's accepted reports, from 1. */
+  reportSeq: number;
+  /** When the server accepted it (RFC 3339, UTC). */
+  reportedAt: string;
+  /** `append` or `set`, as it was sent. */
+  behavior: string;
+  /** The value as it was sent: a delta for `append`, an absolute value for `set`. */
+  value: number;
+}
+
+/** Reads the original report from the problem's `errors[]`, when the body carries it whole. */
+function originalReport(apiError: KaitenApiError): TransactionIdReusedOriginal | undefined {
+  const entry = apiError.errors?.find((error) => error.location === "body.transactionId");
+  const value = entry?.value;
+  if (!isRecord(value)) return undefined;
+  const { reportSeq, reportedAt, behavior } = value;
+  const reported = value["value"];
+  if (
+    typeof reportSeq !== "number" ||
+    typeof reportedAt !== "string" ||
+    typeof behavior !== "string" ||
+    typeof reported !== "number"
+  ) {
+    return undefined;
+  }
+  return { reportSeq, reportedAt, behavior, value: reported };
+}
+
+/**
+ * Thrown when a usage report reuses a `transactionId` the API already accepted,
+ * within its idempotency horizon, for another report of the same instance and
+ * entitlement: a different `behavior` or value. HTTP 409 with the code
+ * `ReportEntitlementUsageMetric.TransactionIdReused`.
+ *
+ * It is a client bug, never a transient failure: retrying it loops, because the
+ * key is spent. The usual cause is a correction sent under the original key. A
+ * correction is a new report under a new key, with `behavior: "set"` for an
+ * absolute value.
+ *
+ * A `KaitenError`, so a handler that narrows on `instanceof KaitenError` or on
+ * `status`/`code` keeps working.
+ */
+export class TransactionIdReusedError extends KaitenError {
+  /** The key the refused report was sent with, when the request body carried it. */
+  public readonly transactionId?: string;
+  /** The report the key was first accepted with, when the API named it. */
+  public readonly original?: TransactionIdReusedOriginal;
+
+  constructor(apiError: KaitenApiError, transactionId?: string) {
+    super(apiError);
+    this.name = "TransactionIdReusedError";
+    this.transactionId = transactionId;
+    this.original = originalReport(apiError);
+  }
+}
+
+/** Every error this package throws, as one discriminated union. */
+export type KaitenThrownError = KaitenError | KaitenNetworkError;
 
 /**
  * Converts whatever the generated client rejected with into a real `Error`.
@@ -88,7 +152,11 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
  * when it is not JSON), so without this the value reaching a `catch` has no
  * stack, no `message`, and does not satisfy `instanceof Error`.
  */
-export function toKaitenError(error: unknown, response?: Response): KaitenThrownError {
+export function toKaitenError(
+  error: unknown,
+  response?: Response,
+  options?: { body?: unknown },
+): KaitenThrownError {
   if (error instanceof KaitenError || error instanceof KaitenNetworkError) return error;
 
   // No response object at all: the request never completed.
@@ -104,10 +172,15 @@ export function toKaitenError(error: unknown, response?: Response): KaitenThrown
   // with a bare string still yields a usable status.
   if (isRecord(error) && typeof error["title"] === "string") {
     const body = error as unknown as KaitenApiError;
-    return new KaitenError({
+    const apiError = {
       ...body,
       status: typeof body.status === "number" ? body.status : response.status,
-    });
+    };
+    if (apiError.status === 409 && apiError.code === TRANSACTION_ID_REUSED) {
+      const sent = isRecord(options?.body) ? options.body["transactionId"] : undefined;
+      return new TransactionIdReusedError(apiError, typeof sent === "string" ? sent : undefined);
+    }
+    return new KaitenError(apiError);
   }
 
   const detail =
@@ -141,4 +214,15 @@ const THRESHOLD_EXCEEDED = "ReportEntitlementUsageMetric.ThresholdExceeded";
  */
 export function isThresholdExceeded(error: unknown): error is KaitenError {
   return error instanceof KaitenError && error.status === 409 && error.code === THRESHOLD_EXCEEDED;
+}
+
+/**
+ * True when the API refused a usage report because its `transactionId` was
+ * already used for another report of the same instance and entitlement: HTTP
+ * 409 with the code `ReportEntitlementUsageMetric.TransactionIdReused`. The
+ * error is then a {@link TransactionIdReusedError}, which names the original
+ * report. Never retry it under the same key.
+ */
+export function isTransactionIdReused(error: unknown): error is TransactionIdReusedError {
+  return error instanceof TransactionIdReusedError;
 }

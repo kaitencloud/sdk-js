@@ -106,7 +106,11 @@ export function createKaitenClient(config: KaitenServerConfig): Client {
 
   // The generated transport rejects with the *parsed response body*, which has
   // no stack and is not an Error. Normalize before it reaches the caller.
-  client.interceptors.error.use((error, response) => toKaitenError(error, response));
+  // The request options come along so that a refused usage report can name the
+  // key it was sent with.
+  client.interceptors.error.use((error, response, _request, options) =>
+    toKaitenError(error, response, options),
+  );
 
   return client;
 }
@@ -116,9 +120,12 @@ export {
   KaitenError,
   KaitenNetworkError,
   isThresholdExceeded,
+  isTransactionIdReused,
   toKaitenError,
+  TransactionIdReusedError,
   type KaitenApiError,
   type KaitenThrownError,
+  type TransactionIdReusedOriginal,
 } from "./errors.ts";
 export {
   verifyKaitenWebhook,
