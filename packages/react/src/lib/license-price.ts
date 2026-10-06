@@ -1,4 +1,22 @@
-import type { License, Plan, PlanPrice } from "../types.ts";
+import type { BillingInterval, License, Plan, PlanPrice } from "../types.ts";
+
+/**
+ * Whether a price reads as "per month" or "per year": a flat fee billed every
+ * single `interval` (any interval when none is given).
+ *
+ * A quarterly price is `interval: "month"` with `intervalCount: 3`, and a
+ * metered one is a `USAGE_BASED` or `OVERAGE` price: shown under "/ month",
+ * the first would be read as a third of what it is, and the second as the
+ * whole bill. A price with no `billingModel`, as a host may write one, is a
+ * flat fee.
+ */
+export function isHeadlinePrice(price: PlanPrice, interval?: BillingInterval): boolean {
+  return (
+    (interval === undefined || price.interval === interval) &&
+    (price.intervalCount ?? 1) === 1 &&
+    (price.billingModel ?? "FLAT_FEE") === "FLAT_FEE"
+  );
+}
 
 /**
  * The price of the plan the customer is currently on, or `null`.
@@ -32,11 +50,12 @@ export function resolveLicensePrice(
 
   if (plan.prices?.length) {
     const matched =
-      plan.prices.find((price) => price.interval === interval) ??
+      plan.prices.find((price) => price.interval === interval && isHeadlinePrice(price)) ??
       // No interval to match on, or none matching: a single price is
       // unambiguous and safe to show. Several are not — showing one of them
-      // would be picking a tariff on the customer's behalf.
-      (plan.prices.length === 1 ? plan.prices[0] : undefined);
+      // would be picking a tariff on the customer's behalf. Nor is a single
+      // quarterly or metered price, which would read as a monthly one.
+      (plan.prices.length === 1 && isHeadlinePrice(plan.prices[0]!) ? plan.prices[0] : undefined);
 
     if (!matched) return null;
     return {

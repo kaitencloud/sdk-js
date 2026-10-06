@@ -46,6 +46,8 @@ const STORIES: Array<{ name: string; storyId: string }> = [
   // count is decided by the window instead of by how wide a card needs to be.
   { name: "pricing-table", storyId: "elements-pricingtable--default" },
   { name: "pricing-table (4 plans)", storyId: "elements-pricingtable--four-columns" },
+  // A "Contact us" link in place of a plan's button, beside a priceless plan.
+  { name: "pricing-table (billing catalog)", storyId: "elements-pricingtable--billing-catalog" },
   { name: "feature-catalog", storyId: "elements-featurecatalog--default" },
   // Wide table — switches to stacked cards at a viewport breakpoint (`ktn-only-*`).
   { name: "feature-comparison", storyId: "elements-featurecomparison--default" },

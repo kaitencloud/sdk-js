@@ -30,6 +30,7 @@ export const fr: KaitenLocalization = {
     limits: "Limites",
     addOns: "Options",
     customPrice: "Sur devis",
+    contactUs: "Nous contacter",
   },
   featureComparison: {
     title: "Comparatif des fonctionnalités",

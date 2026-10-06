@@ -25,6 +25,7 @@ export const defaultLocalization: KaitenLocalization = {
     limits: "Limits",
     addOns: "Add-ons",
     customPrice: "Custom",
+    contactUs: "Contact us",
   },
   featureComparison: {
     title: "Feature comparison",

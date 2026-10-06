@@ -56,6 +56,8 @@ export interface KaitenLocalization {
     addOns: string;
     /** Shown instead of a price when a plan has no amount (e.g. enterprise / contact-sales). */
     customPrice: string;
+    /** The link of a plan that is not self-serve, to its `selfServeCtaUrl`. */
+    contactUs: string;
   };
   featureComparison: {
     title: string;

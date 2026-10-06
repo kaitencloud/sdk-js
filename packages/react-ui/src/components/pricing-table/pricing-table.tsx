@@ -11,7 +11,7 @@ import {
   CardTitle,
 } from "../ui/card.tsx";
 import { Badge } from "../ui/badge.tsx";
-import { Button } from "../ui/button.tsx";
+import { Button, buttonVariants } from "../ui/button.tsx";
 import { Separator } from "../ui/separator.tsx";
 import type { KaitenAppearance } from "../../appearance/types.ts";
 import { useIcons } from "../../appearance/icons.tsx";
@@ -21,9 +21,10 @@ import {
   DEFAULT_CURRENCY_CODE,
   type BillingInterval,
   type Plan,
+  type PlanPrice,
 } from "@kaitencloud/react";
 import { useAssertWrappedByKaitenProvider } from "../../style-root/kaiten-style-root.tsx";
-import { useTrackComponent } from "@kaitencloud/react/internal";
+import { isHeadlinePrice, useTrackComponent } from "@kaitencloud/react/internal";
 import { FeatureComparison } from "../feature-comparison/feature-comparison.tsx";
 import { KaitenBranding } from "../shared/kaiten-branding.tsx";
 import { CardLoading } from "../shared/loading.tsx";
@@ -95,13 +96,23 @@ function resolveColumns(count: 2 | 3 | 4): string {
   }
 }
 
-function getPlanPrice(plan: Plan, interval: BillingInterval): { amount?: number; label: string } {
-  const matchedPrice = plan.prices?.find((price) => price.interval === interval);
+/**
+ * The price a card shows for the selected interval, and the suffix under it.
+ *
+ * Only a flat fee billed every single `interval` qualifies: a quarterly price
+ * (`interval: "month"`, `intervalCount: 3`) under "/month" would read as a
+ * third of what it costs, and a usage price as the whole bill. Among several,
+ * the default one. The suffix is the interval, never the price's free-text
+ * `label` ("Monthly" from the API made "€49.00/Monthly").
+ */
+function getPlanPrice(
+  plan: Plan,
+  interval: BillingInterval,
+): { amount?: number; label: string; price?: PlanPrice } {
+  const candidates = plan.prices?.filter((price) => isHeadlinePrice(price, interval)) ?? [];
+  const matchedPrice = candidates.find((price) => price.isDefault) ?? candidates[0];
   if (matchedPrice) {
-    return {
-      amount: matchedPrice.amount,
-      label: matchedPrice.label ?? interval,
-    };
+    return { amount: matchedPrice.amount, label: interval, price: matchedPrice };
   }
 
   if (interval === "year" && typeof plan.annualPrice === "number") {
@@ -140,7 +151,7 @@ function renderAddonPrice(
   fallbackCurrencyCode: string | undefined,
   localization: ReturnType<typeof useLocalization>,
 ): string {
-  const amount = addon.price ?? addon.prices?.[0]?.amount;
+  const amount = addon.price ?? addon.prices?.find((price) => isHeadlinePrice(price))?.amount;
   if (typeof amount !== "number") return localization.pricingTable.customPrice;
   return localization.formatMoney(
     amount,
@@ -164,11 +175,40 @@ function renderCtaText(
     : localization.pricingTable.selectPlan;
 }
 
+/**
+ * What a plan's card offers.
+ *
+ * A self-serve plan, or one the catalog says nothing about, gets the select
+ * button. A plan that is not self-serve — "Contact us" for a CUSTOM one —
+ * links to its `selfServeCtaUrl`, and offers nothing when it has none: a
+ * button that leads nowhere is worse than no button.
+ */
+function planCta(plan: Plan): { href: string } | "select" | null {
+  if (plan.selfServe !== false) return "select";
+  return plan.selfServeCtaUrl ? { href: plan.selfServeCtaUrl } : null;
+}
+
+/** Calls `onSelectPlan` with the price only when the card showed one. */
+function selectPlan(
+  onSelectPlan: PricingTableProps["onSelectPlan"],
+  plan: Plan,
+  price: PlanPrice | undefined,
+): void {
+  if (price) onSelectPlan?.(plan.slug, plan, price);
+  else onSelectPlan?.(plan.slug, plan);
+}
+
 export interface PricingTableProps {
   plans?: PricingPlan[];
   highlightPlan?: string;
   hidePlans?: string[];
-  onSelectPlan?: (planId: string, plan: PricingPlan) => void;
+  /**
+   * Called with the plan the visitor picked and, when the card showed one, the
+   * price it showed: its `id` is what a checkout names as `licensePriceId`.
+   * Only self-serve plans, and plans whose catalog says nothing about it, offer
+   * this action; the others link to their `selfServeCtaUrl`.
+   */
+  onSelectPlan?: (planId: string, plan: PricingPlan, price?: PlanPrice) => void;
   appearance?: KaitenAppearance;
   numberOfColumns?: 2 | 3 | 4;
   sectionLayout?: PricingLayout;
@@ -290,7 +330,7 @@ function PricingTableView({
   );
 
   const hasAnnualPlans = visiblePlans.some((plan) =>
-    Boolean(plan.prices?.some((price) => price.interval === "year") || plan.annualPrice),
+    Boolean(plan.prices?.some((price) => isHeadlinePrice(price, "year")) || plan.annualPrice),
   );
   const [interval, setInterval] = React.useState<BillingInterval>("month");
 
@@ -388,14 +428,26 @@ function PricingTableView({
                     <li key={feature}>{feature}</li>
                   ))}
                 </ul>
-                <button type="button" onClick={() => onSelectPlan?.(plan.slug, plan)}>
-                  {renderCtaText(
-                    ctaText,
-                    plan,
-                    plan.slug === highlightPlan || !!plan.highlighted,
-                    localization,
-                  )}
-                </button>
+                {(() => {
+                  const cta = planCta(plan);
+                  if (cta === null) return null;
+                  if (cta !== "select") {
+                    return <a href={cta.href}>{localization.pricingTable.contactUs}</a>;
+                  }
+                  return (
+                    <button
+                      type="button"
+                      onClick={() => selectPlan(onSelectPlan, plan, price.price)}
+                    >
+                      {renderCtaText(
+                        ctaText,
+                        plan,
+                        plan.slug === highlightPlan || !!plan.highlighted,
+                        localization,
+                      )}
+                    </button>
+                  );
+                })()}
               </article>
             );
           })}
@@ -638,21 +690,42 @@ function PricingTableView({
                   </>
                 )}
               </CardContent>
-              <CardFooter className="px-8">
-                <Button
-                  variant={isHighlighted ? "default" : "secondary"}
-                  className={cn(
-                    "h-12 w-full text-base font-semibold",
-                    // The brand gradient, scrimmed for legibility — see `.ktn-cta-gradient`
-                    // in kaiten.css. Only the highlighted plan gets it; a table where every
-                    // CTA is a gradient has no primary action.
-                    isHighlighted && "ktn-cta-gradient",
-                  )}
-                  onClick={() => onSelectPlan?.(plan.slug, plan)}
-                >
-                  {renderCtaText(ctaText, plan, isHighlighted, localization)}
-                </Button>
-              </CardFooter>
+              {(() => {
+                const cta = planCta(plan);
+                if (cta === null) return null;
+                const ctaClassName = cn(
+                  "h-12 w-full text-base font-semibold",
+                  // The brand gradient, scrimmed for legibility — see `.ktn-cta-gradient`
+                  // in kaiten.css. Only the highlighted plan gets it; a table where every
+                  // CTA is a gradient has no primary action.
+                  isHighlighted && "ktn-cta-gradient",
+                );
+                const variant = isHighlighted ? "default" : "secondary";
+                return (
+                  <CardFooter className="px-8">
+                    {cta === "select" ? (
+                      <Button
+                        variant={variant}
+                        className={ctaClassName}
+                        onClick={() => selectPlan(onSelectPlan, plan, resolvedPrice.price)}
+                      >
+                        {renderCtaText(ctaText, plan, isHighlighted, localization)}
+                      </Button>
+                    ) : (
+                      <a
+                        data-slot="button"
+                        href={cta.href}
+                        className={cn(
+                          "ktn-own",
+                          buttonVariants({ variant, size: "default", className: ctaClassName }),
+                        )}
+                      >
+                        {localization.pricingTable.contactUs}
+                      </a>
+                    )}
+                  </CardFooter>
+                );
+              })()}
               <KaitenBranding className="-mb-8" />
             </Card>
           );

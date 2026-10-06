@@ -30,6 +30,8 @@ export const STORIES: Array<{ name: string; storyId: string }> = [
   { name: "pricing-table--default", storyId: "elements-pricingtable--default" },
   { name: "pricing-table--four-columns", storyId: "elements-pricingtable--four-columns" },
   { name: "pricing-table--separate-layout", storyId: "elements-pricingtable--separate-layout" },
+  // Prices as the billing API serves them, and a plan that is not self-serve.
+  { name: "pricing-table--billing-catalog", storyId: "elements-pricingtable--billing-catalog" },
   // FeatureComparison — sticky header column.
   { name: "feature-comparison--default", storyId: "elements-featurecomparison--default" },
   // CustomerPortal — composite surface, exercises every section. (The old

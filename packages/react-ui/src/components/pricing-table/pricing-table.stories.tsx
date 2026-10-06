@@ -260,6 +260,86 @@ export const Unstyled: Story = {
   },
 };
 
+// The catalog as the billing API serves it: default prices beside a quarterly
+// one, and a plan that is not self-serve. The quarterly price never shows under
+// "/month", and Enterprise links to its contact page instead of offering a plan
+// nobody can buy by themselves.
+const billingPrice = (
+  id: string,
+  amount: number,
+  interval: "month" | "year",
+  intervalCount?: number,
+) => ({
+  id,
+  amount,
+  unitAmountDecimal: `${amount}`,
+  currencyCode: "EUR",
+  interval,
+  ...(intervalCount ? { intervalCount } : {}),
+  billingModel: "FLAT_FEE",
+  isDefault: true,
+});
+
+const billingPlans: PricingPlan[] = [
+  {
+    slug: "starter-v1",
+    name: "Starter",
+    description: "For solo builders and small projects.",
+    currencyCode: "EUR",
+    prices: [
+      billingPrice("lp-starter-m", 1900, "month"),
+      billingPrice("lp-starter-y", 19000, "year"),
+    ],
+    features: ["Community support"],
+    pricingType: "PAID",
+    selfServe: true,
+    selfServeCtaUrl: null,
+  },
+  {
+    slug: "pro-v2",
+    name: "Pro",
+    description: "Best for growing teams.",
+    currencyCode: "EUR",
+    prices: [
+      billingPrice("lp-pro-q", 13500, "month", 3),
+      billingPrice("lp-pro-m", 4900, "month"),
+      billingPrice("lp-pro-y", 49000, "year"),
+    ],
+    features: ["Priority support"],
+    highlighted: true,
+    pricingType: "PAID",
+    selfServe: true,
+    selfServeCtaUrl: null,
+  },
+  {
+    slug: "enterprise-v1",
+    name: "Enterprise",
+    description: "Volume pricing and a dedicated contact.",
+    features: ["SSO / SAML", "Dedicated support"],
+    pricingType: "CUSTOM",
+    selfServe: false,
+    selfServeCtaUrl: "https://example.com/contact",
+  },
+];
+
+export const BillingCatalog: Story = {
+  name: "Billing catalog",
+  args: {
+    plans: billingPlans,
+    showFeatureComparison: false,
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+
+    await expect(await canvas.findByText("€49.00")).toBeInTheDocument();
+    await expect(canvas.queryByText("€135.00")).toBeNull();
+    await expect(canvas.getByRole("link", { name: "Contact us" })).toHaveAttribute(
+      "href",
+      "https://example.com/contact",
+    );
+  },
+};
+
 export const Loading: Story = {
   parameters: {
     docs: {

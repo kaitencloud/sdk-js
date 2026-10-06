@@ -1,6 +1,6 @@
 import { expect, test } from "vite-plus/test";
 
-import { resolveLicensePrice } from "../src/lib/license-price.ts";
+import { isHeadlinePrice, resolveLicensePrice } from "../src/lib/license-price.ts";
 import type { License, Plan } from "../src/types.ts";
 
 function license(over: Partial<License> = {}): License {
@@ -127,4 +127,30 @@ test("prefers a price's own currency over the plan's", () => {
   ]);
 
   expect(resolved?.currencyCode).toBe("JPY");
+});
+
+// A quarterly price is `interval: "month"` with `intervalCount: 3`, and a
+// metered one has a `billingModel` other than FLAT_FEE. Neither is "per month".
+test("never takes a quarterly or a metered price for the plan's monthly price", () => {
+  const quarterly = { amount: 13500, interval: "month" as const, intervalCount: 3 };
+  const metered = { amount: 200, interval: "month" as const, billingModel: "USAGE_BASED" };
+  const monthly = { amount: 4900, interval: "month" as const, billingModel: "FLAT_FEE" };
+
+  expect(
+    resolveLicensePrice(license({ billingInterval: "month" }), [
+      plan({ prices: [quarterly, metered, monthly] }),
+    ]),
+  ).toMatchObject({ amount: 4900, interval: "month" });
+  // Alone, they are not the unambiguous single price either.
+  expect(resolveLicensePrice(license(), [plan({ prices: [quarterly] })])).toBeNull();
+  expect(resolveLicensePrice(license(), [plan({ prices: [metered] })])).toBeNull();
+});
+
+test("isHeadlinePrice: a flat fee billed every single interval", () => {
+  expect(isHeadlinePrice({ amount: 1, interval: "month" }, "month")).toBe(true);
+  expect(isHeadlinePrice({ amount: 1, interval: "month", intervalCount: 1 }, "month")).toBe(true);
+  expect(isHeadlinePrice({ amount: 1, interval: "year", billingModel: "FLAT_FEE" })).toBe(true);
+  expect(isHeadlinePrice({ amount: 1, interval: "year" }, "month")).toBe(false);
+  expect(isHeadlinePrice({ amount: 1, interval: "month", intervalCount: 6 }, "month")).toBe(false);
+  expect(isHeadlinePrice({ amount: 1, billingModel: "OVERAGE" })).toBe(false);
 });
