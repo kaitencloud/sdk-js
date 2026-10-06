@@ -96,6 +96,12 @@ export interface KaitenRunOptions {
    * that mutates server state — the transport then never retries it.
    */
   idempotent?: boolean;
+  /**
+   * Called with the response of the attempt that succeeded, before its body is
+   * returned, for a call whose answer also travels in headers. Not called when
+   * the call fails.
+   */
+  onResponse?: (response: Response) => void;
 }
 
 export class KaitenTransport {
@@ -214,6 +220,7 @@ export class KaitenTransport {
           throw new KaitenError(toKaitenApiError(result.error, status));
         }
 
+        if (result.response) options.onResponse?.(result.response);
         return result.data as T;
       },
       {
@@ -223,8 +230,9 @@ export class KaitenTransport {
           // the client-side timeout abort, so a backend that committed the write
           // and then answered slowly would otherwise be asked to commit it again
           // — on `reportUsage` that is double-counted usage, and usage is the
-          // billing base. There is no idempotency key on the wire to make the
-          // replay safe, so the only correct number of attempts is one.
+          // billing base. Without an idempotency key on the wire the only
+          // correct number of attempts is one; a write that carries one (a
+          // `reportUsage` with a `transactionId`) declares itself idempotent.
           if (!idempotent) return false;
           if (iteration >= 3) return false;
           if (error instanceof KaitenNetworkError) return true;

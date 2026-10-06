@@ -59,4 +59,33 @@ describe("retry and idempotency", () => {
 
     expect(requests).toHaveLength(2);
   });
+
+  it("hands the response of the attempt that succeeded to onResponse", async () => {
+    const { fetch, requests } = stubFetch([500, 200]);
+    const seen: number[] = [];
+
+    await transportWith(fetch).run(
+      (client) => client.post({ url: "/usage", body: { value: 1 } }),
+      "POST /usage",
+      { idempotent: true, onResponse: (response) => seen.push(response.status) },
+    );
+
+    expect(requests).toHaveLength(2);
+    expect(seen).toEqual([200]);
+  });
+
+  it("does not call onResponse when the call fails", async () => {
+    const { fetch } = stubFetch([409]);
+    const seen: number[] = [];
+
+    await expect(
+      transportWith(fetch).run(
+        (client) => client.post({ url: "/usage", body: { value: 1 } }),
+        "POST /usage",
+        { idempotent: false, onResponse: (response) => seen.push(response.status) },
+      ),
+    ).rejects.toThrow();
+
+    expect(seen).toEqual([]);
+  });
 });

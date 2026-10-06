@@ -17,9 +17,11 @@ export * as KaitenApi from "./core/index.ts";
 // Curated runtime + config surface, promoted back to the top level:
 export {
   client,
+  InvalidTransactionIdError,
   KaitenError,
   KaitenNetworkError,
   KaitenTransport,
+  TransactionIdReusedError,
   assertPublishableKey,
   isPublishableKey,
   retry,
@@ -36,6 +38,7 @@ export type {
   KaitenThrownError,
   PublicKaitenProviderConfig,
   RetryOptions,
+  TransactionIdReusedOriginal,
 } from "./core/index.ts";
 
 export { KaitenClient } from "./client/client.ts";

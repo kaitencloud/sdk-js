@@ -78,6 +78,56 @@ const snapshot = await kaiten.components.getSnapshot("acme-corp");
 - `kaiten.usage` — entitlement usage (read + report)
 - `kaiten.flags` — feature-flag evaluation (`evaluate`, `evaluateAll`)
 
+## Reporting usage
+
+A usage report is not idempotent: `append 500` sent twice counts 1 000. When a
+report times out, the client cannot know whether the API counted it, so a report
+without a key is sent **exactly once** and never retried.
+
+Give it a `transactionId` and the API applies it once, whatever the number of
+times it arrives:
+
+```ts
+import { KaitenError, TransactionIdReusedError } from "@kaitencloud/client";
+
+try {
+  const usage = await kaiten.reportUsage("acme-production", "tokens", {
+    value: { type: "number", value: 1_250 },
+    behavior: "append",
+    transactionId: `llm-call:${callId}:tokens`, // 1 to 128 of [A-Za-z0-9._:-]
+  });
+  if (usage.idempotentReplayed) {
+    // Already counted: `usage` is that report's original result, not the current gauge.
+  }
+} catch (error) {
+  if (error instanceof TransactionIdReusedError) {
+    // A bug in the caller: the key was used for another value. error.original names it.
+  }
+  throw error;
+}
+```
+
+- **One key per measurement.** A key is scoped to the instance and the
+  entitlement, and the API remembers it for 35 days by default. The same business
+  event can feed two meters under one key. A correction is a new report under a
+  new key, with `behavior: "set"` for an absolute value: under the original key
+  it is refused with `TransactionIdReusedError` (409), which is never retried.
+- **Retries.** With a key, and only then, a report that fails on the network,
+  times out or answers a 5xx is retried, up to three attempts, all under the same
+  key. A retry the API already applied resolves with `idempotentReplayed: true`
+  and counts nothing.
+- **No generated keys.** The client never makes a key up: without one, the body
+  is the one you passed, as it was sent before keys existed.
+- **Malformed keys** are refused before anything is sent, with an
+  `InvalidTransactionIdError`: the same error the API answers a malformed key with (422).
+- **Dropped metadata.** `metadataDropped: "too_large"` says the report's
+  `metadata` was above 4 KiB and was not stored. The report itself was counted.
+- **Older servers.** A Kaiten server that predates `transactionId` refuses the
+  member with a 422 before it counts anything. The client sends that report again
+  without its key, warns once, and sends every later report of the same client
+  without a key, and so without retries. The memory is the client's, not the
+  process's: another client, pointed at a current server, keeps its keys.
+
 ## Testing without an API — `@kaitencloud/client/testing`
 
 Building or testing a Kaiten integration used to need a Kaiten account and a

@@ -9,8 +9,17 @@ export * from "./generated/index.ts";
 export { client } from "./generated/client.gen.ts";
 export type { CreateClientConfig } from "./generated/client.gen.ts";
 
-export { KaitenError, KaitenNetworkError } from "./runtime/errors.ts";
-export type { KaitenApiError, KaitenThrownError } from "./runtime/errors.ts";
+export {
+  InvalidTransactionIdError,
+  KaitenError,
+  KaitenNetworkError,
+  TransactionIdReusedError,
+} from "./runtime/errors.ts";
+export type {
+  KaitenApiError,
+  KaitenThrownError,
+  TransactionIdReusedOriginal,
+} from "./runtime/errors.ts";
 export { assertPublishableKey, isPublishableKey } from "./runtime/keys.ts";
 export { retry } from "./runtime/retry.ts";
 export type { RetryOptions } from "./runtime/retry.ts";

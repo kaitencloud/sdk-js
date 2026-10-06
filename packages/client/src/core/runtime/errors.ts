@@ -72,3 +72,90 @@ export class KaitenNetworkError extends Error {
  * an HTTP `status`; `"network"` carries a `cause`).
  */
 export type KaitenThrownError = KaitenError | KaitenNetworkError;
+
+/** The problem code of a usage report refused because its `transactionId` was already used. */
+export const TRANSACTION_ID_REUSED_CODE = "ReportEntitlementUsageMetric.TransactionIdReused";
+
+/** The problem code of a usage report refused because its `transactionId` is malformed. */
+export const INVALID_TRANSACTION_ID_CODE = "ReportEntitlementUsageMetric.InvalidTransactionId";
+
+/**
+ * The report a `transactionId` was first accepted with, as the API names it in
+ * the 409 that refuses another report under the same key.
+ */
+export interface TransactionIdReusedOriginal {
+  /** Position of that report among the pair's accepted reports, from 1. */
+  reportSeq: number;
+  /** When the server accepted it (RFC 3339, UTC). */
+  reportedAt: string;
+  /** `append` or `set`, as it was sent. */
+  behavior: string;
+  /** The value as it was sent: a delta for `append`, an absolute value for `set`. */
+  value: number;
+}
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
+
+/** Reads the original report from the problem's `errors[]`, when the body carries it whole. */
+function originalReport(apiError: KaitenApiError): TransactionIdReusedOriginal | undefined {
+  const entry = apiError.errors?.find((error) => error.location === "body.transactionId");
+  const value = entry?.value;
+  if (!isRecord(value)) return undefined;
+  const { reportSeq, reportedAt, behavior } = value;
+  const reported = value["value"];
+  if (
+    typeof reportSeq !== "number" ||
+    typeof reportedAt !== "string" ||
+    typeof behavior !== "string" ||
+    typeof reported !== "number"
+  ) {
+    return undefined;
+  }
+  return { reportSeq, reportedAt, behavior, value: reported };
+}
+
+/**
+ * Thrown when a usage report reuses a `transactionId` the API already accepted,
+ * within its idempotency horizon, for another report of the same instance and
+ * entitlement: a different `behavior` or value. HTTP 409 with the code
+ * `ReportEntitlementUsageMetric.TransactionIdReused`.
+ *
+ * It is a client bug, never a transient failure, so the client does not retry
+ * it, and retrying it by hand loops: the key is spent. The usual cause is a
+ * correction sent under the original key. A correction is a new report under a
+ * new key, with `behavior: "set"` for an absolute value.
+ *
+ * A `KaitenError`, so a handler that narrows on `instanceof KaitenError` or on
+ * `status`/`code` keeps working.
+ */
+export class TransactionIdReusedError extends KaitenError {
+  /** The key the refused report was sent with. */
+  public readonly transactionId?: string;
+  /** The report the key was first accepted with, when the API named it. */
+  public readonly original?: TransactionIdReusedOriginal;
+
+  constructor(apiError: KaitenApiError, transactionId?: string) {
+    super(apiError);
+    this.name = "TransactionIdReusedError";
+    this.transactionId = transactionId;
+    this.original = originalReport(apiError);
+  }
+}
+
+/**
+ * Thrown when the API refuses a usage report's `transactionId` as malformed: it
+ * must be 1 to 128 characters of `[A-Za-z0-9._:-]`. HTTP 422 with the code
+ * `ReportEntitlementUsageMetric.InvalidTransactionId`. Nothing was counted, and
+ * the client does not retry it.
+ */
+export class InvalidTransactionIdError extends KaitenError {
+  /** The key the refused report was sent with. */
+  public readonly transactionId?: string;
+
+  constructor(apiError: KaitenApiError, transactionId?: string) {
+    super(apiError);
+    this.name = "InvalidTransactionIdError";
+    this.transactionId = transactionId;
+  }
+}

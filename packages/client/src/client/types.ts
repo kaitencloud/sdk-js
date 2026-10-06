@@ -228,15 +228,59 @@ export interface LicenseEntitlementRow {
  * the API receives it. The window it lands in is derived from database time —
  * and for a `LICENSE_START` anchor, from the instance's own license start date —
  * so a caller-supplied clock has nothing to say about which window a report
- * belongs to. `ReportEntitlementUsageBody` declares `additionalProperties: false`
- * over `value`, `behavior` and `metadata`, so sending one is a rejected request,
- * not an ignored field.
+ * belongs to. `ReportEntitlementUsageBody` declares `additionalProperties: false`,
+ * so sending one is a rejected request, not an ignored field.
  */
 export interface ReportUsageInput {
   value: EntitlementValue;
   behavior: UsageBehavior;
   metadata?: Record<string, unknown>;
+  /**
+   * Idempotency key: 1 to 128 characters of `[A-Za-z0-9._:-]`, matched exactly
+   * and case-sensitively, such as a UUID or `llm-call:9f2c:tokens`.
+   *
+   * The API applies a report once per key, per instance and entitlement, over
+   * its idempotency horizon (35 days by default): sent again with the same
+   * `behavior` and value, the report answers its original result with
+   * `idempotentReplayed: true` and counts nothing; sent with another
+   * `behavior` or value, it is refused with `TransactionIdReusedError`. A
+   * refused report (`ThresholdExceeded`) does not spend its key.
+   *
+   * With a key, and only then, the client retries a report that failed on the
+   * network or with a 5xx, up to three attempts under the same key. Without
+   * one, a report is sent exactly once: replaying it could count it twice. The
+   * client never makes a key up.
+   *
+   * A key outside that format is refused before anything is sent, with an
+   * `InvalidTransactionIdError`.
+   *
+   * A Kaiten server that predates this member refuses it with a 422. The client
+   * then sends that report again without its key, warns once, and sends every
+   * later report of the same client without a key, and so without retries.
+   */
+  transactionId?: string;
 }
+
+/**
+ * What a usage report resolves with: the counter after it, plus what the API
+ * said about the report in its response headers.
+ */
+export type ReportUsageResult = EntitlementUsage & {
+  /**
+   * `true` when the API answered a report already applied under the same
+   * `transactionId` (`Idempotent-Replayed: true`). The body is then that
+   * report's original result, nothing was counted again, and its window,
+   * value and limit are the ones of that report: do not read it as the current
+   * gauge. Absent otherwise.
+   */
+  idempotentReplayed?: true;
+  /**
+   * Why the report's `metadata` was not stored, when it was not
+   * (`Kaiten-Metadata-Dropped`): `"too_large"` above 4 KiB. The report itself
+   * was counted. Absent otherwise.
+   */
+  metadataDropped?: string;
+};
 
 // ---------------------------------------------------------------------------
 // Instance
