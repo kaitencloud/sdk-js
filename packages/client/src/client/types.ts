@@ -60,7 +60,16 @@ export interface BulkEvaluationResponse {
 
 export type LicenseType = "DEVELOPMENT" | "TRIAL" | "PAID" | "COMMUNITY";
 
-export type EntitlementType = "BOOLEAN" | "NUMBER" | "CONFIG";
+/**
+ * An entitlement's type. `NUMBER_AI_CREDIT` is a number entitlement counted in
+ * AI credits: it carries a `number` value and is metered like `NUMBER`, so
+ * branch on `limitValue.type` rather than on this to tell numbers apart.
+ *
+ * Closed over these four. `NUMBER_AI_CREDIT` was added to what 1.0.0 named
+ * because the API already sent it; code that switches over this type
+ * exhaustively needs its case, and no other member will follow in 1.x.
+ */
+export type EntitlementType = "BOOLEAN" | "NUMBER" | "CONFIG" | "NUMBER_AI_CREDIT";
 
 export type AggregationMethod = "COUNT" | "SUM" | "AVERAGE" | "MIN" | "MAX" | "LATEST";
 

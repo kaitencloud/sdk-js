@@ -10,6 +10,7 @@ import {
 } from "../src/client/normalize.ts";
 import { resolveUsageScope } from "../src/domain/entitlement-usage.ts";
 import type {
+  EntitlementType,
   Instance,
   License,
   LicenseEntitlement,
@@ -483,6 +484,33 @@ describe("effective limits", () => {
       limitValue: { type: "number", value: 5 },
       currentValue: null,
       usageUnavailable: true,
+    });
+  });
+});
+
+describe("NUMBER_AI_CREDIT", () => {
+  test("is named by EntitlementType and metered like a number", () => {
+    const [credits] = normalizeResolvedEntitlements(
+      [
+        licenseEntitlement({
+          entitlementType: "NUMBER_AI_CREDIT",
+        } as unknown as Partial<LicenseEntitlement>),
+      ],
+      [
+        {
+          entitlementSlug: "customers",
+          value: { type: "number", value: 30 },
+        } as unknown as import("../src/client/types.ts").EntitlementUsage,
+      ],
+    );
+    const type: EntitlementType = "NUMBER_AI_CREDIT";
+
+    expect(credits).toMatchObject({
+      type,
+      limitValue: { type: "number", value: 120 },
+      currentValue: { type: "number", value: 30 },
+      remaining: 90,
+      percentageUsed: 25,
     });
   });
 });
