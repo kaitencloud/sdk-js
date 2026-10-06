@@ -67,6 +67,8 @@ const CORE_SURFACE = [
   "useAddOns",
   "useCredits",
   "useKaitenBranding",
+  "usePortal",
+  "useKaitenSessionClient",
   "kaitenKeys",
   "useKaitenScopeKey",
   // Control primitives

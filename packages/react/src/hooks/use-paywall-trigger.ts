@@ -67,29 +67,33 @@ export function usePaywallTrigger(
   const flags = useFlags();
   const snapshot = useLicensingSnapshot();
   const { mode } = useKaitenContext();
+  // A customer's scope: an authenticated provider's snapshot, or a customer
+  // session's portal, whose entitlements are already effective (add-ons and
+  // voucher boosts applied), so the wall gates on what the server enforces.
+  const gates = mode === "authenticated" || mode === "customer-session";
 
   // A finite numeric quota is the only case where current/limit/percentage and a
   // progress bar are meaningful (R-?). Boolean/config/flag/unlimited never are.
   const metered = check.entitlement?.limitValue.type === "number" && !check.isUnlimited;
   const usageWindow = check.entitlement ? usageWindowLabel(check.entitlement, localization) : null;
 
-  // Only an authenticated scope has a customer's entitlements. Public mode's
+  // Only a customer's scope has a customer's entitlements. Public mode's
   // snapshot is intentionally empty and static mode has no snapshot at all, so
   // an entitlement check under either always reads "not entitled" and would
   // silently paywall every visitor (R-?). Warn and fail OPEN: gating belongs in
-  // authenticated mode; on a marketing page the content should render.
+  // a customer's scope; on a marketing page the content should render.
   React.useEffect(() => {
-    if (mode !== "authenticated" && process.env.NODE_ENV !== "production") {
+    if (!gates && process.env.NODE_ENV !== "production") {
       console.warn(
         `[@kaitencloud/react] usePaywallTrigger/Paywall("${entitlementSlug}") is used under mode="${mode}". ` +
-          `Only an authenticated <KaitenProvider> has a customer's entitlements, so the paywall is disabled (content shown). ` +
-          `Move entitlement gating into an authenticated <KaitenProvider>.`,
+          `Only an authenticated or customer-session <KaitenProvider> has a customer's entitlements, so the paywall is disabled (content shown). ` +
+          `Move entitlement gating into one of them.`,
       );
     }
-  }, [mode, entitlementSlug]);
+  }, [gates, mode, entitlementSlug]);
 
   return React.useMemo(() => {
-    if (mode !== "authenticated") {
+    if (!gates) {
       return {
         shouldShow: false,
         reason: null,
@@ -223,7 +227,7 @@ export function usePaywallTrigger(
     flags.isLoading,
     metered,
     usageWindow,
-    mode,
+    gates,
     options.flagKey,
     options.min,
     options.onError,

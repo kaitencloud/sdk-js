@@ -49,15 +49,16 @@ export function useEntitlementCheck(
 
   // A slug the org doesn't define answers `allowed: false` — right, and
   // indistinguishable from a real denial, so a typo reads as a feature that is
-  // simply off. Only an authenticated scope has a list to check against:
-  // public and static providers have no customer, so their empty list says
-  // nothing about the slug, and `usePaywallTrigger` already names the mode.
+  // simply off. Only a customer's scope has a list to check against (an
+  // authenticated one, or a customer session's portal): public and static
+  // providers have no customer, so their empty list says nothing about the
+  // slug, and `usePaywallTrigger` already names the mode.
   React.useEffect(() => {
     warnUnknownEntitlement({
       hook: "useEntitlementCheck",
       slug: entitlementSlug,
       known:
-        mode === "authenticated"
+        mode === "authenticated" || mode === "customer-session"
           ? entitlements.data?.map((candidate) => candidate.slug)
           : undefined,
       isLoading: entitlements.isLoading,

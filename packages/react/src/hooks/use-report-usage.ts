@@ -87,7 +87,12 @@ export function useReportUsage(options?: {
   return useKaitenMutation({
     mutationFn: async ({ entitlementSlug, input }: ReportUsageArgs) => {
       if (mode !== "authenticated") {
-        throw new Error("useReportUsage is only available in authenticated mode.");
+        // A customer session in particular: its `kst_` reaches the session's
+        // routes and no other, so the report is refused here, before any request.
+        throw new Error(
+          `useReportUsage is only available in authenticated mode, not under mode="${mode}". ` +
+            `Report usage from your backend, with @kaitencloud/server.`,
+        );
       }
 
       if (!resolvedInstanceSlug) {

@@ -1,0 +1,520 @@
+// @vitest-environment jsdom
+//
+// `mode="customer-session"`: one customer, through a `kst_` customer session.
+//
+// These suites run the real `KaitenSessionClient` and `KaitenClient` against a
+// stubbed `fetch`, so what they pin is what reaches the wire: the portal read
+// with the session as a Bearer token, the catalog read with the publishable key
+// and nothing else, and no request at all for what a session cannot do.
+
+import type { ReactNode } from "react";
+import { cleanup, render, renderHook, screen, waitFor } from "@testing-library/react";
+import { afterEach, expect, test, vi } from "vite-plus/test";
+import { KaitenSessionClient, type KaitenSessionClientLike } from "@kaitencloud/client";
+
+import {
+  Gate,
+  KaitenProvider,
+  KaitenSessionProvider,
+  useCustomer,
+  useEntitlementCheck,
+  useFeatureFlag,
+  useKaitenScopeKey,
+  useKaitenSessionClient,
+  useLicense,
+  useLicensingSnapshot,
+  usePaywallTrigger,
+  usePlans,
+  usePortal,
+  useReportUsage,
+  useUpgradeOptions,
+  type KaitenPortal,
+} from "../src/index.ts";
+
+const API = "https://kaiten.test/api";
+const PK = `pk_${"a".repeat(43)}`;
+const P = "2026-10-01T00:00:00.000Z";
+const P1 = "2026-11-01T00:00:00.000Z";
+
+const price = (id: string, period: string | null, unitAmount: number, isDefault = true) => ({
+  id,
+  billingModel: "FLAT_FEE",
+  billingPeriod: period,
+  currency: "EUR",
+  unitAmount,
+  unitAmountDecimal: `${unitAmount}`,
+  metered: null,
+  displayLabel: "Monthly",
+  isDefault,
+  status: "ACTIVE",
+});
+
+/** `GET /public/session/portal` of a session bound to `initech-prod`, on Pro. */
+function portalPayload(apiCallsUsed = 30_000) {
+  return {
+    customer: { slug: "initech", name: "Initech", billingEmail: "ap@initech.test" },
+    instance: {
+      slug: "initech-prod",
+      name: "Initech Prod",
+      licenseSlug: "pro-v2",
+      licenseName: "Pro",
+    },
+    instances: null,
+    subscription: {
+      status: "ACTIVE",
+      providerKind: "STRIPE",
+      collectionMethod: "CHARGE_AUTOMATICALLY",
+      currency: "EUR",
+      billingPeriod: "MONTHLY",
+      basePrice: price("lp-pro-m", "MONTHLY", 4900),
+      currentPeriodStart: P,
+      currentPeriodEnd: P1,
+      trialEndsAt: null,
+      cancelAtPeriodEnd: false,
+      scheduledChange: null,
+    },
+    entitlements: [
+      {
+        // The licence grants 100,000; a voucher doubles it.
+        slug: "api-calls",
+        name: "API calls",
+        type: "NUMBER",
+        limitValue: 200_000,
+        currentValue: apiCallsUsed,
+        unlimited: false,
+        limitCapExceededOveragePercent: 0,
+        maximumAllowedUsage: 200_000,
+        percentageUsed: (apiCallsUsed / 200_000) * 100,
+        currentPeriodStart: P,
+        currentPeriodEnd: P1,
+        source: "license",
+        provenance: {
+          license: { value: { type: "number", value: 100_000 } },
+          addons: [],
+          boosts: [{ modifierType: "MULTIPLY", modifierValue: 2 }],
+          number: {
+            license: 100_000,
+            afterAddons: 100_000,
+            boostSet: null,
+            boostAdd: null,
+            boostMultiply: 2,
+            unlimited: false,
+            effective: 200_000,
+          },
+        },
+      },
+      {
+        slug: "priority-support",
+        name: "Priority support",
+        type: "BOOLEAN",
+        limitValue: true,
+        currentValue: null,
+        unlimited: false,
+        maximumAllowedUsage: null,
+        percentageUsed: null,
+        source: "addon",
+      },
+    ],
+    addOns: [
+      {
+        addonSlug: "extra-seats-v1",
+        familySlug: "extra-seats",
+        name: "Extra seats",
+        quantity: 3,
+        maxQuantity: 50,
+        prices: [price("ap-seats-m", "MONTHLY", 1000)],
+      },
+      {
+        addonSlug: "support-v1",
+        familySlug: "support",
+        name: "Priority support",
+        quantity: 1,
+        maxQuantity: 1,
+        prices: [price("ap-support-m", "MONTHLY", 2000)],
+      },
+    ],
+    vouchers: [],
+    paymentMethod: { status: "ACTIVE", brand: "visa", last4: "4242", expMonth: 12, expYear: 2030 },
+    upcomingInvoice: null,
+    capabilities: { paymentMethods: true, invoices: true, unsubscribe: true, checkout: false },
+    updatedAt: "2026-10-06T10:00:00.000Z",
+  };
+}
+
+/** `GET /public/catalog`: Starter and Pro, Pro also sold quarterly. */
+const CATALOG = {
+  plans: [
+    {
+      familySlug: "starter",
+      licenseSlug: "starter-v1",
+      licenseId: "lic-starter",
+      name: "Starter",
+      lifecycleState: "PUBLISHED",
+      pricingType: "PAID",
+      selfServe: true,
+      selfServeCtaUrl: null,
+      currency: "EUR",
+      prices: [price("lp-starter-m", "MONTHLY", 1900)],
+      compatibleAddonFamilies: [],
+      entitlements: [],
+    },
+    {
+      familySlug: "pro",
+      licenseSlug: "pro-v2",
+      licenseId: "lic-pro",
+      name: "Pro",
+      lifecycleState: "PUBLISHED",
+      pricingType: "PAID",
+      selfServe: true,
+      selfServeCtaUrl: null,
+      currency: "EUR",
+      prices: [price("lp-pro-q", "QUARTERLY", 13500), price("lp-pro-m", "MONTHLY", 4900)],
+      compatibleAddonFamilies: ["extra-seats"],
+      entitlements: [],
+    },
+  ],
+  addOns: [],
+  capabilities: { checkout: true, paymentMethods: true },
+};
+
+const json = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
+
+/** A `fetch` that serves the two public routes, and records every request. */
+function stubApi(portal: () => unknown = () => portalPayload()) {
+  const requests: Request[] = [];
+  const fetchSpy = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const request = input instanceof Request ? input : new Request(input, init);
+    requests.push(request);
+    const { pathname } = new URL(request.url);
+    if (pathname === "/api/public/session/portal") return json(portal());
+    if (pathname === "/api/public/catalog") return json(CATALOG);
+    return json({ code: "Unexpected", status: 404 }, 404);
+  });
+  return { fetchSpy, requests };
+}
+
+function sessionClientFor(fetchSpy: typeof fetch) {
+  return new KaitenSessionClient({
+    apiUrl: API,
+    fetch: fetchSpy,
+    getCustomerSession: () => ({
+      token: `kst_${"s".repeat(43)}`,
+      expiresAt: new Date(Date.now() + 30 * 60_000).toISOString(),
+    }),
+  });
+}
+
+function wrapperFor(sessionClient: KaitenSessionClientLike, publishableKey?: string) {
+  return function Wrapper({ children }: { children: ReactNode }) {
+    return (
+      <KaitenProvider
+        mode="customer-session"
+        sessionClient={sessionClient}
+        publishableKey={publishableKey}
+        apiUrl={API}
+      >
+        {children}
+      </KaitenProvider>
+    );
+  };
+}
+
+afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
+
+test("reads the portal with the session, and the catalog with the publishable key, nothing else", async () => {
+  const { fetchSpy, requests } = stubApi();
+  vi.stubGlobal("fetch", fetchSpy);
+  const sessionClient = sessionClientFor(fetchSpy);
+
+  const { result } = renderHook(() => ({ snapshot: useLicensingSnapshot(), plans: usePlans() }), {
+    wrapper: wrapperFor(sessionClient, PK),
+  });
+
+  await waitFor(() => {
+    expect(result.current.snapshot.data).toBeDefined();
+    expect(result.current.plans.data).toBeDefined();
+  });
+
+  const routes = requests.map((request) => `${request.method} ${new URL(request.url).pathname}`);
+  expect(routes.sort()).toEqual(["GET /api/public/catalog", "GET /api/public/session/portal"]);
+
+  const portalRequest = requests.find((request) => request.url.endsWith("/session/portal"))!;
+  expect(portalRequest.headers.get("Authorization")).toBe(`Bearer kst_${"s".repeat(43)}`);
+  expect(portalRequest.headers.get("X-Kaiten-Publishable-Key")).toBeNull();
+
+  const catalogRequest = requests.find((request) => request.url.endsWith("/public/catalog"))!;
+  expect(catalogRequest.headers.get("X-Kaiten-Publishable-Key")).toBe(PK);
+  expect(catalogRequest.headers.get("Authorization")).toBeNull();
+
+  expect(result.current.plans.data?.map((plan) => plan.slug)).toEqual(["starter-v1", "pro-v2"]);
+});
+
+test("builds the licensing snapshot from the portal, and invents nothing", async () => {
+  const { fetchSpy } = stubApi();
+  vi.stubGlobal("fetch", fetchSpy);
+
+  const { result } = renderHook(
+    () => ({ snapshot: useLicensingSnapshot(), license: useLicense(), customer: useCustomer() }),
+    { wrapper: wrapperFor(sessionClientFor(fetchSpy), PK) },
+  );
+
+  await waitFor(() => expect(result.current.snapshot.data?.plans).toHaveLength(2));
+  const snapshot = result.current.snapshot.data!;
+
+  // The commercial half is the portal's, not a hard-coded empty one.
+  expect(snapshot.addOns.map((addon) => addon.slug)).toEqual(["extra-seats-v1", "support-v1"]);
+  expect(snapshot.addOns[0]).toMatchObject({ quantity: 3, maxQuantity: 50 });
+  expect(snapshot.credits).toEqual([]);
+  expect(snapshot.capabilities).toEqual({
+    paymentMethods: true,
+    invoices: true,
+    unsubscribe: true,
+    checkout: false,
+  });
+  expect(snapshot.entitlements.map((entitlement) => entitlement.source)).toEqual([
+    "license",
+    "addon",
+  ]);
+  expect(snapshot.entitlements[0]!.provenance?.boosts[0]?.modifierType).toBe("MULTIPLY");
+  expect(snapshot.updatedAt).toBe("2026-10-06T10:00:00.000Z");
+
+  // The portal carries none of the ids and audit fields these types require.
+  expect(snapshot.customer).toBeNull();
+  expect(snapshot.instance).toBeNull();
+  expect(snapshot.license).toBeNull();
+  expect(snapshot.licenseTerm).toBeNull();
+  expect(snapshot.flags).toEqual([]);
+  expect(result.current.license.data).toBeUndefined();
+  expect(result.current.customer.data).toBeNull();
+});
+
+test("usePortal answers what the portal says, and the session client is reachable", async () => {
+  const { fetchSpy } = stubApi();
+  vi.stubGlobal("fetch", fetchSpy);
+  const sessionClient = sessionClientFor(fetchSpy);
+
+  const { result } = renderHook(() => ({ portal: usePortal(), client: useKaitenSessionClient() }), {
+    wrapper: wrapperFor(sessionClient),
+  });
+
+  await waitFor(() => expect(result.current.portal.data).toBeDefined());
+  const portal: KaitenPortal = result.current.portal.data!;
+  expect(portal.customer.name).toBe("Initech");
+  expect(portal.instance?.licenseSlug).toBe("pro-v2");
+  expect(portal.subscription).toMatchObject({ status: "ACTIVE", currencyCode: "EUR" });
+  expect(portal.paymentMethod).toMatchObject({ brand: "visa", last4: "4242" });
+  expect(result.current.client).toBe(sessionClient);
+});
+
+test("gates on the portal's effective value, not the licence's", async () => {
+  // 150,000 used: over the licence's 100,000, under the effective 200,000.
+  let used = 150_000;
+  const { fetchSpy } = stubApi(() => portalPayload(used));
+  vi.stubGlobal("fetch", fetchSpy);
+  const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+  const { result } = renderHook(
+    () => ({
+      check: useEntitlementCheck("api-calls"),
+      trigger: usePaywallTrigger("api-calls", 0.9),
+      portal: usePortal(),
+    }),
+    { wrapper: wrapperFor(sessionClientFor(fetchSpy)) },
+  );
+
+  await waitFor(() => expect(result.current.check.entitlement).not.toBeNull());
+  expect(result.current.check).toMatchObject({ allowed: true, current: 150_000, limit: 200_000 });
+  expect(result.current.trigger).toMatchObject({ shouldShow: false, reason: null, metered: true });
+
+  used = 200_000;
+  result.current.portal.refetch();
+  await waitFor(() => expect(result.current.check.current).toBe(200_000));
+  expect(result.current.check.allowed).toBe(false);
+  expect(result.current.trigger).toMatchObject({ shouldShow: true, reason: "over_limit" });
+
+  // The mode warning is for scopes without a customer; this one has one.
+  expect(warn).not.toHaveBeenCalledWith(expect.stringContaining("paywall is disabled"));
+});
+
+test("Gate renders the feature an add-on grants", async () => {
+  const { fetchSpy } = stubApi();
+  vi.stubGlobal("fetch", fetchSpy);
+  const Wrapper = wrapperFor(sessionClientFor(fetchSpy));
+
+  render(
+    <Wrapper>
+      <Gate entitlement="priority-support">
+        {(state) => (
+          <span>{state.isLoading ? "loading" : state.allowed ? "support" : "locked"}</span>
+        )}
+      </Gate>
+    </Wrapper>,
+  );
+
+  expect(await screen.findByText("support")).toBeTruthy();
+  expect(screen.queryByText("locked")).toBeNull();
+});
+
+test("without a publishable key there is no catalog, and no catalog request", async () => {
+  const { fetchSpy, requests } = stubApi();
+  vi.stubGlobal("fetch", fetchSpy);
+
+  const { result } = renderHook(
+    () => ({ snapshot: useLicensingSnapshot(), plans: usePlans(), upgrades: useUpgradeOptions() }),
+    { wrapper: wrapperFor(sessionClientFor(fetchSpy)) },
+  );
+
+  await waitFor(() => expect(result.current.snapshot.data).toBeDefined());
+  expect(result.current.plans).toMatchObject({ data: undefined, isLoading: false, error: null });
+  expect(result.current.snapshot.data?.plans).toEqual([]);
+  expect(result.current.upgrades.data).toBeUndefined();
+  expect(requests.map((request) => new URL(request.url).pathname)).toEqual([
+    "/api/public/session/portal",
+  ]);
+});
+
+test("offers every published plan but the bound instance's", async () => {
+  const { fetchSpy } = stubApi();
+  vi.stubGlobal("fetch", fetchSpy);
+
+  const { result } = renderHook(() => useUpgradeOptions(), {
+    wrapper: wrapperFor(sessionClientFor(fetchSpy), PK),
+  });
+
+  await waitFor(() => expect(result.current.data).toBeDefined());
+  expect(result.current.data?.map((plan) => plan.slug)).toEqual(["starter-v1"]);
+});
+
+test("refuses what a customer session cannot do, before any request", async () => {
+  const { fetchSpy, requests } = stubApi();
+  vi.stubGlobal("fetch", fetchSpy);
+
+  const { result } = renderHook(
+    () => ({
+      report: useReportUsage(),
+      flag: useFeatureFlag("beta", { plan: "pro" }),
+      snapshot: useLicensingSnapshot(),
+    }),
+    { wrapper: wrapperFor(sessionClientFor(fetchSpy)) },
+  );
+
+  await waitFor(() => expect(result.current.snapshot.data).toBeDefined());
+  await expect(
+    result.current.report.mutateAsync({
+      entitlementSlug: "api-calls",
+      input: { value: { type: "number", value: 1 }, behavior: "append", transactionId: "t-1" },
+    }),
+  ).rejects.toThrow(/only available in authenticated mode, not under mode="customer-session"/);
+
+  await waitFor(() => expect(result.current.flag.error).not.toBeNull());
+  expect(result.current.flag.error?.message).toContain('mode="customer-session"');
+
+  // The portal read, and nothing the session is not for.
+  expect(requests.map((request) => new URL(request.url).pathname)).toEqual([
+    "/api/public/session/portal",
+  ]);
+});
+
+test("renders a portal the server already read on the first render, with no request", () => {
+  const fetchSpy = vi.fn();
+  vi.stubGlobal("fetch", fetchSpy);
+  const unused = () => Promise.reject(new Error("not called"));
+  const sessionClient: KaitenSessionClientLike = {
+    getPortal: vi.fn(unused),
+    listInvoices: unused,
+    checkout: unused,
+    cancelSubscription: unused,
+    reactivateSubscription: unused,
+    createPortalSession: unused,
+    createPaymentMethodSession: unused,
+    completePaymentMethodSession: unused,
+    validateVoucher: unused,
+    setAddonQuantity: unused,
+  };
+  const serverPortal: KaitenPortal = {
+    customer: { slug: "initech", name: "Initech", billingEmail: null },
+    instance: null,
+    instances: [],
+    subscription: null,
+    entitlements: [],
+    addOns: [],
+    vouchers: [],
+    paymentMethod: null,
+    upcomingInvoice: null,
+    capabilities: { paymentMethods: false, invoices: true, unsubscribe: false, checkout: false },
+    updatedAt: "2026-10-06T10:00:00.000Z",
+  };
+
+  const { result } = renderHook(() => usePortal(), {
+    wrapper: ({ children }) => (
+      <KaitenProvider
+        mode="customer-session"
+        sessionClient={sessionClient}
+        initialData={{ portal: serverPortal }}
+      >
+        {children}
+      </KaitenProvider>
+    ),
+  });
+
+  expect(result.current).toMatchObject({ isLoading: false, error: null });
+  expect(result.current.data?.customer.name).toBe("Initech");
+  expect(sessionClient.getPortal).not.toHaveBeenCalled();
+  expect(fetchSpy).not.toHaveBeenCalled();
+});
+
+test("each session client is its own scope", () => {
+  const { fetchSpy } = stubApi();
+  vi.stubGlobal("fetch", fetchSpy);
+  const first = sessionClientFor(fetchSpy);
+  const second = sessionClientFor(fetchSpy);
+
+  const keyOf = (client: KaitenSessionClientLike) =>
+    renderHook(() => useKaitenScopeKey(), { wrapper: wrapperFor(client) }).result.current;
+
+  expect(keyOf(first)).toBe(keyOf(first));
+  expect(keyOf(first)).not.toBe(keyOf(second));
+  expect(keyOf(first)).toMatch(/^customer-session:/);
+});
+
+test("KaitenSessionProvider moves from the public catalog to the customer's session", async () => {
+  const { fetchSpy } = stubApi();
+  vi.stubGlobal("fetch", fetchSpy);
+  const sessionClient = sessionClientFor(fetchSpy);
+  const publicConfig = { mode: "public" as const, publishableKey: PK, apiUrl: API };
+  const sessionConfig = {
+    mode: "customer-session" as const,
+    sessionClient,
+    publishableKey: PK,
+    apiUrl: API,
+  };
+
+  function Probe() {
+    const portal = usePortal();
+    const plans = usePlans();
+    return (
+      <span data-testid="probe">
+        {plans.data?.length ?? "-"}:{portal.data?.customer.name ?? "signed out"}
+      </span>
+    );
+  }
+
+  const { rerender } = render(
+    <KaitenSessionProvider publicConfig={publicConfig} authenticatedConfig={null}>
+      <Probe />
+    </KaitenSessionProvider>,
+  );
+  await waitFor(() => expect(screen.getByTestId("probe").textContent).toBe("2:signed out"));
+
+  rerender(
+    <KaitenSessionProvider publicConfig={publicConfig} authenticatedConfig={sessionConfig}>
+      <Probe />
+    </KaitenSessionProvider>,
+  );
+  await waitFor(() => expect(screen.getByTestId("probe").textContent).toBe("2:Initech"));
+});

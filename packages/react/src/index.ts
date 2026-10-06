@@ -23,6 +23,7 @@
 export {
   KaitenProvider,
   KaitenSessionProvider,
+  type CustomerSessionKaitenProviderConfig,
   type KaitenProviderMode,
   type KaitenProviderProps,
   type KaitenSessionProviderProps,
@@ -75,6 +76,7 @@ export { useFlags } from "./hooks/use-kaiten-flags.ts";
 export { useAddOns } from "./hooks/use-kaiten-addons.ts";
 export { useCredits } from "./hooks/use-kaiten-credits.ts";
 export { useKaitenBranding, type KaitenBrandingState } from "./hooks/use-kaiten-branding.ts";
+export { usePortal, useKaitenSessionClient } from "./hooks/use-portal.ts";
 export { kaitenKeys } from "./hooks/query-keys.ts";
 // The scope every kaitenKeys entry is prefixed with — without it the keys
 // above are exported but not constructible by a host.

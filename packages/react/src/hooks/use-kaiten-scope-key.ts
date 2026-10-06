@@ -11,8 +11,8 @@ import { useTrackHook } from "../telemetry/context.tsx";
  *
  * Treat the value as opaque: it is an identity to pass along, not a format to
  * parse. Today it is `public:apiUrl:publishableKey`,
- * `authenticated:apiUrl:customerId:instanceId` or `static:<plan slugs>`; that
- * is an implementation detail.
+ * `authenticated:apiUrl:customerId:instanceId`, `customer-session:…` or
+ * `static:<plan slugs>`; that is an implementation detail.
  */
 export function useKaitenScopeKey(): string {
   useTrackHook("useKaitenScopeKey");

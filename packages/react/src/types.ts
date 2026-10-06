@@ -8,11 +8,40 @@ export type {
 } from "@kaitencloud/client";
 
 export type {
+  CustomerSessionKaitenProviderConfig,
   KaitenProviderMode,
   KaitenProviderProps,
   KaitenSessionProviderProps,
   StaticKaitenProviderConfig,
 } from "./providers/kaiten-provider.tsx";
+
+// The customer-session surface of `@kaitencloud/client`, which
+// `mode="customer-session"` reads.
+export type {
+  CheckoutInput,
+  CheckoutPaymentStatus,
+  CheckoutPreview,
+  CheckoutRequiresPaymentMethod,
+  CheckoutResult,
+  CheckoutSubscribed,
+  EntitlementProvenance,
+  InvoiceKind,
+  InvoiceStatus,
+  InvoiceTotals,
+  KaitenCustomerSession,
+  KaitenCustomerSessionProvider,
+  KaitenPage,
+  KaitenPortal,
+  KaitenSessionClientConfig,
+  KaitenSessionClientLike,
+  PaymentMethodSummary,
+  PortalSubscription,
+  PortalVoucher,
+  SessionInvoice,
+  SessionInvoiceLine,
+  SubscriptionStatus,
+  VoucherValidation,
+} from "@kaitencloud/client";
 
 export type { KaitenApiError, KaitenThrownError } from "@kaitencloud/client";
 
@@ -34,6 +63,7 @@ export type {
   AggregationMethod,
   BillingCapabilities,
   BillingInterval,
+  BillingPrice,
   BooleanEntitlementValue,
   BulkEvaluationResponse,
   ConfigEntitlementValue,
@@ -61,6 +91,8 @@ export type {
   KaitenComponentEventName,
   License,
   LicenseEntitlement,
+  LicenseLifecycleState,
+  LicenseTerm,
   LicenseType,
   LicensingSnapshot,
   MeterType,
@@ -70,10 +102,13 @@ export type {
   PlanChangedEventDetail,
   PlanEntitlement,
   PlanPrice,
+  PriceBillingModel,
+  PricingType,
   PortalAction,
   PortalActionType,
   QuotaAddedEventDetail,
   ReportUsageInput,
+  ReportUsageResult,
   ResolvedEntitlement,
   ResolvedFeatureFlag,
   SubscriptionCanceledEventDetail,

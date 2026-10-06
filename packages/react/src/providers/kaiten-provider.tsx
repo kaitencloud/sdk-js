@@ -5,7 +5,10 @@ import { KaitenClient } from "@kaitencloud/client";
 import type {
   AuthenticatedKaitenProviderConfig,
   KaitenClientLike,
+  KaitenPollingConfig,
+  KaitenPortal,
   KaitenProviderConfig,
+  KaitenSessionClientLike,
   PublicKaitenProviderConfig,
 } from "@kaitencloud/client";
 import { assertPublishableKey } from "@kaitencloud/client";
@@ -16,13 +19,14 @@ import type { KaitenTelemetryOptions } from "../telemetry/types.ts";
 import type { KaitenBrandingCapability, KaitenCatalog, LicensingSnapshot } from "../types.ts";
 import { kaitenKeys } from "../hooks/query-keys.ts";
 import type { UseKaitenQueryResult } from "../hooks/use-kaiten-query.ts";
-import { createStaticKaitenClient } from "./static-client.ts";
+import { snapshotFromPortal } from "../lib/portal-snapshot.ts";
+import { createOfflineKaitenClient } from "./static-client.ts";
 
 const DEFAULT_API_URL = "/api";
 const DEFAULT_BRANDING: KaitenBrandingCapability = { removable: false };
 const NOOP = () => {};
 
-export type KaitenProviderMode = "public" | "authenticated" | "static";
+export type KaitenProviderMode = "public" | "authenticated" | "static" | "customer-session";
 
 interface KaitenContextValue {
   /**
@@ -36,6 +40,8 @@ interface KaitenContextValue {
   // of the interface are ever called below. Internal type — this context is not
   // exported.
   client: KaitenClientLike;
+  /** The customer-session client, under `mode="customer-session"` only. */
+  sessionClient: KaitenSessionClientLike | null;
   mode: KaitenProviderMode;
   apiUrl: string;
   customerId: string | null;
@@ -47,6 +53,7 @@ interface KaitenContextValue {
 interface KaitenDataContextValue {
   catalog: UseKaitenQueryResult<KaitenCatalog>;
   snapshot: UseKaitenQueryResult<LicensingSnapshot>;
+  portal: UseKaitenQueryResult<KaitenPortal>;
   branding: KaitenBrandingCapability;
   isLoading: boolean;
   isLoaded: boolean;
@@ -86,6 +93,36 @@ function toQueryResult<T>(
     refetch: () => {
       void mutate();
     },
+  };
+}
+
+/**
+ * The policy of every read the provider makes: the catalog, the snapshot and a
+ * customer session's portal.
+ */
+function readOptions<T>(seed: T | undefined, refreshInterval: number) {
+  return {
+    // Render server-fetched data immediately. SWR doesn't count
+    // fallbackData as "loaded" for `isLoading`, so also skip the mount
+    // revalidation when seeded — the server data is fresh and polling still
+    // refreshes it — otherwise `isLoading` stays true and components flash.
+    fallbackData: seed,
+    revalidateOnMount: seed ? false : undefined,
+    refreshInterval,
+    revalidateOnFocus: false,
+    // A reconnect used to revalidate too (SWR's default), which made "no
+    // request" impossible to promise: a page seeded with `initialData` and no
+    // polling still fired one fetch the moment the browser came back online —
+    // at the host's own origin when `apiUrl` was left at its default, so the
+    // answer was a 404 and a `KaitenFailed` state. A read happens on mount, on
+    // the polling schedule and on `refetch`; nowhere else.
+    revalidateOnReconnect: false,
+    // Don't poll a hidden tab or an offline browser (SWR defaults, made
+    // explicit) — a backgrounded dashboard stops hammering the API.
+    refreshWhenHidden: false,
+    refreshWhenOffline: false,
+    shouldRetryOnError: false,
+    dedupingInterval: 1_000,
   };
 }
 
@@ -178,6 +215,62 @@ export interface StaticKaitenProviderConfig {
 }
 
 /**
+ * One customer, signed in to the host's application, through a customer
+ * session (`kst_`): their portal — subscription, effective entitlements with
+ * their provenance, add-ons, payment method — read from
+ * `/public/session/portal`, for a customer portal, a checkout and paywalls.
+ *
+ * The session comes from the host's backend, which mints it with
+ * `createCustomerSession` of `@kaitencloud/server`; the browser never holds a
+ * secret. The provider takes the client that carries it rather than building
+ * one, so a host that never offers a portal does not ship its code:
+ *
+ * ```tsx
+ * import { KaitenSessionClient } from "@kaitencloud/client";
+ *
+ * // Once, outside render: the provider's scope follows this object.
+ * const sessionClient = new KaitenSessionClient({
+ *   apiUrl: "https://kaiten.example.com/api",
+ *   getCustomerSession: () => fetch("/billing/session", { method: "POST" }).then((r) => r.json()),
+ * });
+ *
+ * <KaitenProvider mode="customer-session" sessionClient={sessionClient} publishableKey="pk_…">
+ * ```
+ *
+ * The licensing snapshot is built from the portal: `entitlements`, `addOns`
+ * and `capabilities` are the portal's, `plans` the catalog's. The portal
+ * names the customer, the instance and the licence, but carries none of the
+ * ids, audit fields and dates of the SDK's `Customer`, `Instance` and
+ * `License`, so `useCustomer`, `useInstance` and `useLicense` answer nothing
+ * here and `usePortal` answers what the portal says. Flags and usage reports
+ * are not on the session's routes: the snapshot has no flags, and
+ * `useReportUsage` refuses before sending anything.
+ *
+ * @experimental Until Kaiten billing ships, this mode may change in a minor
+ * release (see STABILITY.md).
+ */
+export interface CustomerSessionKaitenProviderConfig {
+  mode: "customer-session";
+  /**
+   * The customer-session client: a `KaitenSessionClient` of
+   * `@kaitencloud/client`, or a double implementing `KaitenSessionClientLike`.
+   * Create it once, outside render: a new object is a new scope, with its own
+   * cache and its own reads.
+   */
+  sessionClient: KaitenSessionClientLike;
+  /**
+   * A publishable key, to read the public catalog beside the portal: the plans
+   * `usePlans`, `useUpgradeOptions` and a pricing table show. Without it, the
+   * scope has no catalog and those answer nothing.
+   */
+  publishableKey?: string;
+  /** Where the catalog is read, with `publishableKey`. Default `/api`. */
+  apiUrl?: string;
+  /** Polls the portal (on by default, every five minutes) and the catalog (off). */
+  polling?: KaitenPollingConfig;
+}
+
+/**
  * What every mode takes. Nothing here draws: the provider renders no element of
  * its own, so it can sit at an app's root without joining its layout. The
  * styled components in `@kaitencloud/react-ui` get their scope element, tokens
@@ -240,11 +333,14 @@ interface KaitenProviderNetworkProps {
   initialData?: {
     snapshot?: LicensingSnapshot;
     catalog?: KaitenCatalog;
+    /** Under `mode="customer-session"`: the portal your server read with the same session. */
+    portal?: KaitenPortal;
   };
 }
 
 export type KaitenProviderProps =
   | (KaitenProviderConfig & KaitenProviderSharedProps & KaitenProviderNetworkProps)
+  | (CustomerSessionKaitenProviderConfig & KaitenProviderSharedProps & KaitenProviderNetworkProps)
   | (StaticKaitenProviderConfig & KaitenProviderSharedProps);
 
 export type KaitenSessionProviderProps = Pick<
@@ -257,15 +353,26 @@ export type KaitenSessionProviderProps = Pick<
    */
   publicConfig: PublicKaitenProviderConfig | StaticKaitenProviderConfig;
   /**
-   * Authenticated configuration used after login.
+   * Authenticated configuration used after login: the host's own credential, or
+   * a customer session.
    *
    * Pass `null` or `undefined` to keep rendering the public scope. When it becomes defined,
    * the SDK scope is remounted so SWR data, clients, and portals switch together.
    */
-  authenticatedConfig?: AuthenticatedKaitenProviderConfig | null;
+  authenticatedConfig?:
+    | AuthenticatedKaitenProviderConfig
+    | CustomerSessionKaitenProviderConfig
+    | null;
 };
 
-function getProviderScopeKey(config: KaitenProviderConfig | StaticKaitenProviderConfig): string {
+// A session client has no identity a string could carry, so each one gets a
+// number the first time a scope key is built for it.
+const sessionClientIds = new WeakMap<KaitenSessionClientLike, number>();
+let nextSessionClientId = 0;
+
+function getProviderScopeKey(
+  config: KaitenProviderConfig | CustomerSessionKaitenProviderConfig | StaticKaitenProviderConfig,
+): string {
   if (config.mode === "static") {
     // The plans' slugs, in order. Stable across renders for the same data — a
     // catalog literal written inline is a new object every render, and a key
@@ -279,6 +386,12 @@ function getProviderScopeKey(config: KaitenProviderConfig | StaticKaitenProvider
 
   if (config.mode === "public") {
     return `public:${apiUrl}:${config.publishableKey}`;
+  }
+
+  if (config.mode === "customer-session") {
+    let id = sessionClientIds.get(config.sessionClient);
+    if (id === undefined) sessionClientIds.set(config.sessionClient, (id = nextSessionClientId++));
+    return `customer-session:${apiUrl}:${config.publishableKey ?? ""}:${id}`;
   }
 
   return `authenticated:${apiUrl}:${config.customerId}:${config.instanceId ?? ""}`;
@@ -340,15 +453,21 @@ function KaitenProviderRoot(props: KaitenProviderProps) {
   const hostClient = props.mode === "static" ? undefined : props.client;
   const initialData = props.mode === "static" ? undefined : props.initialData;
   const apiUrl = props.mode === "static" ? "" : (props.apiUrl ?? DEFAULT_API_URL);
-  const authScheme = props.mode === "public" ? ("publishable" as const) : ("bearer" as const);
+  const sessionProps = props.mode === "customer-session" ? props : null;
+  const sessionClient = sessionProps?.sessionClient ?? null;
+  // A customer-session scope reads its catalog the way a public one does: with
+  // a publishable key, from `/public/catalog`.
+  const authScheme =
+    props.mode === "authenticated" ? ("bearer" as const) : ("publishable" as const);
   const authToken =
-    props.mode === "public"
+    props.mode === "public" || props.mode === "customer-session"
       ? props.publishableKey
       : props.mode === "authenticated"
         ? props.accessToken
         : undefined;
   const onAuthError = props.mode === "authenticated" ? props.onAuthError : undefined;
-  const onDegraded = props.mode === "static" ? undefined : props.onDegraded;
+  const onDegraded =
+    props.mode === "public" || props.mode === "authenticated" ? props.onDegraded : undefined;
 
   // `accessToken` may be a function, and hosts will pass an inline arrow. Reading
   // the latest one through a ref keeps the client — and therefore the SWR cache
@@ -372,11 +491,17 @@ function KaitenProviderRoot(props: KaitenProviderProps) {
       // Given the catalog, the provider owes nothing to the network. The client
       // it hands the hooks answers the catalog and rejects every live read,
       // naming the mode — see static-client.ts.
-      return createStaticKaitenClient(staticCatalog);
+      return createOfflineKaitenClient("static", staticCatalog);
     }
 
     if (hostClient) {
       return hostClient;
+    }
+
+    if (sessionClient && authTokenKey === undefined) {
+      // A customer session with no publishable key has no catalog to read, and
+      // its session reaches no other route.
+      return createOfflineKaitenClient("customer-session");
     }
 
     if (authScheme === "publishable") {
@@ -396,10 +521,14 @@ function KaitenProviderRoot(props: KaitenProviderProps) {
       onAuthError: (info) => onAuthErrorRef.current?.(info),
       onDegraded: (info) => onDegradedRef.current?.(info),
     });
-  }, [staticCatalog, hostClient, apiUrl, authScheme, authTokenKey]);
+  }, [staticCatalog, hostClient, sessionClient, apiUrl, authScheme, authTokenKey]);
 
-  const publicProps = props.mode === "public" ? props : null;
   const authenticatedProps = props.mode === "authenticated" ? props : null;
+  // The catalog is read in public mode, and beside the portal when a customer
+  // session was given a key (or a client) to read it with.
+  const readsCatalog =
+    props.mode === "public" ||
+    (sessionProps !== null && (authTokenKey !== undefined || !!hostClient));
 
   // Declared before the reads below: it prefixes every SWR key, which is what
   // keeps two providers on different customers out of each other's cache.
@@ -415,7 +544,7 @@ function KaitenProviderRoot(props: KaitenProviderProps) {
       // on offer, which change on a release: a public pricing page re-fetching
       // it every five minutes per open tab bought a request and nothing else.
       // Static mode has no request to make at all.
-      enabled: pollingEnabled ?? mode === "authenticated",
+      enabled: pollingEnabled ?? (mode === "authenticated" || mode === "customer-session"),
       // Licensing data is near-static (limits/plans change rarely; local usage
       // reports refresh immediately via the mutation→revalidate path), and each
       // poll re-runs the whole composed snapshot — so default to a conservative
@@ -426,56 +555,27 @@ function KaitenProviderRoot(props: KaitenProviderProps) {
     [mode, pollingEnabled, pollingInterval],
   );
 
+  const refreshInterval = pollingConfig.enabled ? pollingConfig.interval : 0;
   const catalogSWR = useSWR<KaitenCatalog, Error>(
-    publicProps ? kaitenKeys.components.catalog(scopeKey) : null,
+    readsCatalog ? kaitenKeys.components.catalog(scopeKey) : null,
     () => client.getCatalog(),
-    {
-      // Render server-fetched data immediately. SWR doesn't count
-      // fallbackData as "loaded" for `isLoading`, so also skip the mount
-      // revalidation when seeded — the server data is fresh and polling still
-      // refreshes it — otherwise `isLoading` stays true and components flash.
-      fallbackData: initialData?.catalog,
-      revalidateOnMount: initialData?.catalog ? false : undefined,
-      refreshInterval: pollingConfig.enabled ? pollingConfig.interval : 0,
-      revalidateOnFocus: false,
-      // A reconnect used to revalidate too (SWR's default), which made "no
-      // request" impossible to promise: a page seeded with `initialData` and no
-      // polling still fired one fetch the moment the browser came back online —
-      // at the host's own origin when `apiUrl` was left at its default, so the
-      // answer was a 404 and a `KaitenFailed` state. A read happens on mount, on
-      // the polling schedule and on `refetch`; nowhere else.
-      revalidateOnReconnect: false,
-      // Don't poll a hidden tab or an offline browser (SWR defaults, made
-      // explicit) — a backgrounded dashboard stops hammering the API.
-      refreshWhenHidden: false,
-      refreshWhenOffline: false,
-      shouldRetryOnError: false,
-      dedupingInterval: 1_000,
-    },
+    // A customer session polls its portal; the catalog beside it does not move
+    // with the customer's usage.
+    readOptions(initialData?.catalog, sessionClient ? 0 : refreshInterval),
   );
 
   const snapshotSWR = useSWR<LicensingSnapshot, Error>(
     authenticatedProps ? kaitenKeys.components.snapshot(scopeKey) : null,
     () =>
       client.getLicensingSnapshot(authenticatedProps!.customerId, authenticatedProps!.instanceId),
-    {
-      // Render server-fetched data immediately. SWR doesn't count
-      // fallbackData as "loaded" for `isLoading`, so also skip the mount
-      // revalidation when seeded — the server data is fresh and polling still
-      // refreshes it — otherwise `isLoading` stays true and components flash.
-      fallbackData: initialData?.snapshot,
-      revalidateOnMount: initialData?.snapshot ? false : undefined,
-      refreshInterval: pollingConfig.enabled ? pollingConfig.interval : 0,
-      revalidateOnFocus: false,
-      // Same rule as the catalog read above: mount, schedule, `refetch`.
-      revalidateOnReconnect: false,
-      // Don't poll a hidden tab or an offline browser (SWR defaults, made
-      // explicit) — a backgrounded dashboard stops hammering the API.
-      refreshWhenHidden: false,
-      refreshWhenOffline: false,
-      shouldRetryOnError: false,
-      dedupingInterval: 1_000,
-    },
+    readOptions(initialData?.snapshot, refreshInterval),
+  );
+
+  // A customer session's one read, in place of the snapshot.
+  const portalSWR = useSWR<KaitenPortal, Error>(
+    sessionClient ? kaitenKeys.components.portal(scopeKey) : null,
+    () => sessionClient!.getPortal(),
+    readOptions(initialData?.portal, refreshInterval),
   );
 
   // Stabilize the query-result wrappers: useSWR returns a fresh object
@@ -495,10 +595,24 @@ function KaitenProviderRoot(props: KaitenProviderProps) {
       // and `refetch` has nothing to re-read. The server renders the same answer.
       return { data: staticCatalog, isLoading: false, error: null, refetch: NOOP };
     }
-    return mode === "public"
+    return readsCatalog
       ? toQueryResult(catalogData, catalogIsLoading, catalogError, catalogMutate)
       : createDisabledQueryResult<KaitenCatalog>();
-  }, [mode, staticCatalog, catalogData, catalogError, catalogIsLoading, catalogMutate]);
+  }, [readsCatalog, staticCatalog, catalogData, catalogError, catalogIsLoading, catalogMutate]);
+
+  const {
+    data: portalData,
+    isLoading: portalIsLoading,
+    error: portalError,
+    mutate: portalMutate,
+  } = portalSWR;
+  const portal = React.useMemo<UseKaitenQueryResult<KaitenPortal>>(
+    () =>
+      sessionClient
+        ? toQueryResult(portalData, portalIsLoading, portalError, portalMutate)
+        : createDisabledQueryResult<KaitenPortal>(),
+    [sessionClient, portalData, portalError, portalIsLoading, portalMutate],
+  );
 
   const {
     data: snapshotData,
@@ -506,17 +620,34 @@ function KaitenProviderRoot(props: KaitenProviderProps) {
     error: snapshotError,
     mutate: snapshotMutate,
   } = snapshotSWR;
-  const snapshot = React.useMemo<UseKaitenQueryResult<LicensingSnapshot>>(
-    () =>
-      mode === "authenticated"
-        ? toQueryResult(snapshotData, snapshotIsLoading, snapshotError, snapshotMutate)
-        : createDisabledQueryResult<LicensingSnapshot>(),
-    [mode, snapshotData, snapshotError, snapshotIsLoading, snapshotMutate],
-  );
+  const snapshot = React.useMemo<UseKaitenQueryResult<LicensingSnapshot>>(() => {
+    if (sessionClient) {
+      // A customer session's snapshot is its portal, read once, with the plans
+      // of the catalog beside it.
+      return {
+        ...portal,
+        data: portalData && snapshotFromPortal(portalData, catalogData),
+      };
+    }
+    return mode === "authenticated"
+      ? toQueryResult(snapshotData, snapshotIsLoading, snapshotError, snapshotMutate)
+      : createDisabledQueryResult<LicensingSnapshot>();
+  }, [
+    mode,
+    sessionClient,
+    portal,
+    portalData,
+    catalogData,
+    snapshotData,
+    snapshotError,
+    snapshotIsLoading,
+    snapshotMutate,
+  ]);
 
-  // The read this scope lives on: the snapshot for a customer, the catalog for
-  // everyone else — fetched in public mode, given in static mode.
-  const active = mode === "authenticated" ? snapshot : catalog;
+  // The read this scope lives on: the snapshot for a customer — read, or built
+  // from a customer session's portal — the catalog for everyone else: fetched
+  // in public mode, given in static mode.
+  const active = mode === "authenticated" || sessionClient ? snapshot : catalog;
   const activeData = active.data;
   const activeError = active.error;
   const activeLoading = active.isLoading;
@@ -525,6 +656,7 @@ function KaitenProviderRoot(props: KaitenProviderProps) {
     () => ({
       scopeKey,
       client,
+      sessionClient,
       mode,
       apiUrl,
       customerId: authenticatedProps?.customerId ?? null,
@@ -541,6 +673,7 @@ function KaitenProviderRoot(props: KaitenProviderProps) {
       mode,
       pollingConfig,
       scopeKey,
+      sessionClient,
     ],
   );
 
@@ -548,13 +681,14 @@ function KaitenProviderRoot(props: KaitenProviderProps) {
     () => ({
       catalog,
       snapshot,
+      portal,
       branding: activeData?.branding ?? DEFAULT_BRANDING,
       isLoading: activeLoading,
       isLoaded: !activeLoading && !activeError && activeData !== undefined,
       error: activeError,
       refetch: active.refetch,
     }),
-    [active.refetch, activeData, activeError, activeLoading, catalog, snapshot],
+    [active.refetch, activeData, activeError, activeLoading, catalog, snapshot, portal],
   );
 
   // Context only. The element every SDK style is scoped to — `<div class="kaiten">`

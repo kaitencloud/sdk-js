@@ -3,7 +3,8 @@
  *
  * **Every key is scoped.** The first segment after `"kaiten"` is the provider's
  * `scopeKey` — `public:apiUrl:publishableKey`,
- * `authenticated:apiUrl:customerId:instanceId` or `static:<plan slugs>`, the
+ * `authenticated:apiUrl:customerId:instanceId`, `customer-session:…` or
+ * `static:<plan slugs>`, the
  * same string that decides whether a nested `<KaitenProvider>` is a redundant
  * duplicate or a second, intentional scope. (A static provider registers no
  * key here: it reads nothing, so there is nothing to cache.)
@@ -36,6 +37,8 @@ export const kaitenKeys = {
   components: {
     catalog: (scopeKey: string) => ["kaiten", scopeKey, "components", "catalog"] as const,
     snapshot: (scopeKey: string) => ["kaiten", scopeKey, "components", "snapshot"] as const,
+    /** A customer session's portal, under `mode="customer-session"`. */
+    portal: (scopeKey: string) => ["kaiten", scopeKey, "components", "portal"] as const,
   },
 
   featureFlag: {
