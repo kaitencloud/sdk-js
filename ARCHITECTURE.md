@@ -36,7 +36,9 @@ that moves the contract fails where a fixture no longer fits.
 Kaiten serves routes made for these clients under `/public/`, and the contract
 describes them like any other. A publishable key (`pk_`) reads the catalogue from
 `GET /public/catalog` and from nothing else; the client refuses every other call
-locally.
+locally. A customer session (`kst_`), minted by the vendor's backend, is sent to
+the `/public/session/*` routes of a portal and a checkout, through
+`KaitenSessionClient`, and to nothing else.
 
 With any other credential, `@kaitencloud/client` composes the catalogue and a
 customer's licensing snapshot from the public API: a GraphQL aggregate first, and a

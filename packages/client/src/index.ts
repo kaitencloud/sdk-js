@@ -34,10 +34,13 @@ export type {
   KaitenApiError,
   KaitenAuthScheme,
   KaitenClientConfig,
+  KaitenCustomerSession,
+  KaitenCustomerSessionProvider,
   KaitenFetch,
   KaitenPollingConfig,
   KaitenProviderConfig,
   KaitenThrownError,
+  KaitenSessionClientConfig,
   PublicKaitenProviderConfig,
   RetryOptions,
   TransactionIdReusedOriginal,
@@ -47,6 +50,8 @@ export { majorUnitAmount } from "./client/money.ts";
 export type { MinorUnitPrice } from "./client/money.ts";
 
 export { KaitenClient } from "./client/client.ts";
+export { KaitenSessionClient } from "./client/session-client.ts";
+export type { KaitenSessionClientLike } from "./client/session-client.ts";
 export type {
   KaitenClientLike,
   KaitenComponentsModule,
@@ -95,3 +100,4 @@ export type {
 // are the curated subset that stays top-level; the rest of the generated surface
 // is under `KaitenApi`. Some names intentionally override the generated ones.
 export type * from "./client/types.ts";
+export type * from "./client/session-types.ts";

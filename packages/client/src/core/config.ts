@@ -61,6 +61,44 @@ export interface KaitenClientConfig {
   onDegraded?: (info: KaitenDegradedInfo) => void;
 }
 
+/**
+ * A customer session, as the vendor's backend mints it with
+ * `createCustomerSession` of `@kaitencloud/server` and hands it to the browser.
+ */
+export interface KaitenCustomerSession {
+  /** The `kst_` session token. */
+  token: string;
+  /** When the session expires (RFC 3339). */
+  expiresAt: string;
+}
+
+/**
+ * Obtains a customer session from the host's own backend, which mints it. The
+ * session client calls it for its first call, again 60 seconds before the
+ * session expires, and once more when the API refuses the session (401).
+ * Concurrent calls share one invocation.
+ */
+export type KaitenCustomerSessionProvider = () =>
+  | KaitenCustomerSession
+  | Promise<KaitenCustomerSession>;
+
+export interface KaitenSessionClientConfig {
+  /** Your Kaiten API's URL, `/api` included. */
+  apiUrl: string;
+  /** Returns the customer session to send. Called again before it expires. */
+  getCustomerSession: KaitenCustomerSessionProvider;
+  defaultHeaders?: Record<string, string>;
+  fetch?: KaitenFetch;
+  /** Optional per-request timeout in milliseconds. */
+  timeoutMs?: number;
+  /**
+   * Called when the API refuses a session the client has already renewed once
+   * (401), or refuses the call itself (403). Use it to sign the customer in
+   * again.
+   */
+  onAuthError?: (error: KaitenAuthErrorInfo) => void;
+}
+
 export interface KaitenAuthErrorInfo {
   status: 401 | 403;
   /** The operation that was rejected, e.g. `POST /graphql`. */

@@ -99,6 +99,54 @@ of this catalog can be bought alone. It is read from the response, not worked ou
 the plans. When it is `false`, show each plan's `selfServeCtaUrl` instead of a
 purchase button.
 
+### Customer sessions
+
+A browser acting for one signed-in customer — a customer portal, a checkout — uses a
+customer session (`kst_`), which your backend mints with `createCustomerSession` of
+[`@kaitencloud/server`](../server) and hands to the page. `KaitenSessionClient` sends
+it, given a `getCustomerSession` callback that fetches one:
+
+```ts
+import { KaitenSessionClient } from "@kaitencloud/client";
+
+const billing = new KaitenSessionClient({
+  apiUrl: "https://kaiten.example.com/api",
+  // Your own endpoint, which calls createCustomerSession and returns
+  // { token, expiresAt }.
+  getCustomerSession: () => fetch("/billing/session", { method: "POST" }).then((r) => r.json()),
+});
+
+const portal = await billing.getPortal();
+```
+
+It is a class of its own, apart from `KaitenClient`: it holds a different credential,
+which it sends as `Authorization: Bearer kst_…` to `/api/public/session/*` and nowhere
+else. It calls `getCustomerSession` for its first call and again 60 seconds before the
+session expires, once for any number of concurrent calls; when the API refuses a
+session (401), it renews it and sends the request once more, and a second refusal
+reaches `onAuthError`.
+
+| Call                                                                | Route                                                    |
+| ------------------------------------------------------------------- | -------------------------------------------------------- |
+| `getPortal()`                                                       | `GET /public/session/portal`                             |
+| `listInvoices({ cursor?, limit? })`                                 | `GET /public/session/invoices`                           |
+| `checkout(input)`                                                   | `POST /public/session/checkout`                          |
+| `cancelSubscription({ reason? })`, `reactivateSubscription()`       | `POST /public/session/billing/cancel`, `…/reactivate`    |
+| `createPortalSession({ returnUrl })`                                | `POST /public/session/billing/portal-session`            |
+| `createPaymentMethodSession(…)`, `completePaymentMethodSession(id)` | `POST /public/session/billing/payment-method-session[…]` |
+| `validateVoucher({ code, licensePriceId? })`                        | `POST /public/session/vouchers/validate`                 |
+| `setAddonQuantity(addonSlug, quantity)`                             | `PUT /public/session/addons/{addonSlug}`                 |
+
+The portal's entitlements are the instance's effective ones — the licence grant with
+its add-ons and voucher boosts applied — each with its `source` and its `provenance`.
+Every amount and total comes from the server: the SDK never sums prices. A `checkout`
+with `dryRun: true` previews what is due today.
+
+A refused call rejects with a `KaitenError` carrying the API's `status` and `code`, such
+as `CreateSessionCheckout.AlreadySubscribed`; a 429 or a `*.BoundaryPending` also
+carries `retryAfterSeconds`. Reads are retried after a network failure or a 5xx; writes
+never are.
+
 ### Scopes
 
 The API checks a token's scopes on every call. Give the token the scopes of the calls
@@ -292,6 +340,9 @@ structurally; every double would end in `as unknown as KaitenClient`, a cast
 that turns a checked substitution into an unchecked one. Implement the interface
 instead, for a custom transport, cache or SSR arrangement. `KaitenClient`
 implements it, so a real client still fits.
+
+The customer-session calls are a second interface, `KaitenSessionClientLike`, which
+`KaitenSessionClient` implements: a double of the session client implements that one.
 
 ## Data path
 

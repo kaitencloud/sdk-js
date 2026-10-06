@@ -336,25 +336,35 @@ export function normalizeResolvedEntitlements(
                 ? 100
                 : 0
               : null,
-        // over_limit is the terminal state -- nothing more will be accepted --
-        // so it starts where the server starts rejecting. The band between the
-        // entitled value and the ceiling is served but worth warning about,
-        // which is what near_limit already means.
-        status:
-          limit.type === "boolean"
-            ? limit.value
-              ? "enabled"
-              : "disabled"
-            : limit.type === "number" && maxAllowed !== null && currentValue?.type === "number"
-              ? currentValue.value >= maxAllowed
-                ? "over_limit"
-                : limit.value > 0 && currentValue.value / limit.value >= 0.8
-                  ? "near_limit"
-                  : "enabled"
-              : "enabled",
+        status: entitlementStatus(limit, currentValue, maxAllowed),
       };
     })
     .sort(byDisplayOrder);
+}
+
+/**
+ * Where an entitlement stands: `enabled`/`disabled` for a boolean grant, and
+ * for a capped number, `over_limit` from the highest usage the API accepts,
+ * `near_limit` from 80% of the entitled value.
+ *
+ * `limit` is the instance's effective limit, not the licence's grant.
+ *
+ * over_limit is the terminal state -- nothing more will be accepted -- so it
+ * starts where the server starts rejecting. The band between the entitled
+ * value and the ceiling is served but worth warning about, which is what
+ * near_limit already means.
+ */
+export function entitlementStatus(
+  limit: EntitlementValue,
+  current: EntitlementValue | null | undefined,
+  maxAllowed: number | null,
+): ResolvedEntitlement["status"] {
+  if (limit.type === "boolean") return limit.value ? "enabled" : "disabled";
+  if (limit.type !== "number" || maxAllowed === null || current?.type !== "number") {
+    return "enabled";
+  }
+  if (current.value >= maxAllowed) return "over_limit";
+  return limit.value > 0 && current.value / limit.value >= 0.8 ? "near_limit" : "enabled";
 }
 
 /**

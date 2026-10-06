@@ -74,6 +74,13 @@ const SCENARIOS = [
     budgetGzip: 13_500,
     headless: true,
   },
+  {
+    // What a customer portal or a checkout ships: the customer-session client.
+    name: "client · KaitenSessionClient alone",
+    code: `import { KaitenSessionClient } from "@kaitencloud/client"; console.log(KaitenSessionClient);`,
+    budgetGzip: 9_500,
+    headless: true,
+  },
 ];
 
 /** The package a bundled input file belongs to, from its path. */

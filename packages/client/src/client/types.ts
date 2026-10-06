@@ -741,8 +741,18 @@ export interface ResolvedEntitlement extends EntitlementPresentation {
   usageWindowUnknown?: boolean;
   status: "enabled" | "disabled" | "near_limit" | "over_limit";
   configLabel?: string | null;
+  /**
+   * The layer that grants the entitlement: the licence, or an add-on when only
+   * an add-on grants it. `credit` is not produced by any Kaiten server yet.
+   */
   source: "license" | "addon" | "credit";
   actions?: PortalAction[];
+  /**
+   * How each layer contributed to the effective value — the licence grant, the
+   * add-ons, the voucher boosts — on an entitlement read from a customer's
+   * portal: enough to render "(100,000 base) × 2 voucher = 200,000".
+   */
+  provenance?: EntitlementProvenance;
 }
 
 export interface BillingCapabilities {

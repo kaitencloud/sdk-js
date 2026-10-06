@@ -34,10 +34,13 @@ export type {
   KaitenAuthErrorInfo,
   KaitenAuthScheme,
   KaitenClientConfig,
+  KaitenCustomerSession,
+  KaitenCustomerSessionProvider,
   KaitenFetch,
   KaitenPollingConfig,
   KaitenProviderConfig,
   KaitenTokenProvider,
+  KaitenSessionClientConfig,
   PublicKaitenProviderConfig,
 } from "./config.ts";
 
