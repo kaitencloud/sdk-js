@@ -83,6 +83,29 @@ conflicts, such as a slug already taken, so the predicate is safe in a shared er
 That refusal is the single most important response this package can return, and the easiest
 one to miss.
 
+A usage report sent with a `transactionId` is applied at most once per key, so it is safe to
+retry. `isTransactionIdReused` recognises the one refusal a retry cannot fix: the key was
+already used for a report with another value (`ReportEntitlementUsageMetric.TransactionIdReused`,
+the original report in `error.errors[0].value`). Send a correction as a new report under a
+new key.
+
+The usage history is `Instances.listUsageReports` (paged by `afterSeq`/`nextAfterSeq`), and
+its exports are `Instances.exportUsageReports` and `Instances.exportOrganizationUsageReports`.
+Pass `parseAs: "stream"` to an export to read it as it arrives instead of buffering it:
+
+```ts
+const { data } = await Instances.exportUsageReports({
+  client,
+  path: { instanceSlug, entitlementSlug: "tokens" },
+  query: { format: "csv" },
+  parseAs: "stream",
+});
+await pipeline(
+  Readable.fromWeb(data as unknown as ReadableStream),
+  createWriteStream("tokens.csv"),
+);
+```
+
 Every `KaitenError` also carries the problem's `code`, a stable machine-readable identifier
 such as `License.NotFound`, and its `errorId`, the correlation id of the API's log entry for
 the failure: quote it when you report a problem.

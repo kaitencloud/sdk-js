@@ -1,6 +1,12 @@
 import { createClient, createConfig } from "./generated/client/index.ts";
 import type { Client } from "./generated/client/index.ts";
-import { KaitenError, KaitenNetworkError, type KaitenApiError } from "./runtime/errors.ts";
+import {
+  KaitenError,
+  KaitenNetworkError,
+  TRANSACTION_ID_REUSED,
+  TransactionIdReusedError,
+  type KaitenApiError,
+} from "./runtime/errors.ts";
 import { retry } from "./runtime/retry.ts";
 import { isBrowserRuntime, secretKeyPrefix } from "./runtime/keys.ts";
 import type { KaitenAuthScheme, KaitenClientConfig, KaitenFetch } from "./config.ts";
@@ -173,6 +179,19 @@ export class KaitenTransport {
     label: string,
     options: KaitenRunOptions = {},
   ): Promise<T> {
+    const { data } = await this.runWithResponse(operation, label, options);
+    return data;
+  }
+
+  /**
+   * {@link run}, also returning the response the data came from, for a caller
+   * that reads its headers.
+   */
+  async runWithResponse<T>(
+    operation: (client: Client) => Promise<ApiResult<T> | Record<string, unknown>>,
+    label: string,
+    options: KaitenRunOptions = {},
+  ): Promise<{ data: T; response?: Response }> {
     // Retrying is only safe when replaying the call cannot change server state
     // twice. Reads qualify, and so do the OFREP evaluations — they are POSTs
     // only because the evaluation context travels in a body.
@@ -208,10 +227,12 @@ export class KaitenTransport {
             // credential, and hammering a rejected one just burns rate budget.
             this.onAuthError?.({ status, operation: label, error: result.error });
           }
-          throw new KaitenError(toKaitenApiError(result.error, status));
+          const apiError = toKaitenApiError(result.error, status);
+          if (apiError.code === TRANSACTION_ID_REUSED) throw new TransactionIdReusedError(apiError);
+          throw new KaitenError(apiError);
         }
 
-        return result.data as T;
+        return { data: result.data as T, response: result.response };
       },
       {
         retryImmediately: true,
@@ -220,8 +241,8 @@ export class KaitenTransport {
           // the client-side timeout abort, so a backend that committed the write
           // and then answered slowly would otherwise be asked to commit it again
           // — on `reportUsage` that is double-counted usage, and usage is the
-          // billing base. There is no idempotency key on the wire to make the
-          // replay safe, so the only correct number of attempts is one.
+          // billing base. A usage report is idempotent only when it carries a
+          // transactionId, which reportUsage says by passing `idempotent`.
           if (!idempotent) return false;
           if (iteration >= 3) return false;
           if (error instanceof KaitenNetworkError) return true;

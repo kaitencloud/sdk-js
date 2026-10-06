@@ -1848,11 +1848,15 @@ export type ReportEntitlementUsageBody = {
    */
   behavior?: "append" | "set";
   /**
-   * Optional metadata for the usage report
+   * Optional metadata for the usage report, a JSON object stored with it in the usage history when its compact encoding is at most 4 KiB. Above that it is not stored, the report is still counted, and the response carries Kaiten-Metadata-Dropped: too_large. It must contain no personal data: anyone who can read the organization's instances can read it, for as long as the usage history is kept. Numbers are read as 64-bit floats, so send large identifiers as strings.
    */
   metadata?: {
     [key: string]: unknown;
   };
+  /**
+   * Optional idempotency key, 1 to 128 characters of [A-Za-z0-9._:-], matched exactly and case-sensitively. A report sent again with the same key and the same behavior and value within KAITEN_USAGE_IDEMPOTENCY_WINDOW (35 days by default) is applied once: the retry answers 200 with the original response and the Idempotent-Replayed header, and changes nothing. The same key with another behavior or value answers 409 ReportEntitlementUsageMetric.TransactionIdReused. A rejected report does not consume its key. Scoped to the instance and entitlement: one business event may feed two meters under one key.
+   */
+  transactionId?: string;
   /**
    * Reported entitlement value, discriminated by the 'type' field. Usage reporting accepts the number variant only.
    */
@@ -2100,6 +2104,98 @@ export type Token = {
    * Optional URL-friendly identifier, unique per service account. Auto-generated if not provided.
    */
   slug?: string;
+};
+
+export type UsageReport = {
+  /**
+   * The entitlement's aggregation method when the report was accepted
+   */
+  aggregationMethod: string;
+  /**
+   * append adds the value through the aggregation method; set overwrites the counter
+   */
+  behavior: "append" | "set";
+  /**
+   * valueAfter minus valueBefore; negative for a set that lowered the counter
+   */
+  delta: string;
+  /**
+   * The entitlement the report was made for. It may since have been deleted.
+   */
+  entitlementId: string;
+  /**
+   * Reports counted in the window after this one
+   */
+  eventCountAfter: number;
+  /**
+   * The instance the report was made for. It may since have been deleted.
+   */
+  instanceId: string;
+  /**
+   * The instance's licence when the report was accepted
+   */
+  licenseId: string;
+  /**
+   * The limit in force when the report was accepted. Null when unlimited.
+   */
+  limitValue?: string;
+  /**
+   * How much the usage above limitValue moved: max(0, valueAfter - limitValue) - max(0, valueBefore - limitValue). 0 when unlimited.
+   */
+  overageDelta: string;
+  /**
+   * The overage allowed above limitValue, in percent, when the report was accepted. Null when unlimited.
+   */
+  overagePercent?: number;
+  /**
+   * The report's metadata, when it was stored
+   */
+  properties?: {
+    [key: string]: unknown;
+  };
+  /**
+   * Position of the report among the pair's accepted reports, from 1, without gaps
+   */
+  reportSeq: number;
+  /**
+   * When the server accepted the report (UTC, millisecond precision)
+   */
+  reportedAt: string;
+  /**
+   * The value as sent: a delta for append, an absolute value for set
+   */
+  reportedValue: string;
+  /**
+   * The report's idempotency key, when it was sent with one
+   */
+  transactionId?: string;
+  /**
+   * The counter after the report
+   */
+  valueAfter: string;
+  /**
+   * The counter before the report, after any window reset
+   */
+  valueBefore: string;
+  /**
+   * End of the usage window the report counted in (exclusive). Null for a lifetime entitlement.
+   */
+  windowEnd?: string;
+  /**
+   * Start of the usage window the report counted in (inclusive). Null for a lifetime entitlement.
+   */
+  windowStart?: string;
+};
+
+export type UsageReportPage = {
+  /**
+   * The reports, in reportSeq order
+   */
+  items: Array<UsageReport>;
+  /**
+   * Pass as afterSeq to read the next page. Absent on the last page.
+   */
+  nextAfterSeq?: number;
 };
 
 export type User = {
@@ -2866,11 +2962,15 @@ export type ReportEntitlementUsageBodyWritable = {
    */
   behavior?: "append" | "set";
   /**
-   * Optional metadata for the usage report
+   * Optional metadata for the usage report, a JSON object stored with it in the usage history when its compact encoding is at most 4 KiB. Above that it is not stored, the report is still counted, and the response carries Kaiten-Metadata-Dropped: too_large. It must contain no personal data: anyone who can read the organization's instances can read it, for as long as the usage history is kept. Numbers are read as 64-bit floats, so send large identifiers as strings.
    */
   metadata?: {
     [key: string]: unknown;
   };
+  /**
+   * Optional idempotency key, 1 to 128 characters of [A-Za-z0-9._:-], matched exactly and case-sensitively. A report sent again with the same key and the same behavior and value within KAITEN_USAGE_IDEMPOTENCY_WINDOW (35 days by default) is applied once: the retry answers 200 with the original response and the Idempotent-Replayed header, and changes nothing. The same key with another behavior or value answers 409 ReportEntitlementUsageMetric.TransactionIdReused. A rejected report does not consume its key. Scoped to the instance and entitlement: one business event may feed two meters under one key.
+   */
+  transactionId?: string;
   /**
    * Reported entitlement value, discriminated by the 'type' field. Usage reporting accepts the number variant only.
    */
@@ -5859,6 +5959,10 @@ export type ReportEntitlementUsageMetricErrors = {
    * Internal Server Error
    */
   500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
 };
 
 export type ReportEntitlementUsageMetricError =
@@ -5873,6 +5977,149 @@ export type ReportEntitlementUsageMetricResponses = {
 
 export type ReportEntitlementUsageMetricResponse =
   ReportEntitlementUsageMetricResponses[keyof ReportEntitlementUsageMetricResponses];
+
+export type ListUsageReportsData = {
+  body?: never;
+  path: {
+    /**
+     * Instance slug
+     */
+    instanceSlug: string;
+    /**
+     * Entitlement slug
+     */
+    entitlementSlug: string;
+  };
+  query?: {
+    /**
+     * Start of the range, inclusive (RFC 3339). Defaults to 30 days before to, moved up to the start of the organization's usage history when that is later. An explicit from before it answers 422 ListUsageReports.OutsideRetention.
+     */
+    from?: string;
+    /**
+     * End of the range, exclusive (RFC 3339). Defaults to now.
+     */
+    to?: string;
+    /**
+     * Return the reports after this reportSeq: the nextAfterSeq of the previous page
+     */
+    afterSeq?: number;
+    /**
+     * Maximum number of reports to return (default 100, max 500)
+     */
+    limit?: number;
+    /**
+     * Only the report sent with this idempotency key
+     */
+    transactionId?: string;
+  };
+  url: "/instances/{instanceSlug}/entitlements/{entitlementSlug}/usage/reports";
+};
+
+export type ListUsageReportsErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+};
+
+export type ListUsageReportsError = ListUsageReportsErrors[keyof ListUsageReportsErrors];
+
+export type ListUsageReportsResponses = {
+  /**
+   * OK
+   */
+  200: UsageReportPage;
+};
+
+export type ListUsageReportsResponse = ListUsageReportsResponses[keyof ListUsageReportsResponses];
+
+export type ExportUsageReportsData = {
+  body?: never;
+  path: {
+    /**
+     * Instance slug
+     */
+    instanceSlug: string;
+    /**
+     * Entitlement slug
+     */
+    entitlementSlug: string;
+  };
+  query?: {
+    /**
+     * Start of the range, inclusive (RFC 3339). Defaults to 30 days before to, moved up to the start of the organization's usage history when that is later. An explicit from before it answers 422 ExportUsageReports.OutsideRetention.
+     */
+    from?: string;
+    /**
+     * End of the range, exclusive (RFC 3339). Defaults to now. At most 366 days after from.
+     */
+    to?: string;
+    /**
+     * csv (the default): RFC 4180 with a header row. json: NDJSON, one report per line, in the shape listUsageReports returns. Anything else answers 422 ExportUsageReports.InvalidFormat.
+     */
+    format?: string;
+  };
+  url: "/instances/{instanceSlug}/entitlements/{entitlementSlug}/usage/reports/export";
+};
+
+export type ExportUsageReportsErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+};
+
+export type ExportUsageReportsError = ExportUsageReportsErrors[keyof ExportUsageReportsErrors];
+
+export type ExportUsageReportsResponses = {
+  /**
+   * The reports, as an attachment: CSV with a header row for format=csv, one JSON object per line for format=json
+   */
+  200: string;
+};
+
+export type ExportUsageReportsResponse =
+  ExportUsageReportsResponses[keyof ExportUsageReportsResponses];
 
 export type DeleteInstanceIntegrationData = {
   body?: never;
@@ -8215,6 +8462,82 @@ export type DeleteServiceAccountTokenResponses = {
 
 export type DeleteServiceAccountTokenResponse =
   DeleteServiceAccountTokenResponses[keyof DeleteServiceAccountTokenResponses];
+
+export type ExportOrganizationUsageReportsData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Start of the range, inclusive (RFC 3339). Defaults to 30 days before to, moved up to the start of the organization's usage history when that is later. An explicit from before it answers 422 ExportUsageReports.OutsideRetention.
+     */
+    from?: string;
+    /**
+     * End of the range, exclusive (RFC 3339). Defaults to now. At most 31 days after from.
+     */
+    to?: string;
+    /**
+     * csv (the default): RFC 4180 with a header row. json: NDJSON, one report per line. Anything else answers 422 ExportUsageReports.InvalidFormat.
+     */
+    format?: string;
+    /**
+     * Only this instance's reports
+     */
+    instanceSlug?: string;
+    /**
+     * Only this instance's reports. Reaches a deleted instance, whose reports are kept.
+     */
+    instanceId?: string;
+    /**
+     * Only this entitlement's reports
+     */
+    entitlementSlug?: string;
+    /**
+     * Only this entitlement's reports. Reaches a deleted entitlement, whose reports are kept.
+     */
+    entitlementId?: string;
+  };
+  url: "/usage/reports/export";
+};
+
+export type ExportOrganizationUsageReportsErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+};
+
+export type ExportOrganizationUsageReportsError =
+  ExportOrganizationUsageReportsErrors[keyof ExportOrganizationUsageReportsErrors];
+
+export type ExportOrganizationUsageReportsResponses = {
+  /**
+   * The reports, as an attachment: CSV with a header row for format=csv, one JSON object per line for format=json
+   */
+  200: string;
+};
+
+export type ExportOrganizationUsageReportsResponse =
+  ExportOrganizationUsageReportsResponses[keyof ExportOrganizationUsageReportsResponses];
 
 export type GetNotificationPreferencesData = {
   body?: never;
