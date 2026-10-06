@@ -110,6 +110,50 @@ export interface KaitenRunOptions {
   onResponse?: (response: Response) => void;
 }
 
+/** The `Retry-After` of a response, in seconds, when it sends one. */
+function retryAfterSeconds(response: Response): number | undefined {
+  const header = response.headers.get("Retry-After")?.trim();
+  if (!header) return undefined;
+  if (/^\d+$/.test(header)) return Number(header);
+  const at = Date.parse(header);
+  return Number.isNaN(at) ? undefined : Math.max(0, Math.ceil((at - Date.now()) / 1000));
+}
+
+/** The error a response that failed carries, as a `KaitenError`. */
+function apiErrorOf(body: unknown, response: Response): KaitenError {
+  return new KaitenError(toKaitenApiError(body, response.status), {
+    retryAfterSeconds: retryAfterSeconds(response),
+  });
+}
+
+/** Refuses a secret credential in a browser, before anything is sent. */
+function assertNoSecretInBrowser(token: string | undefined): void {
+  // A secret credential must never leave a browser, whatever the auth scheme.
+  //
+  // Keyed on the runtime, not on the scheme: a guard on
+  // `authScheme === "publishable"` alone covers the one mode the backend does
+  // not serve, and lets an org-scoped `ksh_` passed as a bearer token go into
+  // a bundle without a word.
+  //
+  // Checked at request time, for three reasons: the environment is what makes
+  // a secret unsafe (a server has no `window`, so legitimate bearer use is
+  // untouched); this runs after `tokenProvider()`, so an async token is covered
+  // too; and it rejects a request rather than throwing while a UI renders,
+  // where a mistyped key would turn into a blank page.
+  if (!token || !isBrowserRuntime()) return;
+  const secret = secretKeyPrefix(token);
+  if (secret) {
+    throw new KaitenError({
+      title: "Secret credential used in a browser",
+      status: 0,
+      detail:
+        `Kaiten: a secret key (${secret}*) was about to be sent from a browser. ` +
+        `Secret credentials carry rights over an entire organization, or over every ` +
+        `organization, and must stay on a server: call the API from your backend.`,
+    });
+  }
+}
+
 export class KaitenTransport {
   readonly http: Client;
   private readonly tokenProvider?: () => string | Promise<string>;
@@ -135,38 +179,10 @@ export class KaitenTransport {
       const token = this.tokenProvider ? await this.tokenProvider() : undefined;
       const headers = new Headers(request.headers);
 
-      // A secret credential must never leave a browser, whatever the auth scheme.
-      //
-      // Keyed on the runtime, not on the scheme: a guard on
-      // `authScheme === "publishable"` alone covers the one mode the backend does
-      // not serve, and lets an org-scoped `ksh_` passed as a bearer token go into
-      // a bundle without a word.
-      //
-      // Checked here, at request time, for three reasons: the environment is what
-      // makes a secret unsafe (a server has no `window`, so legitimate bearer use
-      // is untouched); this runs after `tokenProvider()`, so an async token is
-      // covered too; and it rejects a request rather than throwing while a UI
-      // renders, where a mistyped key would turn into a blank page.
-      if (token && isBrowserRuntime()) {
-        const secret = secretKeyPrefix(token);
-        if (secret) {
-          throw new KaitenError({
-            title: "Secret credential used in a browser",
-            status: 0,
-            detail:
-              `Kaiten: a secret key (${secret}*) was about to be sent from a browser. ` +
-              `Secret credentials carry rights over an entire organization, or over every ` +
-              `organization, and must stay on a server: call the API from your backend.`,
-          });
-        }
-      }
+      assertNoSecretInBrowser(token);
 
       if (token && this.authScheme === "bearer") {
         headers.set("Authorization", `Bearer ${token}`);
-      }
-
-      if (token && this.authScheme === "publishable") {
-        headers.set("X-Kaiten-Publishable-Key", token);
       }
 
       if (!headers.has("Content-Type") && request.method !== "GET" && request.method !== "HEAD") {
@@ -183,7 +199,36 @@ export class KaitenTransport {
     });
   }
 
+  /**
+   * Why this client may not call the API's private routes, if it may not.
+   *
+   * A publishable key is accepted on `/public/catalog` alone. Sending it
+   * anywhere else only ever earned a 401, and on the GraphQL and licence routes
+   * it asked for data no public key may read, so such a call is refused here,
+   * before any request.
+   */
+  private privateRoutesRefusal(label: string): KaitenError | null {
+    if (this.authScheme !== "publishable") return null;
+    return new KaitenError({
+      title: "Not available with a publishable key",
+      status: 0,
+      detail:
+        `Kaiten: ${label} is not available with a publishable key, which reads the public ` +
+        `catalog (getCatalog) only.`,
+    });
+  }
+
   async run<T>(
+    operation: (client: Client) => Promise<ApiResult<T> | Record<string, unknown>>,
+    label: string,
+    options: KaitenRunOptions = {},
+  ): Promise<T> {
+    const refusal = this.privateRoutesRefusal(label);
+    if (refusal) throw refusal;
+    return this.execute(operation, label, options);
+  }
+
+  private async execute<T>(
     operation: (client: Client) => Promise<ApiResult<T> | Record<string, unknown>>,
     label: string,
     options: KaitenRunOptions = {},
@@ -223,7 +268,7 @@ export class KaitenTransport {
             // credential, and hammering a rejected one just burns rate budget.
             this.onAuthError?.({ status, operation: label, error: result.error });
           }
-          throw new KaitenError(toKaitenApiError(result.error, status));
+          throw apiErrorOf(result.error, result.response);
         }
 
         if (result.response) options.onResponse?.(result.response);
@@ -252,6 +297,37 @@ export class KaitenTransport {
           return false;
         },
       },
+    );
+  }
+
+  /**
+   * Reads a route of the public surface with the publishable key.
+   *
+   * The key goes in `X-Kaiten-Publishable-Key` and nowhere else: no
+   * `Authorization` header, and no cookie (`credentials: "omit"`), since the
+   * public routes neither read nor set one and answer any origin. Replayed
+   * after a network failure or a 5xx, like every read.
+   *
+   * @internal Used by `KaitenClient`; not part of the public API.
+   */
+  async callPublic<T>(path: string, label: string): Promise<T> {
+    const token = this.tokenProvider ? await this.tokenProvider() : undefined;
+    assertNoSecretInBrowser(token);
+    if (this.authScheme !== "publishable" || !token?.startsWith("pk_")) {
+      throw new KaitenError({
+        title: "A publishable key is required",
+        status: 0,
+        detail: `Kaiten: ${label} needs authScheme "publishable" and a pk_ key.`,
+      });
+    }
+    return this.execute<T>(
+      (client) =>
+        client.get({
+          url: path,
+          headers: { "X-Kaiten-Publishable-Key": token },
+          credentials: "omit",
+        }),
+      label,
     );
   }
 

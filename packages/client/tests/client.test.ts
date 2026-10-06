@@ -61,8 +61,8 @@ describe("KaitenClient transport", () => {
     expect(request.headers.get("Authorization")).toBe("Bearer secret-token");
   });
 
-  test("sends publishable key header", async () => {
-    const fetchMock = vi.fn(async () => json({ id: "cust-1", slug: "acme", name: "Acme" }));
+  test("sends the publishable key header to the public catalogue, and only there", async () => {
+    const fetchMock = vi.fn(async () => json({ plans: [], addOns: [], capabilities: {} }));
     vi.stubGlobal("fetch", fetchMock);
 
     const client = new KaitenClient({
@@ -72,9 +72,12 @@ describe("KaitenClient transport", () => {
       fetch: fetchMock,
     });
 
-    await client.getCustomer("acme");
+    await client.getCatalog();
+    await expect(client.getCustomer("acme")).rejects.toMatchObject({ status: 0 });
 
+    expect(fetchMock).toHaveBeenCalledTimes(1);
     const request = getFetchRequest(fetchMock);
+    expect(new URL(request.url).pathname).toBe("/public/catalog");
     expect(request.headers.get("X-Kaiten-Publishable-Key")).toBe("pk_test");
   });
 
@@ -85,7 +88,7 @@ describe("KaitenClient transport", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const client = new KaitenClient({
-      authScheme: "publishable",
+      authScheme: "none",
       apiUrl: "https://api.test",
       fetch: fetchMock,
     });
@@ -104,7 +107,7 @@ describe("KaitenClient transport", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const client = new KaitenClient({
-      authScheme: "publishable",
+      authScheme: "none",
       apiUrl: "https://api.test",
       fetch: fetchMock,
     });
@@ -124,7 +127,7 @@ describe("KaitenClient transport", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const client = new KaitenClient({
-      authScheme: "publishable",
+      authScheme: "none",
       apiUrl: "https://api.test",
       fetch: fetchMock,
     });
@@ -168,7 +171,7 @@ describe("KaitenClient transport", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const client = new KaitenClient({
-      authScheme: "publishable",
+      authScheme: "none",
       apiUrl: "https://api.test",
       fetch: fetchMock,
     });
@@ -250,7 +253,7 @@ describe("KaitenClient transport", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const client = new KaitenClient({
-      authScheme: "publishable",
+      authScheme: "none",
       apiUrl: "https://api.test",
       fetch: fetchMock,
     });
@@ -302,7 +305,7 @@ describe("KaitenClient transport", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const client = new KaitenClient({
-      authScheme: "publishable",
+      authScheme: "none",
       apiUrl: "https://api.test",
       fetch: fetchMock,
     });
@@ -331,7 +334,7 @@ describe("KaitenClient transport", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const client = new KaitenClient({
-      authScheme: "publishable",
+      authScheme: "none",
       apiUrl: "/api",
       fetch: fetchMock,
     });
@@ -350,7 +353,7 @@ describe("KaitenClient transport", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const client = new KaitenClient({
-      authScheme: "publishable",
+      authScheme: "none",
       apiUrl: "https://api.test",
       fetch: fetchMock,
     });
@@ -481,7 +484,7 @@ describe("snapshot instance selection", () => {
 
     installSnapshotApi({ graphqlOrder: [beta, alpha] });
     const viaGraphql = await new KaitenClient({
-      authScheme: "publishable",
+      authScheme: "none",
       apiUrl: "https://api.test",
     }).getLicensingSnapshot("acme");
 
@@ -493,7 +496,7 @@ describe("snapshot instance selection", () => {
       graphqlAvailable: false,
     });
     const viaRest = await new KaitenClient({
-      authScheme: "publishable",
+      authScheme: "none",
       apiUrl: "https://api.test",
     }).getLicensingSnapshot("acme");
 
@@ -514,7 +517,7 @@ describe("snapshot instance selection", () => {
     installSnapshotApi({ graphqlOrder: [instanceRow("alpha"), instanceRow("beta")] });
 
     const snapshot = await new KaitenClient({
-      authScheme: "publishable",
+      authScheme: "none",
       apiUrl: "https://api.test",
     }).getLicensingSnapshot("acme", "beta");
 
@@ -526,7 +529,7 @@ describe("snapshot instance selection", () => {
     installSnapshotApi({ graphqlOrder: [instanceRow("alpha"), instanceRow("beta")] });
 
     await new KaitenClient({
-      authScheme: "publishable",
+      authScheme: "none",
       apiUrl: "https://api.test",
     }).getLicensingSnapshot("warn-many");
 
@@ -543,7 +546,7 @@ describe("snapshot instance selection", () => {
     installSnapshotApi({ graphqlOrder: [instanceRow("only")] });
 
     await new KaitenClient({
-      authScheme: "publishable",
+      authScheme: "none",
       apiUrl: "https://api.test",
     }).getLicensingSnapshot("warn-one");
 
@@ -562,7 +565,7 @@ describe("onDegraded", () => {
     installSnapshotApi({ graphqlOrder: [instanceRow("alpha")], graphqlAvailable: false });
 
     await new KaitenClient({
-      authScheme: "publishable",
+      authScheme: "none",
       apiUrl: "https://api.test",
       onDegraded,
     }).getLicensingSnapshot("acme");
@@ -572,12 +575,14 @@ describe("onDegraded", () => {
     expect(String(onDegraded.mock.calls[0]?.[0]?.error)).toContain("unknown field");
   });
 
-  test("fires for the public catalog read too", async () => {
+  // A publishable client reads `/public/catalog` and has no fallback to report:
+  // see public-catalog.test.ts.
+  test("fires for the composed catalog read too", async () => {
     const onDegraded = vi.fn();
     installSnapshotApi({ graphqlOrder: [], graphqlAvailable: false });
 
     await new KaitenClient({
-      authScheme: "publishable",
+      authScheme: "none",
       apiUrl: "https://api.test",
       onDegraded,
     }).getCatalog();
@@ -591,7 +596,7 @@ describe("onDegraded", () => {
     installSnapshotApi({ graphqlOrder: [instanceRow("alpha")] });
 
     await new KaitenClient({
-      authScheme: "publishable",
+      authScheme: "none",
       apiUrl: "https://api.test",
       onDegraded,
     }).getLicensingSnapshot("acme");
@@ -617,7 +622,7 @@ describe("onDegraded", () => {
 
     await expect(
       new KaitenClient({
-        authScheme: "publishable",
+        authScheme: "none",
         apiUrl: "https://api.test",
         onDegraded,
       }).getLicensingSnapshot("ghost"),
@@ -637,7 +642,7 @@ describe("onDegraded", () => {
     });
 
     await new KaitenClient({
-      authScheme: "publishable",
+      authScheme: "none",
       apiUrl: "https://api.test",
       onDegraded,
     }).getLicensingSnapshot("acme");
@@ -655,7 +660,7 @@ describe("onDegraded", () => {
     installSnapshotApi({ graphqlOrder: [instanceRow("alpha")], graphqlAvailable: false });
 
     const snapshot = await new KaitenClient({
-      authScheme: "publishable",
+      authScheme: "none",
       apiUrl: "https://api.test",
       onDegraded: () => {
         throw new Error("host logger exploded");
@@ -678,7 +683,7 @@ describe("snapshot customer identity", () => {
     });
 
     const snapshot = await new KaitenClient({
-      authScheme: "publishable",
+      authScheme: "none",
       apiUrl: "https://api.test",
     }).getLicensingSnapshot(CUSTOMER_ID);
 
@@ -699,7 +704,7 @@ describe("snapshot customer identity", () => {
 
     await expect(
       new KaitenClient({
-        authScheme: "publishable",
+        authScheme: "none",
         apiUrl: "https://api.test",
       }).getLicensingSnapshot(CUSTOMER_ID),
     ).rejects.toMatchObject({ status: 404 });
@@ -715,7 +720,7 @@ describe("snapshot customer identity", () => {
 
     await expect(
       new KaitenClient({
-        authScheme: "publishable",
+        authScheme: "none",
         apiUrl: "https://api.test",
       }).getLicensingSnapshot(CUSTOMER_ID),
     ).rejects.toMatchObject({ status: 404 });
@@ -745,7 +750,7 @@ describe("cursor pagination", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const instances = await new KaitenClient({
-      authScheme: "publishable",
+      authScheme: "none",
       apiUrl: "https://api.test",
     }).listInstances();
 
@@ -785,7 +790,7 @@ describe("cursor pagination", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const catalog = await new KaitenClient({
-      authScheme: "publishable",
+      authScheme: "none",
       apiUrl: "https://api.test",
     }).getCatalog();
 
@@ -837,7 +842,7 @@ describe("cursor pagination", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const snapshot = await new KaitenClient({
-      authScheme: "publishable",
+      authScheme: "none",
       apiUrl: "https://api.test",
     }).getLicensingSnapshot(CUSTOMER_ID);
 
@@ -868,7 +873,7 @@ describe("cursor pagination", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const catalog = await new KaitenClient({
-      authScheme: "publishable",
+      authScheme: "none",
       apiUrl: "https://api.test",
       onDegraded: (info) => degraded.push(info),
     }).getCatalog();
@@ -892,7 +897,7 @@ describe("cursor pagination", () => {
     // complete list, and `resolveSnapshotInstance` filters this listing to find
     // the customer's instance — a missing one opens every gate.
     await expect(
-      new KaitenClient({ authScheme: "publishable", apiUrl: "https://api.test" }).listInstances(),
+      new KaitenClient({ authScheme: "none", apiUrl: "https://api.test" }).listInstances(),
     ).rejects.toThrow(/stopped after 100 pages/);
     expect(pages).toBe(100);
   });
@@ -906,7 +911,7 @@ describe("cursor pagination", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(
-      new KaitenClient({ authScheme: "publishable", apiUrl: "https://api.test" }).listInstances(),
+      new KaitenClient({ authScheme: "none", apiUrl: "https://api.test" }).listInstances(),
     ).rejects.toThrow(/same cursor twice/);
     // Caught on the second page, not after a hundred round-trips.
     expect(fetchMock).toHaveBeenCalledTimes(2);
@@ -924,7 +929,7 @@ describe("cursor pagination", () => {
     // those predate the envelope. Requiring it would drop the compatibility the
     // fallback is there to provide.
     const instances = await new KaitenClient({
-      authScheme: "publishable",
+      authScheme: "none",
       apiUrl: "https://api.test",
     }).listInstances();
 
@@ -968,7 +973,7 @@ describe("secret credentials never leave a browser", () => {
 
   test("a publishable key is untouched in a browser", async () => {
     browser();
-    const fetchMock = vi.fn(async () => json({ id: "cust-1", slug: "acme", name: "Acme" }));
+    const fetchMock = vi.fn(async () => json({ plans: [], addOns: [], capabilities: {} }));
     vi.stubGlobal("fetch", fetchMock);
 
     const client = new KaitenClient({
@@ -978,7 +983,8 @@ describe("secret credentials never leave a browser", () => {
       fetch: fetchMock,
     });
 
-    await expect(client.getCustomer("acme")).resolves.toMatchObject({ slug: "acme" });
+    await expect(client.getCatalog()).resolves.toMatchObject({ plans: [] });
+    expect(getFetchRequest(fetchMock).headers.get("X-Kaiten-Publishable-Key")).toBe("pk_live_abc");
   });
 
   test("a secret key is fine on a server, which is where it belongs", async () => {
@@ -1145,7 +1151,7 @@ describe("the usage window travels only where it was actually read", () => {
     installUsageApi({ graphqlAvailable: false });
 
     const snapshot = await new KaitenClient({
-      authScheme: "publishable",
+      authScheme: "none",
       apiUrl: "https://api.test",
     }).getLicensingSnapshot("acme");
     const tokens = snapshot.entitlements.find((entitlement) => entitlement.slug === "tokens");
@@ -1166,7 +1172,7 @@ describe("the usage window travels only where it was actually read", () => {
     installUsageApi({ graphqlAvailable: true });
 
     const snapshot = await new KaitenClient({
-      authScheme: "publishable",
+      authScheme: "none",
       apiUrl: "https://api.test",
     }).getLicensingSnapshot("acme");
     const tokens = snapshot.entitlements.find((entitlement) => entitlement.slug === "tokens");
@@ -1278,7 +1284,7 @@ describe("the usage window travels only where it was actually read", () => {
     installUsageApi({ graphqlAvailable: true, periodic: false });
 
     const snapshot = await new KaitenClient({
-      authScheme: "publishable",
+      authScheme: "none",
       apiUrl: "https://api.test",
     }).getLicensingSnapshot("acme");
     const tokens = snapshot.entitlements.find((entitlement) => entitlement.slug === "tokens");

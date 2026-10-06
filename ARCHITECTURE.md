@@ -23,12 +23,20 @@ these packages serve, and its contract is not published.
 
 The API is described by two snapshots in [`contracts/`](contracts): `openapi.yaml`
 and `schema.graphql`. The generated clients come from them, and CI checks that they
-match what the API publishes. Nothing here reads the API's source code.
+match what the API publishes. The code here is written against those snapshots and
+never reads the API's source code.
 
-`@kaitencloud/client` composes the catalogue and a customer's licensing snapshot
-from the public API: a GraphQL aggregate first, and a REST fan-out over existing
-endpoints as the fallback for older APIs, which code comments call "Option A".
-There are no endpoints dedicated to the SDK.
+## What the API serves to these clients
+
+Kaiten serves routes made for these clients under `/public/`, and the contract
+describes them like any other. A publishable key (`pk_`) reads the catalogue from
+`GET /public/catalog` and from nothing else; the client refuses every other call
+locally.
+
+With any other credential, `@kaitencloud/client` composes the catalogue and a
+customer's licensing snapshot from the public API: a GraphQL aggregate first, and a
+REST fan-out over existing endpoints as the fallback for older APIs, which code
+comments call "Option A".
 
 ## Internal code
 

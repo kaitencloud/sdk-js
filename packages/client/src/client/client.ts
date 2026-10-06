@@ -35,6 +35,7 @@ import {
   resolveLicenseTerm,
 } from "./normalize.ts";
 import { isEvaluationSuccess } from "./feature-flags.ts";
+import { mapPublicCatalog } from "./billing.ts";
 import { KaitenTransport } from "../core/index.ts";
 import { LICENSING_CATALOG_QUERY, LICENSING_SNAPSHOT_QUERY } from "../graphql/documents.ts";
 import type {
@@ -429,6 +430,8 @@ export class KaitenClient implements KaitenClientLike {
   // to be applied once, so it is not retried. It stays set for the life of the
   // client, and is the client's, not the process's.
   private serverEchoesKeys = false;
+  // A publishable key reads the public catalogue and nothing else.
+  private readonly publishable: boolean;
 
   public readonly components: KaitenComponentsModule;
   public readonly customers: KaitenCustomersModule;
@@ -438,8 +441,8 @@ export class KaitenClient implements KaitenClientLike {
   public readonly flags: KaitenFlagsModule;
 
   constructor(config: KaitenClientConfig) {
-    // No default scheme: publishable keys are not served yet, and a default that
-    // sends a header no endpoint reads would fail every call without a word.
+    // No default scheme: a publishable key reads the public catalogue only, and a
+    // default that sent the wrong credential would fail every call without a word.
     if (!AUTH_SCHEMES.has(config.authScheme)) {
       throw new TypeError(
         'Kaiten authScheme is required: "bearer", "publishable" or "none". ' +
@@ -448,6 +451,7 @@ export class KaitenClient implements KaitenClientLike {
     }
     this.transport = new KaitenTransport(config);
     this.onDegraded = config.onDegraded;
+    this.publishable = config.authScheme === "publishable";
 
     this.components = {
       getCatalog: () => this.getCatalog(),
@@ -811,9 +815,14 @@ export class KaitenClient implements KaitenClientLike {
     }));
   }
 
-  // Composed client-side from existing licenses endpoints — there is no bespoke
-  // catalog endpoint server-side (Option A, see ARCHITECTURE.md).
+  // With a publishable key: the public catalogue, `GET /public/catalog`, and
+  // nothing else — no GraphQL and no REST fallback, which a publishable key may
+  // not read. With any other credential: composed from the licenses endpoints,
+  // every licence of the organization (Option A, see ARCHITECTURE.md).
   async getCatalog(): Promise<KaitenCatalog> {
+    if (this.publishable) {
+      return mapPublicCatalog(await this.transport.callPublic("/public/catalog", "getCatalog()"));
+    }
     const { plans } = await this.buildCatalog();
     return {
       plans: normalizePlansResponse(plans),

@@ -12,24 +12,50 @@ npm install @kaitencloud/client
 
 ## Authentication
 
-This release has no credential for your end users' browsers: publishable keys (`pk_`)
-and customer-scoped session tokens are planned, not served. The API accepts a `ksh_`
-token, or a JWT from the identity provider its gateway trusts, and both carry rights
-over a whole organization.
+The API accepts a `ksh_` token, or a JWT from the identity provider its gateway trusts,
+and both carry rights over a whole organization. Call Kaiten with them from your
+backend, and send your pages only what they need. On a server, this client takes a
+`ksh_` token with `authScheme: "bearer"`, as [`examples/node`](../../examples/node) does;
+[`@kaitencloud/server`](../server) covers the whole API. In a browser, the client refuses
+to send a `ksh_`, `ksm_` or `sk_` credential.
 
-So call Kaiten from your backend, and send your pages only what they need. On a server,
-this client takes a `ksh_` token with `authScheme: "bearer"`, as
-[`examples/node`](../../examples/node) does; [`@kaitencloud/server`](../server) covers
-the whole API. In a browser, the client refuses to send a `ksh_`, `ksm_` or `sk_`
-credential.
+A browser has one credential of its own: a publishable key (`pk_`), which reads your
+public catalog and nothing else. It needs a Kaiten server that serves the public routes
+(`/api/public/*`).
 
 `authScheme` is required:
 
 - `"bearer"` sends the credential as `Authorization: Bearer`;
-- `"publishable"` sends it as `X-Kaiten-Publishable-Key`, for the publishable keys to
-  come: no endpoint accepts them in this release;
+- `"publishable"` sends a publishable key as `X-Kaiten-Publishable-Key`, to
+  `GET /public/catalog` only: `getCatalog()` reads it, with no cookie and no fallback,
+  and every other call is refused before any request;
 - `"none"` sends no credential, for an endpoint in front of Kaiten that authenticates the
   request itself.
+
+### The public catalog
+
+With a publishable key, `getCatalog()` returns the default published version of each
+public licence family, its active prices and its public add-ons, and
+`catalog.capabilities` says whether the organization takes self-serve checkouts and
+payment methods. Each plan says whether it is `selfServe`, and where to send a customer
+when it is not (`selfServeCtaUrl`).
+
+Prices come in two lists. `plan.prices`, typed `PlanPrice[]` as in 1.0, holds the
+default monthly and annual flat fees only: prices a 1.0 reader cannot misread.
+`plan.billingPrices`, typed `BillingPrice[]`, holds every active price, in the API's
+order:
+
+- amounts are integers in the currency's minor units, as everywhere in this SDK
+  (`4900` EUR is €49.00, `980` JPY is ¥980, `12500` KWD is 12.500 KWD);
+- a quarterly or semi-annual fee is `{ interval: "month", intervalCount: 3 }` or `6`;
+- a usage or overage price (`billingModel`) has no interval: it is per sale unit of its
+  `meteredEntitlementSlug`, `saleUnitFactor` measured units each. Never add it into a
+  headline;
+- a price below one minor unit, such as `0.0002` cents per token, has no `amount`:
+  render it from `unitAmountDecimal`, a decimal string, without converting it to a
+  floating-point number.
+
+`plan.price` and `plan.annualPrice` are the default monthly and annual flat fees.
 
 ### Scopes
 
@@ -227,7 +253,8 @@ implements it, so a real client still fits.
 
 ## Data path
 
-`getCatalog` / `getSnapshot` are **GraphQL-first**: one composed query against the
+With a publishable key, `getCatalog` reads `GET /public/catalog` and nothing else.
+With any other credential, `getCatalog` / `getSnapshot` are **GraphQL-first**: one composed query against the
 API's `/graphql` endpoint (a backend aggregate in kaiten) returns the customer,
 its instances with live usage, and the full plan catalog with presentation metadata.
 Against an older API without the GraphQL schema, the client **falls back** to

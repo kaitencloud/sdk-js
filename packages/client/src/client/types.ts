@@ -425,6 +425,39 @@ export interface ResolvedFeatureFlag {
  */
 export type CurrencyCode = string;
 
+/**
+ * How a price is charged. `FLAT_FEE` is a fixed amount per billing period;
+ * `USAGE_BASED` charges every sale unit consumed; `OVERAGE` charges only the
+ * sale units consumed above the included quota.
+ *
+ * Open: the API may add a model in a minor release, so handle an unknown value
+ * (by not rendering the price, for instance) rather than assuming this list is
+ * exhaustive.
+ */
+export type PriceBillingModel = "FLAT_FEE" | "USAGE_BASED" | "OVERAGE" | (string & {});
+
+/**
+ * How a licence or an add-on is sold: `FREE`, `PAID`, or `CUSTOM` (priced by
+ * sales, "Contact us"). Open, like {@link PriceBillingModel}.
+ */
+export type PricingType = "FREE" | "PAID" | "CUSTOM" | (string & {});
+
+/**
+ * A price as `@kaitencloud/client` 1.0 typed it: an integer amount and a billing
+ * interval.
+ *
+ * The lists typed `PlanPrice[]` (`Plan.prices`, `Addon.prices`) only ever hold
+ * prices that this shape describes faithfully: a flat fee, an integer amount,
+ * and an interval of exactly one month or one year. Every other price — a
+ * quarterly or semi-annual fee, a usage or overage price, a price in fractions
+ * of a minor unit — is in `billingPrices`, typed {@link BillingPrice}. A
+ * consumer written against 1.0, which reads `interval === "month"` as "per
+ * month" and `amount` as the whole price, therefore never misreads one.
+ *
+ * The optional members below were added in 1.2. The client sets `id`,
+ * `unitAmountDecimal`, `billingModel` and `isDefault` on the prices it maps from
+ * the API; the others are only ever set on a {@link BillingPrice}.
+ */
 export interface PlanPrice {
   /**
    * Price in the currency's **minor units** (integer): cents for USD/EUR,
@@ -436,6 +469,56 @@ export interface PlanPrice {
   currencyCode?: CurrencyCode;
   interval?: BillingInterval;
   label?: string;
+  /** The price's id: what a checkout names as `licensePriceId`. */
+  id?: string;
+  /**
+   * The exact unit amount in the currency's minor units, as a decimal string
+   * (`"4900"`, `"0.0002"`). Equal to `amount` whenever the price is integral.
+   */
+  unitAmountDecimal?: string;
+  /**
+   * How many `interval`s one billing period spans: `3` for a quarterly price and
+   * `6` for a semi-annual one, both with `interval: "month"`. Absent means one.
+   */
+  intervalCount?: number;
+  billingModel?: PriceBillingModel;
+  /** For a `USAGE_BASED` or `OVERAGE` price, the entitlement it meters. */
+  meteredEntitlementSlug?: string;
+  /**
+   * For a metered price, how many measured units make the sale unit the price
+   * is per: `1000000` for a price per 1M tokens. The amount is per sale unit.
+   */
+  saleUnitFactor?: number;
+  /** Whether this is the default price of its billing period. */
+  isDefault?: boolean;
+}
+
+/**
+ * Any price the billing API serves, mapped to the SDK's money conventions:
+ * `currencyCode` for the API's `currency`, integer minor units for the amount.
+ *
+ * Unlike {@link PlanPrice}, `amount` is optional: it is absent when the price
+ * is not a whole number of minor units (`unitAmountDecimal: "0.0002"`, a price
+ * per token), which is then rendered from `unitAmountDecimal` and never
+ * rounded into an integer. A metered price (`USAGE_BASED`, `OVERAGE`) has no
+ * `interval` and is quoted per sale unit; never add it into a headline price.
+ */
+export interface BillingPrice extends Omit<
+  PlanPrice,
+  "amount" | "id" | "unitAmountDecimal" | "currencyCode" | "billingModel" | "isDefault"
+> {
+  id: string;
+  /** The amount in minor units, when it is an integer. */
+  amount?: number;
+  /** The exact unit amount in minor units, as a decimal string. Always set. */
+  unitAmountDecimal: string;
+  currencyCode: CurrencyCode;
+  billingModel: PriceBillingModel;
+  isDefault: boolean;
+  /** Singular label of the sale unit a metered price is per, e.g. `"1M tokens"`. */
+  saleUnitSingular?: string | null;
+  /** Plural label of that sale unit. */
+  saleUnitPlural?: string | null;
 }
 
 export interface PortalAction {
@@ -522,6 +605,17 @@ export interface Addon {
   entitlements?: PlanEntitlement[];
   features?: string[];
   action?: PortalAction | null;
+  /** The add-on family this add-on is a version of. */
+  familySlug?: string;
+  pricingType?: PricingType;
+  /** The most units one instance may hold. Null when unbounded. */
+  maxQuantity?: number | null;
+  /** How many units the instance holds, on an add-on read from a customer's portal. */
+  quantity?: number;
+  /** Every price of the add-on. See {@link PlanPrice} for why `prices` holds fewer. */
+  billingPrices?: BillingPrice[];
+  /** The licence families this add-on can be attached to. */
+  compatibleLicenseFamilies?: string[];
 }
 
 export interface CreditBalance {
@@ -561,6 +655,22 @@ export interface Plan {
   lifecycleState?: LicenseLifecycleState;
   /** Family of the license behind this plan: plans sharing it are versions of one product. */
   familyId?: string;
+  /** Every active price of the plan. See {@link PlanPrice} for why `prices` holds fewer. */
+  billingPrices?: BillingPrice[];
+  pricingType?: PricingType;
+  /** Length of the trial a subscription starts with, in days. Null without a trial. */
+  trialPeriodDays?: number | null;
+  /** Whether subscribing requires a payment method, even when nothing is due today. */
+  requiresPaymentMethod?: boolean;
+  /**
+   * Whether a customer can subscribe to this plan by themselves, through a
+   * checkout. When false, offer `selfServeCtaUrl` instead, when there is one.
+   */
+  selfServe?: boolean;
+  /** Where to send a customer for a plan that is not self-serve ("Contact us"). */
+  selfServeCtaUrl?: string | null;
+  /** The add-on families that can be attached to this plan. */
+  compatibleAddonFamilies?: string[];
 }
 
 export interface ResolvedEntitlement extends EntitlementPresentation {
@@ -649,6 +759,14 @@ export interface KaitenBrandingCapability {
 export interface KaitenCatalog {
   plans: Plan[];
   branding?: KaitenBrandingCapability;
+  /** The public add-ons, on a catalog read with a publishable key. */
+  addOns?: Addon[];
+  /**
+   * What the organization offers to self-serve customers, on a catalog read
+   * with a publishable key: `checkout` when at least one plan is self-serve,
+   * `paymentMethods` when its billing provider can capture a payment method.
+   */
+  capabilities?: Pick<BillingCapabilities, "checkout" | "paymentMethods">;
 }
 
 /**

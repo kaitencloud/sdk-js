@@ -37,8 +37,14 @@ export class KaitenError extends Error {
   public readonly errorId?: string;
   public readonly errors?: KaitenApiError["errors"];
   public readonly raw?: KaitenApiError;
+  /**
+   * How long the API asked to wait before trying again, in seconds, from the
+   * response's `Retry-After` header: set on a 429 (rate limited) and on a 409
+   * `*.BoundaryPending`. Absent when the response carried no such header.
+   */
+  public readonly retryAfterSeconds?: number;
 
-  constructor(apiError: KaitenApiError) {
+  constructor(apiError: KaitenApiError, options?: { retryAfterSeconds?: number }) {
     super(apiError.title);
     this.name = "KaitenError";
     this.status = apiError.status;
@@ -47,6 +53,9 @@ export class KaitenError extends Error {
     this.errorId = apiError.errorId;
     this.errors = apiError.errors;
     this.raw = apiError;
+    if (options?.retryAfterSeconds !== undefined) {
+      this.retryAfterSeconds = options.retryAfterSeconds;
+    }
   }
 }
 
