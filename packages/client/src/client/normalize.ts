@@ -370,10 +370,10 @@ export function entitlementStatus(
 /**
  * Reads the license period off the instance the snapshot describes.
  *
- * `startLicenseDate` and `endLicenseDate` were carried across the wire, mapped
- * onto `Instance`, and then read by nothing: an expired license kept every
- * entitlement it had ever granted. This is the one place the dates become a
- * fact the rest of the SDK can act on.
+ * `startLicenseDate` and `endLicenseDate` are carried across the wire and mapped
+ * onto `Instance`; this is the one place they become a fact the rest of the SDK
+ * can show. It is information: no Kaiten server gates on these dates, so they
+ * say nothing about what the instance may use (see `LicenseTerm`).
  *
  * `now` is injected so the derivation stays pure and testable. Unparseable or
  * absent dates yield `null` rather than a guess — an unknown term must not be

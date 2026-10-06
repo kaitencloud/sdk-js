@@ -801,10 +801,15 @@ export interface KaitenCatalog {
  * always sent and the SDK never read — so an expired license kept every one of
  * its entitlements. `null` when there is no instance (nothing to date).
  *
- * The comparison is against the *client* clock, so this is an indication and not
- * an enforcement: the server remains the authority, exactly as for the rest of
- * the gating surface. It is enough to stop presenting an expired license as
- * current, and to stop opening quota gates against it.
+ * Information, not an entitlement decision. No Kaiten server gates on these
+ * dates: its usage gate, its flag evaluation and its entitlement reads ignore
+ * them, and Kaiten billing never moves them — a subscription renews without
+ * touching `endLicenseDate`. A gate that denied an `expired` term would
+ * therefore refuse a customer the server still serves, including a paying one
+ * whose subscription renewed. Show the term ("expired on …"); decide access on
+ * the entitlements, as the server does.
+ *
+ * The comparison is against the *client* clock.
  */
 export interface LicenseTerm {
   status: "active" | "expired" | "not_started";

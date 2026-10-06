@@ -343,6 +343,7 @@ implements it, so a real client still fits.
 
 The customer-session calls are a second interface, `KaitenSessionClientLike`, which
 `KaitenSessionClient` implements: a double of the session client implements that one.
+[STABILITY.md](./STABILITY.md) says how the client surface grows within 1.x.
 
 ## Data path
 
