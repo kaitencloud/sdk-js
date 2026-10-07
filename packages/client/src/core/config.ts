@@ -19,8 +19,10 @@ export interface KaitenClientConfig {
    * - `"bearer"`: `Authorization: Bearer <token>`, for a `ksh_` token or a JWT the
    *   API's gateway verifies. Both carry rights over a whole organization: use
    *   them on a server. In a browser, the client refuses to send a secret.
-   * - `"publishable"`: `X-Kaiten-Publishable-Key`, for the publishable keys
-   *   (`pk_`) to come. No endpoint accepts them in this release.
+   * - `"publishable"`: `X-Kaiten-Publishable-Key`, for a publishable key
+   *   (`pk_`). It reads the organization's public catalogue
+   *   (`components.getCatalog()`) and nothing else; every other call is refused
+   *   by the API. Safe in a browser, from an origin the key allows.
    * - `"none"`: no credential, for an endpoint in front of Kaiten that
    *   authenticates the request itself.
    */

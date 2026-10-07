@@ -129,9 +129,9 @@ export class KaitenTransport {
       // A secret credential must never leave a browser, whatever the auth scheme.
       //
       // Keyed on the runtime, not on the scheme: a guard on
-      // `authScheme === "publishable"` alone covers the one mode the backend does
-      // not serve, and lets an org-scoped `ksh_` passed as a bearer token go into
-      // a bundle without a word.
+      // `authScheme === "publishable"` alone covers only the browser-safe mode,
+      // and lets an org-scoped `ksh_` passed as a bearer token go into a bundle
+      // without a word.
       //
       // Checked here, at request time, for three reasons: the environment is what
       // makes a secret unsafe (a server has no `window`, so legitimate bearer use

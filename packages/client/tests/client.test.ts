@@ -165,7 +165,7 @@ describe("KaitenClient transport", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const client = new KaitenClient({
-      authScheme: "publishable",
+      authScheme: "bearer",
       apiUrl: "https://api.test",
       fetch: fetchMock,
     });
@@ -247,7 +247,7 @@ describe("KaitenClient transport", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const client = new KaitenClient({
-      authScheme: "publishable",
+      authScheme: "bearer",
       apiUrl: "https://api.test",
       fetch: fetchMock,
     });
@@ -299,7 +299,7 @@ describe("KaitenClient transport", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const client = new KaitenClient({
-      authScheme: "publishable",
+      authScheme: "bearer",
       apiUrl: "https://api.test",
       fetch: fetchMock,
     });
@@ -569,12 +569,12 @@ describe("onDegraded", () => {
     expect(String(onDegraded.mock.calls[0]?.[0]?.error)).toContain("unknown field");
   });
 
-  test("fires for the public catalog read too", async () => {
+  test("fires for the bearer catalog read too", async () => {
     const onDegraded = vi.fn();
     installSnapshotApi({ graphqlOrder: [], graphqlAvailable: false });
 
     await new KaitenClient({
-      authScheme: "publishable",
+      authScheme: "bearer",
       apiUrl: "https://api.test",
       onDegraded,
     }).getCatalog();
@@ -782,7 +782,7 @@ describe("cursor pagination", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const catalog = await new KaitenClient({
-      authScheme: "publishable",
+      authScheme: "bearer",
       apiUrl: "https://api.test",
     }).getCatalog();
 
@@ -865,7 +865,7 @@ describe("cursor pagination", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const catalog = await new KaitenClient({
-      authScheme: "publishable",
+      authScheme: "bearer",
       apiUrl: "https://api.test",
       onDegraded: (info) => degraded.push(info),
     }).getCatalog();
@@ -1163,5 +1163,199 @@ describe("the usage window travels only where it was actually read", () => {
 
     expect(tokens?.usageWindowUnknown).toBeUndefined();
     expect(resolveUsageScope(tokens ?? {})).toBe("LIFETIME");
+  });
+});
+
+describe("public catalog (publishable key)", () => {
+  const wire = {
+    plans: [
+      {
+        familySlug: "pro",
+        licenseSlug: "pro-a1b2c3",
+        licenseId: "11111111-1111-4111-8111-111111111111",
+        name: "Pro",
+        description: "For teams",
+        lifecycleState: "PUBLISHED",
+        pricingType: "PAID",
+        trialPeriodDays: 14,
+        requiresPaymentMethod: true,
+        selfServe: true,
+        selfServeCtaUrl: null,
+        currency: "EUR",
+        prices: [
+          {
+            id: "p-m",
+            billingModel: "FLAT_FEE",
+            billingTiming: "ADVANCE",
+            billingPeriod: "MONTHLY",
+            currency: "EUR",
+            unitAmount: 2900,
+            unitAmountDecimal: "2900",
+            displayOrder: 0,
+            isDefault: true,
+          },
+          {
+            id: "p-y",
+            billingModel: "FLAT_FEE",
+            billingTiming: "ADVANCE",
+            billingPeriod: "ANNUAL",
+            currency: "EUR",
+            unitAmount: 29000,
+            unitAmountDecimal: "29000",
+            displayOrder: 1,
+            isDefault: true,
+          },
+          {
+            id: "p-q",
+            billingModel: "FLAT_FEE",
+            billingTiming: "ADVANCE",
+            billingPeriod: "QUARTERLY",
+            currency: "EUR",
+            unitAmount: 8000,
+            unitAmountDecimal: "8000",
+            displayOrder: 2,
+            isDefault: false,
+          },
+          {
+            id: "p-o",
+            billingModel: "OVERAGE",
+            billingTiming: "ARREARS",
+            currency: "EUR",
+            unitAmountDecimal: "0.5",
+            metered: { entitlementSlug: "tokens", saleUnitFactor: "10000" },
+            displayOrder: 3,
+            isDefault: false,
+          },
+        ],
+        compatibleAddonFamilies: ["extra-seats"],
+        entitlements: [
+          {
+            slug: "seats",
+            name: "Seats",
+            type: "NUMBER",
+            value: -1,
+            unlimited: true,
+            displayOrder: 0,
+            unitSingular: "seat",
+            unitPlural: "seats",
+          },
+          {
+            slug: "tokens",
+            name: "Tokens",
+            type: "NUMBER",
+            value: 1000000,
+            unlimited: false,
+            displayOrder: 1,
+            saleUnitFactor: "10000",
+          },
+        ],
+      },
+    ],
+    addOns: [
+      {
+        familySlug: "extra-seats",
+        addonSlug: "extra-seats-v1",
+        addonId: "22222222-2222-4222-8222-222222222222",
+        name: "Extra seats",
+        description: "Five more seats",
+        pricingType: "PAID",
+        maxQuantity: 10,
+        prices: [
+          {
+            id: "a-m",
+            billingModel: "FLAT_FEE",
+            billingTiming: "ADVANCE",
+            billingPeriod: "MONTHLY",
+            currency: "EUR",
+            unitAmount: 500,
+            unitAmountDecimal: "500",
+            displayOrder: 0,
+            isDefault: true,
+          },
+        ],
+        entitlements: [
+          { slug: "seats", name: "Seats", type: "NUMBER", value: 5, overrideBehavior: "ADD" },
+        ],
+        compatibleLicenseFamilies: ["pro"],
+      },
+    ],
+    capabilities: { checkout: false, paymentMethods: true },
+  };
+
+  test("reads /public/catalog with the key alone, and maps it", async () => {
+    const fetchMock = vi.fn(async () => json(wire));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const catalog = await new KaitenClient({
+      apiUrl: "https://api.test",
+      authScheme: "publishable",
+      tokenProvider: () => "pk_live",
+      fetch: fetchMock,
+    }).getCatalog();
+
+    expect(fetchMock).toHaveBeenCalledOnce();
+    const request = getFetchRequest(fetchMock);
+    expect(new URL(request.url).pathname).toBe("/public/catalog");
+    expect(request.method).toBe("GET");
+    expect(request.headers.get("X-Kaiten-Publishable-Key")).toBe("pk_live");
+    expect(request.headers.get("Authorization")).toBeNull();
+
+    const [plan] = catalog.plans;
+    expect(plan).toMatchObject({
+      id: wire.plans[0]?.licenseId,
+      slug: "pro-a1b2c3",
+      familyId: "pro",
+      price: 2900,
+      annualPrice: 29000,
+      interval: "month",
+      currencyCode: "EUR",
+      published: true,
+      selfServe: true,
+      trialPeriodDays: 14,
+    });
+    expect(plan?.prices?.find((p) => p.id === "p-q")).toMatchObject({
+      interval: "month",
+      intervalCount: 3,
+      amount: 8000,
+    });
+    expect(plan?.prices?.find((p) => p.id === "p-o")).toMatchObject({
+      billingModel: "OVERAGE",
+      unitAmountDecimal: "0.5",
+      meteredEntitlementSlug: "tokens",
+      saleUnitFactor: 10000,
+    });
+    expect(plan?.prices?.find((p) => p.id === "p-o")?.interval).toBeUndefined();
+    expect(plan?.entitlements?.[0]).toMatchObject({
+      slug: "seats",
+      unlimited: true,
+      value: { type: "number", value: -1 },
+    });
+    expect(plan?.entitlements?.[1]?.saleUnitFactor).toBe(10000);
+    expect(plan?.addOns?.map((a) => a.slug)).toEqual(["extra-seats-v1"]);
+    expect(catalog.addOns?.[0]).toMatchObject({
+      price: 500,
+      maxQuantity: 10,
+      familySlug: "extra-seats",
+    });
+    expect(catalog.capabilities).toEqual({ checkout: false, paymentMethods: true });
+  });
+
+  test("never falls back to GraphQL or REST with a publishable key", async () => {
+    const fetchMock = vi.fn(async () => json({ title: "Unauthorized", status: 401 }, 401));
+    vi.stubGlobal("fetch", fetchMock);
+    const onDegraded = vi.fn();
+
+    await expect(
+      new KaitenClient({
+        apiUrl: "https://api.test",
+        authScheme: "publishable",
+        tokenProvider: () => "pk_revoked",
+        fetch: fetchMock,
+        onDegraded,
+      }).getCatalog(),
+    ).rejects.toMatchObject({ status: 401 });
+
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(onDegraded).not.toHaveBeenCalled();
   });
 });
