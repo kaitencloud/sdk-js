@@ -1,14 +1,15 @@
 // The public catalogue, read with a publishable key: GET /api/public/catalog.
 //
-// The wire shape is written here rather than generated, because the vendored
-// contract (contracts/openapi.yaml) follows released kaiten versions and this
-// route is newer than the last one. When contract-drift brings it in, these
-// types can give way to the generated ones; the mapping stays.
-//
 // The API does not mirror the SDK's shapes; this maps them (§14.5 of the
 // billing spec): amounts stay in minor units, periods become intervals, the
 // default monthly and annual flat fees become `price` and `annualPrice`.
 
+import type {
+  PublicAddOn as PublicAddOnWire,
+  PublicCatalog as PublicCatalogWire,
+  PublicPlanEntitlement as PublicPlanEntitlementWire,
+  PublicPrice as PublicPriceWire,
+} from "../core/generated/types.gen.ts";
 import type {
   Addon,
   BillingInterval,
@@ -21,85 +22,7 @@ import type {
 
 export const PUBLIC_CATALOG_PATH = "/public/catalog";
 
-export interface PublicCatalogResponse {
-  plans: PublicPlanWire[];
-  addOns: PublicAddOnWire[];
-  capabilities: { checkout: boolean; paymentMethods: boolean };
-}
-
-interface PublicPriceWire {
-  id: string;
-  billingModel: "FLAT_FEE" | "USAGE_BASED" | "OVERAGE";
-  billingTiming: "ADVANCE" | "ARREARS";
-  billingPeriod?: "MONTHLY" | "QUARTERLY" | "SEMI_ANNUAL" | "ANNUAL";
-  currency: string;
-  unitAmount?: number;
-  unitAmountDecimal: string;
-  metered?: {
-    entitlementSlug: string;
-    saleUnitFactor: string;
-    saleUnitSingular?: string;
-    saleUnitPlural?: string;
-  };
-  displayLabel?: string;
-  displayOrder: number;
-  isDefault: boolean;
-}
-
-interface PublicPlanEntitlementWire {
-  slug: string;
-  name: string;
-  description?: string;
-  type: "BOOLEAN" | "NUMBER" | "CONFIG";
-  value: unknown;
-  unlimited: boolean;
-  limitCapExceededOveragePercent?: number;
-  icon?: string;
-  unitSingular?: string;
-  unitPlural?: string;
-  saleUnitSingular?: string;
-  saleUnitPlural?: string;
-  saleUnitFactor?: string;
-  displayOrder: number;
-}
-
-interface PublicPlanWire {
-  familySlug: string;
-  licenseSlug: string;
-  licenseId: string;
-  name: string;
-  description: string;
-  lifecycleState: "PUBLISHED";
-  pricingType: "FREE" | "PAID" | "CUSTOM";
-  trialPeriodDays: number | null;
-  requiresPaymentMethod: boolean;
-  selfServe: boolean;
-  selfServeCtaUrl: string | null;
-  currency: string | null;
-  prices: PublicPriceWire[];
-  compatibleAddonFamilies: string[];
-  entitlements: PublicPlanEntitlementWire[];
-}
-
-interface PublicAddOnWire {
-  familySlug: string;
-  addonSlug: string;
-  addonId: string;
-  name: string;
-  description: string;
-  pricingType: "FREE" | "PAID" | "CUSTOM";
-  maxQuantity: number | null;
-  prices: PublicPriceWire[];
-  entitlements: {
-    slug: string;
-    name: string;
-    type: "BOOLEAN" | "NUMBER" | "CONFIG";
-    value: unknown;
-    overrideBehavior: "ADD" | "OVERRIDE" | "MAX";
-    limitCapExceededOveragePercent?: number;
-  }[];
-  compatibleLicenseFamilies: string[];
-}
+export type PublicCatalogResponse = PublicCatalogWire;
 
 const PERIODS: Record<
   NonNullable<PublicPriceWire["billingPeriod"]>,
@@ -111,7 +34,8 @@ const PERIODS: Record<
   ANNUAL: { interval: "year" },
 };
 
-function toPlanPrice(price: PublicPriceWire): PlanPrice {
+/** Shows an API price as a `PlanPrice`. */
+export function planPriceFromPublic(price: PublicPriceWire): PlanPrice {
   const out: PlanPrice = {
     id: price.id,
     amount: price.unitAmount ?? Number(price.unitAmountDecimal),
@@ -174,7 +98,7 @@ function toAddon(addon: PublicAddOnWire): Addon {
     name: addon.name,
     description: addon.description,
     maxQuantity: addon.maxQuantity,
-    prices: addon.prices.map(toPlanPrice),
+    prices: addon.prices.map(planPriceFromPublic),
     entitlements: addon.entitlements.map((grant) => ({
       slug: grant.slug,
       name: grant.name,
@@ -206,7 +130,7 @@ export function catalogFromPublic(response: PublicCatalogResponse): KaitenCatalo
       slug: wire.licenseSlug,
       name: wire.name,
       description: wire.description,
-      prices: wire.prices.map(toPlanPrice),
+      prices: wire.prices.map(planPriceFromPublic),
       entitlements: wire.entitlements.map(toPlanEntitlement),
       addOns: wire.compatibleAddonFamilies.flatMap((family) => {
         const addon = addOnsByFamily.get(family);

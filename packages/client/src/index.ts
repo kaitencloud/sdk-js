@@ -42,6 +42,7 @@ export type {
   KaitenComponentsModule,
   KaitenCustomersModule,
   KaitenFlagsModule,
+  KaitenSessionModule,
   KaitenInstancesModule,
   KaitenLicensesModule,
   KaitenUsageModule,
@@ -85,3 +86,14 @@ export type {
 // are the curated subset that stays top-level; the rest of the generated surface
 // is under `KaitenApi`. Some names intentionally override the generated ones.
 export type * from "./client/types.ts";
+// What a customer session does from the browser: checkout and invoices.
+export type {
+  CheckoutDue,
+  CheckoutOrder,
+  CheckoutPayment,
+  CheckoutResult,
+  SessionInvoice,
+  SessionInvoiceLine,
+  SessionInvoicePage,
+  SessionSubscription,
+} from "./client/session.ts";

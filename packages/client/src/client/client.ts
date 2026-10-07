@@ -1,6 +1,7 @@
 import {
   evaluateFlag as evaluateFlagApi,
   evaluateFlagsBulk,
+  createSessionCheckout as createSessionCheckoutApi,
   getCustomer as getCustomerApi,
   getEntitlementGroupUsage,
   getEntitlementUsageMetrics,
@@ -12,6 +13,7 @@ import {
   getLicenseEntitlements,
   getLicenses,
   listCustomers,
+  listSessionInvoices as listSessionInvoicesApi,
   listUsageReports,
   reportEntitlementUsageMetric,
 } from "../core/index.ts";
@@ -31,6 +33,13 @@ import {
   type PublicCatalogResponse,
 } from "./public-catalog.ts";
 import { isEvaluationSuccess } from "./feature-flags.ts";
+import {
+  checkoutFrom,
+  invoicePageFrom,
+  type CheckoutOrder,
+  type CheckoutResult,
+  type SessionInvoicePage,
+} from "./session.ts";
 import { KaitenTransport } from "../core/index.ts";
 import { LICENSING_CATALOG_QUERY, LICENSING_SNAPSHOT_QUERY } from "../graphql/documents.ts";
 import type {
@@ -148,6 +157,26 @@ export interface KaitenUsageModule {
 export interface KaitenFlagsModule {
   evaluate: (key: string, context?: Record<string, unknown>) => Promise<EvaluationSuccess>;
   evaluateAll: (context?: Record<string, unknown>) => Promise<BulkEvaluationResponse>;
+}
+
+/**
+ * What a customer session (`kst_`) does from the customer's browser. The
+ * client must be created with `authScheme: "bearer"` and a `tokenProvider`
+ * returning the session your backend minted with
+ * `CustomerSessions.createCustomerSession` (`@kaitencloud/server`); it is
+ * called on every request, so return a fresh one before `expiresAt`.
+ */
+export interface KaitenSessionModule {
+  /** What the checkout would bill today. Changes nothing. */
+  previewCheckout: (order: CheckoutOrder) => Promise<CheckoutResult>;
+  /**
+   * Subscribes the session's instance. Answers `requires_payment_method` with
+   * a setup page when a card has to be saved first: send the customer there,
+   * then call again with its `setupSessionId`.
+   */
+  checkout: (order: CheckoutOrder) => Promise<CheckoutResult>;
+  /** The customer's issued invoices, newest first, with how to pay each. */
+  invoices: (options?: { cursor?: string; limit?: number }) => Promise<SessionInvoicePage>;
 }
 
 // Result of buildCatalog(): the plan catalog plus the raw licenses and their
@@ -361,6 +390,7 @@ export class KaitenClient implements KaitenClientLike {
   public readonly licenses: KaitenLicensesModule;
   public readonly usage: KaitenUsageModule;
   public readonly flags: KaitenFlagsModule;
+  public readonly session: KaitenSessionModule;
   /** Set once an API refuses usage report keys: later reports go out without them. */
   private transactionIdsUnsupported = false;
 
@@ -412,6 +442,12 @@ export class KaitenClient implements KaitenClientLike {
         this.listUsageReports(instanceSlug, entitlementSlug, options),
       getByGroup: (groupSlug, instanceSlug) =>
         this.getEntitlementGroupUsage(groupSlug, instanceSlug),
+    };
+
+    this.session = {
+      previewCheckout: (order) => this.sessionCheckout(order, true),
+      checkout: (order) => this.sessionCheckout(order, false),
+      invoices: (options) => this.sessionInvoices(options),
     };
 
     this.flags = {
@@ -745,6 +781,39 @@ export class KaitenClient implements KaitenClientLike {
 
   // Composed client-side from existing licenses endpoints — there is no bespoke
   // catalog endpoint server-side (Option A, see ARCHITECTURE.md).
+  // A customer session is a bearer token; a publishable key reaches only the
+  // catalogue, so the session routes refuse it -- said here, before a request
+  // the API would answer 403.
+  private requireSession(operation: string): void {
+    if (this.authScheme !== "bearer") {
+      throw new TypeError(
+        `Kaiten: ${operation} needs a customer session (kst_) sent with authScheme "bearer"; ` +
+          "mint one from your backend with CustomerSessions.createCustomerSession.",
+      );
+    }
+  }
+
+  private async sessionCheckout(order: CheckoutOrder, dryRun: boolean): Promise<CheckoutResult> {
+    this.requireSession("checkout");
+    const wire = await this.transport.run(
+      (client) => createSessionCheckoutApi({ client, body: { ...order, dryRun } }),
+      "POST /public/session/checkout",
+    );
+    return checkoutFrom(wire);
+  }
+
+  private async sessionInvoices(
+    options: { cursor?: string; limit?: number } = {},
+  ): Promise<SessionInvoicePage> {
+    this.requireSession("session.invoices");
+    const wire = await this.transport.run(
+      (client) =>
+        listSessionInvoicesApi({ client, query: { cursor: options.cursor, limit: options.limit } }),
+      "GET /public/session/invoices",
+    );
+    return invoicePageFrom(wire);
+  }
+
   async getCatalog(): Promise<KaitenCatalog> {
     // A publishable key reads the public catalogue and nothing else, so public
     // mode never falls back to GraphQL or the REST fan-out: both answer 401 to a
