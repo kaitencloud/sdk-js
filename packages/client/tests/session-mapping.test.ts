@@ -360,6 +360,22 @@ describe("invoices, checkout and vouchers", () => {
     });
   });
 
+  test("a trial end and a payment page the API leaves out read as null", () => {
+    const preview = mapCheckout({ status: "preview", dueToday: INVOICE });
+    const subscribed = mapCheckout({
+      status: "subscribed",
+      subscription: BOUND.subscription,
+      activationInvoice: null,
+      payment: { status: "not_required" },
+    });
+
+    expect(preview).toMatchObject({ status: "preview", trialEndsAt: null });
+    expect(subscribed).toMatchObject({
+      status: "subscribed",
+      payment: { status: "not_required", hostedInvoiceUrl: null },
+    });
+  });
+
   test("a setup answer is passed through", () => {
     const setup = {
       status: "requires_payment_method",

@@ -341,13 +341,23 @@ export const mapInvoicePage = (raw: Raw): KaitenPage<SessionInvoice> => ({
 /** The answer of `POST /public/session/checkout`, whichever it is. */
 export function mapCheckout(raw: Raw): CheckoutResult {
   if (raw.status === "preview") {
-    return { ...(raw as CheckoutPreview), dueToday: mapInvoice(raw.dueToday ?? {}) };
+    return {
+      ...(raw as CheckoutPreview),
+      dueToday: mapInvoice(raw.dueToday ?? {}),
+      // The API leaves the trial out when the plan has none.
+      trialEndsAt: raw.trialEndsAt ?? null,
+    };
   }
   if (raw.status === "subscribed") {
     return {
       ...(raw as CheckoutSubscribed),
       subscription: mapSubscription(raw.subscription ?? {}),
       activationInvoice: raw.activationInvoice ? mapInvoice(raw.activationInvoice) : null,
+      // Likewise the hosted page, when the payment needs none.
+      payment: raw.payment && {
+        ...raw.payment,
+        hostedInvoiceUrl: raw.payment.hostedInvoiceUrl ?? null,
+      },
     };
   }
   return raw as CheckoutResult;
