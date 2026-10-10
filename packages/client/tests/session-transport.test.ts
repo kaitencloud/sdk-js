@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vite-plus/tes
 
 import { KaitenClient, KaitenError, KaitenSessionClient } from "../src/index.ts";
 import type {
+  KaitenApi,
   KaitenClientLike,
   KaitenCustomerSession,
   KaitenSessionClientLike,
@@ -306,5 +307,218 @@ describe("KaitenSessionClientLike", () => {
 
     expect(typeof sessionLike.getPortal).toBe("function");
     expect(unchanged).toBe(true);
+  });
+});
+
+// The checkout and the invoices as the contract types them: each payload below is
+// checked against the generated type of its route, so it is what the API serves,
+// not what the client expects it to.
+describe("checkout and invoices, on payloads the contract types", () => {
+  const invoice = {
+    id: "inv-1",
+    kind: "ACTIVATION",
+    status: "PAID",
+    currency: "EUR",
+    subtotal: 2900,
+    discountTotal: 0,
+    total: 2900,
+    issuedAt: "2026-10-08T10:00:00Z",
+    dueAt: "2026-10-08T10:00:00Z",
+    paidAt: "2026-10-08T10:00:01Z",
+    serviceFrom: "2026-10-08T10:00:00Z",
+    serviceTo: "2026-11-08T10:00:00Z",
+    providerInvoiceNumber: "INV-0001",
+    externalReference: null,
+    hostedInvoiceUrl: "https://pay.example/inv-1",
+    invoicePdfUrl: null,
+    lines: [
+      {
+        seq: 1,
+        type: "BASE",
+        label: "Pro",
+        description: "",
+        quantity: "1",
+        unitAmountDecimal: "2900",
+        amount: 2900,
+        serviceFrom: "2026-10-08T10:00:00Z",
+        serviceTo: "2026-11-08T10:00:00Z",
+      },
+    ],
+  } satisfies KaitenApi.SessionInvoice;
+
+  const subscribed = {
+    status: "subscribed",
+    subscription: {
+      status: "ACTIVE",
+      providerKind: "STRIPE",
+      collectionMethod: "CHARGE_AUTOMATICALLY",
+      currency: "EUR",
+      billingPeriod: "MONTHLY",
+      basePrice: {
+        id: "p-m",
+        billingModel: "FLAT_FEE",
+        billingTiming: "ADVANCE",
+        billingPeriod: "MONTHLY",
+        currency: "EUR",
+        unitAmount: 2900,
+        unitAmountDecimal: "2900",
+        displayOrder: 0,
+        isDefault: true,
+      },
+      currentPeriodStart: "2026-10-08T10:00:00Z",
+      currentPeriodEnd: "2026-11-08T10:00:00Z",
+      trialEndsAt: null,
+      cancelAtPeriodEnd: false,
+      scheduledChange: null,
+    },
+    activationInvoice: invoice,
+    payment: { status: "paid", hostedInvoiceUrl: "https://pay.example/inv-1" },
+  } satisfies KaitenApi.SessionCheckout;
+
+  const open = (reply: () => Response) => {
+    const { fetch, requests } = server(reply);
+    return {
+      fetch,
+      requests,
+      client: sessionClient(fetch, sessions(session(KST_A, T0 + 30 * MINUTE))),
+    };
+  };
+
+  test("checks out with the session as a bearer token, and maps the answer", async () => {
+    const { client, requests } = open(() => json(subscribed, 201));
+
+    const result = await client.checkout({
+      licensePriceId: "p-m",
+      addOns: [{ addonSlug: "extra-seats-v1", quantity: 2 }],
+    });
+
+    expect(requests).toHaveLength(1);
+    const request = requests[0]!;
+    expect(new URL(request.url).pathname).toBe("/api/public/session/checkout");
+    expect(request.method).toBe("POST");
+    expect(request.headers.get("Authorization")).toBe(`Bearer ${KST_A}`);
+    expect(request.credentials).toBe("omit");
+    expect(await request.clone().json()).toEqual({
+      licensePriceId: "p-m",
+      addOns: [{ addonSlug: "extra-seats-v1", quantity: 2 }],
+    });
+
+    expect(result.status).toBe("subscribed");
+    if (result.status !== "subscribed") return;
+    expect(result.payment).toEqual({
+      status: "paid",
+      hostedInvoiceUrl: "https://pay.example/inv-1",
+    });
+    expect(result.subscription).toMatchObject({
+      status: "ACTIVE",
+      currencyCode: "EUR",
+      billingInterval: "month",
+      scheduledChange: null,
+    });
+    expect(result.subscription.basePrice).toMatchObject({
+      amount: 2900,
+      interval: "month",
+      isDefault: true,
+    });
+    expect(result.activationInvoice).toMatchObject({
+      currencyCode: "EUR",
+      total: 2900,
+      status: "PAID",
+    });
+    expect(result.activationInvoice?.lines[0]).toMatchObject({ type: "BASE", amount: 2900 });
+  });
+
+  test("a payment answer without a hosted page says so with null", async () => {
+    const { client } = open(() =>
+      json(
+        { ...subscribed, payment: { status: "not_required" } } satisfies KaitenApi.SessionCheckout,
+        201,
+      ),
+    );
+
+    const result = await client.checkout({ licensePriceId: "p-m" });
+
+    expect(result).toMatchObject({
+      status: "subscribed",
+      payment: { status: "not_required", hostedInvoiceUrl: null },
+    });
+  });
+
+  test("previews with dryRun, and passes a setup page through", async () => {
+    const preview = {
+      status: "preview",
+      dueToday: { currency: "EUR", subtotal: 2900, discountTotal: 0, total: 2900, lines: [] },
+    } satisfies KaitenApi.SessionCheckout;
+    const setup = {
+      status: "requires_payment_method",
+      setupUrl: "https://checkout.stripe.test/setup",
+      setupSessionId: "cs_1",
+      expiresAt: "2026-10-09T10:00:00Z",
+    } satisfies KaitenApi.SessionCheckout;
+    const answers = [preview, setup];
+    const { fetch, requests } = server((_request, index) => json(answers[index]));
+    const client = sessionClient(fetch, sessions(session(KST_A, T0 + 30 * MINUTE)));
+
+    expect(await client.checkout({ licensePriceId: "p-m", dryRun: true })).toEqual({
+      status: "preview",
+      dueToday: { currencyCode: "EUR", subtotal: 2900, discountTotal: 0, total: 2900, lines: [] },
+      trialEndsAt: null,
+    });
+    expect(
+      await client.checkout({ licensePriceId: "p-m", returnUrl: "https://app.test/billing" }),
+    ).toEqual(setup);
+
+    expect(await requests[0]!.clone().json()).toEqual({ licensePriceId: "p-m", dryRun: true });
+    expect(await requests[1]!.clone().json()).toEqual({
+      licensePriceId: "p-m",
+      returnUrl: "https://app.test/billing",
+    });
+  });
+
+  test("lists the customer's invoices", async () => {
+    const page = { items: [invoice], hasMore: false } satisfies KaitenApi.PageSessionInvoice;
+    const { client, requests } = open(() => json(page));
+
+    const result = await client.listInvoices({ limit: 10 });
+
+    const url = new URL(requests[0]!.url);
+    expect(url.pathname).toBe("/api/public/session/invoices");
+    expect(url.searchParams.get("limit")).toBe("10");
+    expect(result.items[0]).toMatchObject({
+      id: "inv-1",
+      currencyCode: "EUR",
+      hostedInvoiceUrl: "https://pay.example/inv-1",
+    });
+    expect(result.hasMore).toBe(false);
+    expect(result.nextCursor).toBeUndefined();
+  });
+
+  test("a publishable key or a secret is no session: refused before any request", async () => {
+    for (const token of [`pk_${"a".repeat(43)}`, "ksh_secret"]) {
+      const { fetch } = server(() => json({}));
+      const client = sessionClient(
+        fetch,
+        sessions({ token, expiresAt: new Date(T0 + 30 * MINUTE).toISOString() }),
+      );
+
+      await expect(client.checkout({ licensePriceId: "p-m" })).rejects.toMatchObject({
+        status: 0,
+        message: "Invalid customer session",
+      });
+      await expect(client.listInvoices()).rejects.toMatchObject({ status: 0 });
+      expect(fetch).not.toHaveBeenCalled();
+    }
+  });
+
+  test("the general client has no session calls: a kst_ never goes through it", () => {
+    const general = new KaitenClient({
+      apiUrl: "https://api.acme.test/api",
+      authScheme: "bearer",
+      tokenProvider: () => KST_A,
+    }) as unknown as Record<string, unknown>;
+
+    for (const call of ["checkout", "previewCheckout", "invoices", "getPortal", "session"]) {
+      expect(general[call]).toBeUndefined();
+    }
   });
 });
