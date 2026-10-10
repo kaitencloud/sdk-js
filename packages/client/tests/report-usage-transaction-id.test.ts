@@ -559,6 +559,94 @@ describe("reportUsage against a server that predates transactionId", () => {
   });
 });
 
+// The same cases, read through the facade and with the response headers
+// together: what the usage report contract asks of any client, whichever way
+// the report is sent.
+describe("reportUsage, the contract's cases through the usage facade", () => {
+  test("sends the key only when given", async () => {
+    const withKey = stubServer([200]);
+    await settle(clientFor(withKey.fetch).usage.report("acme-prod", "tokens", keyed("evt-1")));
+    expect(withKey.sent[0]!.body).toMatchObject({ transactionId: "evt-1" });
+
+    const without = stubServer([200]);
+    await settle(clientFor(without.fetch).usage.report("acme-prod", "tokens", unkeyed()));
+    expect(without.sent[0]!.body).not.toHaveProperty("transactionId");
+  });
+
+  test("a keyed report is retried on a 503 under the same key; an unkeyed one is not", async () => {
+    const withKey = stubServer([
+      {
+        status: 503,
+        body: {
+          title: "Service Unavailable",
+          status: 503,
+          code: "ReportEntitlementUsageMetric.LedgerUnavailable",
+        },
+      },
+      200,
+    ]);
+    await settle(clientFor(withKey.fetch).usage.report("acme-prod", "tokens", keyed("evt-1")));
+    expect(withKey.sent.map((request) => request.body.transactionId)).toEqual(["evt-1", "evt-1"]);
+
+    const without = stubServer([503, 200]);
+    await expect(
+      settle(clientFor(without.fetch).usage.report("acme-prod", "tokens", unkeyed())),
+    ).rejects.toBeInstanceOf(KaitenError);
+    expect(without.sent).toHaveLength(1);
+  });
+
+  test("a reused key keeps the original report the API named, whole or not, and is not retried", async () => {
+    const { fetch, sent } = stubServer([
+      {
+        status: 409,
+        body: {
+          title: "Conflict",
+          status: 409,
+          code: "ReportEntitlementUsageMetric.TransactionIdReused",
+          errors: [
+            {
+              location: "body.transactionId",
+              message: "the report this transactionId was first accepted with",
+              value: { reportSeq: 2 },
+            },
+          ],
+        },
+      },
+    ]);
+
+    const error = await settle(
+      clientFor(fetch).usage.report("acme-prod", "tokens", keyed("evt-1")),
+    ).catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(TransactionIdReusedError);
+    expect(error).toBeInstanceOf(KaitenError);
+    // The body is kept as the API sent it; `original` is only set from a whole report.
+    expect((error as KaitenError).errors?.[0]?.value).toEqual({ reportSeq: 2 });
+    expect((error as TransactionIdReusedError).original).toBeUndefined();
+    expect(sent).toHaveLength(1);
+  });
+
+  test("a replay and dropped metadata are both read from the headers", async () => {
+    const { fetch } = stubServer([
+      {
+        status: 200,
+        headers: { "Idempotent-Replayed": "true", "Kaiten-Metadata-Dropped": "too_large" },
+      },
+    ]);
+
+    const result = await settle(clientFor(fetch).usage.report("acme-prod", "tokens", keyed()));
+
+    expect(result).toEqual({ ...USAGE, idempotentReplayed: true, metadataDropped: "too_large" });
+
+    const plain = stubServer([200]);
+    const unmarked = await settle(
+      clientFor(plain.fetch).usage.report("acme-prod", "tokens", unkeyed()),
+    );
+    expect(unmarked.idempotentReplayed).toBeUndefined();
+    expect(unmarked.metadataDropped).toBeUndefined();
+  });
+});
+
 // Everything above is additive to the 1.0 surface: code written against it
 // keeps compiling. Checked by the type checker, run by `vp check`.
 describe("1.0 compatibility", () => {
