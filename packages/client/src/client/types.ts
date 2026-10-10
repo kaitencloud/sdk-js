@@ -5,7 +5,6 @@
 export type {
   BooleanEntitlementValue,
   ConfigEntitlementValue,
-  EntitlementUsage,
   EvaluationFailure,
   EvaluationSuccess,
   NumberEntitlementValue,
@@ -22,11 +21,26 @@ export type { EntitlementGroupUsage as EntitlementGroupUsageItem } from "../core
 import type {
   BooleanEntitlementValue,
   ConfigEntitlementValue,
+  EntitlementUsage as ApiEntitlementUsage,
   EvaluationFailure,
   EvaluationSuccess,
   NumberEntitlementValue,
   User,
 } from "../core/index.ts";
+
+/**
+ * One entitlement's usage row, as the usage routes answer it.
+ *
+ * The contract now marks `source` (`license` or `addon`) as required, and the
+ * generated type follows. This one keeps it optional: a row built against the
+ * 1.0 shape (a test double, a host's own fixture, the GraphQL mapping, which
+ * cannot tell the two apart) must keep compiling, and a member that becomes
+ * required on a type hosts construct would break them. Reading the field is
+ * unaffected; the raw type is still `KaitenApi.EntitlementUsage`.
+ */
+export type EntitlementUsage = Omit<ApiEntitlementUsage, "source"> & {
+  source?: ApiEntitlementUsage["source"];
+};
 
 export type EntitlementValue =
   | BooleanEntitlementValue
