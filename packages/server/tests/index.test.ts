@@ -4,6 +4,7 @@
 import { describe, expect, expectTypeOf, test } from "vite-plus/test";
 import {
   Customers,
+  CustomerSessions,
   createKaitenClient,
   Instances,
   KaitenError,
@@ -14,6 +15,8 @@ import {
   TransactionIdReusedError,
 } from "../src/index.ts";
 import type {
+  CreatedCustomerSession,
+  CustomerSessionDraft,
   Provenance,
   ReportedEntitlementUsage,
   ReportEntitlementUsageMetricData,
@@ -37,6 +40,46 @@ describe("@kaitencloud/server", () => {
     expect(typeof Customers.listCustomers).toBe("function");
     expect(typeof Customers.createCustomer).toBe("function");
     expect(typeof Instances.createInstance).toBe("function");
+  });
+
+  test("mints a customer session for the browser, and revokes it", async () => {
+    const created = {
+      id: "s1",
+      token: "kst_x",
+      expiresAt: "2026-10-08T10:30:00Z",
+      customerSlug: "acme",
+      instanceSlug: "acme-prod",
+    } satisfies CreatedCustomerSession;
+    const { seen, fetch } = recordingFetch(
+      async () =>
+        new Response(JSON.stringify(created), {
+          status: 201,
+          headers: { "content-type": "application/json" },
+        }),
+    );
+    const client = createKaitenClient({
+      token: "ksh_vendor",
+      baseUrl: "https://example.test",
+      fetch,
+    });
+    const draft = {
+      customerSlug: "acme",
+      instanceSlug: "acme-prod",
+      ttlSeconds: 600,
+    } satisfies CustomerSessionDraft;
+
+    const { data } = await CustomerSessions.createCustomerSession({ client, body: draft });
+
+    expect(data).toEqual(created);
+    expect(seen[0]?.method).toBe("POST");
+    expect(new URL(seen[0]!.url).pathname).toBe("/api/customer-sessions");
+    expect(seen[0]?.headers.get("Authorization")).toBe("Bearer ksh_vendor");
+    expect(await seen[0]!.clone().json()).toEqual(draft);
+
+    await CustomerSessions.revokeCustomerSession({ client, path: { sessionId: "s1" } });
+
+    expect(seen[1]?.method).toBe("POST");
+    expect(new URL(seen[1]!.url).pathname).toBe("/api/customer-sessions/s1/revoke");
   });
 
   test("createKaitenClient injects Bearer auth and the base URL", async () => {
