@@ -72,6 +72,28 @@ describe("money: API price to BillingPrice", () => {
     });
   });
 
+  test("a sale unit factor arrives as a decimal string and leaves as a number", () => {
+    const price = mapBillingPrice(rawPrice("lp-pro-tok"));
+    const tokens = plan("pro").entitlements!.find((grant) => grant.slug === "tokens");
+
+    expect(rawPrice("lp-pro-tok").metered?.saleUnitFactor).toBe("1000000");
+    expect(price.saleUnitFactor).toBe(1_000_000);
+    expect(tokens?.saleUnitFactor).toBe(1_000_000);
+  });
+
+  test("a factor that is not a finite number above zero is left out, never NaN or 1", () => {
+    for (const saleUnitFactor of ["0", "-3", "", "many", "Infinity"]) {
+      const wire = rawPrice("lp-pro-tok");
+      wire.metered = { entitlementSlug: "tokens", saleUnitFactor };
+      const grant = rawPlan("pro").entitlements.find((entry) => entry.slug === "tokens")!;
+
+      expect(mapBillingPrice(wire)).not.toHaveProperty("saleUnitFactor");
+      expect(
+        mapPlan({ ...rawPlan("pro"), entitlements: [{ ...grant, saleUnitFactor }] }),
+      ).toMatchObject({ entitlements: [{ slug: "tokens", saleUnitFactor: null }] });
+    }
+  });
+
   test("currencies with 0 and 3 decimals travel as the same integers", () => {
     expect(mapBillingPrice(rawPrice("lp-jp-m"))).toMatchObject({
       amount: 980,
