@@ -8,6 +8,10 @@
 // never gets an `amount`, and quarterly and semi-annual periods are months
 // with an `intervalCount`. Members the two vocabularies share are passed
 // through as the API sends them.
+//
+// The inputs are typed by the generated contract (`PublicCatalog` and its
+// parts), so the compiler reports a member the API renames or retypes. The
+// values themselves are still read defensively: a payload comes off the wire.
 
 import type {
   Addon,
@@ -19,16 +23,22 @@ import type {
   PlanEntitlement,
   PlanPrice,
 } from "./types.ts";
+import type {
+  PublicAddOn,
+  PublicAddOnEntitlement,
+  PublicCatalog,
+  PublicPlan,
+  PublicPlanEntitlement,
+  PublicPrice,
+} from "../core/index.ts";
 import { normalizeBrandingCapability } from "./normalize.ts";
 
-/** A JSON object of a billing payload, whose shape the API's contract fixes. */
-type Raw = Record<string, any>;
-
-const list = (value: unknown): Raw[] =>
+/** The objects of a list a payload may omit, or send as `null`. */
+const list = <T extends object>(value: readonly T[] | null | undefined): T[] =>
   Array.isArray(value) ? value.filter((entry) => typeof entry === "object" && entry !== null) : [];
 
 /** The API's billing periods, as the SDK's interval and interval count. */
-const PERIODS: Record<string, { interval: BillingInterval; intervalCount?: number }> = {
+const PERIODS: Partial<Record<string, { interval: BillingInterval; intervalCount?: number }>> = {
   MONTHLY: { interval: "month" },
   QUARTERLY: { interval: "month", intervalCount: 3 },
   SEMI_ANNUAL: { interval: "month", intervalCount: 6 },
@@ -39,16 +49,28 @@ const PERIODS: Record<string, { interval: BillingInterval; intervalCount?: numbe
  * The interval of an API billing period. An unknown period, or none (a metered
  * price), yields none: such a price stays out of every interval-keyed reading.
  */
-export const billingInterval = (period: unknown) =>
+export const billingInterval = (period: string | null | undefined) =>
   typeof period === "string" ? PERIODS[period] : undefined;
 
+/**
+ * Measured units in one sale unit. The API sends it as a decimal string; the SDK
+ * has always typed it `number`. A value that is not a finite number above zero
+ * is no factor: it is left out, never turned into `NaN` or into a `1` that would
+ * pass for a real sale unit.
+ */
+const toSaleUnitFactor = (value: string | number | null | undefined): number | undefined => {
+  if (value === null || value === undefined) return undefined;
+  const factor = Number(value);
+  return Number.isFinite(factor) && factor > 0 ? factor : undefined;
+};
+
 /** An API `Price` as a `BillingPrice`. */
-export function mapBillingPrice(raw: Raw, fallbackCurrency?: string): BillingPrice {
+export function mapBillingPrice(raw: PublicPrice): BillingPrice {
   const { unitAmount, metered, displayLabel } = raw;
   const price: BillingPrice = {
     id: raw.id,
-    unitAmountDecimal: raw.unitAmountDecimal ?? `${unitAmount}`,
-    currencyCode: raw.currency ?? fallbackCurrency,
+    unitAmountDecimal: raw.unitAmountDecimal,
+    currencyCode: raw.currency,
     // No model, no headline: an unknown price is never taken for a flat fee.
     billingModel: raw.billingModel ?? "",
     isDefault: raw.isDefault === true,
@@ -60,7 +82,8 @@ export function mapBillingPrice(raw: Raw, fallbackCurrency?: string): BillingPri
   if (displayLabel != null) price.label = displayLabel;
   if (metered) {
     price.meteredEntitlementSlug = metered.entitlementSlug;
-    price.saleUnitFactor = metered.saleUnitFactor;
+    const factor = toSaleUnitFactor(metered.saleUnitFactor);
+    if (factor !== undefined) price.saleUnitFactor = factor;
     price.saleUnitSingular = metered.saleUnitSingular ?? null;
     price.saleUnitPlural = metered.saleUnitPlural ?? null;
   }
@@ -101,15 +124,24 @@ export function entitlementValue(value: unknown): EntitlementValue {
   return { type: "object", value: (value ?? {}) as never };
 }
 
-const mapPlanEntitlement = (raw: Raw): PlanEntitlement => ({
-  ...(raw as PlanEntitlement),
+/** A grant of the plan, with the value tagged and the sale unit factor a number. */
+const mapPlanEntitlement = (raw: PublicPlanEntitlement): PlanEntitlement => ({
+  ...raw,
+  value: entitlementValue(raw.value),
+  // No distinct sale unit is `null`: quote in base units, never in a made-up one.
+  saleUnitFactor: toSaleUnitFactor(raw.saleUnitFactor) ?? null,
+});
+
+/** A grant of an add-on: one unit's worth, which the API describes less than a plan's. */
+const mapAddonEntitlement = (raw: PublicAddOnEntitlement): PlanEntitlement => ({
+  ...raw,
   value: entitlementValue(raw.value),
 });
 
 /** A catalogue plan: the default PUBLISHED version of a public licence family. */
-export function mapPlan(raw: Raw): Plan {
+export function mapPlan(raw: PublicPlan): Plan {
   const { licenseId, licenseSlug, familySlug, currency, prices, entitlements, ...rest } = raw;
-  const billingPrices = list(prices).map((price) => mapBillingPrice(price, currency));
+  const billingPrices = list(prices).map(mapBillingPrice);
   const [month, year] = headlinePrices(billingPrices);
 
   return {
@@ -119,7 +151,7 @@ export function mapPlan(raw: Raw): Plan {
     name: rest.name,
     price: month?.amount,
     annualPrice: year?.amount,
-    currencyCode: currency,
+    currencyCode: currency ?? undefined,
     prices: [month, year].filter((price) => price !== undefined),
     billingPrices,
     entitlements: list(entitlements).map(mapPlanEntitlement),
@@ -130,14 +162,10 @@ export function mapPlan(raw: Raw): Plan {
   };
 }
 
-/**
- * An add-on, from the catalogue or from a customer's portal: both carry
- * `addonSlug`, `familySlug`, `name`, `maxQuantity` and `prices`; the portal
- * adds `quantity`, the catalogue `addonId`, entitlements and compatibility.
- */
-export function mapAddon(raw: Raw, fallbackCurrency?: string): Addon {
+/** An add-on of the catalogue. */
+export function mapAddon(raw: PublicAddOn): Addon {
   const { addonId, addonSlug, prices, entitlements, ...rest } = raw;
-  const billingPrices = list(prices).map((price) => mapBillingPrice(price, fallbackCurrency));
+  const billingPrices = list(prices).map(mapBillingPrice);
   const [month, year] = headlinePrices(billingPrices);
   const shown = month ?? year;
 
@@ -152,21 +180,22 @@ export function mapAddon(raw: Raw, fallbackCurrency?: string): Addon {
     interval: shown?.interval,
     prices: [month, year].filter((price) => price !== undefined),
     billingPrices,
-    ...(entitlements ? { entitlements: list(entitlements).map(mapPlanEntitlement) } : {}),
+    ...(entitlements ? { entitlements: list(entitlements).map(mapAddonEntitlement) } : {}),
   };
 }
 
 /** `GET /public/catalog` as a `KaitenCatalog`. */
 export function mapPublicCatalog(payload: unknown): KaitenCatalog {
-  const raw: Raw = typeof payload === "object" && payload !== null ? payload : {};
-  const capabilities: Raw = raw.capabilities ?? {};
+  const raw = (
+    typeof payload === "object" && payload !== null ? payload : {}
+  ) as Partial<PublicCatalog>;
 
   return {
     plans: list(raw.plans).map(mapPlan),
-    addOns: list(raw.addOns).map((addon) => mapAddon(addon)),
+    addOns: list(raw.addOns).map(mapAddon),
     capabilities: {
-      checkout: capabilities.checkout === true,
-      paymentMethods: capabilities.paymentMethods === true,
+      checkout: raw.capabilities?.checkout === true,
+      paymentMethods: raw.capabilities?.paymentMethods === true,
     },
     branding: normalizeBrandingCapability(undefined),
   };

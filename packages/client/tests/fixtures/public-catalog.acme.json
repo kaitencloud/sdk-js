@@ -161,7 +161,7 @@
           "unitAmountDecimal": "200",
           "metered": {
             "entitlementSlug": "tokens",
-            "saleUnitFactor": 1000000,
+            "saleUnitFactor": "1000000",
             "saleUnitSingular": "1M tokens",
             "saleUnitPlural": "1M tokens"
           },
@@ -183,7 +183,7 @@
           "unitAmountDecimal": "0.0002",
           "metered": {
             "entitlementSlug": "api-calls",
-            "saleUnitFactor": 1
+            "saleUnitFactor": "1"
           },
           "displayLabel": null,
           "displayOrder": 6,
@@ -225,7 +225,7 @@
           "unitPlural": "tokens",
           "saleUnitSingular": "1M tokens",
           "saleUnitPlural": "1M tokens",
-          "saleUnitFactor": 1000000,
+          "saleUnitFactor": "1000000",
           "displayOrder": 1
         },
         {

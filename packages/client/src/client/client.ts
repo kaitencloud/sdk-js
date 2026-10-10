@@ -17,7 +17,7 @@ import {
   listCustomers,
   reportEntitlementUsageMetric,
 } from "../core/index.ts";
-import type { KaitenClientConfig } from "../core/index.ts";
+import type { KaitenClientConfig, PublicCatalog } from "../core/index.ts";
 import {
   IDEMPOTENCY_KEY_LOCATION,
   INVALID_TRANSACTION_ID_CODE,
@@ -821,7 +821,9 @@ export class KaitenClient implements KaitenClientLike {
   // every licence of the organization (Option A, see ARCHITECTURE.md).
   async getCatalog(): Promise<KaitenCatalog> {
     if (this.publishable) {
-      return mapPublicCatalog(await this.transport.callPublic("/public/catalog", "getCatalog()"));
+      return mapPublicCatalog(
+        await this.transport.callPublic<PublicCatalog>("/public/catalog", "getCatalog()"),
+      );
     }
     const { plans } = await this.buildCatalog();
     return {

@@ -3,23 +3,26 @@ import { readFileSync } from "node:fs";
 import { describe, expect, test } from "vite-plus/test";
 
 import { mapBillingPrice, mapPlan, mapPublicCatalog } from "../src/client/billing.ts";
-import type { BillingPrice, Plan, PlanPrice } from "../src/index.ts";
+import type { BillingPrice, KaitenApi, Plan, PlanPrice } from "../src/index.ts";
 
-type RawPlan = Record<string, unknown> & { familySlug: string; prices: Record<string, unknown>[] };
-
+// The payload is typed by the contract, so a member the API renames breaks this
+// file's types before it breaks a test. A case that needs a value the contract
+// does not allow (a period it does not list) goes through `outOfContract`.
 const PAYLOAD = JSON.parse(
   readFileSync(new URL("./fixtures/public-catalog.acme.json", import.meta.url), "utf8"),
-) as { plans: RawPlan[]; addOns: Record<string, unknown>[] };
+) as KaitenApi.PublicCatalog;
 
-const rawPlan = (family: string): RawPlan => {
+const outOfContract = <T>(value: object): T => value as T;
+
+const rawPlan = (family: string): KaitenApi.PublicPlan => {
   const plan = PAYLOAD.plans.find((candidate) => candidate.familySlug === family);
   if (!plan) throw new Error(`no ${family} plan in the fixture`);
   return structuredClone(plan);
 };
 
-const rawPrice = (id: string): Record<string, unknown> => {
+const rawPrice = (id: string): KaitenApi.PublicPrice => {
   for (const plan of PAYLOAD.plans) {
-    const price = plan.prices.find((candidate) => candidate["id"] === id);
+    const price = plan.prices.find((candidate) => candidate.id === id);
     if (price) return structuredClone(price);
   }
   throw new Error(`no price ${id} in the fixture`);
@@ -85,10 +88,9 @@ describe("money: API price to BillingPrice", () => {
   test("periods: month, year, and months with a count; never one_time", () => {
     const periods = ["MONTHLY", "ANNUAL", "QUARTERLY", "SEMI_ANNUAL", null, "WEEKLY"];
     const mapped = periods.map((billingPeriod) => {
-      const { interval, intervalCount } = mapBillingPrice({
-        ...rawPrice("lp-pro-m"),
-        billingPeriod,
-      });
+      const { interval, intervalCount } = mapBillingPrice(
+        outOfContract({ ...rawPrice("lp-pro-m"), billingPeriod }),
+      );
       return { interval, intervalCount };
     });
 
@@ -202,12 +204,11 @@ describe("plans", () => {
   });
 
   test("published follows the lifecycle state alone, never isActive", () => {
-    expect(
-      mapPlan({ ...rawPlan("pro"), lifecycleState: "PUBLISHED", isActive: false }).published,
-    ).toBe(true);
-    expect(
-      mapPlan({ ...rawPlan("pro"), lifecycleState: "ARCHIVED", isActive: true }).published,
-    ).toBe(false);
+    const withState = (lifecycleState: string, isActive: boolean) =>
+      mapPlan(outOfContract({ ...rawPlan("pro"), lifecycleState, isActive })).published;
+
+    expect(withState("PUBLISHED", false)).toBe(true);
+    expect(withState("ARCHIVED", true)).toBe(false);
   });
 
   test("custom and non-self-serve plans keep their call to action", () => {
