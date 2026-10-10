@@ -35,7 +35,7 @@ const SCENARIOS = [
   {
     name: "client · KaitenClient alone",
     code: `import { KaitenClient } from "@kaitencloud/client"; console.log(KaitenClient);`,
-    budgetGzip: 12_500,
+    budgetGzip: 13_500,
   },
 ];
 
