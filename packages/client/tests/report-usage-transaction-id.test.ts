@@ -170,6 +170,59 @@ describe("reportUsage with a transactionId", () => {
     expect((error as KaitenError).status).toBe(503);
   });
 
+  test.each([500, 502, 503, 504])(
+    "a %i is retried under the same key, and the report resolves",
+    async (status) => {
+      const { fetch, sent } = stubServer([status, 200]);
+
+      const usage = await settle(clientFor(fetch).reportUsage("acme-prod", "tokens", keyed()));
+
+      expect(usage).toEqual(USAGE);
+      expect(sent.map((request) => request.body.transactionId)).toEqual([
+        "llm:9f2c:tokens",
+        "llm:9f2c:tokens",
+      ]);
+    },
+  );
+
+  // Another 5xx says the same thing every time: asking again only repeats it.
+  test.each([501, 505, 507, 508, 511, 599])(
+    "a %i is not retried: it rejects after one attempt",
+    async (status) => {
+      const { fetch, sent } = stubServer([status, 200]);
+
+      const error = await settle(
+        clientFor(fetch).reportUsage("acme-prod", "tokens", keyed()),
+      ).catch((caught: unknown) => caught);
+
+      expect(sent).toHaveLength(1);
+      expect(error).toBeInstanceOf(KaitenError);
+      expect((error as KaitenError).status).toBe(status);
+    },
+  );
+
+  test("a 4xx is not retried either", async () => {
+    const { fetch, sent } = stubServer([400, 200]);
+
+    const error = await settle(clientFor(fetch).reportUsage("acme-prod", "tokens", keyed())).catch(
+      (caught: unknown) => caught,
+    );
+
+    expect(sent).toHaveLength(1);
+    expect((error as KaitenError).status).toBe(400);
+  });
+
+  test("a 501 after a network failure ends the retries", async () => {
+    const { fetch, sent } = stubServer([new TypeError("fetch failed"), 501, 200]);
+
+    const error = await settle(clientFor(fetch).reportUsage("acme-prod", "tokens", keyed())).catch(
+      (caught: unknown) => caught,
+    );
+
+    expect(sent).toHaveLength(2);
+    expect((error as KaitenError).status).toBe(501);
+  });
+
   test("a reused key rejects with TransactionIdReusedError after one attempt", async () => {
     const { fetch, sent } = stubServer([
       {

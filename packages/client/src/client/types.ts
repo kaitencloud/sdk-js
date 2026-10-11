@@ -256,9 +256,9 @@ export interface ReportUsageInput {
    * refused report (`ThresholdExceeded`) does not spend its key.
    *
    * With a key, and only then, the client retries a report that failed on the
-   * network or with a 5xx, up to three attempts under the same key. Without
-   * one, a report is sent exactly once: replaying it could count it twice. The
-   * client never makes a key up.
+   * network or with a 500, 502, 503 or 504, up to three attempts under the same
+   * key. Without one, a report is sent exactly once: replaying it could count it
+   * twice. The client never makes a key up.
    *
    * A key outside that format is refused before anything is sent, with an
    * `InvalidTransactionIdError`.

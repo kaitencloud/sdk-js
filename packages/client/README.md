@@ -113,9 +113,10 @@ try {
   new key, with `behavior: "set"` for an absolute value: under the original key
   it is refused with `TransactionIdReusedError` (409), which is never retried.
 - **Retries.** With a key, and only then, a report that fails on the network,
-  times out or answers a 5xx is retried, up to three attempts, all under the same
-  key. A retry the API already applied resolves with `idempotentReplayed: true`
-  and counts nothing.
+  times out or answers a 500, 502, 503 or 504 is retried, up to three attempts,
+  all under the same key. Any other status, a 501 for one, is returned as it came:
+  asking again gets the same answer. A retry the API already applied resolves with
+  `idempotentReplayed: true` and counts nothing.
 - **No generated keys.** The client never makes a key up: without one, the body
   is the one you passed, as it was sent before keys existed.
 - **Malformed keys** are refused before anything is sent, with an

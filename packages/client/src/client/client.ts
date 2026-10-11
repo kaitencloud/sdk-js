@@ -339,6 +339,14 @@ function catalogFromGqlLicenses(licenses: LicensingCatalogQuery["licenses"]["ite
 
 const AUTH_SCHEMES: ReadonlySet<unknown> = new Set(["bearer", "publishable", "none"]);
 
+/**
+ * The statuses a keyed report is sent again after. A 500, 502, 503 or 504 says
+ * the server, or something between it and the client, failed this time. A 501
+ * (a method the server does not implement), a 505 or a 511 say the same thing
+ * every time, and a second attempt only repeats the first.
+ */
+const REPORT_RETRY_STATUSES = [500, 502, 503, 504] as const;
+
 /** The report without its key, for a server that does not know the member. */
 function withoutTransactionId(input: ReportUsageInput): ReportUsageInput {
   const { transactionId: _dropped, ...rest } = input;
@@ -1222,6 +1230,7 @@ export class KaitenClient implements KaitenClientLike {
         // and this counter is the billing base. With one, the server applies
         // the report once and answers every retry with the original result.
         idempotent: keyed,
+        retryStatuses: REPORT_RETRY_STATUSES,
         onResponse: (response) => {
           headers = response.headers;
         },

@@ -97,6 +97,12 @@ export interface KaitenRunOptions {
    */
   idempotent?: boolean;
   /**
+   * The 5xx statuses worth another attempt, for a call that is replayed but not
+   * after every server failure. Left out, every 5xx is replayed, as for a read. A
+   * network failure is replayed either way.
+   */
+  retryStatuses?: readonly number[];
+  /**
    * Called with the response of the attempt that succeeded, before its body is
    * returned, for a call whose answer also travels in headers. Not called when
    * the call fails.
@@ -236,7 +242,12 @@ export class KaitenTransport {
           if (!idempotent) return false;
           if (iteration >= 3) return false;
           if (error instanceof KaitenNetworkError) return true;
-          if (error instanceof KaitenError) return error.status >= 500;
+          if (error instanceof KaitenError) {
+            return (
+              error.status >= 500 &&
+              (options.retryStatuses === undefined || options.retryStatuses.includes(error.status))
+            );
+          }
           return false;
         },
       },

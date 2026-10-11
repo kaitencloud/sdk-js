@@ -37,6 +37,36 @@ describe("retry and idempotency", () => {
     expect(requests).toHaveLength(3);
   });
 
+  it("retries a read on every 5xx, a 501 included", async () => {
+    const { fetch, requests } = stubFetch([501, 200]);
+
+    await transportWith(fetch).get("/entitlements");
+
+    expect(requests).toHaveLength(2);
+  });
+
+  it("replays a call that names its statuses only on those", async () => {
+    const options = { idempotent: true, retryStatuses: [503] };
+
+    const named = stubFetch([503, 200]);
+    await transportWith(named.fetch).run(
+      (client) => client.post({ url: "/usage", body: { value: 1 } }),
+      "POST /usage",
+      options,
+    );
+    expect(named.requests).toHaveLength(2);
+
+    const other = stubFetch([500, 200]);
+    await expect(
+      transportWith(other.fetch).run(
+        (client) => client.post({ url: "/usage", body: { value: 1 } }),
+        "POST /usage",
+        options,
+      ),
+    ).rejects.toThrow();
+    expect(other.requests).toHaveLength(1);
+  });
+
   it("never replays a write on 5xx", async () => {
     const { fetch, requests } = stubFetch([500]);
 
