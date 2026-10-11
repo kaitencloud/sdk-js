@@ -6,6 +6,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, test } from "vite-plus/test";
 
 import { contractProblems } from "./support/contract-schema.ts";
+import { ADDON_ONLY_ROW, EFFECTIVE_TOKENS_ROW } from "./support/effective-usage.ts";
 import { QUOTA_EXCEEDED } from "./support/session-answers.ts";
 
 // The recorded answers are what the mapping tests read. They only mean something
@@ -70,5 +71,31 @@ describe("the customer session fixture", () => {
     expect(contractProblems("SessionPortal", withoutSubscription)).not.toEqual([]);
     expect(contractProblems("SessionPortal", { ...portal, unknown: true })).not.toEqual([]);
     expect(contractProblems("SessionPortal", { ...portal, instances: "none" })).not.toEqual([]);
+  });
+});
+
+describe("the effective usage rows", () => {
+  test.each([
+    ["an entitlement the licence grants, with add-on and boost", EFFECTIVE_TOKENS_ROW],
+    ["an entitlement only an add-on grants", ADDON_ONLY_ROW],
+  ])("%s is an answer the contract allows", (_name, row) => {
+    expect(contractProblems("EntitlementUsage", row)).toEqual([]);
+  });
+
+  test("is refused when it no longer fits, so the check can fail", () => {
+    const { source: _source, ...withoutSource } = EFFECTIVE_TOKENS_ROW;
+    expect(contractProblems("EntitlementUsage", withoutSource)).not.toEqual([]);
+    expect(
+      contractProblems("EntitlementUsage", {
+        ...EFFECTIVE_TOKENS_ROW,
+        limitCapExceededOveragePercent: "50",
+      }),
+    ).not.toEqual([]);
+    expect(
+      contractProblems("EntitlementUsage", {
+        ...EFFECTIVE_TOKENS_ROW,
+        provenance: { ...EFFECTIVE_TOKENS_ROW.provenance, boosts: "none" },
+      }),
+    ).not.toEqual([]);
   });
 });
