@@ -17,8 +17,6 @@ import { entitlementStatus } from "./normalize.ts";
 import type {
   CheckoutPreview,
   CheckoutResult,
-  CheckoutSubscribed,
-  InvoiceTotals,
   KaitenPage,
   KaitenPortal,
   PaymentMethodSummary,
@@ -64,10 +62,6 @@ export function mapSubscription(raw: Api.SessionSubscription): PortalSubscriptio
       : null,
   };
 }
-
-/** A checkout preview's `dueToday`. */
-const mapDueToday = <T extends InvoiceTotals>(raw: Raw): T =>
-  withCurrencyCode<T>({ ...raw, lines: list(raw.lines) });
 
 /** How each layer contributed to an entitlement's value. */
 function mapProvenance(raw: Api.Provenance): EntitlementProvenance {
@@ -293,31 +287,65 @@ export const mapInvoicePage = (raw: Api.PageSessionInvoice): KaitenPage<SessionI
   ...(raw.nextCursor ? { nextCursor: raw.nextCursor } : {}),
 });
 
+type Checkout = Api.SessionCheckout;
+
+/**
+ * The answer of `POST /public/session/checkout`. The contract writes one object
+ * whose members are optional, and says in each description which status it is
+ * for: this is the same answer read as the three it is.
+ */
+export type WireCheckout =
+  | (Checkout & { status: "preview" } & Required<Pick<Checkout, "dueToday">>)
+  | (Checkout & { status: "requires_payment_method" } & Required<
+        Pick<Checkout, "setupUrl" | "setupSessionId" | "expiresAt">
+      >)
+  | (Checkout & { status: "subscribed" } & Required<Pick<Checkout, "subscription" | "payment">>);
+
+/** What a checkout bills today: the server's totals, and the lines they come from. */
+function mapDueToday(raw: Api.DueToday): CheckoutPreview["dueToday"] {
+  return {
+    currencyCode: raw.currency,
+    subtotal: raw.subtotal,
+    discountTotal: raw.discountTotal,
+    total: raw.total,
+    lines: list(raw.lines).map(mapInvoiceLine),
+  };
+}
+
 /** The answer of `POST /public/session/checkout`, whichever it is. */
-export function mapCheckout(raw: Raw): CheckoutResult {
-  if (raw.status === "preview") {
-    return {
-      ...(raw as CheckoutPreview),
-      dueToday: mapDueToday(raw.dueToday ?? {}),
-      // The API leaves the trial out when the plan has none.
-      trialEndsAt: raw.trialEndsAt ?? null,
-    };
+export function mapCheckout(raw: WireCheckout): CheckoutResult {
+  switch (raw.status) {
+    case "preview":
+      return {
+        status: "preview",
+        dueToday: mapDueToday(raw.dueToday),
+        // The API leaves the trial out when the plan has none.
+        trialEndsAt: raw.trialEndsAt ?? null,
+      };
+    case "requires_payment_method":
+      return {
+        status: "requires_payment_method",
+        setupUrl: raw.setupUrl,
+        setupSessionId: raw.setupSessionId,
+        expiresAt: raw.expiresAt,
+      };
+    case "subscribed":
+      return {
+        status: "subscribed",
+        subscription: mapSubscription(raw.subscription),
+        // Absent during a trial.
+        activationInvoice: raw.activationInvoice ? mapInvoice(raw.activationInvoice) : null,
+        payment: {
+          status: raw.payment.status,
+          // Likewise the hosted page, when the payment needs none.
+          hostedInvoiceUrl: raw.payment.hostedInvoiceUrl ?? null,
+        },
+      };
+    default:
+      // A status this client does not know, from a newer server: handed to the
+      // host as it came, which can at least read the status.
+      return raw as unknown as CheckoutResult;
   }
-  if (raw.status === "subscribed") {
-    return {
-      ...(raw as CheckoutSubscribed),
-      subscription: mapSubscription(raw.subscription),
-      activationInvoice: raw.activationInvoice
-        ? mapInvoice(raw.activationInvoice as Api.SessionInvoice)
-        : null,
-      // Likewise the hosted page, when the payment needs none.
-      payment: raw.payment && {
-        ...raw.payment,
-        hostedInvoiceUrl: raw.payment.hostedInvoiceUrl ?? null,
-      },
-    };
-  }
-  return raw as CheckoutResult;
 }
 
 /** The answer of `POST /public/session/vouchers/validate`. */

@@ -336,6 +336,182 @@ describe("the portal", () => {
   });
 });
 
+describe("checkout", () => {
+  const PRICE = "00000000-0000-4000-8000-000000000201";
+
+  test("a preview is asked for with dryRun, and its total is the server's", async () => {
+    const wire = answer("checkoutPreview");
+    // The lines add up to 5520; the server says otherwise, and the SDK believes the server.
+    wire.dueToday.total = 9999;
+    const { client, requests } = open(() => json(wire));
+
+    const result = await client.checkout({ licensePriceId: PRICE, dryRun: true });
+
+    expect(await sent(requests)).toEqual([
+      ["POST", "/public/session/checkout", JSON.stringify({ licensePriceId: PRICE, dryRun: true })],
+    ]);
+    expect(result).toEqual({
+      status: "preview",
+      dueToday: {
+        currencyCode: "EUR",
+        subtotal: 6900,
+        discountTotal: 1380,
+        total: 9999,
+        lines: [
+          expect.objectContaining({ type: "BASE", amount: 4900, unitAmountDecimal: "4900" }),
+          expect.objectContaining({ type: "ADDON", amount: 2000, quantity: "2" }),
+          expect.objectContaining({ type: "DISCOUNT", amount: -1380, unitAmountDecimal: null }),
+        ],
+      },
+      trialEndsAt: null,
+    });
+  });
+
+  test("a trial owes nothing today and says when it ends", async () => {
+    const { client } = open(() => json(answer("checkoutPreviewTrial")));
+
+    expect(await client.checkout({ licensePriceId: PRICE, dryRun: true })).toEqual({
+      status: "preview",
+      dueToday: { currencyCode: "EUR", subtotal: 0, discountTotal: 0, total: 0, lines: [] },
+      trialEndsAt: "2026-11-01T00:00:00Z",
+    });
+  });
+
+  test("a payment method to save first sends the customer to the provider's page", async () => {
+    const { client } = open(() => json(answer("checkoutRequiresMethod")));
+
+    const result = await client.checkout({
+      licensePriceId: PRICE,
+      returnUrl: "https://app.initech.test/billing",
+    });
+
+    expect(result).toEqual({
+      status: "requires_payment_method",
+      setupUrl: "https://checkout.stripe.test/c/setup_1",
+      setupSessionId: "cs_setup_1",
+      expiresAt: "2026-10-11T12:00:00Z",
+    });
+  });
+
+  test("the request carries what the host asked for, and only that", async () => {
+    const { client, requests } = open(() => json(answer("checkoutSubscribed"), 201));
+
+    await client.checkout({
+      licensePriceId: PRICE,
+      addOns: [{ addonSlug: "extra-seats-v1", quantity: 2 }],
+      voucherCode: "WELCOME20",
+      billingEmail: "ap@initech.test",
+      trial: false,
+      setupSessionId: "cs_setup_1",
+      returnUrl: "https://app.initech.test/billing",
+    });
+
+    expect(await requests[0]!.clone().json()).toEqual({
+      licensePriceId: PRICE,
+      addOns: [{ addonSlug: "extra-seats-v1", quantity: 2 }],
+      voucherCode: "WELCOME20",
+      billingEmail: "ap@initech.test",
+      trial: false,
+      setupSessionId: "cs_setup_1",
+      returnUrl: "https://app.initech.test/billing",
+    });
+  });
+
+  test("a subscribed customer has the subscription, its first invoice and the payment's outcome", async () => {
+    const { client } = open(() => json(answer("checkoutSubscribed"), 201));
+
+    const result = await client.checkout({ licensePriceId: PRICE });
+
+    expect(result).toMatchObject({
+      status: "subscribed",
+      subscription: { status: "ACTIVE", currencyCode: "EUR", billingInterval: "month" },
+      activationInvoice: {
+        kind: "ACTIVATION",
+        status: "PAID",
+        total: 4900,
+        paidAt: "2026-10-10T10:00:00Z",
+      },
+      payment: { status: "paid", hostedInvoiceUrl: "https://pay.initech.test/i/100" },
+    });
+  });
+
+  test("a payment that needs the customer's confirmation points at the page to do it on", async () => {
+    const { client } = open(() => json(answer("checkoutSubscribedAction"), 201));
+
+    const result = await client.checkout({ licensePriceId: PRICE });
+
+    expect(result).toMatchObject({
+      status: "subscribed",
+      activationInvoice: { status: "PAYMENT_FAILED", paidAt: null },
+      payment: { status: "requires_action", hostedInvoiceUrl: "https://pay.initech.test/i/1" },
+    });
+  });
+
+  test("a trial has no first invoice and no page to pay on", async () => {
+    const { client } = open(() => json(answer("checkoutSubscribedTrial"), 201));
+
+    const result = await client.checkout({ licensePriceId: PRICE });
+
+    expect(result).toMatchObject({
+      status: "subscribed",
+      subscription: { status: "TRIAL", trialEndsAt: "2026-11-01T00:00:00Z" },
+      activationInvoice: null,
+      payment: { status: "not_required", hostedInvoiceUrl: null },
+    });
+  });
+
+  test("a 200 and a 201 are both an answer, whichever the contract declares for the status", async () => {
+    for (const [key, status] of [
+      ["checkoutPreview", 200],
+      ["checkoutPreview", 201],
+      ["checkoutRequiresMethod", 200],
+      ["checkoutRequiresMethod", 201],
+      ["checkoutSubscribed", 200],
+      ["checkoutSubscribed", 201],
+    ] as const) {
+      const { client } = open(() => json(answer(key), status));
+
+      const result = await client.checkout({ licensePriceId: PRICE });
+
+      expect(result.status).toBe(answer(key).status);
+    }
+  });
+
+  test("a status this client does not know reaches the host as it came", async () => {
+    const wire = { status: "scheduled", effectiveAt: "2026-11-01T00:00:00Z" };
+    const { client } = open(() => json(wire, 201));
+
+    expect(await client.checkout({ licensePriceId: PRICE })).toEqual(wire);
+  });
+
+  test("a refusal keeps its code, and the checkout is not sent again", async () => {
+    const { client, requests } = open(() => refused("checkoutAlreadySubscribed"));
+
+    await expect(client.checkout({ licensePriceId: PRICE })).rejects.toMatchObject({
+      status: 409,
+      code: "CreateSessionCheckout.AlreadySubscribed",
+    });
+    expect(requests).toHaveLength(1);
+  });
+
+  test("a provider that cannot be reached answers 503 once, with how long to wait", async () => {
+    const { client, requests } = open(() => refused("checkoutProviderUnavailable"));
+
+    const error = await client
+      .checkout({ licensePriceId: PRICE })
+      .catch((thrown: unknown) => thrown);
+
+    expect(error).toBeInstanceOf(KaitenError);
+    expect(error).toMatchObject({
+      status: 503,
+      code: "CreateSessionCheckout.ProviderUnavailable",
+      retryAfterSeconds: 30,
+    });
+    // A second checkout could subscribe the customer twice: it is never replayed.
+    expect(requests).toHaveLength(1);
+  });
+});
+
 describe("invoices", () => {
   test("a page asks for its cursor and its size, and keeps the cursor of the next", async () => {
     const { client, requests } = open(() => json(answer("invoicesFirstPage")));

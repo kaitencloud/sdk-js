@@ -4,6 +4,7 @@
 import { readFileSync } from "node:fs";
 
 import type { KaitenApi } from "../../src/index.ts";
+import type { WireCheckout } from "../../src/client/session-mapping.ts";
 import { json } from "./session-harness.ts";
 
 /** A refusal: its status, its problem, and the `Retry-After` it sent, in seconds. */
@@ -24,6 +25,12 @@ interface Answers {
   portalPastDue: KaitenApi.SessionPortal;
   portalScheduledChange: KaitenApi.SessionPortal;
   reactivate: KaitenApi.SessionSubscription;
+  checkoutPreview: Extract<WireCheckout, { status: "preview" }>;
+  checkoutPreviewTrial: Extract<WireCheckout, { status: "preview" }>;
+  checkoutRequiresMethod: Extract<WireCheckout, { status: "requires_payment_method" }>;
+  checkoutSubscribed: Extract<WireCheckout, { status: "subscribed" }>;
+  checkoutSubscribedAction: Extract<WireCheckout, { status: "subscribed" }>;
+  checkoutSubscribedTrial: Extract<WireCheckout, { status: "subscribed" }>;
   invoicesEmpty: KaitenApi.PageSessionInvoice;
   invoicesFirstPage: KaitenApi.PageSessionInvoice;
   invoicesLastPage: KaitenApi.PageSessionInvoice;

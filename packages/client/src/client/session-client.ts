@@ -22,6 +22,7 @@ import {
   mapSubscription,
   mapVoucherValidation,
 } from "./session-mapping.ts";
+import type { WireCheckout } from "./session-mapping.ts";
 import type {
   PageSessionInvoice,
   SessionPortal as WirePortal,
@@ -144,7 +145,7 @@ export class KaitenSessionClient implements KaitenSessionClientLike {
   }
 
   async checkout(input: CheckoutInput): Promise<CheckoutResult> {
-    return mapCheckout(await this.call("POST", "checkout", "checkout()", input));
+    return mapCheckout(await this.call<WireCheckout>("POST", "checkout", "checkout()", input));
   }
 
   async cancelSubscription(input: { reason?: string } = {}): Promise<PortalSubscription> {
