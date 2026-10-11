@@ -97,6 +97,72 @@ Every `KaitenError` also carries the problem's `code`, a stable machine-readable
 such as `License.NotFound`, and its `errorId`, the correlation id of the API's log entry for
 the failure: quote it when you report a problem.
 
+## Usage history and exports
+
+The API keeps every usage report it accepts for your organization's usage history retention,
+with the counter before and after it and the limit in force. Three generated operations read
+that history, and the SDK adds no helper over them:
+
+- `Instances.listUsageReports` pages one instance's entitlement, oldest report first: `afterSeq`
+  (the `nextAfterSeq` of the previous page), `limit` (500 at most), `from`, `to`, and
+  `transactionId` to find the report sent under a key.
+- `Instances.exportUsageReports` streams the same reports as CSV, or as NDJSON with
+  `format: "json"`, over at most 366 days.
+- `Instances.exportOrganizationUsageReports` streams the reports of the whole organization,
+  across instances and entitlements, over at most 31 days. `instanceSlug`, `entitlementSlug`
+  or their ids narrow it.
+
+```ts
+import { createWriteStream } from "node:fs";
+import { Readable } from "node:stream";
+import { pipeline } from "node:stream/promises";
+import type { ReadableStream } from "node:stream/web";
+import { Instances } from "@kaitencloud/server";
+
+// The reports of one entitlement, oldest first, a page at a time.
+let afterSeq: number | undefined;
+do {
+  const { data: page } = await Instances.listUsageReports({
+    client,
+    throwOnError: true,
+    path: { instanceSlug, entitlementSlug: "tokens" },
+    query: { from: "2026-10-01T00:00:00Z", afterSeq, limit: 500 },
+  });
+  for (const report of page.items) {
+    console.log(report.reportSeq, report.behavior, report.delta, report.valueAfter);
+  }
+  afterSeq = page.nextAfterSeq; // absent on the last page
+} while (afterSeq !== undefined);
+
+// The same reports as a file: CSV by default, `format: "json"` for NDJSON.
+const { data: csv } = await Instances.exportUsageReports({
+  client,
+  throwOnError: true,
+  parseAs: "stream",
+  path: { instanceSlug, entitlementSlug: "tokens" },
+  query: { from: "2026-10-01T00:00:00Z", format: "csv" },
+});
+await pipeline(Readable.fromWeb(csv as unknown as ReadableStream), createWriteStream("tokens.csv"));
+
+// Every report of the organization in the range.
+const { data: all } = await Instances.exportOrganizationUsageReports({
+  client,
+  throwOnError: true,
+  parseAs: "stream",
+  query: { from: "2026-10-01T00:00:00Z", to: "2026-10-15T00:00:00Z", format: "json" },
+});
+await pipeline(
+  Readable.fromWeb(all as unknown as ReadableStream),
+  createWriteStream("usage.ndjson"),
+);
+```
+
+The contract types the body of an export as text; `parseAs: "stream"` returns the stream
+itself, so a long range is never held in memory. The file name the API suggests is in the
+`Content-Disposition` header of the `response` the call also returns. A `from` before the start
+of the retention is refused with a 422, `ListUsageReports.OutsideRetention` or
+`ExportUsageReports.OutsideRetention`.
+
 ## Webhooks
 
 The contract declares 55 `com.kaiten.*` events and this package ships a typed payload for
