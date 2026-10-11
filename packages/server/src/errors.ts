@@ -46,8 +46,15 @@ export class KaitenError extends Error {
   public readonly errorId?: string;
   public readonly errors?: KaitenApiError["errors"];
   public readonly raw?: KaitenApiError;
+  /**
+   * How long the API asked to wait before trying again, in seconds, from the
+   * response's `Retry-After` header (a number of seconds or an HTTP date).
+   * Absent when the response carried none. The API sends one with every 429,
+   * with a `*.BoundaryPending` and with a `*.ProviderUnavailable`.
+   */
+  public readonly retryAfterSeconds?: number;
 
-  constructor(apiError: KaitenApiError) {
+  constructor(apiError: KaitenApiError, options?: { retryAfterSeconds?: number }) {
     super(apiError.title);
     this.name = "KaitenError";
     this.status = apiError.status;
@@ -56,6 +63,9 @@ export class KaitenError extends Error {
     this.errorId = apiError.errorId;
     this.errors = apiError.errors;
     this.raw = apiError;
+    if (options?.retryAfterSeconds !== undefined) {
+      this.retryAfterSeconds = options.retryAfterSeconds;
+    }
   }
 }
 
@@ -77,6 +87,19 @@ export class KaitenNetworkError extends Error {
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
+
+/**
+ * The `Retry-After` of a response, in seconds, when it sends one that can be
+ * read: a whole number of seconds, or an HTTP date, counted from now.
+ */
+function retryAfterSeconds(response: Response): number | undefined {
+  const header = response.headers.get("Retry-After")?.trim();
+  if (!header) return undefined;
+  if (/^\d+$/.test(header)) return Number(header);
+  // An HTTP date always spells its month or day; this keeps a stray "-5" out.
+  const at = /[a-z]/i.test(header) ? Date.parse(header) : Number.NaN;
+  return Number.isNaN(at) ? undefined : Math.max(0, Math.ceil((at - Date.now()) / 1000));
+}
 
 /** The code the API returns when a usage report reuses a `transactionId` for another report. */
 const TRANSACTION_ID_REUSED = "ReportEntitlementUsageMetric.TransactionIdReused";
@@ -201,7 +224,7 @@ export function toKaitenError(
         headerValue(options?.headers, IDEMPOTENCY_KEY_HEADER),
       );
     }
-    return new KaitenError(apiError);
+    return new KaitenError(apiError, { retryAfterSeconds: retryAfterSeconds(response) });
   }
 
   const detail =
@@ -211,11 +234,14 @@ export function toKaitenError(
         ? error["detail"]
         : undefined;
 
-  return new KaitenError({
-    title: response.statusText || `HTTP ${response.status}`,
-    status: response.status,
-    ...(detail === undefined ? {} : { detail }),
-  });
+  return new KaitenError(
+    {
+      title: response.statusText || `HTTP ${response.status}`,
+      status: response.status,
+      ...(detail === undefined ? {} : { detail }),
+    },
+    { retryAfterSeconds: retryAfterSeconds(response) },
+  );
 }
 
 /** The code the API returns when a usage report would cross the entitlement's limit. */
@@ -246,4 +272,55 @@ export function isThresholdExceeded(error: unknown): error is KaitenError {
  */
 export function isTransactionIdReused(error: unknown): error is TransactionIdReusedError {
   return error instanceof TransactionIdReusedError;
+}
+
+/**
+ * True when `error` is a {@link KaitenError} refused with `status` and a code
+ * that ends in `suffix`. The code, not the status alone, says which refusal it
+ * is: the same status is answered for many other reasons.
+ */
+function refusedWith(error: unknown, status: number, suffix: string): error is KaitenError {
+  return error instanceof KaitenError && error.status === status && !!error.code?.endsWith(suffix);
+}
+
+/**
+ * True when the API refused a checkout because the instance already uses more
+ * than the plan it would move to allows: HTTP 422 with a code ending in
+ * `.QuotaExceeded`, `CreateSessionCheckout.QuotaExceeded` for a customer
+ * session. A `dryRun` is refused the same way.
+ *
+ * The entitlements over the plan are named in `error.errors?.[0]?.value`, as
+ * `{ entitlementSlugs: string[] }`. Nothing was changed.
+ */
+export function isQuotaExceeded(error: unknown): error is KaitenError {
+  return refusedWith(error, 422, ".QuotaExceeded");
+}
+
+/**
+ * True when the API refused a call because too many were made: HTTP 429 with a
+ * code ending in `.RateLimited`, such as `CreateCustomerSession.RateLimited`.
+ * `error.retryAfterSeconds` is how long the API asked to wait.
+ */
+export function isRateLimited(error: unknown): error is KaitenError {
+  return refusedWith(error, 429, ".RateLimited");
+}
+
+/**
+ * True when the API refused a change because the billing period that just ended
+ * is still being closed: HTTP 409 with a code ending in `.BoundaryPending`. The
+ * same call goes through once the close has run; `error.retryAfterSeconds` is
+ * how long that is expected to take. Nothing was changed.
+ */
+export function isBoundaryPending(error: unknown): error is KaitenError {
+  return refusedWith(error, 409, ".BoundaryPending");
+}
+
+/**
+ * True when the API could not reach the payment provider a call needs: HTTP 503
+ * with a code ending in `.ProviderUnavailable`. The call was neither carried out
+ * nor refused on its merits. `error.retryAfterSeconds` is how long to wait, at
+ * least 30 seconds from the API.
+ */
+export function isProviderUnavailable(error: unknown): error is KaitenError {
+  return refusedWith(error, 503, ".ProviderUnavailable");
 }
