@@ -8,7 +8,7 @@ import {
   QuotaExceededError,
   RateLimitedError,
 } from "../src/index.ts";
-import type { KaitenApiError, KaitenSessionClient } from "../src/index.ts";
+import type { KaitenApiError, KaitenSessionClient, KaitenThrownError } from "../src/index.ts";
 import { QUOTA_EXCEEDED, refusal, refused } from "./support/session-answers.ts";
 import { json, open } from "./support/session-harness.ts";
 
@@ -293,5 +293,45 @@ describe("a wait the client cannot read is 60 seconds", () => {
     expect(new ProviderUnavailableError(apiError, { retryAfterSeconds: 0 }).retryAfterSeconds).toBe(
       0,
     );
+  });
+});
+
+describe("a handler written for KaitenError", () => {
+  // The classes are KaitenErrors for the type checker as well: a `catch` that
+  // switches on `kind` stays exhaustive, and reads what a KaitenError carries.
+  function describeFailure(error: KaitenThrownError): string {
+    switch (error.kind) {
+      case "api":
+        return `${error.status} ${error.code ?? ""} ${error.retryAfterSeconds ?? "-"}`.trim();
+      case "network":
+        return "network";
+    }
+  }
+
+  test("reads every class through KaitenThrownError", () => {
+    const problem = (status: number, code: string): KaitenApiError => ({
+      title: "Refused",
+      status,
+      code,
+    });
+
+    expect(describeFailure(new QuotaExceededError(problem(422, "A.QuotaExceeded")))).toBe(
+      "422 A.QuotaExceeded -",
+    );
+    expect(
+      describeFailure(
+        new RateLimitedError(problem(429, "A.RateLimited"), { retryAfterSeconds: 12 }),
+      ),
+    ).toBe("429 A.RateLimited 12");
+    expect(describeFailure(new BoundaryPendingError(problem(409, "A.BoundaryPending")))).toBe(
+      "409 A.BoundaryPending 60",
+    );
+    expect(
+      describeFailure(
+        new ProviderUnavailableError(problem(503, "A.ProviderUnavailable"), {
+          retryAfterSeconds: 30,
+        }),
+      ),
+    ).toBe("503 A.ProviderUnavailable 30");
   });
 });
