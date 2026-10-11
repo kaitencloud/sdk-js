@@ -560,11 +560,13 @@ export interface ResolvedEntitlement extends EntitlementPresentation {
   unlimited?: boolean;
   remaining?: number | null;
   /**
-   * The allowance carried by the grant, as a percentage of its included value:
-   * `0` for a hard limit, positive for a soft one, `-1`/null when nothing caps
-   * it. Beside `maximumAllowedUsage` so a host can tell "at the included cap
-   * but still served" from "the server will refuse the next report" — two
-   * states that both read above 100% used.
+   * The allowance in force, as a percentage of the limit: `0` for a hard limit,
+   * positive for a soft one, `-1`/null when nothing caps it. It is the
+   * instance's effective allowance when the usage read carried it, as a current
+   * server's REST read does, and the licence grant's otherwise. Beside
+   * `maximumAllowedUsage` so a host can tell "at the included cap but still
+   * served" from "the server will refuse the next report" — two states that both
+   * read above 100% used.
    */
   limitCapExceededOveragePercent?: number | null;
   /** The highest usage the API accepts. Null when nothing caps the grant. */

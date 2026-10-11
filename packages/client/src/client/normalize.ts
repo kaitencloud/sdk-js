@@ -147,14 +147,31 @@ function rowUnlimited(row: LicenseEntitlementRow): boolean {
 
 /**
  * The value an instance is entitled to: its usage row's `limit` when the read
- * carried one of the grant's own type, the licence grant otherwise. The overage
- * percent is still the grant's: the usage rows of a current server also carry
- * the effective one, and it is not read here yet.
+ * carried one of the grant's own type, the licence grant otherwise.
  */
 function effectiveLimit(row: LicenseEntitlementRow, usage?: EntitlementUsage): EntitlementValue {
   const grant = row.value as EntitlementValue;
   const limit = usage?.limit as EntitlementValue | undefined;
   return limit && limit.type === grant.type ? limit : grant;
+}
+
+/**
+ * How far past the effective limit the API keeps accepting usage, in percent:
+ * the usage row's `limitCapExceededOveragePercent` when the read carried one,
+ * the licence grant's otherwise.
+ *
+ * The two travel together. A current server answers its usage reads with the
+ * limit and the percent in force, add-ons and voucher boosts applied, so a limit
+ * raised by an add-on is measured against the allowance that goes with it. An
+ * older server sends no percent, and the GraphQL read does not select it yet:
+ * both fall back to the grant, which is what they have always done.
+ */
+function effectiveOveragePercent(
+  row: LicenseEntitlementRow,
+  usage?: EntitlementUsage,
+): number | null | undefined {
+  const percent = usage?.limitCapExceededOveragePercent;
+  return typeof percent === "number" ? percent : row.limitCapExceededOveragePercent;
 }
 
 // Customer-facing sort: displayOrder ascending (nulls last), then name.
@@ -234,8 +251,10 @@ export function normalizeResolvedEntitlements(
       // gate enforces — and an older one with the grant itself, so the row is
       // right on both. Measuring against the grant alone would show a customer
       // who bought 3 extra seats as over their limit while the server still
-      // accepts their reports.
-      const limit = effectiveLimit(entitlement, usageUnavailable ? undefined : usage);
+      // accepts their reports. The overage percent follows the same rule.
+      const measured = usageUnavailable ? undefined : usage;
+      const limit = effectiveLimit(entitlement, measured);
+      const overagePercent = effectiveOveragePercent(entitlement, measured);
       // A successful read with no row for this slug means nothing has been
       // consumed, which is zero. A failed read means unknown — and the two must
       // not collapse into the same number.
@@ -259,7 +278,7 @@ export function normalizeResolvedEntitlements(
       const maxAllowed =
         unlimited || limit.type !== "number"
           ? null
-          : getMaximumAllowedUsage(limit.value, entitlement.limitCapExceededOveragePercent);
+          : getMaximumAllowedUsage(limit.value, overagePercent);
 
       return {
         id: `${entitlement.licenseSlug}:${slug}`,
@@ -295,7 +314,7 @@ export function normalizeResolvedEntitlements(
               currentPeriodStart: usage?.currentPeriodStart ?? null,
               currentPeriodEnd: usage?.currentPeriodEnd ?? null,
             }),
-        limitCapExceededOveragePercent: entitlement.limitCapExceededOveragePercent ?? null,
+        limitCapExceededOveragePercent: overagePercent ?? null,
         maximumAllowedUsage: maxAllowed,
         // Counted against what the API accepts, not against the included
         // value: a soft limit still has room at its granted figure, and

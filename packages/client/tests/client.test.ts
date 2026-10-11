@@ -1077,12 +1077,30 @@ describe("the usage window travels only where it was actually read", () => {
     periodic?: boolean;
     /** The instance's effective limit, as a server with add-ons answers it. */
     limit?: number;
+    /** The allowance that goes with it, which the REST read of a current server carries. */
+    overagePercent?: number;
+    /** What the instance has consumed. */
+    used?: number;
+    /** The allowance of the licence grant itself. */
+    grantOveragePercent?: number;
   }): FetchMock {
     const base = options.periodic === false ? lifetimeUsageRow : usageRow;
-    const row =
-      options.limit === undefined
-        ? base
-        : { ...base, limit: { type: "number", value: options.limit } };
+    const row = {
+      ...base,
+      ...(options.limit === undefined ? {} : { limit: { type: "number", value: options.limit } }),
+      ...(options.used === undefined ? {} : { value: { type: "number", value: options.used } }),
+      ...(options.overagePercent === undefined
+        ? {}
+        : { limitCapExceededOveragePercent: options.overagePercent }),
+    };
+    // The GraphQL document does not select the allowance, so its rows never carry it.
+    const { limitCapExceededOveragePercent: _unselected, ...graphqlRow } = row as typeof row & {
+      limitCapExceededOveragePercent?: number;
+    };
+    const grant = <T extends object>(grantRow: T): T =>
+      options.grantOveragePercent === undefined
+        ? grantRow
+        : { ...grantRow, limitCapExceededOveragePercent: options.grantOveragePercent };
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = new URL(input instanceof Request ? input.url : String(input)).pathname;
 
@@ -1091,7 +1109,7 @@ describe("the usage window travels only where it was actually read", () => {
         return graphqlJson({
           data: {
             licenses: {
-              items: [{ ...licenseRow, entitlements: [gqlEntitlementRow] }],
+              items: [{ ...licenseRow, entitlements: [grant(gqlEntitlementRow)] }],
               hasMore: false,
             },
             customer: {
@@ -1103,14 +1121,14 @@ describe("the usage window travels only where it was actually read", () => {
               createdAt: "2026-01-01T00:00:00Z",
               updatedBy: { id: "u1", name: "u" },
               updatedAt: "2026-01-01T00:00:00Z",
-              instances: [instanceRow("alpha", { entitlementUsage: [{ ...row }] })],
+              instances: [instanceRow("alpha", { entitlementUsage: [{ ...graphqlRow }] })],
             },
           },
         });
       }
       if (url.includes("/ofrep/")) return json({ flags: [] });
       if (url.includes("/entitlements/usage")) return json([row]);
-      if (url.includes("/licenses/pro/entitlements")) return json([entitlementRow]);
+      if (url.includes("/licenses/pro/entitlements")) return json([grant(entitlementRow)]);
       if (url.endsWith("/licenses")) return json([licenseRow]);
       if (url.endsWith("/instances")) return json([instanceRow("alpha")]);
       if (url.endsWith("/customers"))
@@ -1179,6 +1197,77 @@ describe("the usage window travels only where it was actually read", () => {
       });
     },
   );
+
+  // The licence grants 100 tokens with no allowance; an add-on raised the
+  // instance to 300 and brought 50%. The server accepts reports up to 450, and the
+  // snapshot measures against that: at 350 the customer is inside their allowance.
+  test("the REST path measures against the effective allowance, not the grant's", async () => {
+    installUsageApi({
+      graphqlAvailable: false,
+      limit: 300,
+      used: 350,
+      overagePercent: 50,
+      grantOveragePercent: 0,
+    });
+
+    const snapshot = await new KaitenClient({
+      authScheme: "none",
+      apiUrl: "https://api.test",
+    }).getLicensingSnapshot("acme");
+    const tokens = snapshot.entitlements.find((entitlement) => entitlement.slug === "tokens");
+
+    expect(tokens).toMatchObject({
+      limitValue: { type: "number", value: 300 },
+      limitCapExceededOveragePercent: 50,
+      maximumAllowedUsage: 450,
+      remaining: 100,
+      status: "near_limit",
+    });
+  });
+
+  // An older server answers with the grant, and so keeps the allowance it has
+  // always had.
+  test("a REST read without the allowance leaves the grant's", async () => {
+    installUsageApi({ graphqlAvailable: false, limit: 300, used: 350, grantOveragePercent: 10 });
+
+    const snapshot = await new KaitenClient({
+      authScheme: "none",
+      apiUrl: "https://api.test",
+    }).getLicensingSnapshot("acme");
+    const tokens = snapshot.entitlements.find((entitlement) => entitlement.slug === "tokens");
+
+    expect(tokens).toMatchObject({
+      limitCapExceededOveragePercent: 10,
+      maximumAllowedUsage: 330,
+      remaining: 0,
+      status: "over_limit",
+    });
+  });
+
+  // The GraphQL document does not select the allowance yet, so this path keeps
+  // the grant's, as it always has. It moves with the document, once the schema
+  // that carries the field is published.
+  test("the GraphQL path, whose document does not select the allowance, leaves the grant's", async () => {
+    installUsageApi({
+      graphqlAvailable: true,
+      limit: 300,
+      used: 350,
+      overagePercent: 50,
+      grantOveragePercent: 10,
+    });
+
+    const snapshot = await new KaitenClient({
+      authScheme: "none",
+      apiUrl: "https://api.test",
+    }).getLicensingSnapshot("acme");
+    const tokens = snapshot.entitlements.find((entitlement) => entitlement.slug === "tokens");
+
+    expect(tokens).toMatchObject({
+      limitValue: { type: "number", value: 300 },
+      limitCapExceededOveragePercent: 10,
+      maximumAllowedUsage: 330,
+    });
+  });
 
   // The other half of the same rule: bounds genuinely absent on a successful
   // read are the entitlement saying "lifetime counter", and now that the
