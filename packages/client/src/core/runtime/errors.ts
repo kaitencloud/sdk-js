@@ -187,9 +187,10 @@ export const DEFAULT_RETRY_AFTER_SECONDS = 60;
 
 /**
  * Thrown when a checkout is refused because the instance already uses more than
- * the plan it would move to allows: HTTP 422 with the code
- * `CreateSessionCheckout.QuotaExceeded`. A `dryRun` is refused the same way, so a
- * preview tells the customer before anything is attempted. Nothing was changed.
+ * the plan it would move to allows: HTTP 422 with a code ending in
+ * `.QuotaExceeded`, `CreateSessionCheckout.QuotaExceeded` for a customer
+ * session's checkout. A `dryRun` is refused the same way, so a preview tells the
+ * customer before anything is attempted. Nothing was changed.
  *
  * `entitlementSlugs` names the entitlements whose usage is above what the plan
  * grants. Offer a larger plan, or add-ons that make room for that usage.

@@ -49,8 +49,8 @@ export class KaitenError extends Error {
   /**
    * How long the API asked to wait before trying again, in seconds, from the
    * response's `Retry-After` header (a number of seconds or an HTTP date).
-   * Absent when the response carried none. The API sends one with every 429,
-   * with a `*.BoundaryPending` and with a `*.ProviderUnavailable`.
+   * Absent when the response carried none. The API sends one with its 429s, with
+   * a `*.BoundaryPending` and with a `*.ProviderUnavailable`.
    */
   public readonly retryAfterSeconds?: number;
 

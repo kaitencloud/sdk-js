@@ -91,3 +91,10 @@ Do not edit it by hand.
 Ids are `00000000-0000-4000-8000-` followed by twelve hex digits: `0201`, `0202`
 and `0204` are the monthly, quarterly and annual prices of the plan, `a101` and
 `a102` the flat fee and the metered price of the `extra-seats` add-on.
+
+`errors` holds seven refusals and no quota refusal (422
+`CreateSessionCheckout.QuotaExceeded`, the entitlements over the plan in
+`errors[0].value.entitlementSlugs`). The tests that need one build it in
+`support/session-answers.ts`, from the problem Kaiten's checkout renders, and
+`fixtures-contract.test.ts` holds it to the `Problem` schema like the others. It
+belongs in this file once the scenario above is regenerated with it.
