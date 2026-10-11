@@ -63,6 +63,25 @@ order:
 
 `plan.price` and `plan.annualPrice` are the default monthly and annual flat fees.
 
+To show a price, `majorUnitAmount(price)` gives its amount in the currency's major units
+as an exact decimal string, without going through a floating-point number: `"49"` for a
+`4900` EUR fee, `"2"` for `200` EUR per 1M tokens, and `"0.000002"` for a price of
+`"0.0002"` per call. `Intl.NumberFormat` formats such a string as it is:
+
+```ts
+const amount = majorUnitAmount(price); // "0.000002"
+new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: price.currencyCode,
+  maximumFractionDigits: 20,
+}).format(amount as `${number}`); // "€0.000002", and "€2.00" for "2"
+```
+
+A usage price is per sale unit, so the label is "€2.00 per 1M tokens" (`saleUnitSingular`),
+or "€0.000002 per call" when the sale unit is one call. The amount is never divided down
+to one measured unit and never added to the plan's fee. It returns `undefined` for a
+currency the API does not know, rather than guess how many decimals it has.
+
 `getCatalog` takes optional arguments that narrow the read, and send nothing more than
 they name:
 

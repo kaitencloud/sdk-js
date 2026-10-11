@@ -43,6 +43,9 @@ export type {
   TransactionIdReusedOriginal,
 } from "./core/index.ts";
 
+export { majorUnitAmount } from "./client/money.ts";
+export type { MinorUnitPrice } from "./client/money.ts";
+
 export { KaitenClient } from "./client/client.ts";
 export type {
   KaitenClientLike,
