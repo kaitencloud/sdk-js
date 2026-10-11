@@ -23,6 +23,10 @@ API extends — grow without breaking anyone.
   `ReportUsageInput`, …).
 - Add methods to `KaitenClient` and `KaitenSessionClient`. You never implement
   those classes: their private fields make them nominal.
+- Add an **optional** last parameter to a method, `KaitenClientLike`'s included.
+  `getCatalog(options?)` gained one in 1.2. A call without it behaves as before,
+  and an implementation written against 1.0, which takes none, still satisfies
+  the interface.
 - Add members to the **open** unions described below.
 
 ## What it never does
