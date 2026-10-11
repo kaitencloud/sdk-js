@@ -183,6 +183,10 @@ interface GraphQLUsageRow {
  * The bounds are forwarded only when present: the API populates both exactly
  * when a reset period is configured, so an absent pair is the entitlement
  * saying "lifetime counter", which the normalizer reads as such.
+ *
+ * The row carries no `source`, `provenance` or overage percent: the document does
+ * not select them yet (see `LICENSING_SNAPSHOT_QUERY`), so the normalizer falls
+ * back to the licence grant's percent on this path.
  */
 function usageRowFromGraphql(row: GraphQLUsageRow): EntitlementUsage {
   return {

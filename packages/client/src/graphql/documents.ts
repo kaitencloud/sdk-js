@@ -25,6 +25,13 @@ import { graphql } from "./generated/gql.ts";
  * read means "lifetime counter" and never "nobody asked". Dropping them is what
  * forced the snapshot to mark every window unknown.
  *
+ * It does not select `source`, `provenance` or `limitCapExceededOveragePercent`,
+ * the effective members the REST usage reads carry on a current server. The
+ * published GraphQL schema does not have them yet, and a query that names a field
+ * an older server does not know fails whole, which sends the snapshot to its REST
+ * fallback. They are added with the schema release that publishes them; until
+ * then this path measures against the grant's overage percent.
+ *
  * `licenses` is cursor-paginated (`LicensePage`), so the page size is pinned to
  * the server's `MaxLimit` (200 — see internal/shared/pagination) and both
  * `hasMore` and `nextCursor` are selected. This document only ever reads page
