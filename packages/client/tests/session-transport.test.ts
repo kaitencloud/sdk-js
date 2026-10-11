@@ -156,7 +156,7 @@ describe("session mode: Bearer kst_ on session routes only, refreshed before exp
       "/api/public/session/billing/payment-method-session": answer("paymentMethodSession"),
       "/api/public/session/billing/payment-method-session/cs_9/complete":
         answer("paymentMethodCompleted"),
-      "/api/public/session/vouchers/validate": { valid: false },
+      "/api/public/session/vouchers/validate": answer("voucherRefused"),
       "/api/public/session/addons/extra-seats-v1": {
         addonSlug: "extra-seats-v1",
         familySlug: "extra-seats",

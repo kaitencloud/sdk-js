@@ -29,6 +29,10 @@ interface Answers {
   portalScheduledChange: KaitenApi.SessionPortal;
   portalSession: KaitenApi.PortalSession;
   reactivate: KaitenApi.SessionSubscription;
+  voucherBoost: KaitenApi.SessionVoucherValidity;
+  voucherFixed: KaitenApi.SessionVoucherValidity;
+  voucherPercent: KaitenApi.SessionVoucherValidity;
+  voucherRefused: KaitenApi.SessionVoucherValidity;
   checkoutPreview: Extract<WireCheckout, { status: "preview" }>;
   checkoutPreviewTrial: Extract<WireCheckout, { status: "preview" }>;
   checkoutRequiresMethod: Extract<WireCheckout, { status: "requires_payment_method" }>;

@@ -31,19 +31,6 @@ import type {
 } from "./session-types.ts";
 import type { EntitlementProvenance, ResolvedEntitlement } from "./types.ts";
 
-/**
- * A JSON object of a session payload, not yet read through the contract's types.
- * Each mapper below leaves it for the generated type of its route.
- */
-// oxlint-disable-next-line no-explicit-any
-type Raw = Record<string, any>;
-
-/** A payload member with the API's `currency` renamed to the SDK's `currencyCode`. */
-function withCurrencyCode<T>(raw: Raw): T {
-  const { currency, ...rest } = raw;
-  return { ...rest, currencyCode: currency } as T;
-}
-
 /** The subscription of the portal, of a checkout, of a cancel or a reactivate. */
 export function mapSubscription(raw: Api.SessionSubscription): PortalSubscription {
   const period = billingInterval(raw.billingPeriod);
@@ -373,14 +360,36 @@ export function mapCheckout(raw: WireCheckout): CheckoutResult {
 }
 
 /** The answer of `POST /public/session/vouchers/validate`. */
-export function mapVoucherValidation(raw: Raw): VoucherValidation {
-  const voucher: Raw | undefined = raw.voucher;
+export function mapVoucherValidation(raw: Api.SessionVoucherValidity): VoucherValidation {
+  const { voucher } = raw;
   if (raw.valid !== true || !voucher) return { valid: false };
+  const { discount } = voucher;
   return {
     valid: true,
     voucher: {
-      ...(voucher as Extract<VoucherValidation, { valid: true }>["voucher"]),
-      ...(voucher.discount ? { discount: withCurrencyCode(voucher.discount) } : {}),
+      name: voucher.name,
+      voucherType: voucher.voucherType,
+      duration: voucher.duration,
+      durationInPeriods: voucher.durationInPeriods ?? null,
+      ...(discount
+        ? {
+            discount: {
+              type: discount.type,
+              value: discount.value,
+              ...(discount.currency ? { currencyCode: discount.currency } : {}),
+              appliesTo: discount.appliesTo,
+            },
+          }
+        : {}),
+      ...(voucher.boosts
+        ? {
+            boosts: list(voucher.boosts).map((boost) => ({
+              entitlementSlug: boost.entitlementSlug,
+              modifierType: boost.modifierType,
+              modifierValue: boost.modifierValue ?? null,
+            })),
+          }
+        : {}),
     },
   };
 }

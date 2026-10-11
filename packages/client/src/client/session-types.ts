@@ -12,6 +12,7 @@ import type {
   BillingCapabilities,
   BillingInterval,
   BillingPrice,
+  BoostModifierType,
   CurrencyCode,
   ResolvedEntitlement,
 } from "./types.ts";
@@ -305,25 +306,52 @@ export interface CheckoutSubscribed {
 
 export type CheckoutResult = CheckoutPreview | CheckoutRequiresPaymentMethod | CheckoutSubscribed;
 
-/** A voucher code's check. Every refusal is the same `{ valid: false }`, whatever its reason. */
-export type VoucherValidation =
-  | { valid: false }
-  | {
-      valid: true;
-      voucher: {
-        name: string;
-        voucherType: string;
-        /** `ONCE`, `REPEATING` or `FOREVER`. */
-        duration: string;
-        durationInPeriods: number | null;
-        discount?: {
-          /** `PERCENTAGE` or `FIXED_AMOUNT`. */
-          type: string;
-          /** A percentage, or an amount in minor units of `currencyCode`. */
-          value: number;
-          currencyCode?: CurrencyCode;
-          appliesTo: string;
-        };
-        boosts?: { entitlementSlug: string; modifierType: string; modifierValue: number | null }[];
-      };
-    };
+/** What a `PRICE` voucher takes off. */
+export interface VoucherDiscount {
+  /** `PERCENTAGE` or `FIXED_AMOUNT`. Open: more may come. */
+  type: "PERCENTAGE" | "FIXED_AMOUNT" | (string & {});
+  /**
+   * A percentage in (0, 100], or an amount in minor units of `currencyCode`, as
+   * a decimal string: it is exact, and `Number` reads it when a host needs one.
+   */
+  value: string;
+  /** The currency of a `FIXED_AMOUNT` discount. */
+  currencyCode?: CurrencyCode;
+  /**
+   * What it applies to: `LICENSE_BASE`, `ADDONS`, `BOTH` or `SELECTED_PRICES`.
+   * Open: more may come.
+   */
+  appliesTo: "LICENSE_BASE" | "ADDONS" | "BOTH" | "SELECTED_PRICES" | (string & {});
+}
+
+/** One entitlement an `ENTITLEMENT_BOOST` voucher raises. */
+export interface VoucherBoost {
+  entitlementSlug: string;
+  modifierType: BoostModifierType;
+  /** A decimal string. Null for `UNLIMITED`, which has none. */
+  modifierValue: string | null;
+}
+
+/** What a valid voucher gives. Never its code. */
+export interface VoucherSummary {
+  name: string;
+  /** `PRICE` (a discount) or `ENTITLEMENT_BOOST`. Open: more may come. */
+  voucherType: "PRICE" | "ENTITLEMENT_BOOST" | (string & {});
+  /**
+   * `ONE_TIME`, `REPEATING` or `FOREVER`. For a `PRICE` voucher, how many
+   * invoices it discounts: one, `durationInPeriods`, or every one. For a boost,
+   * how long it lasts, in billing periods. Open: more may come.
+   */
+  duration: "ONE_TIME" | "REPEATING" | "FOREVER" | (string & {});
+  durationInPeriods: number | null;
+  /** A `PRICE` voucher's discount. */
+  discount?: VoucherDiscount;
+  /** An `ENTITLEMENT_BOOST` voucher's boosts. */
+  boosts?: VoucherBoost[];
+}
+
+/**
+ * A voucher code's check. Every refusal is the same `{ valid: false }`, whatever
+ * its reason: unknown, expired, used up, reserved for another customer.
+ */
+export type VoucherValidation = { valid: false } | { valid: true; voucher: VoucherSummary };

@@ -33,6 +33,7 @@ import type {
   PortalSession as WirePortalSession,
   SessionPortal as WirePortal,
   SessionSubscription as WireSubscription,
+  SessionVoucherValidity,
 } from "../core/index.ts";
 import type {
   CheckoutInput,
@@ -210,7 +211,12 @@ export class KaitenSessionClient implements KaitenSessionClientLike {
     licensePriceId?: string;
   }): Promise<VoucherValidation> {
     return mapVoucherValidation(
-      await this.call("POST", "vouchers/validate", "validateVoucher()", input),
+      await this.call<SessionVoucherValidity>(
+        "POST",
+        "vouchers/validate",
+        "validateVoucher()",
+        input,
+      ),
     );
   }
 

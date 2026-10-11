@@ -336,6 +336,110 @@ describe("the portal", () => {
   });
 });
 
+describe("vouchers", () => {
+  const CODE = "WELCOME20";
+  const PRICE = "00000000-0000-4000-8000-000000000201";
+
+  test("the code goes in the body and nowhere else, with the price it is checked for", async () => {
+    const { client, requests } = open(() => json(answer("voucherPercent")));
+
+    await client.validateVoucher({ code: CODE, licensePriceId: PRICE });
+
+    expect(await sent(requests)).toEqual([
+      [
+        "POST",
+        "/public/session/vouchers/validate",
+        JSON.stringify({ code: CODE, licensePriceId: PRICE }),
+      ],
+    ]);
+    expect(requests[0]!.url).not.toContain(CODE);
+  });
+
+  test("a percentage repeating for a few invoices keeps its value exact", async () => {
+    const { client } = open(() => json(answer("voucherPercent")));
+
+    expect(await client.validateVoucher({ code: CODE })).toEqual({
+      valid: true,
+      voucher: {
+        name: "Welcome 20%",
+        voucherType: "PRICE",
+        duration: "REPEATING",
+        durationInPeriods: 3,
+        discount: { type: "PERCENTAGE", value: "20", appliesTo: "LICENSE_BASE" },
+      },
+    });
+  });
+
+  test("an amount off once carries its currency code", async () => {
+    const { client } = open(() => json(answer("voucherFixed")));
+
+    expect(await client.validateVoucher({ code: "FIVEOFF" })).toEqual({
+      valid: true,
+      voucher: {
+        name: "Five off",
+        voucherType: "PRICE",
+        duration: "ONE_TIME",
+        durationInPeriods: null,
+        discount: { type: "FIXED_AMOUNT", value: "500", currencyCode: "EUR", appliesTo: "BOTH" },
+      },
+    });
+  });
+
+  test("boosts last as long as the voucher, and an unlimited one has no value", async () => {
+    const { client } = open(() => json(answer("voucherBoost")));
+
+    const check = await client.validateVoucher({ code: "LAUNCH" });
+
+    expect(check).toEqual({
+      valid: true,
+      voucher: {
+        name: "Launch boost",
+        voucherType: "ENTITLEMENT_BOOST",
+        duration: "FOREVER",
+        durationInPeriods: null,
+        boosts: [
+          { entitlementSlug: "api-calls", modifierType: "MULTIPLY", modifierValue: "2" },
+          { entitlementSlug: "workspaces", modifierType: "UNLIMITED", modifierValue: null },
+        ],
+      },
+    });
+    expect(check).not.toHaveProperty("voucher.discount");
+  });
+
+  test("every code that does not apply gets the same answer, which says nothing more", async () => {
+    const { client } = open(() => json(answer("voucherRefused")));
+
+    expect(await client.validateVoucher({ code: "NOPE" })).toEqual({ valid: false });
+  });
+
+  test("a duration, a discount or a modifier the contract does not list yet is passed on", async () => {
+    const wire = answer("voucherPercent");
+    wire.voucher!.duration = "SEASONAL" as never;
+    wire.voucher!.discount!.appliesTo = "BUNDLES" as never;
+    const { client } = open(() => json(wire));
+
+    expect(await client.validateVoucher({ code: CODE })).toMatchObject({
+      valid: true,
+      voucher: { duration: "SEASONAL", discount: { appliesTo: "BUNDLES" } },
+    });
+  });
+
+  test("guessing is slowed by a 429, which keeps its wait and is not sent again", async () => {
+    const { client, requests } = open(() => refused("voucherRateLimited"));
+
+    const error = await client.validateVoucher({ code: CODE }).catch((thrown: unknown) => thrown);
+
+    expect(error).toBeInstanceOf(KaitenError);
+    expect(error).toMatchObject({
+      status: 429,
+      code: "ValidateSessionVoucher.RateLimited",
+      retryAfterSeconds: 90,
+    });
+    expect(requests).toHaveLength(1);
+    expect(String((error as Error).message)).not.toContain(CODE);
+  });
+});
+
 describe("the provider's pages", () => {
   const RETURN = "https://app.initech.test/billing";
 
