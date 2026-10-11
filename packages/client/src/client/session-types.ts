@@ -96,6 +96,27 @@ export interface PaymentMethodSummary {
   last4: string | null;
   expMonth: number | null;
   expYear: number | null;
+  /** When the payment method was saved. Only on the answer that completes a payment method session. */
+  attachedAt?: string;
+}
+
+/** The payment provider's billing portal, to send the customer to. */
+export interface PortalSession {
+  url: string;
+}
+
+/** The provider's hosted page where the customer saves a payment method. */
+export interface PaymentMethodSession {
+  /** The provider's page: send the customer there. */
+  url: string;
+  /** Pass it to `completePaymentMethodSession` once the customer is back. */
+  sessionId: string;
+  expiresAt: string;
+}
+
+/** A payment method session completed: the payment method now charged. */
+export interface CompletedPaymentMethodSession {
+  paymentMethod: PaymentMethodSummary;
 }
 
 /** A voucher redeemed on the session's instance. Never its code. */

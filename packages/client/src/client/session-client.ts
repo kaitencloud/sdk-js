@@ -17,23 +17,31 @@ import { retry } from "../core/runtime/retry.ts";
 import { mapAddon } from "./billing.ts";
 import {
   mapCheckout,
+  mapCompletedPaymentMethodSession,
   mapInvoicePage,
+  mapPaymentMethodSession,
   mapPortal,
+  mapPortalSession,
   mapSubscription,
   mapVoucherValidation,
 } from "./session-mapping.ts";
 import type { WireCheckout } from "./session-mapping.ts";
 import type {
+  CompletedPaymentMethodSession as WireCompletedPaymentMethodSession,
   PageSessionInvoice,
+  PaymentMethodSession as WirePaymentMethodSession,
+  PortalSession as WirePortalSession,
   SessionPortal as WirePortal,
   SessionSubscription as WireSubscription,
 } from "../core/index.ts";
 import type {
   CheckoutInput,
   CheckoutResult,
+  CompletedPaymentMethodSession,
   KaitenPage,
   KaitenPortal,
-  PaymentMethodSummary,
+  PaymentMethodSession,
+  PortalSession,
   PortalSubscription,
   SessionInvoice,
   VoucherValidation,
@@ -64,9 +72,7 @@ export interface KaitenSessionClientLike {
   /** Withdraws a cancellation scheduled for the end of the period. */
   reactivateSubscription: () => Promise<PortalSubscription>;
   /** A link to the payment provider's billing portal. */
-  createPortalSession: (input: {
-    returnUrl: string;
-  }) => Promise<{ url: string; expiresAt: string }>;
+  createPortalSession: (input: { returnUrl: string }) => Promise<PortalSession>;
   /**
    * A hosted page where the customer adds or replaces a payment method.
    * `currencyCode` is required when the customer has no live subscription.
@@ -74,11 +80,9 @@ export interface KaitenSessionClientLike {
   createPaymentMethodSession: (input: {
     returnUrl: string;
     currencyCode?: string;
-  }) => Promise<{ url: string; sessionId: string; expiresAt: string }>;
+  }) => Promise<PaymentMethodSession>;
   /** Records the payment method of a completed `createPaymentMethodSession`. */
-  completePaymentMethodSession: (
-    sessionId: string,
-  ) => Promise<{ paymentMethod: PaymentMethodSummary }>;
+  completePaymentMethodSession: (sessionId: string) => Promise<CompletedPaymentMethodSession>;
   /** Checks a voucher code. It is redeemed by the checkout that carries it. */
   validateVoucher: (input: { code: string; licensePriceId?: string }) => Promise<VoucherValidation>;
   /** Sets how many units of an add-on the instance holds; `0` detaches it. */
@@ -160,30 +164,44 @@ export class KaitenSessionClient implements KaitenSessionClientLike {
     );
   }
 
-  createPortalSession(input: { returnUrl: string }): Promise<{ url: string; expiresAt: string }> {
-    return this.call("POST", "billing/portal-session", "createPortalSession()", input);
-  }
-
-  createPaymentMethodSession(input: {
-    returnUrl: string;
-    currencyCode?: string;
-  }): Promise<{ url: string; sessionId: string; expiresAt: string }> {
-    const { currencyCode, returnUrl } = input;
-    return this.call(
-      "POST",
-      "billing/payment-method-session",
-      "createPaymentMethodSession()",
-      currencyCode === undefined ? { returnUrl } : { returnUrl, currency: currencyCode },
+  async createPortalSession(input: { returnUrl: string }): Promise<PortalSession> {
+    return mapPortalSession(
+      await this.call<WirePortalSession>(
+        "POST",
+        "billing/portal-session",
+        "createPortalSession()",
+        input,
+      ),
     );
   }
 
-  completePaymentMethodSession(
-    sessionId: string,
-  ): Promise<{ paymentMethod: PaymentMethodSummary }> {
-    return this.call(
-      "POST",
-      `billing/payment-method-session/${encodeURIComponent(sessionId)}/complete`,
-      `completePaymentMethodSession(${sessionId})`,
+  async createPaymentMethodSession(input: {
+    returnUrl: string;
+    currencyCode?: string;
+  }): Promise<PaymentMethodSession> {
+    const { currencyCode, returnUrl } = input;
+    return mapPaymentMethodSession(
+      await this.call<WirePaymentMethodSession>(
+        "POST",
+        "billing/payment-method-session",
+        "createPaymentMethodSession()",
+        currencyCode === undefined ? { returnUrl } : { returnUrl, currency: currencyCode },
+      ),
+    );
+  }
+
+  async completePaymentMethodSession(sessionId: string): Promise<CompletedPaymentMethodSession> {
+    if (typeof sessionId !== "string" || sessionId === "") {
+      throw new TypeError(
+        "Kaiten: completePaymentMethodSession needs the sessionId createPaymentMethodSession gave.",
+      );
+    }
+    return mapCompletedPaymentMethodSession(
+      await this.call<WireCompletedPaymentMethodSession>(
+        "POST",
+        `billing/payment-method-session/${encodeURIComponent(sessionId)}/complete`,
+        `completePaymentMethodSession(${sessionId})`,
+      ),
     );
   }
 

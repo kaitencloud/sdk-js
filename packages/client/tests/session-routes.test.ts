@@ -336,6 +336,118 @@ describe("the portal", () => {
   });
 });
 
+describe("the provider's pages", () => {
+  const RETURN = "https://app.initech.test/billing";
+
+  test("the billing portal is a link, sent back to the page the host names", async () => {
+    const { client, requests } = open(() => json(answer("portalSession")));
+
+    const portal = await client.createPortalSession({ returnUrl: RETURN });
+
+    expect(await sent(requests)).toEqual([
+      ["POST", "/public/session/billing/portal-session", JSON.stringify({ returnUrl: RETURN })],
+    ]);
+    expect(portal).toEqual({ url: "https://billing.stripe.test/p/session_1" });
+  });
+
+  test("a payment method page is opened in the currency the host names", async () => {
+    const { client, requests } = open(() => json(answer("paymentMethodSession")));
+
+    const page = await client.createPaymentMethodSession({
+      returnUrl: RETURN,
+      currencyCode: "EUR",
+    });
+
+    expect(await sent(requests)).toEqual([
+      [
+        "POST",
+        "/public/session/billing/payment-method-session",
+        JSON.stringify({ returnUrl: RETURN, currency: "EUR" }),
+      ],
+    ]);
+    expect(page).toEqual({
+      url: "https://checkout.stripe.test/c/setup_2",
+      sessionId: "cs_setup_2",
+      expiresAt: "2026-10-11T12:00:00Z",
+    });
+  });
+
+  test("a customer who already pays in a currency is asked for none", async () => {
+    const { client, requests } = open(() => json(answer("paymentMethodSession")));
+
+    await client.createPaymentMethodSession({ returnUrl: RETURN });
+
+    expect(await sent(requests)).toEqual([
+      [
+        "POST",
+        "/public/session/billing/payment-method-session",
+        JSON.stringify({ returnUrl: RETURN }),
+      ],
+    ]);
+  });
+
+  test("completing a session reads the payment method it saved, and when", async () => {
+    const { client, requests } = open(() => json(answer("paymentMethodCompleted")));
+
+    const completed = await client.completePaymentMethodSession("cs_setup_2");
+
+    expect(await sent(requests)).toEqual([
+      ["POST", "/public/session/billing/payment-method-session/cs_setup_2/complete", undefined],
+    ]);
+    expect(completed).toEqual({
+      paymentMethod: {
+        status: "ACTIVE",
+        brand: "visa",
+        last4: "4242",
+        expMonth: 12,
+        expYear: 2030,
+        attachedAt: "2026-10-10T11:00:00Z",
+      },
+    });
+  });
+
+  test("a payment method the provider gives no labels for has them null, and no date", async () => {
+    const { client } = open(() => json(answer("paymentMethodCompletedBare")));
+
+    const completed = await client.completePaymentMethodSession("cs_setup_2");
+
+    expect(completed.paymentMethod).toEqual({
+      status: "ACTIVE",
+      brand: null,
+      last4: null,
+      expMonth: null,
+      expYear: null,
+    });
+  });
+
+  test("the session id is one path segment, and an empty one is refused before any request", async () => {
+    const { client, requests } = open(() => json(answer("paymentMethodCompleted")));
+
+    await client.completePaymentMethodSession("cs/1 ?");
+    expect(new URL(requests[0]!.url).pathname).toBe(
+      "/api/public/session/billing/payment-method-session/cs%2F1%20%3F/complete",
+    );
+
+    await expect(client.completePaymentMethodSession("")).rejects.toBeInstanceOf(TypeError);
+    expect(requests).toHaveLength(1);
+  });
+
+  test("a provider that cannot be reached answers 503 once, with how long to wait", async () => {
+    const { client, requests } = open(() => refused("paymentMethodUnavailable"));
+
+    const error = await client
+      .createPaymentMethodSession({ returnUrl: RETURN })
+      .catch((thrown: unknown) => thrown);
+
+    expect(error).toMatchObject({
+      status: 503,
+      code: "CreateSessionPaymentMethodSession.ProviderUnavailable",
+      retryAfterSeconds: 30,
+    });
+    expect(requests).toHaveLength(1);
+  });
+});
+
 describe("checkout", () => {
   const PRICE = "00000000-0000-4000-8000-000000000201";
 

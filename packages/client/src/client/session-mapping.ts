@@ -17,9 +17,12 @@ import { entitlementStatus } from "./normalize.ts";
 import type {
   CheckoutPreview,
   CheckoutResult,
+  CompletedPaymentMethodSession,
   KaitenPage,
   KaitenPortal,
+  PaymentMethodSession,
   PaymentMethodSummary,
+  PortalSession,
   PortalSubscription,
   SessionAddon,
   SessionInvoice,
@@ -152,16 +155,37 @@ function mapPortalEntitlement(raw: Api.PortalEntitlement): ResolvedEntitlement {
   };
 }
 
-/** The labels of a payment method: what the provider does not give is `null`. */
-export function mapPaymentMethod(raw: Api.PortalPaymentMethod): PaymentMethodSummary {
+/**
+ * The labels of a payment method: what the provider does not give is `null`.
+ * The portal's carry no date, and a completed session's may.
+ */
+export function mapPaymentMethod(
+  raw: Api.PortalPaymentMethod | Api.PaymentMethodLabels,
+): PaymentMethodSummary {
   return {
     status: raw.status,
     brand: raw.brand ?? null,
     last4: raw.last4 ?? null,
     expMonth: raw.expMonth ?? null,
     expYear: raw.expYear ?? null,
+    ...("attachedAt" in raw && raw.attachedAt ? { attachedAt: raw.attachedAt } : {}),
   };
 }
+
+/** `POST /public/session/billing/portal-session`: a link, and nothing else. */
+export const mapPortalSession = (raw: Api.PortalSession): PortalSession => ({ url: raw.url });
+
+/** `POST /public/session/billing/payment-method-session`. */
+export const mapPaymentMethodSession = (raw: Api.PaymentMethodSession): PaymentMethodSession => ({
+  url: raw.url,
+  sessionId: raw.sessionId,
+  expiresAt: raw.expiresAt,
+});
+
+/** `POST …/payment-method-session/{sessionId}/complete`. */
+export const mapCompletedPaymentMethodSession = (
+  raw: Api.CompletedPaymentMethodSession,
+): CompletedPaymentMethodSession => ({ paymentMethod: mapPaymentMethod(raw.paymentMethod) });
 
 /**
  * An add-on the session's instance holds. Like a catalogue add-on, only the

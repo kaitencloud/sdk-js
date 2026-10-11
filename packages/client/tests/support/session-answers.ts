@@ -18,12 +18,16 @@ interface Answers {
   addon: KaitenApi.SessionAddon;
   addonDetached: KaitenApi.SessionAddon;
   cancel: KaitenApi.SessionSubscription;
+  paymentMethodCompleted: KaitenApi.CompletedPaymentMethodSession;
+  paymentMethodCompletedBare: KaitenApi.CompletedPaymentMethodSession;
+  paymentMethodSession: KaitenApi.PaymentMethodSession;
   portal: KaitenApi.SessionPortal;
   portalCanceling: KaitenApi.SessionPortal;
   portalCustomerWide: KaitenApi.SessionPortal;
   portalNeverSubscribed: KaitenApi.SessionPortal;
   portalPastDue: KaitenApi.SessionPortal;
   portalScheduledChange: KaitenApi.SessionPortal;
+  portalSession: KaitenApi.PortalSession;
   reactivate: KaitenApi.SessionSubscription;
   checkoutPreview: Extract<WireCheckout, { status: "preview" }>;
   checkoutPreviewTrial: Extract<WireCheckout, { status: "preview" }>;
