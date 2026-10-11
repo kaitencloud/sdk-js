@@ -2,11 +2,16 @@ import { readFileSync } from "node:fs";
 
 import { afterEach, describe, expect, test, vi } from "vite-plus/test";
 
-import { KaitenClient, KaitenError, type KaitenApi } from "../src/index.ts";
+import {
+  KaitenClient,
+  KaitenError,
+  type GetCatalogOptions as KaitenGetCatalogOptions,
+  type KaitenApi,
+} from "../src/index.ts";
 
 const CATALOG = JSON.parse(
   readFileSync(new URL("./fixtures/public-catalog.acme.json", import.meta.url), "utf8"),
-) as { plans: unknown[] };
+) as { plans: { selfServe: boolean }[]; capabilities: object };
 
 const PK = `pk_${"a".repeat(43)}`;
 
@@ -150,6 +155,155 @@ describe("public mode reads the catalogue from /public/catalog only", () => {
     await client.getCatalog();
 
     expect(requestOf(fetch.mock.calls[0]!).url).toBe("https://api.acme.test/api/graphql");
+  });
+});
+
+describe("narrowing the public catalogue", () => {
+  const read = async (options?: KaitenGetCatalogOptions) => {
+    const fetch = vi.fn(async () => json(CATALOG));
+    const { client } = publicClient(fetch);
+    await client.getCatalog(options);
+    const request = requestOf(fetch.mock.calls[0]!);
+    return { fetch, request, url: new URL(request.url) };
+  };
+
+  test("a read with no option, or none that narrows, has no query string", async () => {
+    for (const options of [undefined, {}, { familySlug: undefined, include: undefined }]) {
+      const { url } = await read(options);
+
+      expect(url.origin + url.pathname).toBe("https://api.acme.test/api/public/catalog");
+      expect(url.search).toBe("");
+    }
+  });
+
+  test("a family is asked for by its slug", async () => {
+    const { request, url } = await read({ familySlug: "pro" });
+
+    expect(url.search).toBe("?familySlug=pro");
+    expect(request.method).toBe("GET");
+    expect(request.headers.get("X-Kaiten-Publishable-Key")).toBe(PK);
+    expect(request.headers.get("Authorization")).toBeNull();
+    expect(request.credentials).toBe("omit");
+  });
+
+  test("the add-ons are left out with include none, and named with include addons", async () => {
+    expect((await read({ include: "none" })).url.search).toBe("?include=none");
+    expect((await read({ include: "addons" })).url.search).toBe("?include=addons");
+  });
+
+  test("both options travel together", async () => {
+    const { url } = await read({ familySlug: "pro", include: "none" });
+
+    expect(url.searchParams.get("familySlug")).toBe("pro");
+    expect(url.searchParams.get("include")).toBe("none");
+    expect([...url.searchParams.keys()]).toHaveLength(2);
+  });
+
+  test("a slug is encoded, not trusted", async () => {
+    const { request, url } = await read({ familySlug: "a b&include=none/é" });
+
+    expect(url.searchParams.get("familySlug")).toBe("a b&include=none/é");
+    expect(url.searchParams.has("include")).toBe(false);
+    expect(request.url).not.toContain(" ");
+    expect(request.url).not.toContain("&include");
+  });
+
+  test("an option the route would not understand is refused before any request", async () => {
+    const fetch = vi.fn(async () => json(CATALOG));
+    const { client } = publicClient(fetch);
+    const bad: unknown[] = [
+      { familySlug: "" },
+      { familySlug: 3 },
+      { familySlug: null },
+      { include: "all" },
+      { include: ["none"] },
+      { include: "" },
+    ];
+
+    for (const options of bad) {
+      await expect(client.getCatalog(options as KaitenGetCatalogOptions)).rejects.toBeInstanceOf(
+        TypeError,
+      );
+    }
+
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  test("components.getCatalog takes the same options", async () => {
+    const fetch = vi.fn(async () => json(CATALOG));
+    const { client } = publicClient(fetch);
+
+    await client.components.getCatalog({ familySlug: "growth", include: "none" });
+
+    const url = new URL(requestOf(fetch.mock.calls[0]!).url);
+    expect(url.searchParams.get("familySlug")).toBe("growth");
+    expect(url.searchParams.get("include")).toBe("none");
+  });
+
+  test("a publishable key reaches /public/catalog and nothing else, whatever it asks for", async () => {
+    const fetch = vi.fn(async () => json(CATALOG));
+    const { client } = publicClient(fetch);
+
+    await client.getCatalog();
+    await client.getCatalog({ familySlug: "pro" });
+    await client.getCatalog({ include: "none" });
+    await client.components.getCatalog({ familySlug: "pro", include: "addons" });
+
+    expect(fetch).toHaveBeenCalledTimes(4);
+    for (const call of fetch.mock.calls) {
+      expect(new URL(requestOf(call).url).pathname).toBe("/api/public/catalog");
+    }
+  });
+
+  test("a client with another credential composes the catalogue as before, and reads no option", async () => {
+    const fetch = vi.fn(async () => json({ data: { licenses: { items: [], hasMore: false } } }));
+    const client = new KaitenClient({
+      apiUrl: "https://api.acme.test/api",
+      authScheme: "bearer",
+      tokenProvider: () => "ksh_server",
+      fetch,
+    });
+
+    await client.getCatalog({ familySlug: "pro", include: "none" });
+
+    const url = new URL(requestOf(fetch.mock.calls[0]!).url);
+    expect(url.pathname).toBe("/api/graphql");
+    expect(url.search).toBe("");
+  });
+});
+
+describe("capabilities come from the payload", () => {
+  const withCapabilities = (capabilities: { checkout: boolean; paymentMethods: boolean }) => ({
+    ...CATALOG,
+    capabilities,
+  });
+
+  test("checkout says the organization can sell a plan alone, whatever the plans claim", async () => {
+    // The fixture has self-serve plans and `checkout: true`. The flag is the
+    // API's answer to "can a plan of this catalogue be bought alone?": it is read,
+    // not derived from `selfServe` on the plans, so the two can differ.
+    const open = await publicClient(vi.fn(async () => json(CATALOG))).client.getCatalog();
+    expect(open.plans.some((plan) => plan.selfServe)).toBe(true);
+    expect(open.capabilities).toEqual({ checkout: true, paymentMethods: true });
+
+    for (const capabilities of [
+      { checkout: false, paymentMethods: true },
+      { checkout: true, paymentMethods: false },
+      { checkout: false, paymentMethods: false },
+    ]) {
+      const fetch = vi.fn(async () => json(withCapabilities(capabilities)));
+      const catalog = await publicClient(fetch).client.getCatalog();
+
+      expect(catalog.capabilities).toEqual(capabilities);
+      expect(catalog.plans.some((plan) => plan.selfServe)).toBe(true);
+    }
+  });
+
+  test("a payload without capabilities offers nothing", async () => {
+    const { capabilities: _omitted, ...bare } = CATALOG;
+    const catalog = await publicClient(vi.fn(async () => json(bare))).client.getCatalog();
+
+    expect(catalog.capabilities).toEqual({ checkout: false, paymentMethods: false });
   });
 });
 

@@ -146,6 +146,8 @@ export function createMockKaitenClient(options: MockKaitenClientOptions = {}): M
       catalog = next;
     },
 
+    // The catalog it holds, whatever options a caller narrows the read with: set
+    // the catalog a scenario needs with `setCatalog`.
     async getCatalog(): Promise<KaitenCatalog> {
       await settle();
       return catalog;

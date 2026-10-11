@@ -756,6 +756,21 @@ export interface KaitenBrandingCapability {
   removable: boolean;
 }
 
+/**
+ * What a catalog read may narrow. They apply to the public catalog, read with a
+ * publishable key; a client with any other credential composes the catalog from
+ * the licences endpoints and ignores them.
+ */
+export interface GetCatalogOptions {
+  /** Only the licence family with this slug. Without it, every public family. */
+  familySlug?: string;
+  /**
+   * `"addons"` lists the public add-ons beside the plans, which is also what
+   * leaving it out does; `"none"` leaves them out, and `catalog.addOns` is empty.
+   */
+  include?: "addons" | "none";
+}
+
 export interface KaitenCatalog {
   plans: Plan[];
   branding?: KaitenBrandingCapability;

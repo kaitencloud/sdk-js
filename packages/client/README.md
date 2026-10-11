@@ -57,6 +57,23 @@ order:
 
 `plan.price` and `plan.annualPrice` are the default monthly and annual flat fees.
 
+`getCatalog` takes optional arguments that narrow the read, and send nothing more than
+they name:
+
+```ts
+await client.getCatalog({ familySlug: "pro" }); // that family's plan, and the add-ons
+await client.getCatalog({ include: "none" }); // every plan, without the add-ons
+```
+
+`include` is `"addons"` (the default) or `"none"`. An empty `familySlug`, or an
+`include` that is neither, throws a `TypeError` before any request. A client with
+any other credential composes its catalog from your licences and ignores both.
+
+`catalog.capabilities.checkout` is what the API says about the organization: a plan
+of this catalog can be bought alone. It is read from the response, not worked out from
+the plans. When it is `false`, show each plan's `selfServeCtaUrl` instead of a
+purchase button.
+
 ### Scopes
 
 The API checks a token's scopes on every call. Give the token the scopes of the calls

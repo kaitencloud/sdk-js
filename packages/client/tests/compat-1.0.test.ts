@@ -8,7 +8,7 @@
 
 import { describe, expect, test } from "vite-plus/test";
 
-import type { EntitlementType } from "../src/index.ts";
+import type { EntitlementType, KaitenCatalog, KaitenClientLike } from "../src/index.ts";
 
 /** Compile-time equality of two types. */
 type Equal<A, B> =
@@ -45,5 +45,28 @@ describe("1.0 enumerations", () => {
     expect(
       (["BOOLEAN", "NUMBER", "CONFIG", "NUMBER_AI_CREDIT"] as const).map((type) => meter(type)),
     ).toEqual(["flag", "metered", "setting", "metered"]);
+  });
+});
+
+// `KaitenClientLike` is the seam a host implements: a fake, a cache, an SSR
+// client. 1.0 gave `getCatalog` no parameter, and a double written then must
+// still satisfy the interface now that the method may be asked to narrow the
+// catalogue. It is held here as a 1.0 host wrote it.
+describe("a KaitenClientLike written against 1.0", () => {
+  const unused = async (): Promise<never> => {
+    throw new Error("not used by this test");
+  };
+
+  test("still satisfies the interface, and is still called without arguments", async () => {
+    const catalog: KaitenCatalog = { plans: [] };
+    const double: KaitenClientLike = {
+      getCatalog: async () => catalog,
+      getLicensingSnapshot: unused,
+      evaluateFlag: unused,
+      evaluateFlags: unused,
+      reportUsage: unused,
+    };
+
+    expect(await double.getCatalog()).toBe(catalog);
   });
 });

@@ -306,11 +306,17 @@ export class KaitenTransport {
    * The key goes in `X-Kaiten-Publishable-Key` and nowhere else: no
    * `Authorization` header, and no cookie (`credentials: "omit"`), since the
    * public routes neither read nor set one and answer any origin. Replayed
-   * after a network failure or a 5xx, like every read.
+   * after a network failure or a 5xx, like every read. `query` is the route's
+   * query string, already checked by the caller; a member left `undefined` is
+   * not sent.
    *
    * @internal Used by `KaitenClient`; not part of the public API.
    */
-  async callPublic<T>(path: string, label: string): Promise<T> {
+  async callPublic<T>(
+    path: string,
+    label: string,
+    query?: Record<string, string | undefined>,
+  ): Promise<T> {
     const token = this.tokenProvider ? await this.tokenProvider() : undefined;
     assertNoSecretInBrowser(token);
     if (this.authScheme !== "publishable" || !token?.startsWith("pk_")) {
@@ -324,6 +330,7 @@ export class KaitenTransport {
       (client) =>
         client.get({
           url: path,
+          query,
           headers: { "X-Kaiten-Publishable-Key": token },
           credentials: "omit",
         }),

@@ -18,6 +18,7 @@ import type {
   BillingInterval,
   BillingPrice,
   EntitlementValue,
+  GetCatalogOptions,
   KaitenCatalog,
   Plan,
   PlanEntitlement,
@@ -181,6 +182,30 @@ export function mapAddon(raw: PublicAddOn): Addon {
     prices: [month, year].filter((price) => price !== undefined),
     billingPrices,
     ...(entitlements ? { entitlements: list(entitlements).map(mapAddonEntitlement) } : {}),
+  };
+}
+
+/**
+ * The query string of `GET /public/catalog` for `options`, or nothing when they
+ * narrow nothing. An option the route would not understand is refused here, with
+ * a `TypeError` as for a bad `authScheme`, rather than sent to be answered by a
+ * 422, or worse, ignored: an empty family slug reads as "every family" to the
+ * API, which is never what a caller who passed one meant.
+ */
+export function catalogQuery(
+  options: GetCatalogOptions | undefined,
+): Record<string, string> | undefined {
+  const { familySlug, include } = options ?? {};
+  if (familySlug !== undefined && (typeof familySlug !== "string" || familySlug === "")) {
+    throw new TypeError("Kaiten: getCatalog familySlug must be a non-empty string.");
+  }
+  if (include !== undefined && include !== "addons" && include !== "none") {
+    throw new TypeError('Kaiten: getCatalog include must be "addons" or "none".');
+  }
+  if (familySlug === undefined && include === undefined) return undefined;
+  return {
+    ...(familySlug === undefined ? {} : { familySlug }),
+    ...(include === undefined ? {} : { include }),
   };
 }
 

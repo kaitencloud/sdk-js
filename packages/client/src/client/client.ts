@@ -35,7 +35,7 @@ import {
   resolveLicenseTerm,
 } from "./normalize.ts";
 import { isEvaluationSuccess } from "./feature-flags.ts";
-import { mapPublicCatalog } from "./billing.ts";
+import { catalogQuery, mapPublicCatalog } from "./billing.ts";
 import { KaitenTransport } from "../core/index.ts";
 import { LICENSING_CATALOG_QUERY, LICENSING_SNAPSHOT_QUERY } from "../graphql/documents.ts";
 import type {
@@ -48,6 +48,7 @@ import type {
   EntitlementGroupUsageItem,
   EntitlementUsage,
   EvaluationSuccess,
+  GetCatalogOptions,
   Instance,
   KaitenCatalog,
   License,
@@ -89,7 +90,7 @@ interface PageOf<T> {
  * `KaitenClient implements KaitenClientLike`, so the two cannot drift.
  */
 export interface KaitenClientLike {
-  getCatalog: () => Promise<KaitenCatalog>;
+  getCatalog: (options?: GetCatalogOptions) => Promise<KaitenCatalog>;
   getLicensingSnapshot: (customerId: string, instanceId?: string) => Promise<LicensingSnapshot>;
   evaluateFlag: (key: string, context?: Record<string, unknown>) => Promise<EvaluationSuccess>;
   evaluateFlags: (context?: Record<string, unknown>) => Promise<BulkEvaluationResponse>;
@@ -101,7 +102,7 @@ export interface KaitenClientLike {
 }
 
 export interface KaitenComponentsModule {
-  getCatalog: () => Promise<KaitenCatalog>;
+  getCatalog: (options?: GetCatalogOptions) => Promise<KaitenCatalog>;
   getSnapshot: (customerId: string, instanceId?: string) => Promise<LicensingSnapshot>;
 }
 
@@ -454,7 +455,7 @@ export class KaitenClient implements KaitenClientLike {
     this.publishable = config.authScheme === "publishable";
 
     this.components = {
-      getCatalog: () => this.getCatalog(),
+      getCatalog: (options) => this.getCatalog(options),
       getSnapshot: (customerId, instanceId) => this.getLicensingSnapshot(customerId, instanceId),
     };
 
@@ -817,12 +818,18 @@ export class KaitenClient implements KaitenClientLike {
 
   // With a publishable key: the public catalogue, `GET /public/catalog`, and
   // nothing else — no GraphQL and no REST fallback, which a publishable key may
-  // not read. With any other credential: composed from the licenses endpoints,
-  // every licence of the organization (Option A, see ARCHITECTURE.md).
-  async getCatalog(): Promise<KaitenCatalog> {
+  // not read. `options` narrow that read (one family, or without the add-ons).
+  // With any other credential: composed from the licenses endpoints, every
+  // licence of the organization (Option A, see ARCHITECTURE.md), and `options`
+  // are not read.
+  async getCatalog(options?: GetCatalogOptions): Promise<KaitenCatalog> {
     if (this.publishable) {
       return mapPublicCatalog(
-        await this.transport.callPublic<PublicCatalog>("/public/catalog", "getCatalog()"),
+        await this.transport.callPublic<PublicCatalog>(
+          "/public/catalog",
+          "getCatalog()",
+          catalogQuery(options),
+        ),
       );
     }
     const { plans } = await this.buildCatalog();
