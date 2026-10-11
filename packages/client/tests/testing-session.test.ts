@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vite-plus/test";
 
-import { KaitenError } from "../src/index.ts";
+import { KaitenError, QuotaExceededError, RateLimitedError } from "../src/index.ts";
 import type { KaitenSessionClientLike } from "../src/index.ts";
 import {
   createMockKaitenSessionClient,
@@ -254,6 +254,30 @@ describe("createMockKaitenSessionClient", () => {
         addOns: [{ addonSlug: "extra-seats-v1", quantity: 2 }],
       }),
     ).rejects.toMatchObject({ code: "CreateSessionCheckout.QuotaExceeded" });
+  });
+
+  test("a screen is driven into a refusal that has a class, from checkout or for every call", async () => {
+    const over = new QuotaExceededError({
+      title: "Unprocessable Entity",
+      status: 422,
+      code: "CreateSessionCheckout.QuotaExceeded",
+      errors: [{ location: "body", message: "over", value: { entitlementSlugs: ["seats"] } }],
+    });
+    const scripted = createMockKaitenSessionClient({
+      portal: demoUnsubscribedPortal(),
+      checkout: () => {
+        throw over;
+      },
+    });
+    const limited = createMockKaitenSessionClient({
+      error: new RateLimitedError({ title: "Too Many Requests", status: 429 }),
+    });
+
+    await expect(scripted.checkout({ licensePriceId: GROWTH_MONTHLY })).rejects.toBe(over);
+    expect(over.entitlementSlugs).toEqual(["seats"]);
+    const refusal = await refusedWith(limited.getPortal());
+    expect(refusal).toBeInstanceOf(RateLimitedError);
+    expect(refusal.retryAfterSeconds).toBe(60);
   });
 
   test("add-ons the model does not price are not silently left out of a checkout", async () => {
