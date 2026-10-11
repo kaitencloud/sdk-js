@@ -26,6 +26,8 @@ type Reply = number | { status: number; body?: unknown; headers?: Record<string,
 
 interface Sent {
   at: number;
+  method: string;
+  contentType: string | null;
   body: Record<string, unknown>;
   text: string;
 }
@@ -42,7 +44,13 @@ function stubServer(replies: Reply[]) {
     const request = input instanceof Request ? input : new Request(input, init);
     expect(new URL(request.url).pathname).toBe(USAGE_PATH);
     const text = await request.clone().text();
-    sent.push({ at: Date.now(), body: JSON.parse(text) as Record<string, unknown>, text });
+    sent.push({
+      at: Date.now(),
+      method: request.method,
+      contentType: request.headers.get("Content-Type"),
+      body: JSON.parse(text) as Record<string, unknown>,
+      text,
+    });
 
     const reply = replies[Math.min(call, replies.length - 1)]!;
     call += 1;
@@ -476,6 +484,81 @@ describe("reportUsage without a transactionId", () => {
     expect(usage).toEqual(USAGE);
     expect("idempotentReplayed" in usage).toBe(false);
     expect("metadataDropped" in usage).toBe(false);
+  });
+
+  // What @kaitencloud/client 1.0.0 put on the wire for a report, recorded from
+  // that release and kept as literal text: a report with no key is the caller's
+  // object serialized as it was, in the order the caller wrote it, with no
+  // member added. A change here is a change for every 1.0 caller.
+  const SENT_BY_1_0_0: { name: string; input: ReportUsageInput; body: string }[] = [
+    {
+      name: "append a number",
+      input: { value: { type: "number", value: 500 }, behavior: "append" },
+      body: '{"value":{"type":"number","value":500},"behavior":"append"}',
+    },
+    {
+      name: "set a fraction",
+      input: { value: { type: "number", value: 12.5 }, behavior: "set" },
+      body: '{"value":{"type":"number","value":12.5},"behavior":"set"}',
+    },
+    {
+      name: "metadata, nested",
+      input: {
+        value: { type: "number", value: 3 },
+        behavior: "append",
+        metadata: { source: "batch", run: 3, tags: ["a", "b"], nested: { ok: true } },
+      },
+      body:
+        '{"value":{"type":"number","value":3},"behavior":"append",' +
+        '"metadata":{"source":"batch","run":3,"tags":["a","b"],"nested":{"ok":true}}}',
+    },
+    {
+      name: "the caller's key order",
+      input: { behavior: "set", value: { value: 0, type: "number" } },
+      body: '{"behavior":"set","value":{"value":0,"type":"number"}}',
+    },
+    {
+      name: "a boolean value",
+      input: { value: { type: "boolean", value: true }, behavior: "set" },
+      body: '{"value":{"type":"boolean","value":true},"behavior":"set"}',
+    },
+    {
+      name: "an object value",
+      input: {
+        value: { type: "object", value: { tier: "gold", limits: { rps: 5 } } },
+        behavior: "set",
+      },
+      body: '{"value":{"type":"object","value":{"tier":"gold","limits":{"rps":5}}},"behavior":"set"}',
+    },
+    {
+      name: "a key left undefined",
+      input: {
+        value: { type: "number", value: 500 },
+        behavior: "append",
+        transactionId: undefined,
+      },
+      body: '{"value":{"type":"number","value":500},"behavior":"append"}',
+    },
+  ];
+
+  test.each(SENT_BY_1_0_0)("sends what 1.0.0 sent, byte for byte: $name", async (golden) => {
+    const { fetch, sent } = stubServer([200]);
+
+    await settle(clientFor(fetch).reportUsage("acme-prod", "tokens", golden.input));
+
+    expect(sent).toHaveLength(1);
+    expect(sent[0]!.text).toBe(golden.body);
+    expect(sent[0]!.method).toBe("POST");
+    expect(sent[0]!.contentType).toBe("application/json");
+  });
+
+  test("sends what 1.0.0 sent through the usage facade as well", async () => {
+    const { fetch, sent } = stubServer([200]);
+    const [golden] = SENT_BY_1_0_0;
+
+    await settle(clientFor(fetch).usage.report("acme-prod", "tokens", golden!.input));
+
+    expect(sent[0]!.text).toBe(golden!.body);
   });
 
   test("an explicit undefined key is no key", async () => {
