@@ -20,7 +20,12 @@ export type {
   KaitenThrownError,
   TransactionIdReusedOriginal,
 } from "./runtime/errors.ts";
-export { assertPublishableKey, isPublishableKey } from "./runtime/keys.ts";
+export {
+  assertPublishableKey,
+  assertPublishableKeyShape,
+  isPublishableKey,
+  isPublishableKeyShape,
+} from "./runtime/keys.ts";
 export { retry } from "./runtime/retry.ts";
 export type { RetryOptions } from "./runtime/retry.ts";
 

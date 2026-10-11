@@ -23,7 +23,9 @@ export {
   KaitenTransport,
   TransactionIdReusedError,
   assertPublishableKey,
+  assertPublishableKeyShape,
   isPublishableKey,
+  isPublishableKeyShape,
   retry,
 } from "./core/index.ts";
 export type {

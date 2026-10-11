@@ -23,6 +23,12 @@ A browser has one credential of its own: a publishable key (`pk_`), which reads 
 public catalog and nothing else. It needs a Kaiten server that serves the public routes
 (`/api/public/*`).
 
+A publishable key is `pk_` followed by 43 letters, digits, `-` or `_`.
+`assertPublishableKeyShape(key)` throws for anything else (a key cut short by a paste,
+or wrapped in quotes) and `isPublishableKeyShape(key)` answers true or false. The
+client itself only checks the prefix of the key it sends, as `assertPublishableKey`
+always has, so a test key such as `pk_live_abc` still works against a mock server.
+
 `authScheme` is required:
 
 - `"bearer"` sends the credential as `Authorization: Bearer`;

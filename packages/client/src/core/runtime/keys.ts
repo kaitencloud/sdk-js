@@ -31,6 +31,19 @@ export function isPublishableKey(key: string = ""): boolean {
   return key.startsWith(PUBLISHABLE_KEY_PREFIX);
 }
 
+/**
+ * A publishable key as Kaiten issues it: `pk_` and 43 random base64url
+ * characters. `isPublishableKey` only reads the prefix and stays lenient, because
+ * it has long accepted any `pk_` string and a test key such as `pk_live_abc` is
+ * how many hosts have written theirs.
+ */
+const PUBLISHABLE_KEY_SHAPE = /^pk_[A-Za-z0-9_-]{43}$/;
+
+/** True for a string of the shape Kaiten issues publishable keys in. */
+export function isPublishableKeyShape(key: unknown): boolean {
+  return typeof key === "string" && PUBLISHABLE_KEY_SHAPE.test(key);
+}
+
 /** The secret prefix a credential starts with, if any. */
 export function secretKeyPrefix(key: string = ""): string | null {
   return SECRET_KEY_PREFIXES.find((prefix) => key.startsWith(prefix)) ?? null;
@@ -55,5 +68,23 @@ export function assertPublishableKey(key: string): void {
 
   if (!isPublishableKey(key)) {
     throw new Error("Kaiten: Invalid publishable key format. Keys should start with 'pk_'.");
+  }
+}
+
+/**
+ * Like `assertPublishableKey`, and stricter: a key that has the right prefix but
+ * not the shape of a key Kaiten issued (cut short by a paste, quoted, padded
+ * with a space) is refused too. Use it where a mistyped key should fail at once,
+ * with a message that says so, instead of as a 401 from the API; the client's
+ * own requests keep the lenient check.
+ */
+export function assertPublishableKeyShape(key: string): void {
+  assertPublishableKey(key);
+
+  if (!isPublishableKeyShape(key)) {
+    throw new Error(
+      "Kaiten: Malformed publishable key. A key is 'pk_' followed by 43 letters, digits, '-' or '_'. " +
+        "Check that it was copied whole.",
+    );
   }
 }
