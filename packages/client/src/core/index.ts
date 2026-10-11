@@ -10,9 +10,13 @@ export { client } from "./generated/client.gen.ts";
 export type { CreateClientConfig } from "./generated/client.gen.ts";
 
 export {
+  BoundaryPendingError,
   InvalidTransactionIdError,
   KaitenError,
   KaitenNetworkError,
+  ProviderUnavailableError,
+  QuotaExceededError,
+  RateLimitedError,
   TransactionIdReusedError,
 } from "./runtime/errors.ts";
 export type {

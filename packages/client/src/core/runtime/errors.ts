@@ -39,8 +39,13 @@ export class KaitenError extends Error {
   public readonly raw?: KaitenApiError;
   /**
    * How long the API asked to wait before trying again, in seconds, from the
-   * response's `Retry-After` header: set on a 429 (rate limited) and on a 409
-   * `*.BoundaryPending`. Absent when the response carried no such header.
+   * response's `Retry-After` header (a number of seconds or an HTTP date).
+   * Absent when the response carried no readable one, which in a browser
+   * includes a response whose CORS policy does not expose the header.
+   *
+   * {@link RateLimitedError}, {@link BoundaryPendingError} and
+   * {@link ProviderUnavailableError}, which are refusals made to be waited
+   * out, always have it: 60 when the header could not be read.
    */
   public readonly retryAfterSeconds?: number;
 
@@ -170,4 +175,118 @@ export class InvalidTransactionIdError extends KaitenError {
     this.name = "InvalidTransactionIdError";
     this.transactionId = transactionId;
   }
+}
+
+/**
+ * What {@link RateLimitedError}, {@link BoundaryPendingError} and
+ * {@link ProviderUnavailableError} say to wait, in seconds, when the response
+ * has no `Retry-After` the client can read. A browser calling another origin
+ * only sees that header if the API's CORS policy exposes it.
+ */
+export const DEFAULT_RETRY_AFTER_SECONDS = 60;
+
+/**
+ * Thrown when a checkout is refused because the instance already uses more than
+ * the plan it would move to allows: HTTP 422 with the code
+ * `CreateSessionCheckout.QuotaExceeded`. A `dryRun` is refused the same way, so a
+ * preview tells the customer before anything is attempted. Nothing was changed.
+ *
+ * `entitlementSlugs` names the entitlements whose usage is above what the plan
+ * grants. Offer a larger plan, or add-ons that make room for that usage.
+ *
+ * A `KaitenError`, so a handler that narrows on `instanceof KaitenError` or on
+ * `status`/`code` keeps working.
+ */
+export class QuotaExceededError extends KaitenError {
+  /** The entitlements whose current usage is above what the plan grants. */
+  public readonly entitlementSlugs: string[];
+
+  constructor(apiError: KaitenApiError) {
+    super(apiError);
+    this.name = "QuotaExceededError";
+    const value = apiError.errors?.[0]?.value;
+    const slugs = isRecord(value) ? value["entitlementSlugs"] : undefined;
+    this.entitlementSlugs = Array.isArray(slugs)
+      ? slugs.filter((slug): slug is string => typeof slug === "string")
+      : [];
+  }
+}
+
+/**
+ * A refusal made to be waited out: it says how long, and never replays itself.
+ * The classes below differ in what they refuse, not in what they carry.
+ */
+class WaitError extends KaitenError {
+  declare public readonly retryAfterSeconds: number;
+
+  constructor(apiError: KaitenApiError, options?: { retryAfterSeconds?: number }) {
+    super(apiError, {
+      retryAfterSeconds: options?.retryAfterSeconds ?? DEFAULT_RETRY_AFTER_SECONDS,
+    });
+  }
+}
+
+/**
+ * Thrown when the API refuses a call because the caller made too many: HTTP 429
+ * with a code ending in `.RateLimited`, such as
+ * `ValidateSessionVoucher.RateLimited`. Nothing was done.
+ *
+ * `retryAfterSeconds` is how long to wait: the API's `Retry-After`, or 60 when
+ * the response carries none the client can read. The client does not replay the
+ * call, a write or a read.
+ */
+export class RateLimitedError extends WaitError {
+  override name = "RateLimitedError";
+}
+
+/**
+ * Thrown when a change is refused because the billing period that just ended is
+ * still being closed: HTTP 409 with a code ending in `.BoundaryPending`, such as
+ * `CancelSessionSubscription.BoundaryPending`. Nothing was changed, and the same
+ * call goes through once the close has run.
+ *
+ * `retryAfterSeconds` is how long that is expected to take: the API's
+ * `Retry-After`, or 60 when the response carries none the client can read. The
+ * client does not send the call again; the host decides, usually by sending it
+ * once more after that delay.
+ */
+export class BoundaryPendingError extends WaitError {
+  override name = "BoundaryPendingError";
+}
+
+/**
+ * Thrown when the payment provider could not be reached: HTTP 503 with a code
+ * ending in `.ProviderUnavailable`, such as `CreateSessionCheckout.ProviderUnavailable`.
+ * The call was neither carried out nor refused on its merits.
+ *
+ * `retryAfterSeconds` is how long to wait, at least 30 from the API; when the
+ * response carries no `Retry-After` the client can read, it is 60. A read is
+ * sent again by the client; a write never is, since whether it took effect is
+ * not known.
+ */
+export class ProviderUnavailableError extends WaitError {
+  override name = "ProviderUnavailableError";
+}
+
+/**
+ * The error for a failed response. The refusals a host acts on, told apart by
+ * status and code, are their own classes; every other one is a `KaitenError`
+ * with its `status` and `code`.
+ *
+ * `retryAfterSeconds` is the response's `Retry-After`, `undefined` when it
+ * cannot be read.
+ */
+export function kaitenErrorOf(apiError: KaitenApiError, retryAfterSeconds?: number): KaitenError {
+  const { status, code = "" } = apiError;
+  if (status === 422 && code.endsWith(".QuotaExceeded")) return new QuotaExceededError(apiError);
+  if (status === 429 && code.endsWith(".RateLimited")) {
+    return new RateLimitedError(apiError, { retryAfterSeconds });
+  }
+  if (status === 409 && code.endsWith(".BoundaryPending")) {
+    return new BoundaryPendingError(apiError, { retryAfterSeconds });
+  }
+  if (status === 503 && code.endsWith(".ProviderUnavailable")) {
+    return new ProviderUnavailableError(apiError, { retryAfterSeconds });
+  }
+  return new KaitenError(apiError, { retryAfterSeconds });
 }

@@ -16,11 +16,15 @@ export * as KaitenApi from "./core/index.ts";
 
 // Curated runtime + config surface, promoted back to the top level:
 export {
+  BoundaryPendingError,
   client,
   InvalidTransactionIdError,
   KaitenError,
   KaitenNetworkError,
   KaitenTransport,
+  ProviderUnavailableError,
+  QuotaExceededError,
+  RateLimitedError,
   TransactionIdReusedError,
   assertPublishableKey,
   assertPublishableKeyShape,

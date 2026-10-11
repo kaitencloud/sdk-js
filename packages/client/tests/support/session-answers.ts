@@ -71,3 +71,33 @@ export function refused(key: keyof Answers["errors"]): Response {
   const { status, body, retryAfter } = refusal(key);
   return json(body, status, retryAfter === undefined ? {} : { "Retry-After": `${retryAfter}` });
 }
+
+/**
+ * The refusal of a checkout whose plan the instance's usage already exceeds,
+ * which `session.initech.json` does not hold yet. It is the problem Kaiten's
+ * checkout renders for it, member for member: 422, the code, and the
+ * entitlements over the plan in `errors[0].value`, on a preview as on a
+ * subscription. `fixtures-contract.test.ts` holds it to the `Problem` schema.
+ *
+ * Kaiten names `body.basePriceId` as the location, though the checkout body
+ * member is `licensePriceId`; the problem is kept as it is served.
+ */
+export const QUOTA_EXCEEDED: Refusal = {
+  status: 422,
+  body: {
+    type: "https://tools.ietf.org/html/rfc4918#section-11.2",
+    title: "Unprocessable Entity",
+    status: 422,
+    detail:
+      "the instance already uses more than this plan allows: choose a larger plan, or add-ons",
+    instance: "/api/public/session/checkout",
+    code: "CreateSessionCheckout.QuotaExceeded",
+    errors: [
+      {
+        message: "entitlements over the plan's limit",
+        location: "body.basePriceId",
+        value: { entitlementSlugs: ["seats", "api-calls"] },
+      },
+    ],
+  },
+};

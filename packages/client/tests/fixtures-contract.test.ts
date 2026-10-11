@@ -6,6 +6,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, test } from "vite-plus/test";
 
 import { contractProblems } from "./support/contract-schema.ts";
+import { QUOTA_EXCEEDED } from "./support/session-answers.ts";
 
 // The recorded answers are what the mapping tests read. They only mean something
 // while they are answers the contract allows, so each is checked against its
@@ -57,6 +58,10 @@ describe("the customer session fixture", () => {
 
   test.each(Object.keys(errors))("the refusal %s is a problem the contract allows", (key) => {
     expect(contractProblems("Problem", errors[key]!.body)).toEqual([]);
+  });
+
+  test("the quota refusal the tests add is a problem the contract allows", () => {
+    expect(contractProblems("Problem", QUOTA_EXCEEDED.body)).toEqual([]);
   });
 
   test("is refused when it no longer fits, so the check can fail", () => {

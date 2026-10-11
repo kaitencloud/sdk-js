@@ -2,7 +2,12 @@
 // resolution, error mapping, the retry rule and the browser secret guard. It
 // imports nothing generated, so a client that needs only these stays small.
 
-import { KaitenError, KaitenNetworkError, type KaitenApiError } from "./runtime/errors.ts";
+import {
+  KaitenError,
+  KaitenNetworkError,
+  kaitenErrorOf,
+  type KaitenApiError,
+} from "./runtime/errors.ts";
 import { isBrowserRuntime, secretKeyPrefix } from "./runtime/keys.ts";
 import type { KaitenFetch } from "./config.ts";
 
@@ -92,20 +97,24 @@ export function retryable(
   return false;
 }
 
-/** The `Retry-After` of a response, in seconds, when it sends one. */
+/**
+ * The `Retry-After` of a response, in seconds, when it sends one the client can
+ * read: a whole number of seconds, or an HTTP date, counted from now. `undefined`
+ * when there is none, and also when a browser hides the header from a response
+ * of another origin, since the two cannot be told apart.
+ */
 export function retryAfterSeconds(response: Response): number | undefined {
   const header = response.headers.get("Retry-After")?.trim();
   if (!header) return undefined;
   if (/^\d+$/.test(header)) return Number(header);
-  const at = Date.parse(header);
+  // An HTTP date always spells its month or day; this keeps a stray "-5" out.
+  const at = /[a-z]/i.test(header) ? Date.parse(header) : Number.NaN;
   return Number.isNaN(at) ? undefined : Math.max(0, Math.ceil((at - Date.now()) / 1000));
 }
 
-/** The error a response that failed carries, as a `KaitenError`. */
+/** The error a response that failed carries: a `KaitenError`, or the class of the refusal it is. */
 export function apiErrorOf(body: unknown, response: Response): KaitenError {
-  return new KaitenError(toKaitenApiError(body, response.status), {
-    retryAfterSeconds: retryAfterSeconds(response),
-  });
+  return kaitenErrorOf(toKaitenApiError(body, response.status), retryAfterSeconds(response));
 }
 
 /** Refuses a secret credential in a browser, before anything is sent. */
