@@ -336,6 +336,77 @@ describe("the portal", () => {
   });
 });
 
+describe("add-on quantity", () => {
+  test("a quantity is put on the add-on's slug, and the add-on comes back with it", async () => {
+    const { client, requests } = open(() => json(answer("addon")));
+
+    const addon = await client.setAddonQuantity("extra-seats-v1", 4);
+
+    expect(await sent(requests)).toEqual([
+      ["PUT", "/public/session/addons/extra-seats-v1", '{"quantity":4}'],
+    ]);
+    expect(addon).toMatchObject({
+      slug: "extra-seats-v1",
+      familySlug: "extra-seats",
+      name: "Extra seats",
+      quantity: 4,
+      maxQuantity: 50,
+      price: 1000,
+      currencyCode: "EUR",
+      interval: "month",
+    });
+    expect(addon.billingPrices.map((price) => price.billingModel)).toEqual([
+      "FLAT_FEE",
+      "USAGE_BASED",
+    ]);
+    expect(addon.prices).toHaveLength(1);
+  });
+
+  test("zero removes the add-on, which comes back held at none and unbounded", async () => {
+    const { client, requests } = open(() => json(answer("addonDetached")));
+
+    const addon = await client.setAddonQuantity("gpu-pack-v1", 0);
+
+    expect(await requests[0]!.clone().json()).toEqual({ quantity: 0 });
+    expect(addon).toMatchObject({ slug: "gpu-pack-v1", quantity: 0, maxQuantity: null });
+    expect(addon.billingPrices).toEqual([]);
+    expect(addon.prices).toEqual([]);
+    expect(addon.price).toBeUndefined();
+  });
+
+  test("the slug is one path segment", async () => {
+    const { client, requests } = open(() => json(answer("addon")));
+
+    await client.setAddonQuantity("extra seats/v1", 1);
+
+    expect(new URL(requests[0]!.url).pathname).toBe(
+      "/api/public/session/addons/extra%20seats%2Fv1",
+    );
+  });
+
+  test("a quantity that is not a whole number, or an empty slug, is refused before any request", async () => {
+    const { client, requests } = open(() => json(answer("addon")));
+
+    for (const quantity of [-1, 1.5, Number.NaN, Number.POSITIVE_INFINITY]) {
+      await expect(client.setAddonQuantity("extra-seats-v1", quantity)).rejects.toBeInstanceOf(
+        TypeError,
+      );
+    }
+    await expect(client.setAddonQuantity("", 1)).rejects.toBeInstanceOf(TypeError);
+    expect(requests).toHaveLength(0);
+  });
+
+  test("an add-on that does not fit the plan is refused once, with its code", async () => {
+    const { client, requests } = open(() => refused("addonIncompatible"));
+
+    await expect(client.setAddonQuantity("extra-seats-v1", 4)).rejects.toMatchObject({
+      status: 422,
+      code: "SetSessionAddonQuantity.Incompatible",
+    });
+    expect(requests).toHaveLength(1);
+  });
+});
+
 describe("vouchers", () => {
   const CODE = "WELCOME20";
   const PRICE = "00000000-0000-4000-8000-000000000201";

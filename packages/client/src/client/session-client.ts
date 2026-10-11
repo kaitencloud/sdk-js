@@ -14,7 +14,6 @@ import {
 } from "../core/http.ts";
 import { KaitenError, KaitenNetworkError } from "../core/runtime/errors.ts";
 import { retry } from "../core/runtime/retry.ts";
-import { mapAddon } from "./billing.ts";
 import {
   mapCheckout,
   mapCompletedPaymentMethodSession,
@@ -22,6 +21,7 @@ import {
   mapPaymentMethodSession,
   mapPortal,
   mapPortalSession,
+  mapSessionAddon,
   mapSubscription,
   mapVoucherValidation,
 } from "./session-mapping.ts";
@@ -31,6 +31,7 @@ import type {
   PageSessionInvoice,
   PaymentMethodSession as WirePaymentMethodSession,
   PortalSession as WirePortalSession,
+  SessionAddon as WireSessionAddon,
   SessionPortal as WirePortal,
   SessionSubscription as WireSubscription,
   SessionVoucherValidity,
@@ -44,10 +45,10 @@ import type {
   PaymentMethodSession,
   PortalSession,
   PortalSubscription,
+  SessionAddon,
   SessionInvoice,
   VoucherValidation,
 } from "./session-types.ts";
-import type { Addon } from "./types.ts";
 
 /**
  * What a client does for one customer with a customer session (`kst_`): the
@@ -87,7 +88,7 @@ export interface KaitenSessionClientLike {
   /** Checks a voucher code. It is redeemed by the checkout that carries it. */
   validateVoucher: (input: { code: string; licensePriceId?: string }) => Promise<VoucherValidation>;
   /** Sets how many units of an add-on the instance holds; `0` detaches it. */
-  setAddonQuantity: (addonSlug: string, quantity: number) => Promise<Addon>;
+  setAddonQuantity: (addonSlug: string, quantity: number) => Promise<SessionAddon>;
 }
 
 /** How long before a customer session expires the client renews it. */
@@ -220,9 +221,15 @@ export class KaitenSessionClient implements KaitenSessionClientLike {
     );
   }
 
-  async setAddonQuantity(addonSlug: string, quantity: number): Promise<Addon> {
-    return mapAddon(
-      await this.call(
+  async setAddonQuantity(addonSlug: string, quantity: number): Promise<SessionAddon> {
+    if (typeof addonSlug !== "string" || addonSlug === "") {
+      throw new TypeError("Kaiten: setAddonQuantity needs the slug of the add-on.");
+    }
+    if (!Number.isInteger(quantity) || quantity < 0) {
+      throw new TypeError("Kaiten: setAddonQuantity needs a whole quantity, 0 or more.");
+    }
+    return mapSessionAddon(
+      await this.call<WireSessionAddon>(
         "PUT",
         `addons/${encodeURIComponent(addonSlug)}`,
         `setAddonQuantity(${addonSlug})`,
@@ -232,8 +239,7 @@ export class KaitenSessionClient implements KaitenSessionClientLike {
   }
 
   /** One call to `/public/session/<route>`, with its retries and its renewal. */
-  // oxlint-disable-next-line no-explicit-any -- the payload's shape is the route's.
-  private call<T = any>(
+  private call<T>(
     method: "GET" | "POST" | "PUT",
     route: string,
     label: string,

@@ -157,14 +157,7 @@ describe("session mode: Bearer kst_ on session routes only, refreshed before exp
       "/api/public/session/billing/payment-method-session/cs_9/complete":
         answer("paymentMethodCompleted"),
       "/api/public/session/vouchers/validate": answer("voucherRefused"),
-      "/api/public/session/addons/extra-seats-v1": {
-        addonSlug: "extra-seats-v1",
-        familySlug: "extra-seats",
-        name: "Extra seats",
-        quantity: 4,
-        maxQuantity: 50,
-        prices: [],
-      },
+      "/api/public/session/addons/extra-seats-v1": answer("addon"),
     };
     const { fetch, requests } = server((request) => json(answers[new URL(request.url).pathname]));
     const client = sessionClient(fetch, sessions(session(KST_A, T0 + 30 * MINUTE)));
