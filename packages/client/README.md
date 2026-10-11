@@ -223,6 +223,16 @@ and vouchers answers that read with the instance's effective value — the grant
 add-ons and boosts applied, which is what its usage gate enforces — and an older server
 with the grant itself.
 
+The allowance above it follows the same rule. `limitCapExceededOveragePercent` is the usage
+read's when the read carries one (`-1` when the limit is unlimited), the grant's otherwise,
+and `maximumAllowedUsage`, `remaining` and `status` are measured against the pair. The REST
+usage reads (`usage.getByInstance`, `usage.getDetail`, `reportUsage`) also type what a
+current server says of a row: `source`, the layer that grants the entitlement (`license` or
+`addon`, and open: handle a value you do not know), and `provenance`, the licence's grant,
+the add-ons and the voucher boosts the limit is made of, with the identifiers of the rows
+they come from. All three are optional: an older server sends none. The GraphQL read does not
+select them yet, so on that path the percent stays the grant's.
+
 Commerce concepts the backend does not model — add-ons, credits, portal actions,
 billing capabilities, branding — are returned as client-side defaults.
 
