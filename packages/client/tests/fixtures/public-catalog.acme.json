@@ -15,21 +15,16 @@
       "currency": "EUR",
       "prices": [
         {
-          "id": "lp-starter-m",
+          "id": "00000000-0000-4000-8000-000000000101",
           "billingModel": "FLAT_FEE",
           "billingTiming": "ADVANCE",
           "billingPeriod": "MONTHLY",
           "currency": "EUR",
           "unitAmount": 0,
           "unitAmountDecimal": "0",
-          "metered": null,
           "displayLabel": "Monthly",
           "displayOrder": 0,
-          "isDefault": true,
-          "status": "ACTIVE",
-          "deprecatedAt": null,
-          "createdAt": "2026-09-01T00:00:00.000Z",
-          "updatedAt": "2026-09-01T00:00:00.000Z"
+          "isDefault": true
         }
       ],
       "compatibleAddonFamilies": [],
@@ -37,17 +32,12 @@
         {
           "slug": "seats",
           "name": "Seats",
-          "description": null,
           "type": "NUMBER",
           "value": 1,
           "unlimited": false,
           "limitCapExceededOveragePercent": 0,
-          "icon": null,
           "unitSingular": "seat",
           "unitPlural": "seats",
-          "saleUnitSingular": null,
-          "saleUnitPlural": null,
-          "saleUnitFactor": null,
           "displayOrder": 0
         }
       ]
@@ -67,95 +57,69 @@
       "currency": "EUR",
       "prices": [
         {
-          "id": "lp-pro-m",
+          "id": "00000000-0000-4000-8000-000000000201",
           "billingModel": "FLAT_FEE",
           "billingTiming": "ADVANCE",
           "billingPeriod": "MONTHLY",
           "currency": "EUR",
           "unitAmount": 4900,
           "unitAmountDecimal": "4900",
-          "metered": null,
           "displayLabel": "Monthly",
           "displayOrder": 0,
-          "isDefault": true,
-          "status": "ACTIVE",
-          "deprecatedAt": null,
-          "createdAt": "2026-09-01T00:00:00.000Z",
-          "updatedAt": "2026-09-01T00:00:00.000Z"
+          "isDefault": true
         },
         {
-          "id": "lp-pro-q",
+          "id": "00000000-0000-4000-8000-000000000202",
           "billingModel": "FLAT_FEE",
           "billingTiming": "ADVANCE",
           "billingPeriod": "QUARTERLY",
           "currency": "EUR",
           "unitAmount": 13500,
           "unitAmountDecimal": "13500",
-          "metered": null,
           "displayLabel": "Quarterly",
           "displayOrder": 1,
-          "isDefault": true,
-          "status": "ACTIVE",
-          "deprecatedAt": null,
-          "createdAt": "2026-09-01T00:00:00.000Z",
-          "updatedAt": "2026-09-01T00:00:00.000Z"
+          "isDefault": true
         },
         {
-          "id": "lp-pro-s",
+          "id": "00000000-0000-4000-8000-000000000203",
           "billingModel": "FLAT_FEE",
           "billingTiming": "ADVANCE",
           "billingPeriod": "SEMI_ANNUAL",
           "currency": "EUR",
           "unitAmount": 26000,
           "unitAmountDecimal": "26000",
-          "metered": null,
           "displayLabel": "Semi-annual",
           "displayOrder": 2,
-          "isDefault": true,
-          "status": "ACTIVE",
-          "deprecatedAt": null,
-          "createdAt": "2026-09-01T00:00:00.000Z",
-          "updatedAt": "2026-09-01T00:00:00.000Z"
+          "isDefault": true
         },
         {
-          "id": "lp-pro-y",
+          "id": "00000000-0000-4000-8000-000000000204",
           "billingModel": "FLAT_FEE",
           "billingTiming": "ADVANCE",
           "billingPeriod": "ANNUAL",
           "currency": "EUR",
           "unitAmount": 49000,
           "unitAmountDecimal": "49000",
-          "metered": null,
           "displayLabel": "Annual",
           "displayOrder": 3,
-          "isDefault": true,
-          "status": "ACTIVE",
-          "deprecatedAt": null,
-          "createdAt": "2026-09-01T00:00:00.000Z",
-          "updatedAt": "2026-09-01T00:00:00.000Z"
+          "isDefault": true
         },
         {
-          "id": "lp-pro-m2",
+          "id": "00000000-0000-4000-8000-000000000205",
           "billingModel": "FLAT_FEE",
           "billingTiming": "ADVANCE",
           "billingPeriod": "MONTHLY",
           "currency": "EUR",
           "unitAmount": 4500,
           "unitAmountDecimal": "4500",
-          "metered": null,
           "displayLabel": "Monthly (legacy)",
           "displayOrder": 4,
-          "isDefault": false,
-          "status": "ACTIVE",
-          "deprecatedAt": null,
-          "createdAt": "2026-09-01T00:00:00.000Z",
-          "updatedAt": "2026-09-01T00:00:00.000Z"
+          "isDefault": false
         },
         {
-          "id": "lp-pro-tok",
+          "id": "00000000-0000-4000-8000-000000000206",
           "billingModel": "USAGE_BASED",
           "billingTiming": "ARREARS",
-          "billingPeriod": null,
           "currency": "EUR",
           "unitAmount": 200,
           "unitAmountDecimal": "200",
@@ -165,33 +129,21 @@
             "saleUnitSingular": "1M tokens",
             "saleUnitPlural": "1M tokens"
           },
-          "displayLabel": null,
           "displayOrder": 5,
-          "isDefault": false,
-          "status": "ACTIVE",
-          "deprecatedAt": null,
-          "createdAt": "2026-09-01T00:00:00.000Z",
-          "updatedAt": "2026-09-01T00:00:00.000Z"
+          "isDefault": false
         },
         {
-          "id": "lp-pro-calls",
+          "id": "00000000-0000-4000-8000-000000000207",
           "billingModel": "USAGE_BASED",
           "billingTiming": "ARREARS",
-          "billingPeriod": null,
           "currency": "EUR",
-          "unitAmount": null,
           "unitAmountDecimal": "0.0002",
           "metered": {
             "entitlementSlug": "api-calls",
             "saleUnitFactor": "1"
           },
-          "displayLabel": null,
           "displayOrder": 6,
-          "isDefault": false,
-          "status": "ACTIVE",
-          "deprecatedAt": null,
-          "createdAt": "2026-09-01T00:00:00.000Z",
-          "updatedAt": "2026-09-01T00:00:00.000Z"
+          "isDefault": false
         }
       ],
       "compatibleAddonFamilies": ["extra-seats", "gpu-pack"],
@@ -199,7 +151,6 @@
         {
           "slug": "api-calls",
           "name": "API calls",
-          "description": null,
           "type": "NUMBER",
           "value": 100000,
           "unlimited": false,
@@ -207,15 +158,11 @@
           "icon": "lucide:zap",
           "unitSingular": "call",
           "unitPlural": "calls",
-          "saleUnitSingular": null,
-          "saleUnitPlural": null,
-          "saleUnitFactor": null,
           "displayOrder": 0
         },
         {
           "slug": "tokens",
           "name": "Tokens",
-          "description": null,
           "type": "NUMBER",
           "value": 5000000,
           "unlimited": false,
@@ -231,7 +178,6 @@
         {
           "slug": "seats",
           "name": "Seats",
-          "description": null,
           "type": "NUMBER",
           "value": 5,
           "unlimited": false,
@@ -239,25 +185,15 @@
           "icon": "lucide:users",
           "unitSingular": "seat",
           "unitPlural": "seats",
-          "saleUnitSingular": null,
-          "saleUnitPlural": null,
-          "saleUnitFactor": null,
           "displayOrder": 2
         },
         {
           "slug": "sso",
           "name": "Single sign-on",
-          "description": null,
           "type": "BOOLEAN",
           "value": true,
           "unlimited": false,
-          "limitCapExceededOveragePercent": null,
           "icon": "lucide:key",
-          "unitSingular": null,
-          "unitPlural": null,
-          "saleUnitSingular": null,
-          "saleUnitPlural": null,
-          "saleUnitFactor": null,
           "displayOrder": 3
         }
       ]
@@ -277,21 +213,16 @@
       "currency": "EUR",
       "prices": [
         {
-          "id": "lp-growth-m",
+          "id": "00000000-0000-4000-8000-000000000301",
           "billingModel": "FLAT_FEE",
           "billingTiming": "ADVANCE",
           "billingPeriod": "MONTHLY",
           "currency": "EUR",
           "unitAmount": 9900,
           "unitAmountDecimal": "9900",
-          "metered": null,
           "displayLabel": "Monthly",
           "displayOrder": 0,
-          "isDefault": true,
-          "status": "ACTIVE",
-          "deprecatedAt": null,
-          "createdAt": "2026-09-01T00:00:00.000Z",
-          "updatedAt": "2026-09-01T00:00:00.000Z"
+          "isDefault": true
         }
       ],
       "compatibleAddonFamilies": ["extra-seats"],
@@ -312,21 +243,16 @@
       "currency": "EUR",
       "prices": [
         {
-          "id": "lp-lite-m",
+          "id": "00000000-0000-4000-8000-000000000401",
           "billingModel": "FLAT_FEE",
           "billingTiming": "ADVANCE",
           "billingPeriod": "MONTHLY",
           "currency": "EUR",
           "unitAmount": 1900,
           "unitAmountDecimal": "1900",
-          "metered": null,
           "displayLabel": "Monthly",
           "displayOrder": 0,
-          "isDefault": true,
-          "status": "ACTIVE",
-          "deprecatedAt": null,
-          "createdAt": "2026-09-01T00:00:00.000Z",
-          "updatedAt": "2026-09-01T00:00:00.000Z"
+          "isDefault": true
         }
       ],
       "compatibleAddonFamilies": [],
@@ -344,24 +270,19 @@
       "requiresPaymentMethod": false,
       "selfServe": false,
       "selfServeCtaUrl": "https://acme.test/contact",
-      "currency": "EUR",
+      "currency": null,
       "prices": [],
       "compatibleAddonFamilies": [],
       "entitlements": [
         {
           "slug": "seats",
           "name": "Seats",
-          "description": null,
           "type": "NUMBER",
           "value": -1,
           "unlimited": true,
           "limitCapExceededOveragePercent": -1,
-          "icon": null,
           "unitSingular": "seat",
           "unitPlural": "seats",
-          "saleUnitSingular": null,
-          "saleUnitPlural": null,
-          "saleUnitFactor": null,
           "displayOrder": 0
         }
       ]
@@ -381,21 +302,16 @@
       "currency": "EUR",
       "prices": [
         {
-          "id": "lp-solo-m",
+          "id": "00000000-0000-4000-8000-000000000601",
           "billingModel": "FLAT_FEE",
           "billingTiming": "ADVANCE",
           "billingPeriod": "MONTHLY",
           "currency": "EUR",
           "unitAmount": 900,
           "unitAmountDecimal": "900",
-          "metered": null,
           "displayLabel": "Monthly",
           "displayOrder": 0,
-          "isDefault": false,
-          "status": "ACTIVE",
-          "deprecatedAt": null,
-          "createdAt": "2026-09-01T00:00:00.000Z",
-          "updatedAt": "2026-09-01T00:00:00.000Z"
+          "isDefault": false
         }
       ],
       "compatibleAddonFamilies": [],
@@ -416,21 +332,16 @@
       "currency": "JPY",
       "prices": [
         {
-          "id": "lp-jp-m",
+          "id": "00000000-0000-4000-8000-000000000701",
           "billingModel": "FLAT_FEE",
           "billingTiming": "ADVANCE",
           "billingPeriod": "MONTHLY",
           "currency": "JPY",
           "unitAmount": 980,
           "unitAmountDecimal": "980",
-          "metered": null,
           "displayLabel": "Monthly",
           "displayOrder": 0,
-          "isDefault": true,
-          "status": "ACTIVE",
-          "deprecatedAt": null,
-          "createdAt": "2026-09-01T00:00:00.000Z",
-          "updatedAt": "2026-09-01T00:00:00.000Z"
+          "isDefault": true
         }
       ],
       "compatibleAddonFamilies": ["jp-pack"],
@@ -451,21 +362,16 @@
       "currency": "KWD",
       "prices": [
         {
-          "id": "lp-kw-m",
+          "id": "00000000-0000-4000-8000-000000000801",
           "billingModel": "FLAT_FEE",
           "billingTiming": "ADVANCE",
           "billingPeriod": "MONTHLY",
           "currency": "KWD",
           "unitAmount": 12500,
           "unitAmountDecimal": "12500",
-          "metered": null,
           "displayLabel": "Monthly",
           "displayOrder": 0,
-          "isDefault": true,
-          "status": "ACTIVE",
-          "deprecatedAt": null,
-          "createdAt": "2026-09-01T00:00:00.000Z",
-          "updatedAt": "2026-09-01T00:00:00.000Z"
+          "isDefault": true
         }
       ],
       "compatibleAddonFamilies": [],
@@ -483,38 +389,28 @@
       "maxQuantity": 50,
       "prices": [
         {
-          "id": "ap-seats-m",
+          "id": "00000000-0000-4000-8000-00000000a101",
           "billingModel": "FLAT_FEE",
           "billingTiming": "ADVANCE",
           "billingPeriod": "MONTHLY",
           "currency": "EUR",
           "unitAmount": 1000,
           "unitAmountDecimal": "1000",
-          "metered": null,
           "displayLabel": "Monthly",
           "displayOrder": 0,
-          "isDefault": true,
-          "status": "ACTIVE",
-          "deprecatedAt": null,
-          "createdAt": "2026-09-01T00:00:00.000Z",
-          "updatedAt": "2026-09-01T00:00:00.000Z"
+          "isDefault": true
         },
         {
-          "id": "ap-seats-y",
+          "id": "00000000-0000-4000-8000-00000000a102",
           "billingModel": "FLAT_FEE",
           "billingTiming": "ADVANCE",
           "billingPeriod": "ANNUAL",
           "currency": "EUR",
           "unitAmount": 10000,
           "unitAmountDecimal": "10000",
-          "metered": null,
           "displayLabel": "Annual",
           "displayOrder": 1,
-          "isDefault": true,
-          "status": "ACTIVE",
-          "deprecatedAt": null,
-          "createdAt": "2026-09-01T00:00:00.000Z",
-          "updatedAt": "2026-09-01T00:00:00.000Z"
+          "isDefault": true
         }
       ],
       "entitlements": [
@@ -523,8 +419,7 @@
           "name": "Seats",
           "type": "NUMBER",
           "value": 1,
-          "overrideBehavior": "ADD",
-          "limitCapExceededOveragePercent": null
+          "overrideBehavior": "ADD"
         }
       ],
       "compatibleLicenseFamilies": ["growth", "pro"]
@@ -534,26 +429,21 @@
       "addonSlug": "gpu-pack-v1",
       "addonId": "00000000-0000-4000-8000-0000000000a2",
       "name": "GPU pack",
-      "description": null,
+      "description": "",
       "pricingType": "PAID",
       "maxQuantity": null,
       "prices": [
         {
-          "id": "ap-gpu-m",
+          "id": "00000000-0000-4000-8000-00000000a201",
           "billingModel": "FLAT_FEE",
           "billingTiming": "ADVANCE",
           "billingPeriod": "MONTHLY",
           "currency": "USD",
           "unitAmount": 3000,
           "unitAmountDecimal": "3000",
-          "metered": null,
           "displayLabel": "Monthly",
           "displayOrder": 0,
-          "isDefault": true,
-          "status": "ACTIVE",
-          "deprecatedAt": null,
-          "createdAt": "2026-09-01T00:00:00.000Z",
-          "updatedAt": "2026-09-01T00:00:00.000Z"
+          "isDefault": true
         }
       ],
       "entitlements": [],
@@ -564,26 +454,21 @@
       "addonSlug": "jp-pack-v1",
       "addonId": "00000000-0000-4000-8000-0000000000a3",
       "name": "Japan pack",
-      "description": null,
+      "description": "",
       "pricingType": "PAID",
       "maxQuantity": 10,
       "prices": [
         {
-          "id": "ap-jp-m",
+          "id": "00000000-0000-4000-8000-00000000a301",
           "billingModel": "FLAT_FEE",
           "billingTiming": "ADVANCE",
           "billingPeriod": "MONTHLY",
           "currency": "JPY",
           "unitAmount": 500,
           "unitAmountDecimal": "500",
-          "metered": null,
           "displayLabel": "Monthly",
           "displayOrder": 0,
-          "isDefault": true,
-          "status": "ACTIVE",
-          "deprecatedAt": null,
-          "createdAt": "2026-09-01T00:00:00.000Z",
-          "updatedAt": "2026-09-01T00:00:00.000Z"
+          "isDefault": true
         }
       ],
       "entitlements": [],

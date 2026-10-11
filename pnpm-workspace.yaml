@@ -27,6 +27,8 @@ catalog:
   # re-pins it with vite-plus.
   vitest: 5.0.1
   publint: ^0.3.25
+  # Reads contracts/openapi.yaml in the client's tests, to check the fixtures against it.
+  yaml: 2.9.0
   "@arethetypeswrong/core": ^0.18.5
 
 # @hey-api/openapi-ts drives the TypeScript compiler JS API (ts.SyntaxKind ...), which

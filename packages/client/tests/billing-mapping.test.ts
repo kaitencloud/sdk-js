@@ -8,6 +8,24 @@ import type { BillingPrice, KaitenApi, Plan, PlanPrice } from "../src/index.ts";
 // The payload is typed by the contract, so a member the API renames breaks this
 // file's types before it breaks a test. A case that needs a value the contract
 // does not allow (a period it does not list) goes through `outOfContract`.
+//
+// The fixture is the body of `GET /public/catalog` as Kaiten serves it: see
+// fixtures/README.md. Its ids are the API's, so the prices are named here.
+const PRICE = {
+  starterMonthly: "00000000-0000-4000-8000-000000000101",
+  proMonthly: "00000000-0000-4000-8000-000000000201",
+  proQuarterly: "00000000-0000-4000-8000-000000000202",
+  proSemiAnnual: "00000000-0000-4000-8000-000000000203",
+  proAnnual: "00000000-0000-4000-8000-000000000204",
+  proLegacyMonthly: "00000000-0000-4000-8000-000000000205",
+  proTokens: "00000000-0000-4000-8000-000000000206",
+  proCalls: "00000000-0000-4000-8000-000000000207",
+  growthMonthly: "00000000-0000-4000-8000-000000000301",
+  liteMonthly: "00000000-0000-4000-8000-000000000401",
+  soloMonthly: "00000000-0000-4000-8000-000000000601",
+  jpMonthly: "00000000-0000-4000-8000-000000000701",
+  kwMonthly: "00000000-0000-4000-8000-000000000801",
+} as const;
 const PAYLOAD = JSON.parse(
   readFileSync(new URL("./fixtures/public-catalog.acme.json", import.meta.url), "utf8"),
 ) as KaitenApi.PublicCatalog;
@@ -33,8 +51,8 @@ const plan = (family: string): Plan => catalog.plans.find((entry) => entry.famil
 
 describe("money: API price to BillingPrice", () => {
   test("a monthly flat fee keeps its integer amount and has no interval count", () => {
-    expect(mapBillingPrice(rawPrice("lp-pro-m"))).toEqual({
-      id: "lp-pro-m",
+    expect(mapBillingPrice(rawPrice(PRICE.proMonthly))).toEqual({
+      id: PRICE.proMonthly,
       amount: 4900,
       unitAmountDecimal: "4900",
       currencyCode: "EUR",
@@ -46,7 +64,7 @@ describe("money: API price to BillingPrice", () => {
   });
 
   test("a usage price is per sale unit and has no interval", () => {
-    const price = mapBillingPrice(rawPrice("lp-pro-tok"));
+    const price = mapBillingPrice(rawPrice(PRICE.proTokens));
 
     expect(price).toMatchObject({
       amount: 200,
@@ -61,7 +79,7 @@ describe("money: API price to BillingPrice", () => {
   });
 
   test("a price below one minor unit gets no amount: it is never rounded into one", () => {
-    const price = mapBillingPrice(rawPrice("lp-pro-calls"));
+    const price = mapBillingPrice(rawPrice(PRICE.proCalls));
 
     expect(price).not.toHaveProperty("amount");
     expect(price).toMatchObject({
@@ -73,17 +91,17 @@ describe("money: API price to BillingPrice", () => {
   });
 
   test("a sale unit factor arrives as a decimal string and leaves as a number", () => {
-    const price = mapBillingPrice(rawPrice("lp-pro-tok"));
+    const price = mapBillingPrice(rawPrice(PRICE.proTokens));
     const tokens = plan("pro").entitlements!.find((grant) => grant.slug === "tokens");
 
-    expect(rawPrice("lp-pro-tok").metered?.saleUnitFactor).toBe("1000000");
+    expect(rawPrice(PRICE.proTokens).metered?.saleUnitFactor).toBe("1000000");
     expect(price.saleUnitFactor).toBe(1_000_000);
     expect(tokens?.saleUnitFactor).toBe(1_000_000);
   });
 
   test("a factor that is not a finite number above zero is left out, never NaN or 1", () => {
     for (const saleUnitFactor of ["0", "-3", "", "many", "Infinity"]) {
-      const wire = rawPrice("lp-pro-tok");
+      const wire = rawPrice(PRICE.proTokens);
       wire.metered = { entitlementSlug: "tokens", saleUnitFactor };
       const grant = rawPlan("pro").entitlements.find((entry) => entry.slug === "tokens")!;
 
@@ -95,12 +113,12 @@ describe("money: API price to BillingPrice", () => {
   });
 
   test("currencies with 0 and 3 decimals travel as the same integers", () => {
-    expect(mapBillingPrice(rawPrice("lp-jp-m"))).toMatchObject({
+    expect(mapBillingPrice(rawPrice(PRICE.jpMonthly))).toMatchObject({
       amount: 980,
       currencyCode: "JPY",
       interval: "month",
     });
-    expect(mapBillingPrice(rawPrice("lp-kw-m"))).toMatchObject({
+    expect(mapBillingPrice(rawPrice(PRICE.kwMonthly))).toMatchObject({
       amount: 12500,
       currencyCode: "KWD",
       interval: "month",
@@ -111,7 +129,7 @@ describe("money: API price to BillingPrice", () => {
     const periods = ["MONTHLY", "ANNUAL", "QUARTERLY", "SEMI_ANNUAL", null, "WEEKLY"];
     const mapped = periods.map((billingPeriod) => {
       const { interval, intervalCount } = mapBillingPrice(
-        outOfContract({ ...rawPrice("lp-pro-m"), billingPeriod }),
+        outOfContract({ ...rawPrice(PRICE.proMonthly), billingPeriod }),
       );
       return { interval, intervalCount };
     });
@@ -139,7 +157,7 @@ describe("money: API price to BillingPrice", () => {
       const unitAmount = next() % 1_000_000_000;
       const currency = currencies[next() % currencies.length]!;
       const price = mapBillingPrice({
-        ...rawPrice("lp-pro-m"),
+        ...rawPrice(PRICE.proMonthly),
         unitAmount,
         unitAmountDecimal: `${unitAmount}`,
         currency,
@@ -172,19 +190,19 @@ describe("plans", () => {
       compatibleAddonFamilies: ["extra-seats", "gpu-pack"],
     });
     expect(pro.billingPrices?.map((price) => price.id)).toEqual([
-      "lp-pro-m",
-      "lp-pro-q",
-      "lp-pro-s",
-      "lp-pro-y",
-      "lp-pro-m2",
-      "lp-pro-tok",
-      "lp-pro-calls",
+      PRICE.proMonthly,
+      PRICE.proQuarterly,
+      PRICE.proSemiAnnual,
+      PRICE.proAnnual,
+      PRICE.proLegacyMonthly,
+      PRICE.proTokens,
+      PRICE.proCalls,
     ]);
     // What a 1.0 consumer reads: one monthly and one annual flat fee, both of
     // exactly one interval and both integral.
     expect(pro.prices?.map((price) => [price.id, price.interval, price.amount])).toEqual([
-      ["lp-pro-m", "month", 4900],
-      ["lp-pro-y", "year", 49000],
+      [PRICE.proMonthly, "month", 4900],
+      [PRICE.proAnnual, "year", 49000],
     ]);
   });
 
@@ -203,7 +221,7 @@ describe("plans", () => {
 
   test("a plan whose only default flat fee is quarterly has no headline and no 1.0 price", () => {
     const synthetic = rawPlan("pro");
-    synthetic.prices = [rawPrice("lp-pro-q")];
+    synthetic.prices = [rawPrice(PRICE.proQuarterly)];
 
     const mapped = mapPlan(synthetic);
 
@@ -211,7 +229,7 @@ describe("plans", () => {
     expect(mapped.annualPrice).toBeUndefined();
     expect(mapped.prices).toEqual([]);
     expect(mapped.billingPrices).toMatchObject([
-      { id: "lp-pro-q", amount: 13500, interval: "month", intervalCount: 3 },
+      { id: PRICE.proQuarterly, amount: 13500, interval: "month", intervalCount: 3 },
     ]);
   });
 
@@ -300,7 +318,7 @@ describe("add-ons and capabilities", () => {
   });
 
   test("a BillingPrice without an amount is not assignable to a 1.0 PlanPrice", () => {
-    const decimal: BillingPrice = mapBillingPrice(rawPrice("lp-pro-calls"));
+    const decimal: BillingPrice = mapBillingPrice(rawPrice(PRICE.proCalls));
     // @ts-expect-error -- `amount` is optional on BillingPrice and required on PlanPrice.
     const legacy: PlanPrice = decimal;
     expect(legacy.amount).toBeUndefined();

@@ -26,6 +26,11 @@ and `schema.graphql`. The generated clients come from them, and CI checks that t
 match what the API publishes. The code here is written against those snapshots and
 never reads the API's source code.
 
+The answers recorded in `packages/client/tests/fixtures` are the one place Kaiten's
+code is involved: they were produced by running it once, in a throwaway test, and
+are checked in. A test holds each of them to its schema in the snapshot, so a sync
+that moves the contract fails where a fixture no longer fits.
+
 ## What the API serves to these clients
 
 Kaiten serves routes made for these clients under `/public/`, and the contract
