@@ -14,14 +14,14 @@ import {
 } from "../core/http.ts";
 import { KaitenError, KaitenNetworkError } from "../core/runtime/errors.ts";
 import { retry } from "../core/runtime/retry.ts";
+import { mapAddon } from "./billing.ts";
 import {
-  mapAddon,
   mapCheckout,
   mapInvoicePage,
   mapPortal,
   mapSubscription,
   mapVoucherValidation,
-} from "./billing.ts";
+} from "./session-mapping.ts";
 import type {
   CheckoutInput,
   CheckoutResult,
