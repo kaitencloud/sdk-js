@@ -56,7 +56,9 @@ A new capability is a **separate interface** instead, implemented by whichever
 client provides it. The first is `KaitenSessionClientLike`, the customer-session
 calls (`getPortal`, `checkout`, …), which `KaitenSessionClient` implements. An
 implementation of your own opts into a capability by implementing its whole
-interface, and code that needs the capability takes that interface:
+interface, and code that needs the capability takes that interface. The fake
+`createMockKaitenSessionClient`, of `@kaitencloud/client/testing`, is such an
+implementation:
 
 ```ts
 import type { KaitenClientLike, KaitenSessionClientLike } from "@kaitencloud/client";

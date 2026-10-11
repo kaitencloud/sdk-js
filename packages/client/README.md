@@ -137,15 +137,33 @@ reaches `onAuthError`.
 | `validateVoucher({ code, licensePriceId? })`                        | `POST /public/session/vouchers/validate`                 |
 | `setAddonQuantity(addonSlug, quantity)`                             | `PUT /public/session/addons/{addonSlug}`                 |
 
-The portal's entitlements are the instance's effective ones — the licence grant with
-its add-ons and voucher boosts applied — each with its `source` and its `provenance`.
-Every amount and total comes from the server: the SDK never sums prices. A `checkout`
-with `dryRun: true` previews what is due today.
+A session bound to an instance (`createCustomerSession` takes an `instanceSlug`) reads
+that instance's subscription, its entitlements, its add-ons and the estimate of its next
+invoice. One bound to the customer only reads the customer, its `instances` and its
+payment method, and the rest is `null` or empty. The portal's entitlements are the
+instance's effective ones — the licence grant with its add-ons and voucher boosts
+applied — each with its `source` and its `provenance`: the licence, the add-ons and the
+boosts that make the value, with the identifiers of their rows. Every amount and total
+comes from the server: the SDK never sums prices.
+
+Where the API has no value, the SDK says `null`: a payment method's `brand` and `last4`,
+an invoice's `issuedAt`, `dueAt` and `paidAt`, a discount line's `unitAmountDecimal`, a
+subscription's `scheduledChange`. A `checkout` answers one of three results, by
+`status`: a `preview` of what is due today (`dryRun: true`), `requires_payment_method`
+with the provider's `setupUrl` to send the customer to (call `checkout` again with the
+`setupSessionId` once they are back), or `subscribed`. `createPortalSession` answers a
+`url` and nothing else. `validateVoucher` answers `{ valid: false }` for every code that
+does not apply and, for one that does, how long it lasts (`duration`: `ONE_TIME`,
+`REPEATING` or `FOREVER`) and what it gives; a discount's `value` and a boost's
+`modifierValue` are decimal strings. The code goes in the request body only.
 
 A refused call rejects with a `KaitenError` carrying the API's `status` and `code`, such
-as `CreateSessionCheckout.AlreadySubscribed`; a 429 or a `*.BoundaryPending` also
-carries `retryAfterSeconds`. Reads are retried after a network failure or a 5xx; writes
-never are.
+as `CreateSessionCheckout.AlreadySubscribed`; a 429, a `*.BoundaryPending` and a
+`*.ProviderUnavailable` also carry `retryAfterSeconds`, the `Retry-After` the API sent.
+Reads are retried after a network failure or a 5xx; **a write never is**, whatever the
+answer, since a checkout can subscribe the customer and nobody knows whether the first
+attempt took effect. The one exception is a session the API refused with a 401, which did
+nothing: it is renewed and the request sent once more.
 
 ### Scopes
 
@@ -310,12 +328,38 @@ client.snapshot.entitlements.find((e) => e.slug === "seats");
 client.usageReports; // every call, for assertions
 ```
 
+### The session client
+
+`createMockKaitenSessionClient()` does the same for the customer-session calls: anything
+typed `KaitenSessionClientLike` takes it, so a customer portal or a checkout can be built
+without a Kaiten that serves billing.
+
+```ts
+import { createMockKaitenSessionClient, demoUnsubscribedPortal } from "@kaitencloud/client/testing";
+
+const session = createMockKaitenSessionClient({ portal: demoUnsubscribedPortal() });
+const first = await session.checkout({
+  licensePriceId: "price_growth_monthly",
+  returnUrl: "https://app.acme.example/billing",
+});
+// → requires_payment_method: the customer has no payment method yet
+```
+
+It is a fake as well. A cancellation ends the subscription with its period and takes the
+cancel action away, a checkout subscribes the instance and puts its first invoice at the
+head of the list, and a quantity moves the add-on. What the API would refuse is refused
+with its status and code, as a `KaitenError`. `checkout` scripts an outcome the model does
+not cover (a trial, add-ons), `setPortal` swaps the scenario, and `calls` records what was
+called.
+
 ### Fixtures
 
 `demoCustomer` · `demoInstance` · `demoLicense` · `demoPlans` ·
 `demoPlansWithoutPrices` · `demoCatalog` · `demoCatalogWithoutPrices` ·
 `demoEntitlements` · `demoFlags` · `demoAddOns` · `demoCredits` ·
-`demoSnapshot` · `demoSnapshotWithoutPrices`
+`demoSnapshot` · `demoSnapshotWithoutPrices`, and for the session client `demoPortal` ·
+`demoUnsubscribedPortal` · `demoSessionInvoices` · `demoSessionAddOns` ·
+`demoCheckoutPrices` · `demoVouchers`
 
 Each is a **factory**, so one test's mutation cannot reach another, with fixed
 ids and timestamps for stable assertions and visual baselines.
