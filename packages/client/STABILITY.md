@@ -28,6 +28,8 @@ API extends — grow without breaking anyone.
   and an implementation written against 1.0, which takes none, still satisfies
   the interface.
 - Add members to the **open** unions described below.
+- Give a refusal a class of its own. It extends `KaitenError`, as the four in
+  [Errors and retries](#errors-and-retries) do.
 
 ## What it never does
 
@@ -43,6 +45,8 @@ API extends — grow without breaking anyone.
   exhaustively is told about a value it was already receiving.
 - Change what an existing call sends or returns for the same input, except to
   fix a defect, which the changelog names.
+- Throw something that is not a `KaitenError` where 1.0 threw one. A subclass is a
+  `KaitenError`; only its `name` differs.
 
 ## How the client interfaces grow
 
@@ -95,6 +99,45 @@ fees, usage and overage prices and prices below one minor unit included, is in
 `billingPrices`, typed `BillingPrice`, whose `amount` is absent when the price is
 not a whole number of minor units. New price shapes will arrive there, never in
 `prices`.
+
+## Errors and retries
+
+A call the API refuses rejects with a `KaitenError`, which carries `status`, `code`,
+`detail`, `errorId` and, when the API sent a `Retry-After`, `retryAfterSeconds`. Four
+refusals are a **subclass of `KaitenError`**, so `instanceof KaitenError`, `status` and
+`code` keep working. `@kaitencloud/client` exports the classes and `@kaitencloud/server`
+a predicate for each, which narrows to its own `KaitenError`:
+
+| Client class               | Server predicate        | Status and end of the code  | It carries          |
+| -------------------------- | ----------------------- | --------------------------- | ------------------- |
+| `QuotaExceededError`       | `isQuotaExceeded`       | 422 `*.QuotaExceeded`       | `entitlementSlugs`  |
+| `RateLimitedError`         | `isRateLimited`         | 429 `*.RateLimited`         | `retryAfterSeconds` |
+| `BoundaryPendingError`     | `isBoundaryPending`     | 409 `*.BoundaryPending`     | `retryAfterSeconds` |
+| `ProviderUnavailableError` | `isProviderUnavailable` | 503 `*.ProviderUnavailable` | `retryAfterSeconds` |
+
+`QuotaExceededError` is the refusal of `CreateSessionCheckout.QuotaExceeded`, on a
+`dryRun` as on a checkout; `entitlementSlugs` is read from the first entry of the
+problem's `errors`. Every other refusal (`AlreadySubscribed`, `VoucherInvalid`,
+`SetupSessionIncomplete`, `OtherVersionAttached`, …) stays a plain `KaitenError`, read by
+its `code`. A later minor release may give another refusal a class; it will extend
+`KaitenError` too, and the four above are never removed or retyped.
+
+- **`retryAfterSeconds`** is the `Retry-After` the API sent: a whole number of seconds,
+  or an HTTP date, read as the seconds from now. It is absent when there is none. On
+  the three classes made to be waited out it is always a number, **60 when the response
+  carries no `Retry-After` the client can read**. That is the case of a browser calling
+  another origin whose CORS policy does not expose the header; the 60 is a default, not
+  the API's word. `@kaitencloud/server` always sees the header and invents nothing.
+- **Reads are sent again** after a network failure or a 5xx, at most three attempts. A
+  failure that carries a `Retry-After` is waited out: the next attempt waits that long,
+  **never more than 30 seconds**. Without one, or when the header could not be read and
+  the 60 above is only a default, the wait is a short backoff. The usage report
+  under a `transactionId` is replayed the same way. The cap is part of the behavior:
+  raising or lowering it is a change the changelog names.
+- **Writes are never sent again**, whatever the answer: not after a 409, a 422, a 429 or a
+  503, nor after a network failure. Nothing is sent again after a 429, read or write.
+- **`BoundaryPendingError` is not replayed.** It reaches the host with its delay, and
+  the host decides whether to send the call again.
 
 ## Outside the guarantee
 

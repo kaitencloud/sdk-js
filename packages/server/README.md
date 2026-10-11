@@ -107,6 +107,36 @@ and whose `original` names the report the key was first accepted with. `isTransa
 recognizes it. It is a bug in the caller, never a transient failure: retrying it under the
 same key loops.
 
+Four refusals of the billing routes call for a reaction of their own, and each has a predicate
+like `isThresholdExceeded`, which narrows to `KaitenError`. They test the status and the end of
+the code, so they are safe in a shared error handler:
+
+| Predicate                      | The API refused with                                                                                                      | What to do                                                                                                     |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `isQuotaExceeded(error)`       | 422 `*.QuotaExceeded`: the instance already uses more than the plan a checkout would move it to allows, on a `dryRun` too | name the entitlements, `error.errors?.[0]?.value` is `{ entitlementSlugs: string[] }`, and offer a larger plan |
+| `isRateLimited(error)`         | 429 `*.RateLimited`, such as `CreateCustomerSession.RateLimited`                                                          | wait `error.retryAfterSeconds`                                                                                 |
+| `isBoundaryPending(error)`     | 409 `*.BoundaryPending`: the billing period that just ended is still being closed                                         | send the same call again once, after `error.retryAfterSeconds`; nothing was changed                            |
+| `isProviderUnavailable(error)` | 503 `*.ProviderUnavailable`: the payment provider could not be reached                                                    | wait `error.retryAfterSeconds`, at least 30 seconds from the API; the call was neither carried out nor refused |
+
+```ts
+import { CustomerSessions, isRateLimited } from "@kaitencloud/server";
+
+try {
+  return await CustomerSessions.createCustomerSession({ client, body });
+} catch (error) {
+  if (isRateLimited(error)) {
+    res.set("Retry-After", String(error.retryAfterSeconds ?? 1));
+    return res.sendStatus(429);
+  }
+  throw error;
+}
+```
+
+`retryAfterSeconds` is the `Retry-After` the API sent, in seconds: a whole number, or an HTTP
+date read as the seconds from now. It is absent when the response had none. This client never
+sends a call again by itself, so the wait is yours to keep. The browser package
+[`@kaitencloud/client`](../client) has a class for each of these refusals instead.
+
 Every `KaitenError` also carries the problem's `code`, a stable machine-readable identifier
 such as `License.NotFound`, and its `errorId`, the correlation id of the API's log entry for
 the failure: quote it when you report a problem.

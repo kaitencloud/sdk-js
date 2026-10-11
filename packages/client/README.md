@@ -158,12 +158,12 @@ does not apply and, for one that does, how long it lasts (`duration`: `ONE_TIME`
 `modifierValue` are decimal strings. The code goes in the request body only.
 
 A refused call rejects with a `KaitenError` carrying the API's `status` and `code`, such
-as `CreateSessionCheckout.AlreadySubscribed`; a 429, a `*.BoundaryPending` and a
-`*.ProviderUnavailable` also carry `retryAfterSeconds`, the `Retry-After` the API sent.
-Reads are retried after a network failure or a 5xx; **a write never is**, whatever the
-answer, since a checkout can subscribe the customer and nobody knows whether the first
-attempt took effect. The one exception is a session the API refused with a 401, which did
-nothing: it is renewed and the request sent once more.
+as `CreateSessionCheckout.AlreadySubscribed`; four refusals have a class of their own,
+described in [Errors and retries](#errors-and-retries). Reads are retried after a network
+failure or a 5xx; **a write never is**, whatever the answer, since a checkout can subscribe
+the customer and nobody knows whether the first attempt took effect. The one exception is a
+session the API refused with a 401, which did nothing: it is renewed and the request sent
+once more.
 
 ### Scopes
 
@@ -255,15 +255,16 @@ try {
   and on every replay, and `null` for a report sent without one.
 - **Retries.** With a key, a report that fails on the network, times out or
   answers a 500, 502, 503 or 504 is retried, up to three attempts, all under the
-  same key, **once this client has received an echoed key**. Until then the
-  failure surfaces after the first attempt, key sent all the same: a server that
-  ignored the header would count the retry a second time, and only an echo says
-  that this one does not. So the first keyed report of a client is never retried,
-  and a client created for each request never retries. Any other status, a 501
-  for one, is returned as it came: asking again gets the same answer. A retry the
-  API already applied resolves with `idempotentReplayed: true` and counts
-  nothing. The memory is the client's, not the process's: another client keeps
-  its own.
+  same key, after the `Retry-After` of the failure when it has one (see
+  [Errors and retries](#errors-and-retries)), **once this client has received an
+  echoed key**. Until then the failure surfaces after the first attempt, key sent
+  all the same: a server that ignored the header would count the retry a second
+  time, and only an echo says that this one does not. So the first keyed report of
+  a client is never retried, and a client created for each request never retries.
+  Any other status, a 501 for one, is returned as it came: asking again gets the
+  same answer. A retry the API already applied resolves with
+  `idempotentReplayed: true` and counts nothing. The memory is the client's, not
+  the process's: another client keeps its own.
 - **Older servers.** A server that predates the header ignores it: the report is
   counted every time it arrives, its answer carries no `transactionId`, and the
   client therefore never retries it. Send keys to a server that reads the header
@@ -279,6 +280,71 @@ try {
   allowing `Idempotency-Key`.
 - **Dropped metadata.** `metadataDropped: "too_large"` says the report's
   `metadata` was above 4 KiB and was not stored. The report itself was counted.
+
+## Errors and retries
+
+A call the API refuses rejects with a `KaitenError`: its `status`, the problem's `code`
+(`CreateSessionCheckout.AlreadySubscribed`), its `detail`, its `errorId` (quote it when you
+report a problem) and, when the API sent a `Retry-After`, `retryAfterSeconds`. A request that
+never reached the API rejects with a `KaitenNetworkError`.
+
+Four refusals call for a reaction of their own. Each is a class that extends `KaitenError`,
+so `instanceof KaitenError`, `status` and `code` keep working:
+
+| Class                      | The API refused with                                                                                                          | It carries                                 |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| `QuotaExceededError`       | 422 `*.QuotaExceeded`: the instance already uses more than the plan a checkout would move it to allows, on a `dryRun` as well | `entitlementSlugs`, the ones over the plan |
+| `RateLimitedError`         | 429 `*.RateLimited`                                                                                                           | `retryAfterSeconds`                        |
+| `BoundaryPendingError`     | 409 `*.BoundaryPending`: the billing period that just ended is still being closed                                             | `retryAfterSeconds`                        |
+| `ProviderUnavailableError` | 503 `*.ProviderUnavailable`: the payment provider could not be reached                                                        | `retryAfterSeconds`                        |
+
+```ts
+import { KaitenError, QuotaExceededError } from "@kaitencloud/client";
+
+try {
+  await billing.checkout({ licensePriceId, dryRun: true }); // the KaitenSessionClient above
+} catch (error) {
+  if (error instanceof QuotaExceededError) {
+    // Offer a larger plan, or add-ons that make room for these entitlements.
+    showOverQuota(error.entitlementSlugs);
+  } else if (
+    error instanceof KaitenError &&
+    error.code === "CreateSessionCheckout.AlreadySubscribed"
+  ) {
+    showPortal();
+  } else {
+    throw error;
+  }
+}
+```
+
+Every other refusal (`AlreadySubscribed`, `VoucherInvalid`, `SetupSessionIncomplete`,
+`OtherVersionAttached`, …) is a plain `KaitenError`, read by its `code`. The same four are
+recognized in [`@kaitencloud/server`](../server) by predicates (`isQuotaExceeded` and the
+others).
+
+**`retryAfterSeconds`** is the `Retry-After` the API sent, in seconds: a whole number, or
+an HTTP date read as the seconds from now. It is absent when there is none. On the three
+classes made to be waited out it is always a number, **60 when the response carries no
+`Retry-After` the client can read**. A browser that calls another origin only sees that
+header if the API's CORS policy exposes it (`Access-Control-Expose-Headers: Retry-After`);
+without that, 60 is a default, not what the API asked.
+
+**What the client sends again**
+
+- A read, and a usage report under a `transactionId`, are sent again after a network
+  failure or a 5xx, up to three attempts. When the failure carries a `Retry-After`, the
+  next attempt waits that long, **at most 30 seconds**; otherwise it backs off for a
+  fraction of a second, then longer. A read refused because the provider is down is
+  therefore asked again after the wait the API gave, not after 100 ms. A wait the client
+  could not read (the 60 above) is not waited for: the retry backs off as it does for any
+  other failure.
+- A write is never sent again, whatever the answer: not after a 409, a 422, a 429 or a
+  503, which say nothing of whether the first attempt took effect. Nor is any call after a
+  429; wait `retryAfterSeconds` and decide.
+- A `BoundaryPendingError` reaches you with its delay and the client does not replay it.
+  The change did not happen, and sending the same call again after `retryAfterSeconds` is
+  yours to decide, usually once.
 
 ## Testing without an API — `@kaitencloud/client/testing`
 
@@ -351,6 +417,25 @@ head of the list, and a quantity moves the add-on. What the API would refuse is 
 with its status and code, as a `KaitenError`. `checkout` scripts an outcome the model does
 not cover (a trial, add-ons), `setPortal` swaps the scenario, and `calls` records what was
 called.
+
+To drive a screen into one of the [four refusals](#errors-and-retries) that have a class of
+their own, throw it from `checkout`:
+
+```ts
+import { QuotaExceededError } from "@kaitencloud/client";
+import { createMockKaitenSessionClient } from "@kaitencloud/client/testing";
+
+const session = createMockKaitenSessionClient({
+  checkout: () => {
+    throw new QuotaExceededError({
+      title: "Unprocessable Entity",
+      status: 422,
+      code: "CreateSessionCheckout.QuotaExceeded",
+      errors: [{ location: "body", message: "over", value: { entitlementSlugs: ["seats"] } }],
+    });
+  },
+});
+```
 
 ### Fixtures
 
