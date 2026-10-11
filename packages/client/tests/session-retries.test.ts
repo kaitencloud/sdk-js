@@ -2,7 +2,7 @@ import { describe, expect, test, vi } from "vite-plus/test";
 
 import { KaitenNetworkError } from "../src/index.ts";
 import type { KaitenSessionClient } from "../src/index.ts";
-import { answer, refusal } from "./support/session-answers.ts";
+import { answer, QUOTA_EXCEEDED, refusal, refused } from "./support/session-answers.ts";
 import {
   json,
   KST_A,
@@ -47,6 +47,11 @@ describe("a write is sent once", () => {
       ["500", () => problem(500)],
       ["503 with a wait", () => problem(503, { "Retry-After": "30" })],
       ["a response that is not JSON", () => new Response("<h1>Bad gateway</h1>", { status: 502 })],
+      // The refusals a host acts on, as Kaiten serves them.
+      ["a quota refusal", () => json(QUOTA_EXCEEDED.body, QUOTA_EXCEEDED.status)],
+      ["a rate limit, with its wait", () => refused("voucherRateLimited")],
+      ["a boundary being closed, with its wait", () => refused("cancelBoundaryPending")],
+      ["a provider that is down, with its wait", () => refused("checkoutProviderUnavailable")],
     ] as const) {
       test(`${name}, answered ${what}`, async () => {
         const { client, requests } = open(reply);

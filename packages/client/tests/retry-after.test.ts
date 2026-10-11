@@ -128,10 +128,10 @@ describe("a customer session read waits for Retry-After", () => {
       json({ ...body, code: "PublicAuth.RateLimited" }, 429, { "Retry-After": "1" }),
     );
 
-    const error = await client.getPortal().catch((thrown: unknown) => thrown);
+    const portal = client.getPortal().catch((thrown: unknown) => thrown);
     await vi.advanceTimersByTimeAsync(CAP_MS);
 
-    expect(error).toBeInstanceOf(RateLimitedError);
+    expect(await portal).toBeInstanceOf(RateLimitedError);
     expect(requests).toHaveLength(1);
   });
 });
@@ -147,10 +147,10 @@ describe("a write is never sent again, whatever the wait", () => {
       json({ title: "Refused", status, code }, status, { "Retry-After": wait }),
     );
 
-    const error = await client.cancelSubscription().catch((thrown: unknown) => thrown);
+    const cancelled = client.cancelSubscription().catch((thrown: unknown) => thrown);
     await vi.advanceTimersByTimeAsync(2 * CAP_MS);
 
-    expect(error).toBeInstanceOf(KaitenError);
+    expect(await cancelled).toBeInstanceOf(KaitenError);
     expect(requests).toHaveLength(1);
   });
 });
@@ -216,12 +216,12 @@ describe("KaitenClient waits too, for the calls it already sends again", () => {
       unavailable({ "Retry-After": "0" }),
     );
 
-    const error = await client
+    const sent = client
       .reportUsage("acme-prod", "tokens", report)
       .catch((thrown: unknown) => thrown);
     await vi.advanceTimersByTimeAsync(2 * CAP_MS);
 
-    expect(error).toMatchObject({ status: 503, retryAfterSeconds: 0 });
+    expect(await sent).toMatchObject({ status: 503, retryAfterSeconds: 0 });
     expect(requests).toHaveLength(1);
   });
 
