@@ -87,7 +87,9 @@ function mountBilling(client: KaitenClientLike, session?: KaitenSessionClientLik
   completes the known values, and a minor release may add one. Handle a value
   you do not know — skip it, or render it neutrally — rather than assuming the
   list is exhaustive. Every enumeration added after 1.0 is open unless it is a
-  discriminant, such as `CheckoutResult["status"]`.
+  discriminant, such as `CheckoutResult["status"]`. The `source` of a usage row
+  (`EntitlementUsage.source`, `license` or `addon` today) is open for that reason, while
+  `ResolvedEntitlement.source`, which 1.0 published, stays closed.
 
 ## Prices
 
@@ -132,10 +134,14 @@ its `code`. A later minor release may give another refusal a class; it will exte
   failure that carries a `Retry-After` is waited out: the next attempt waits that long,
   **never more than 30 seconds**. Without one, or when the header could not be read and
   the 60 above is only a default, the wait is a short backoff. The usage report
-  under a `transactionId` is replayed the same way. The cap is part of the behavior:
-  raising or lowering it is a change the changelog names.
+  under a `transactionId` is replayed the same way, but after a 500, 502, 503 or 504
+  and no other 5xx: a 501 or a 505 answers the same every time, and is returned as it
+  came. The cap is part of the behavior: raising or lowering it is a change the
+  changelog names.
 - **Writes are never sent again**, whatever the answer: not after a 409, a 422, a 429 or a
-  503, nor after a network failure. Nothing is sent again after a 429, read or write.
+  503, nor after a network failure. The one exception is the usage report under a
+  `transactionId`, described above. Nothing is sent again after a 429, read, write or
+  keyed report.
 - **`BoundaryPendingError` is not replayed.** It reaches the host with its delay, and
   the host decides whether to send the call again.
 

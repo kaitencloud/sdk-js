@@ -332,16 +332,19 @@ without that, 60 is a default, not what the API asked.
 
 **What the client sends again**
 
-- A read, and a usage report under a `transactionId`, are sent again after a network
-  failure or a 5xx, up to three attempts. When the failure carries a `Retry-After`, the
+- A read is sent again after a network failure or a 5xx, and a usage report under a
+  `transactionId` after a network failure or a 500, 502, 503 or 504, up to three
+  attempts, once this client has read an echoed key (above). When the failure carries a `Retry-After`, the
   next attempt waits that long, **at most 30 seconds**; otherwise it backs off for a
   fraction of a second, then longer. A read refused because the provider is down is
   therefore asked again after the wait the API gave, not after 100 ms. A wait the client
   could not read (the 60 above) is not waited for: the retry backs off as it does for any
   other failure.
 - A write is never sent again, whatever the answer: not after a 409, a 422, a 429 or a
-  503, which say nothing of whether the first attempt took effect. Nor is any call after a
-  429; wait `retryAfterSeconds` and decide.
+  503, which say nothing of whether the first attempt took effect. The one exception is a
+  usage report under a `transactionId` (above), which the API takes once however often it
+  arrives, and which is sent again only after a server has echoed a key. Nor is any call after a 429, that one included; wait `retryAfterSeconds` and
+  decide.
 - A `BoundaryPendingError` reaches you with its delay and the client does not replay it.
   The change did not happen, and sending the same call again after `retryAfterSeconds` is
   yours to decide, usually once.
