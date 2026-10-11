@@ -31,16 +31,98 @@ import type {
 /**
  * One entitlement's usage row, as the usage routes answer it.
  *
- * The contract now marks `source` (`license` or `addon`) as required, and the
- * generated type follows. This one keeps it optional: a row built against the
- * 1.0 shape (a test double, a host's own fixture, the GraphQL mapping, which
- * cannot tell the two apart) must keep compiling, and a member that becomes
- * required on a type hosts construct would break them. Reading the field is
- * unaffected; the raw type is still `KaitenApi.EntitlementUsage`.
+ * A current server answers with the instance's effective entitlement: `limit`
+ * and `limitCapExceededOveragePercent` are the licence's grant with the
+ * instance's add-ons and voucher boosts applied, the values its usage gate
+ * enforces, and `source` and `provenance` say where they come from. An older
+ * server answers with the grant itself, and sends neither.
+ *
+ * The contract marks `source` required and the generated type follows. This
+ * one keeps `source`, `provenance` and the overage percent optional: a row built
+ * against the 1.0 shape (a test double, a host's own fixture, the GraphQL
+ * mapping, which cannot tell the layers apart) must keep compiling, and a member
+ * that becomes required on a type hosts construct would break them. Reading them
+ * is unaffected; the raw type is still `KaitenApi.EntitlementUsage`.
  */
-export type EntitlementUsage = Omit<ApiEntitlementUsage, "source"> & {
-  source?: ApiEntitlementUsage["source"];
+export type EntitlementUsage = Omit<
+  ApiEntitlementUsage,
+  "source" | "provenance" | "limitCapExceededOveragePercent"
+> & {
+  /**
+   * The layer that grants the entitlement: `license` when the licence does, its
+   * value possibly changed by add-ons and boosts, `addon` when only add-ons do.
+   * Open: more may come. Absent on a server that predates it.
+   */
+  source?: "license" | "addon" | (string & {});
+  /**
+   * Why `limit` is what it is: the licence's grant, the add-ons, the voucher
+   * boosts. Absent on a server that predates it.
+   */
+  provenance?: EntitlementProvenance;
+  /**
+   * How far above `limit` usage is still accepted, in percent: `0` for a hard
+   * limit, positive for a soft one, `-1` when `limit` is unlimited. The
+   * allowance of the instance's effective limit, not of the licence's grant.
+   * Absent for a BOOLEAN or CONFIG entitlement, and on a server that predates it.
+   */
+  limitCapExceededOveragePercent?: number;
 };
+
+/** `SET`, `ADD`, `MULTIPLY` or `UNLIMITED`: how a voucher boost changes an entitlement. Open: more may come. */
+export type BoostModifierType = "SET" | "ADD" | "MULTIPLY" | "UNLIMITED" | (string & {});
+
+/**
+ * Why an entitlement's effective value is what it is: the licence grant, then
+ * each add-on attached, then each voucher boost in its window. The identifiers
+ * name the rows each layer comes from, for a vendor to find them by.
+ */
+export interface EntitlementProvenance {
+  /** The licence's grant. Null when only add-ons grant the entitlement. */
+  license: {
+    licenseEntitlementId: string;
+    value: EntitlementValue;
+    limitCapExceededOveragePercent: number | null;
+  } | null;
+  /** The active add-on grants, in attachment order. */
+  addons: {
+    instanceAddonId: string;
+    addonId: string;
+    addonEntitlementId: string;
+    quantity: number;
+    /** `ADD`, `OVERRIDE` or `MAX`. Open: more may come. */
+    overrideBehavior: "ADD" | "OVERRIDE" | "MAX" | (string & {});
+    /** One unit's grant: it counts `quantity` times. */
+    value: EntitlementValue;
+    limitCapExceededOveragePercent: number | null;
+    attachedAt: string;
+  }[];
+  /** The voucher boosts in their window, in redemption order. */
+  boosts: {
+    instanceVoucherId: string;
+    voucherId: string;
+    voucherEntitlementGrantId: string;
+    modifierType: BoostModifierType;
+    modifierValue: number | null;
+    redeemedAt: string;
+    effectiveStartsAt: string;
+    effectiveExpiresAt: string | null;
+  }[];
+  /**
+   * The arithmetic of a number entitlement, step by step. Null for a flag or a
+   * configuration, and when no add-on or boost changes the number.
+   */
+  number: {
+    /** The licence's value. Null when only add-ons grant it. */
+    license: number | null;
+    afterAddons: number;
+    boostSet: number | null;
+    boostAdd: number | null;
+    boostMultiply: number | null;
+    unlimited: boolean;
+    /** The effective value; `-1` when unlimited. */
+    effective: number;
+  } | null;
+}
 
 export type EntitlementValue =
   | BooleanEntitlementValue
