@@ -25,6 +25,7 @@ import type {
   PortalSubscription,
   SessionAddon,
   SessionInvoice,
+  SessionInvoiceLine,
   VoucherValidation,
 } from "./session-types.ts";
 import type { EntitlementProvenance, ResolvedEntitlement } from "./types.ts";
@@ -64,8 +65,8 @@ export function mapSubscription(raw: Api.SessionSubscription): PortalSubscriptio
   };
 }
 
-/** A `SessionInvoice`, or a checkout preview's `dueToday`. */
-const mapInvoice = <T extends InvoiceTotals>(raw: Raw): T =>
+/** A checkout preview's `dueToday`. */
+const mapDueToday = <T extends InvoiceTotals>(raw: Raw): T =>
   withCurrencyCode<T>({ ...raw, lines: list(raw.lines) });
 
 /** How each layer contributed to an entitlement's value. */
@@ -244,11 +245,52 @@ export function mapPortal(raw: Api.SessionPortal): KaitenPortal {
   };
 }
 
+/**
+ * One invoice line. A discount has no unit amount: the API sends `null`, and
+ * servers that predate it sent an empty string, which says the same.
+ */
+function mapInvoiceLine(raw: Api.SessionLine): SessionInvoiceLine {
+  return {
+    seq: raw.seq,
+    type: raw.type,
+    label: raw.label,
+    description: raw.description ?? "",
+    quantity: raw.quantity,
+    unitAmountDecimal: raw.unitAmountDecimal || null,
+    amount: raw.amount,
+    serviceFrom: raw.serviceFrom,
+    serviceTo: raw.serviceTo,
+  };
+}
+
+/** An invoice of `GET /public/session/invoices`, or a checkout's activation invoice. */
+export function mapInvoice(raw: Api.SessionInvoice): SessionInvoice {
+  return {
+    id: raw.id,
+    kind: raw.kind,
+    status: raw.status,
+    currencyCode: raw.currency,
+    subtotal: raw.subtotal,
+    discountTotal: raw.discountTotal,
+    total: raw.total,
+    issuedAt: raw.issuedAt ?? null,
+    dueAt: raw.dueAt ?? null,
+    paidAt: raw.paidAt ?? null,
+    serviceFrom: raw.serviceFrom,
+    serviceTo: raw.serviceTo,
+    providerInvoiceNumber: raw.providerInvoiceNumber ?? null,
+    externalReference: raw.externalReference ?? null,
+    hostedInvoiceUrl: raw.hostedInvoiceUrl ?? null,
+    invoicePdfUrl: raw.invoicePdfUrl ?? null,
+    lines: list(raw.lines).map(mapInvoiceLine),
+  };
+}
+
 /** `GET /public/session/invoices` as a page of `SessionInvoice`. */
-export const mapInvoicePage = (raw: Raw): KaitenPage<SessionInvoice> => ({
-  ...(raw as KaitenPage<SessionInvoice>),
-  items: list(raw.items).map((invoice) => mapInvoice<SessionInvoice>(invoice)),
+export const mapInvoicePage = (raw: Api.PageSessionInvoice): KaitenPage<SessionInvoice> => ({
+  items: list(raw.items).map(mapInvoice),
   hasMore: raw.hasMore === true,
+  ...(raw.nextCursor ? { nextCursor: raw.nextCursor } : {}),
 });
 
 /** The answer of `POST /public/session/checkout`, whichever it is. */
@@ -256,7 +298,7 @@ export function mapCheckout(raw: Raw): CheckoutResult {
   if (raw.status === "preview") {
     return {
       ...(raw as CheckoutPreview),
-      dueToday: mapInvoice(raw.dueToday ?? {}),
+      dueToday: mapDueToday(raw.dueToday ?? {}),
       // The API leaves the trial out when the plan has none.
       trialEndsAt: raw.trialEndsAt ?? null,
     };
@@ -265,7 +307,9 @@ export function mapCheckout(raw: Raw): CheckoutResult {
     return {
       ...(raw as CheckoutSubscribed),
       subscription: mapSubscription(raw.subscription),
-      activationInvoice: raw.activationInvoice ? mapInvoice(raw.activationInvoice) : null,
+      activationInvoice: raw.activationInvoice
+        ? mapInvoice(raw.activationInvoice as Api.SessionInvoice)
+        : null,
       // Likewise the hosted page, when the payment needs none.
       payment: raw.payment && {
         ...raw.payment,

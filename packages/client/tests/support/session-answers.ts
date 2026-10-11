@@ -24,6 +24,9 @@ interface Answers {
   portalPastDue: KaitenApi.SessionPortal;
   portalScheduledChange: KaitenApi.SessionPortal;
   reactivate: KaitenApi.SessionSubscription;
+  invoicesEmpty: KaitenApi.PageSessionInvoice;
+  invoicesFirstPage: KaitenApi.PageSessionInvoice;
+  invoicesLastPage: KaitenApi.PageSessionInvoice;
   errors: Record<
     | "addonIncompatible"
     | "cancelBoundaryPending"

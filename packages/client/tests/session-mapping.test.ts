@@ -1,10 +1,6 @@
 import { describe, expect, test } from "vite-plus/test";
 
-import {
-  mapCheckout,
-  mapInvoicePage,
-  mapVoucherValidation,
-} from "../src/client/session-mapping.ts";
+import { mapCheckout, mapVoucherValidation } from "../src/client/session-mapping.ts";
 
 const P = "2026-10-01T00:00:00.000Z";
 const P1 = "2026-11-01T00:00:00.000Z";
@@ -73,23 +69,6 @@ const INVOICE = {
 };
 
 describe("invoices, checkout and vouchers", () => {
-  test("an invoice page keeps the server's totals and renames the currency", () => {
-    const page = mapInvoicePage({ items: [INVOICE], hasMore: true, nextCursor: "c2" });
-
-    expect(page.hasMore).toBe(true);
-    expect(page.nextCursor).toBe("c2");
-    expect(page.items[0]).toMatchObject({
-      id: "inv-1",
-      currencyCode: "EUR",
-      subtotal: 6900,
-      discountTotal: 1380,
-      total: 5520,
-      hostedInvoiceUrl: "https://pay.test/i/1",
-      lines: [{ seq: 1, amount: 4900, unitAmountDecimal: "4900" }],
-    });
-    expect(page.items[0]).not.toHaveProperty("currency");
-  });
-
   test("a preview carries the server's total, never a sum of its lines", () => {
     const preview = mapCheckout({
       status: "preview",

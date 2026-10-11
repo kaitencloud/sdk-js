@@ -23,6 +23,7 @@ import {
   mapVoucherValidation,
 } from "./session-mapping.ts";
 import type {
+  PageSessionInvoice,
   SessionPortal as WirePortal,
   SessionSubscription as WireSubscription,
 } from "../core/index.ts";
@@ -137,7 +138,9 @@ export class KaitenSessionClient implements KaitenSessionClientLike {
     if (options.cursor) query.set("cursor", options.cursor);
     if (options.limit !== undefined) query.set("limit", `${options.limit}`);
     const search = `${query}` ? `?${query}` : "";
-    return mapInvoicePage(await this.call("GET", `invoices${search}`, "listInvoices()"));
+    return mapInvoicePage(
+      await this.call<PageSessionInvoice>("GET", `invoices${search}`, "listInvoices()"),
+    );
   }
 
   async checkout(input: CheckoutInput): Promise<CheckoutResult> {

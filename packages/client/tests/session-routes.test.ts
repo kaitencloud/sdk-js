@@ -336,6 +336,139 @@ describe("the portal", () => {
   });
 });
 
+describe("invoices", () => {
+  test("a page asks for its cursor and its size, and keeps the cursor of the next", async () => {
+    const { client, requests } = open(() => json(answer("invoicesFirstPage")));
+
+    const page = await client.listInvoices({ cursor: "eyJzZXEiOjF9", limit: 2 });
+
+    expect(await sent(requests)).toEqual([
+      ["GET", "/public/session/invoices?cursor=eyJzZXEiOjF9&limit=2", undefined],
+    ]);
+    expect(page.hasMore).toBe(true);
+    expect(page.nextCursor).toBe("eyJzZXEiOjJ9");
+    expect(page.items.map((invoice) => invoice.id.slice(-3))).toEqual(["302", "301"]);
+  });
+
+  test("the first and the last page are asked for without a query when nothing narrows them", async () => {
+    const { client, requests } = open(() => json(answer("invoicesLastPage")));
+
+    const page = await client.listInvoices();
+
+    expect(await sent(requests)).toEqual([["GET", "/public/session/invoices", undefined]]);
+    expect(page.hasMore).toBe(false);
+    expect(page).not.toHaveProperty("nextCursor");
+  });
+
+  test("a customer without invoices gets an empty page", async () => {
+    const { client } = open(() => json(answer("invoicesEmpty")));
+
+    expect(await client.listInvoices()).toEqual({ items: [], hasMore: false });
+  });
+
+  test("a paid invoice keeps the server's totals, its dates and where to read it", async () => {
+    const { client } = open(() => json(answer("invoicesFirstPage")));
+
+    const [renewal] = (await client.listInvoices()).items;
+
+    expect(renewal).toMatchObject({
+      id: "00000000-0000-4000-8000-000000000302",
+      kind: "RENEWAL",
+      status: "PAID",
+      currencyCode: "EUR",
+      subtotal: 12646,
+      discountTotal: 2000,
+      total: 10646,
+      issuedAt: "2026-10-01T00:00:00Z",
+      dueAt: "2026-10-01T00:00:00Z",
+      paidAt: "2026-10-01T01:00:00Z",
+      serviceFrom: "2026-10-01T00:00:00Z",
+      serviceTo: "2026-11-01T00:00:00Z",
+      providerInvoiceNumber: "INV-0002",
+      externalReference: null,
+      hostedInvoiceUrl: "https://pay.initech.test/i/2",
+      invoicePdfUrl: "https://pay.initech.test/i/2.pdf",
+    });
+    expect(renewal).not.toHaveProperty("currency");
+  });
+
+  test("lines carry the arithmetic, and a discount has no unit amount", async () => {
+    const { client } = open(() => json(answer("invoicesFirstPage")));
+
+    const [renewal] = (await client.listInvoices()).items;
+
+    expect(renewal?.lines.map((line) => [line.type, line.amount, line.unitAmountDecimal])).toEqual([
+      ["BASE", 4900, "4900"],
+      ["ADDON", 3000, "1000"],
+      ["USAGE", 4846, "0.5"],
+      ["DISCOUNT", -2000, null],
+    ]);
+    expect(renewal?.lines[2]).toEqual({
+      seq: 3,
+      type: "USAGE",
+      label: "API calls",
+      description: "9,692 × 0.50 EUR (per 1k calls)",
+      quantity: "9.692",
+      unitAmountDecimal: "0.5",
+      amount: 4846,
+      serviceFrom: "2026-10-01T00:00:00Z",
+      serviceTo: "2026-11-01T00:00:00Z",
+    });
+  });
+
+  test("a server that sends an empty unit amount for a discount is read the same way", async () => {
+    const wire = answer("invoicesFirstPage");
+    wire.items[0]!.lines[3]!.unitAmountDecimal = "";
+    const { client } = open(() => json(wire));
+
+    const [renewal] = (await client.listInvoices()).items;
+
+    expect(renewal?.lines[3]).toMatchObject({ type: "DISCOUNT", unitAmountDecimal: null });
+  });
+
+  test("a payment that failed leaves the page to confirm it on, and no paid date", async () => {
+    const { client } = open(() => json(answer("invoicesFirstPage")));
+
+    const failed = (await client.listInvoices()).items[1];
+
+    expect(failed).toMatchObject({
+      kind: "ACTIVATION",
+      status: "PAYMENT_FAILED",
+      paidAt: null,
+      dueAt: "2026-10-15T00:00:00Z",
+      hostedInvoiceUrl: "https://pay.initech.test/i/1",
+      invoicePdfUrl: null,
+    });
+  });
+
+  test("an invoice the vendor collects itself has an external reference and no provider", async () => {
+    const { client } = open(() => json(answer("invoicesLastPage")));
+
+    const [manual] = (await client.listInvoices()).items;
+
+    expect(manual).toMatchObject({
+      status: "MANUAL",
+      issuedAt: "2026-10-09T00:00:00Z",
+      dueAt: null,
+      paidAt: null,
+      providerInvoiceNumber: null,
+      externalReference: "ACME-2026-17",
+      hostedInvoiceUrl: null,
+      invoicePdfUrl: null,
+    });
+    // A line with no arithmetic says so with an empty description.
+    expect(manual?.lines[0]).toMatchObject({ description: "" });
+  });
+
+  test("an invoice not issued yet has no issue date", async () => {
+    const wire = answer("invoicesLastPage");
+    wire.items[0]!.issuedAt = null;
+    const { client } = open(() => json(wire));
+
+    expect((await client.listInvoices()).items[0]?.issuedAt).toBeNull();
+  });
+});
+
 describe("cancel and reactivate", () => {
   test("cancel asks for the period's end and reads the subscription it leaves", async () => {
     const { client, requests } = open(() => json(answer("cancel")));

@@ -119,16 +119,19 @@ export interface InvoiceTotals {
   total: number;
 }
 
+/** `BASE`, `ADDON`, `USAGE`, `OVERAGE` or `DISCOUNT`. Open: more may come. */
+export type InvoiceLineType = "BASE" | "ADDON" | "USAGE" | "OVERAGE" | "DISCOUNT" | (string & {});
+
 /** One line of an invoice or of a checkout preview. */
 export interface SessionInvoiceLine {
   seq: number;
-  /** `BASE`, `ADDON`, `USAGE`, `OVERAGE` or `DISCOUNT`. Open. */
-  type: string;
+  type: InvoiceLineType;
   label: string;
-  description: string | null;
-  /** The quantity billed, as a decimal string. */
+  /** The arithmetic of the line, as the server wrote it. Empty when it has none. */
+  description: string;
+  /** The quantity billed, in sale units, as a decimal string. */
   quantity: string;
-  /** The unit amount in minor units, as a decimal string. */
+  /** The unit amount in minor units, as a decimal string. Null on a `DISCOUNT` line, which has none. */
   unitAmountDecimal: string | null;
   /** The line's amount in minor units; negative on a `DISCOUNT` line. */
   amount: number;
@@ -141,8 +144,11 @@ export interface SessionInvoice extends InvoiceTotals {
   id: string;
   kind: InvoiceKind;
   status: InvoiceStatus;
-  issuedAt: string;
-  dueAt: string;
+  /** Null while the invoice has not been issued. */
+  issuedAt: string | null;
+  /** Null when the invoice has no payment terms. */
+  dueAt: string | null;
+  /** Null until it is paid. */
   paidAt: string | null;
   serviceFrom: string;
   serviceTo: string;
@@ -150,7 +156,7 @@ export interface SessionInvoice extends InvoiceTotals {
   providerInvoiceNumber: string | null;
   /** The vendor's own invoice number, for an invoice billed outside a provider. */
   externalReference: string | null;
-  /** Where the customer pays the invoice, while it is payable. */
+  /** Where the customer pays the invoice, or confirms a payment that needs authenticating. */
   hostedInvoiceUrl: string | null;
   invoicePdfUrl: string | null;
   lines: SessionInvoiceLine[];
