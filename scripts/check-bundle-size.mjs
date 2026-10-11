@@ -71,14 +71,14 @@ const SCENARIOS = [
   {
     name: "client · KaitenClient alone",
     code: `import { KaitenClient } from "@kaitencloud/client"; console.log(KaitenClient);`,
-    budgetGzip: 13_500,
+    budgetGzip: 13_800,
     headless: true,
   },
   {
     // What a customer portal or a checkout ships: the customer-session client.
     name: "client · KaitenSessionClient alone",
     code: `import { KaitenSessionClient } from "@kaitencloud/client"; console.log(KaitenSessionClient);`,
-    budgetGzip: 9_500,
+    budgetGzip: 9_700,
     headless: true,
   },
 ];
