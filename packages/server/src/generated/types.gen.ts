@@ -152,6 +152,11 @@ export type Addon = {
   versionName: string;
 };
 
+export type AddonAmount = {
+  addonSlug: string;
+  quantity: number;
+};
+
 export type AddonChanges = {
   description: string;
   isDefault: boolean;
@@ -259,9 +264,9 @@ export type AddonPriceUpdate = {
    */
   billingModel: "FLAT_FEE" | "USAGE_BASED" | "OVERAGE";
   /**
-   * The period a FLAT_FEE price is charged for. Absent on metered prices, which bill on the subscription's period.
+   * The period a FLAT_FEE price is charged for. Null on metered prices, which bill on the subscription's period.
    */
-  billingPeriod?: "MONTHLY" | "QUARTERLY" | "SEMI_ANNUAL" | "ANNUAL";
+  billingPeriod: "MONTHLY" | "QUARTERLY" | "SEMI_ANNUAL" | "ANNUAL" | null;
   /**
    * ADVANCE bills the period that starts; ARREARS the period that ended. Metered prices are always ARREARS.
    */
@@ -274,11 +279,11 @@ export type AddonPriceUpdate = {
   /**
    * When the price was deprecated
    */
-  deprecatedAt?: string;
+  deprecatedAt: string | null;
   /**
-   * The invoice line's label; a default is derived when absent.
+   * The invoice line's label; a default is derived when it is null.
    */
-  displayLabel?: string;
+  displayLabel: string | null;
   /**
    * Order among the version's prices
    */
@@ -292,17 +297,17 @@ export type AddonPriceUpdate = {
    */
   isDefault: boolean;
   /**
-   * What a metered price measures. Absent on FLAT_FEE prices.
+   * What a metered price measures. Null on FLAT_FEE prices.
    */
-  metered?: PriceMeter;
+  metered: PriceMeter | never;
   /**
    * A DEPRECATED price keeps billing what is already pinned to it but is no longer offered.
    */
   status: "ACTIVE" | "DEPRECATED";
   /**
-   * unitAmountDecimal as an integer number of minor units, when it is one; absent otherwise.
+   * unitAmountDecimal as an integer number of minor units, when it is one; null otherwise.
    */
-  unitAmount?: number;
+  unitAmount: number | null;
   /**
    * Amount in the currency's minor units (cents for EUR): per period for FLAT_FEE, per sale unit for metered prices. Up to 12 decimal places.
    */
@@ -406,7 +411,7 @@ export type BillingCapabilities = {
   /**
    * Why they do not: billing is off on this deployment, or the organization's plan does not include it
    */
-  disabledReason?: "DEPLOYMENT_DISABLED" | "NOT_ENTITLED";
+  disabledReason: "DEPLOYMENT_DISABLED" | "NOT_ENTITLED" | null;
   /**
    * Whether the billing routes answer for this organization
    */
@@ -421,9 +426,9 @@ export type BillingCapabilities = {
   providers: Array<BillingProvider>;
   publicSurface: PublicSurface;
   /**
-   * How long usage reports are kept, in months; absent when they are kept forever or it cannot be told
+   * How long usage reports are kept, in months; null when they are kept forever or it cannot be told
    */
-  usageHistoryRetentionMonths?: number;
+  usageHistoryRetentionMonths: number | null;
   /**
    * How long a usage report's transactionId is remembered, in days
    */
@@ -486,7 +491,7 @@ export type BillingProvider = {
 
 export type BillingSettings = {
   /**
-   * How an invoice is collected when its subscription does not say: SEND_INVOICE sends it for payment. CHARGE_AUTOMATICALLY needs a payment provider and is refused until one is available.
+   * How an invoice is collected when its subscription does not say: SEND_INVOICE sends it for payment; CHARGE_AUTOMATICALLY charges the customer's payment method, on a provider that can. A NOOP subscription sends its invoices whatever the default.
    */
   defaultCollectionMethod: "SEND_INVOICE" | "CHARGE_AUTOMATICALLY";
   /**
@@ -510,17 +515,17 @@ export type BillingStarted = {
   basePrice: Price;
   billingPeriod: "MONTHLY" | "QUARTERLY" | "SEMI_ANNUAL" | "ANNUAL";
   cancelAtPeriodEnd: boolean;
-  cancelRequestedAt?: string;
-  canceledAt?: string;
-  cancellationReason?: string;
+  cancelRequestedAt: string | null;
+  canceledAt: string | null;
+  cancellationReason: string | null;
   /**
    * Effective: the subscription's own, else the organization's default
    */
   collectionMethod: "SEND_INVOICE" | "CHARGE_AUTOMATICALLY";
   /**
-   * The subscription's own collection method; absent when it takes the organization's
+   * The subscription's own collection method; null when it takes the organization's
    */
-  collectionMethodOverride?: string;
+  collectionMethodOverride: string | null;
   createdAt: string;
   currency: string;
   /**
@@ -535,16 +540,16 @@ export type BillingStarted = {
    */
   daysUntilDue: number;
   /**
-   * The subscription's own payment terms; absent when it takes the organization's
+   * The subscription's own payment terms; null when it takes the organization's
    */
-  daysUntilDueOverride?: number;
+  daysUntilDueOverride: number | null;
   id: string;
   instanceName: string;
   /**
    * As it was at the subscription's last write
    */
   instanceSlug: string;
-  pastDueSince?: string;
+  pastDueSince: string | null;
   /**
    * Who collects its invoices. NOOP: the organization itself, through the handoff queue
    */
@@ -556,7 +561,7 @@ export type BillingStarted = {
   /**
    * A plan change waiting for the next boundary
    */
-  scheduledChange?: ScheduledChange;
+  scheduledChange: ScheduledChange | never;
   /**
    * When billing started: usage before it is never billed
    */
@@ -565,7 +570,7 @@ export type BillingStarted = {
   /**
    * When the trial ends, or ended: usage before it is never billed
    */
-  trialEndsAt?: string;
+  trialEndsAt: string | null;
   updatedAt: string;
 };
 
@@ -608,17 +613,17 @@ export type CanceledSubscription = {
   basePrice: Price;
   billingPeriod: "MONTHLY" | "QUARTERLY" | "SEMI_ANNUAL" | "ANNUAL";
   cancelAtPeriodEnd: boolean;
-  cancelRequestedAt?: string;
-  canceledAt?: string;
-  cancellationReason?: string;
+  cancelRequestedAt: string | null;
+  canceledAt: string | null;
+  cancellationReason: string | null;
   /**
    * Effective: the subscription's own, else the organization's default
    */
   collectionMethod: "SEND_INVOICE" | "CHARGE_AUTOMATICALLY";
   /**
-   * The subscription's own collection method; absent when it takes the organization's
+   * The subscription's own collection method; null when it takes the organization's
    */
-  collectionMethodOverride?: string;
+  collectionMethodOverride: string | null;
   createdAt: string;
   currency: string;
   /**
@@ -633,9 +638,9 @@ export type CanceledSubscription = {
    */
   daysUntilDue: number;
   /**
-   * The subscription's own payment terms; absent when it takes the organization's
+   * The subscription's own payment terms; null when it takes the organization's
    */
-  daysUntilDueOverride?: number;
+  daysUntilDueOverride: number | null;
   /**
    * The FINAL invoice of an immediate cancellation
    */
@@ -646,7 +651,7 @@ export type CanceledSubscription = {
    * As it was at the subscription's last write
    */
   instanceSlug: string;
-  pastDueSince?: string;
+  pastDueSince: string | null;
   /**
    * Who collects its invoices. NOOP: the organization itself, through the handoff queue
    */
@@ -654,7 +659,7 @@ export type CanceledSubscription = {
   /**
    * A plan change waiting for the next boundary
    */
-  scheduledChange?: ScheduledChange;
+  scheduledChange: ScheduledChange | never;
   /**
    * When billing started: usage before it is never billed
    */
@@ -663,7 +668,7 @@ export type CanceledSubscription = {
   /**
    * When the trial ends, or ended: usage before it is never billed
    */
-  trialEndsAt?: string;
+  trialEndsAt: string | null;
   updatedAt: string;
 };
 
@@ -678,17 +683,17 @@ export type Cancellation = {
   basePrice: Price;
   billingPeriod: "MONTHLY" | "QUARTERLY" | "SEMI_ANNUAL" | "ANNUAL";
   cancelAtPeriodEnd: boolean;
-  cancelRequestedAt?: string;
-  canceledAt?: string;
-  cancellationReason?: string;
+  cancelRequestedAt: string | null;
+  canceledAt: string | null;
+  cancellationReason: string | null;
   /**
    * Effective: the subscription's own, else the organization's default
    */
   collectionMethod: "SEND_INVOICE" | "CHARGE_AUTOMATICALLY";
   /**
-   * The subscription's own collection method; absent when it takes the organization's
+   * The subscription's own collection method; null when it takes the organization's
    */
-  collectionMethodOverride?: string;
+  collectionMethodOverride: string | null;
   createdAt: string;
   currency: string;
   /**
@@ -703,13 +708,13 @@ export type Cancellation = {
    */
   daysUntilDue: number;
   /**
-   * The subscription's own payment terms; absent when it takes the organization's
+   * The subscription's own payment terms; null when it takes the organization's
    */
-  daysUntilDueOverride?: number;
+  daysUntilDueOverride: number | null;
   /**
-   * The FINAL invoice, when the cancellation issued one
+   * The FINAL invoice; null when the cancellation issued none (a trial)
    */
-  finalInvoiceId?: string;
+  finalInvoiceId: string | null;
   id: string;
   instanceName: string;
   /**
@@ -720,7 +725,7 @@ export type Cancellation = {
    * How it was canceled; a trial is canceled at once in either mode
    */
   mode: "AT_PERIOD_END" | "IMMEDIATE";
-  pastDueSince?: string;
+  pastDueSince: string | null;
   /**
    * Who collects its invoices. NOOP: the organization itself, through the handoff queue
    */
@@ -728,7 +733,7 @@ export type Cancellation = {
   /**
    * A plan change waiting for the next boundary
    */
-  scheduledChange?: ScheduledChange;
+  scheduledChange: ScheduledChange | never;
   /**
    * When billing started: usage before it is never billed
    */
@@ -737,7 +742,7 @@ export type Cancellation = {
   /**
    * When the trial ends, or ended: usage before it is never billed
    */
-  trialEndsAt?: string;
+  trialEndsAt: string | null;
   updatedAt: string;
 };
 
@@ -752,17 +757,17 @@ export type CancellationChange = {
   basePrice: Price;
   billingPeriod: "MONTHLY" | "QUARTERLY" | "SEMI_ANNUAL" | "ANNUAL";
   cancelAtPeriodEnd: boolean;
-  cancelRequestedAt?: string;
-  canceledAt?: string;
-  cancellationReason?: string;
+  cancelRequestedAt: string | null;
+  canceledAt: string | null;
+  cancellationReason: string | null;
   /**
    * Effective: the subscription's own, else the organization's default
    */
   collectionMethod: "SEND_INVOICE" | "CHARGE_AUTOMATICALLY";
   /**
-   * The subscription's own collection method; absent when it takes the organization's
+   * The subscription's own collection method; null when it takes the organization's
    */
-  collectionMethodOverride?: string;
+  collectionMethodOverride: string | null;
   createdAt: string;
   currency: string;
   /**
@@ -777,9 +782,9 @@ export type CancellationChange = {
    */
   daysUntilDue: number;
   /**
-   * The subscription's own payment terms; absent when it takes the organization's
+   * The subscription's own payment terms; null when it takes the organization's
    */
-  daysUntilDueOverride?: number;
+  daysUntilDueOverride: number | null;
   /**
    * The boundary the cancellation takes effect at
    */
@@ -790,7 +795,7 @@ export type CancellationChange = {
    * As it was at the subscription's last write
    */
   instanceSlug: string;
-  pastDueSince?: string;
+  pastDueSince: string | null;
   /**
    * Who collects its invoices. NOOP: the organization itself, through the handoff queue
    */
@@ -798,7 +803,7 @@ export type CancellationChange = {
   /**
    * A plan change waiting for the next boundary
    */
-  scheduledChange?: ScheduledChange;
+  scheduledChange: ScheduledChange | never;
   /**
    * When billing started: usage before it is never billed
    */
@@ -807,7 +812,7 @@ export type CancellationChange = {
   /**
    * When the trial ends, or ended: usage before it is never billed
    */
-  trialEndsAt?: string;
+  trialEndsAt: string | null;
   updatedAt: string;
 };
 
@@ -1106,7 +1111,7 @@ export type CustomerBilling = {
   /**
    * Where the customer's invoices are sent. Personal data
    */
-  billingEmail?: string;
+  billingEmail: string | null;
   /**
    * The customer in each payment provider; none for NOOP
    */
@@ -1201,13 +1206,13 @@ export type CustomerInProvider = {
   /**
    * Its default payment method; null when there is none
    */
-  paymentMethod: PaymentMethodLabels;
+  paymentMethod: PaymentMethodLabels | never;
   providerKind: "STRIPE";
-  syncedAt?: string;
+  syncedAt: string | null;
   /**
    * The customer's page in the provider's dashboard
    */
-  webUrl?: string;
+  webUrl: string | null;
 };
 
 export type CustomerIntegration = {
@@ -1395,6 +1400,11 @@ export type DiscountDifference = {
   providerAmount: number;
   seq: number;
   targetSeq: number;
+};
+
+export type DueDateDifference = {
+  kaitenDueAt: string;
+  providerDueAt: string;
 };
 
 export type DueToday = {
@@ -1610,7 +1620,7 @@ export type EntitlementUsage = {
    */
   licenseSlug: string;
   /**
-   * License grant this usage is measured against, discriminated by the 'type' field. Null when the license grants no value; -1 means unlimited for a NUMBER entitlement.
+   * The effective value this usage is measured against (the licence's grant, with the instance's add-ons and boosts applied; source and provenance say which), discriminated by the 'type' field. Absent when nothing grants the entitlement a value; -1 means unlimited for a NUMBER entitlement.
    */
   limit?:
     | ({
@@ -1857,7 +1867,7 @@ export type HeldInvoice = {
    * As it was when the invoice was composed
    */
   customerSlug: string;
-  daysUntilDue?: number;
+  daysUntilDue: number | null;
   /**
    * Sum of the discounts, in minor units
    */
@@ -1865,7 +1875,7 @@ export type HeldInvoice = {
   /**
    * issuedAt + daysUntilDue
    */
-  dueAt?: string;
+  dueAt: string | null;
   /**
    * PENDING: waiting in the handoff queue for the organization's accounting system
    */
@@ -1874,20 +1884,20 @@ export type HeldInvoice = {
   /**
    * Why a DRAFT is held: the usage journal it was measured from failed a consistency check
    */
-  holdReason?: "LEDGER_SEQUENCE_GAP" | "LEDGER_CHAIN_BREAK" | "LEDGER_COUNTER_MISMATCH";
+  holdReason: "LEDGER_SEQUENCE_GAP" | "LEDGER_CHAIN_BREAK" | "LEDGER_COUNTER_MISMATCH" | null;
   /**
    * The invoice's identifier: the key an accounting system deduplicates on
    */
   id: string;
   instanceName: string;
   instanceSlug: string;
-  issuedAt?: string;
+  issuedAt: string | null;
   /**
    * ACTIVATION bills a subscription's first period, RENEWAL the period that ended and the one that starts, FINAL what is left when a subscription ends
    */
   kind: "ACTIVATION" | "RENEWAL" | "FINAL";
   licenseSlug: string;
-  paidAt?: string;
+  paidAt: string | null;
   /**
    * Who collects it. NOOP: the organization itself, through the handoff queue
    */
@@ -1964,7 +1974,7 @@ export type HoldRelease = {
   /**
    * 1 to 500 characters; .ReasonRequired otherwise
    */
-  reason?: string;
+  reason: string;
 };
 
 export type Impact = {
@@ -2130,17 +2140,17 @@ export type InstanceBilling = {
   basePrice: Price;
   billingPeriod: "MONTHLY" | "QUARTERLY" | "SEMI_ANNUAL" | "ANNUAL";
   cancelAtPeriodEnd: boolean;
-  cancelRequestedAt?: string;
-  canceledAt?: string;
-  cancellationReason?: string;
+  cancelRequestedAt: string | null;
+  canceledAt: string | null;
+  cancellationReason: string | null;
   /**
    * Effective: the subscription's own, else the organization's default
    */
   collectionMethod: "SEND_INVOICE" | "CHARGE_AUTOMATICALLY";
   /**
-   * The subscription's own collection method; absent when it takes the organization's
+   * The subscription's own collection method; null when it takes the organization's
    */
-  collectionMethodOverride?: string;
+  collectionMethodOverride: string | null;
   createdAt: string;
   currency: string;
   /**
@@ -2155,16 +2165,16 @@ export type InstanceBilling = {
    */
   daysUntilDue: number;
   /**
-   * The subscription's own payment terms; absent when it takes the organization's
+   * The subscription's own payment terms; null when it takes the organization's
    */
-  daysUntilDueOverride?: number;
+  daysUntilDueOverride: number | null;
   id: string;
   instanceName: string;
   /**
    * As it was at the subscription's last write
    */
   instanceSlug: string;
-  pastDueSince?: string;
+  pastDueSince: string | null;
   /**
    * Who collects its invoices. NOOP: the organization itself, through the handoff queue
    */
@@ -2172,7 +2182,7 @@ export type InstanceBilling = {
   /**
    * A plan change waiting for the next boundary
    */
-  scheduledChange?: ScheduledChange;
+  scheduledChange: ScheduledChange | never;
   /**
    * When billing started: usage before it is never billed
    */
@@ -2181,7 +2191,7 @@ export type InstanceBilling = {
   /**
    * When the trial ends, or ended: usage before it is never billed
    */
-  trialEndsAt?: string;
+  trialEndsAt: string | null;
   updatedAt: string;
 };
 
@@ -2449,7 +2459,7 @@ export type Invoice = {
   /**
    * The address the invoice is for, as it was when composed. Personal data: it appears in no event
    */
-  billingEmail?: string;
+  billingEmail: string | null;
   /**
    * The boundary the invoice bills. With the kind, it identifies the invoice within its subscription
    */
@@ -2462,7 +2472,7 @@ export type Invoice = {
    * As it was when the invoice was composed
    */
   customerSlug: string;
-  daysUntilDue?: number;
+  daysUntilDue: number | null;
   /**
    * Sum of the discounts, in minor units
    */
@@ -2470,7 +2480,7 @@ export type Invoice = {
   /**
    * issuedAt + daysUntilDue
    */
-  dueAt?: string;
+  dueAt: string | null;
   handoff: InvoiceHandoff;
   /**
    * PENDING: waiting in the handoff queue for the organization's accounting system
@@ -2479,22 +2489,22 @@ export type Invoice = {
   /**
    * When the invoice was held and released
    */
-  hold?: HoldRecord;
+  hold: HoldRecord | never;
   /**
    * Every meter whose journal failed a check
    */
-  holdDetail?: HoldDetail;
+  holdDetail: HoldDetail | never;
   /**
    * Why a DRAFT is held: the usage journal it was measured from failed a consistency check
    */
-  holdReason?: "LEDGER_SEQUENCE_GAP" | "LEDGER_CHAIN_BREAK" | "LEDGER_COUNTER_MISMATCH";
+  holdReason: "LEDGER_SEQUENCE_GAP" | "LEDGER_CHAIN_BREAK" | "LEDGER_COUNTER_MISMATCH" | null;
   /**
    * The invoice's identifier: the key an accounting system deduplicates on
    */
   id: string;
   instanceName: string;
   instanceSlug: string;
-  issuedAt?: string;
+  issuedAt: string | null;
   /**
    * ACTIVATION bills a subscription's first period, RENEWAL the period that ended and the one that starts, FINAL what is left when a subscription ends
    */
@@ -2502,11 +2512,11 @@ export type Invoice = {
   licenseId: string;
   licenseSlug: string;
   lines: Array<InvoiceLine>;
-  paidAt?: string;
+  paidAt: string | null;
   /**
-   * The invoice in its payment provider; absent for NOOP
+   * The invoice in its payment provider; null for NOOP
    */
-  provider?: ProviderRecord;
+  provider: ProviderRecord | never;
   /**
    * Who collects it. NOOP: the organization itself, through the handoff queue
    */
@@ -2514,11 +2524,11 @@ export type Invoice = {
   /**
    * The invoice recomposed from this VOID one
    */
-  replacedByInvoiceId?: string;
+  replacedByInvoiceId: string | null;
   /**
    * The VOID invoice this one was recomposed from
    */
-  replacesInvoiceId?: string;
+  replacesInvoiceId: string | null;
   /**
    * Earliest start of its lines' service periods
    */
@@ -2547,10 +2557,10 @@ export type Invoice = {
    * subtotal − discountTotal, in minor units
    */
   total: number;
-  uncollectibleAt?: string;
+  uncollectibleAt: string | null;
   updatedAt: string;
-  voidReason?: string;
-  voidedAt?: string;
+  voidReason: string | null;
+  voidedAt: string | null;
 };
 
 export type InvoiceHandoff = {
@@ -2580,11 +2590,11 @@ export type InvoiceLine = {
   /**
    * The add-on version an ADDON line bills
    */
-  addonId?: string;
+  addonId: string | null;
   /**
    * The add-on price an ADDON line bills
    */
-  addonPriceId?: string;
+  addonPriceId: string | null;
   /**
    * round_half_up(quantity × unitAmountDecimal), in minor units; negative on a DISCOUNT line
    */
@@ -2592,11 +2602,11 @@ export type InvoiceLine = {
   /**
    * The price's billing model; absent on a DISCOUNT line
    */
-  billingModel?: "FLAT_FEE" | "USAGE_BASED" | "OVERAGE";
+  billingModel: "FLAT_FEE" | "USAGE_BASED" | "OVERAGE" | null;
   /**
    * ADVANCE lines bill the period that starts at the boundary, ARREARS lines the one that ends there; absent on a DISCOUNT line
    */
-  billingTiming?: "ADVANCE" | "ARREARS";
+  billingTiming: "ADVANCE" | "ARREARS" | null;
   /**
    * Set on a preview line whose sample exceeded what the licence accepts: reports above that are rejected, so the excess is not billed
    */
@@ -2608,15 +2618,15 @@ export type InvoiceLine = {
   /**
    * How a DISCOUNT line was computed
    */
-  discount?: InvoiceLineDiscount;
+  discount: InvoiceLineDiscount | never;
   /**
    * The metered entitlement, on USAGE and OVERAGE lines
    */
-  entitlementId?: string;
+  entitlementId: string | null;
   /**
    * Its slug, as it was when the line was composed
    */
-  entitlementSlug?: string;
+  entitlementSlug: string | null;
   /**
    * The line's identifier, stable for the invoice's life; absent on a preview
    */
@@ -2624,31 +2634,31 @@ export type InvoiceLine = {
   /**
    * The instance's attachment an ADDON line bills
    */
-  instanceAddonId?: string;
+  instanceAddonId: string | null;
   /**
    * The redemption a DISCOUNT line applies
    */
-  instanceVoucherId?: string;
+  instanceVoucherId: string | null;
   /**
    * The price's display label, else a derived one
    */
   label: string;
   /**
-   * The licence price the line bills; absent on an ADDON line
+   * The licence price the line bills; null on an ADDON line
    */
-  licensePriceId?: string;
+  licensePriceId: string | null;
   /**
    * How a USAGE or OVERAGE line's quantity was measured
    */
-  metering?: InvoiceLineMetering;
+  metering: InvoiceLineMetering | never;
   /**
    * The arithmetic of an OVERAGE line
    */
-  overage?: InvoiceLineOverage;
+  overage: InvoiceLineOverage | never;
   /**
    * The line in the payment provider, once pushed
    */
-  provider?: InvoiceLineProvider;
+  provider: InvoiceLineProvider | never;
   /**
    * In sale units, a decimal string: 1 on a BASE line, the quantity held on an ADDON line
    */
@@ -2672,11 +2682,11 @@ export type InvoiceLine = {
   /**
    * The price's unit amount in minor units; absent on a DISCOUNT line
    */
-  unitAmountDecimal?: string;
+  unitAmountDecimal: string | null;
   /**
    * The voucher a DISCOUNT line applies
    */
-  voucherId?: string;
+  voucherId: string | null;
   [key: string]: unknown;
 };
 
@@ -2690,15 +2700,15 @@ export type InvoiceLineDiscount = {
    */
   application: number;
   /**
-   * How many invoices the redemption discounts; absent for FOREVER
+   * How many invoices the redemption discounts; null for FOREVER
    */
-  applicationsMax?: number;
+  applicationsMax: number | null;
   appliesTo: "LICENSE_BASE" | "ADDONS" | "BOTH" | "SELECTED_PRICES";
   /**
    * What its targets still amounted to before it, exact, in minor units
    */
   base: string;
-  currency?: string;
+  currency: string | null;
   discountType: "PERCENTAGE" | "FIXED_AMOUNT";
   /**
    * The percentage, or the amount in minor units
@@ -2718,7 +2728,7 @@ export type InvoiceLineLedger = {
   /**
    * The instance whose reports these are: with the line's entitlement, the pair the journal is kept by. It outlives the instance
    */
-  instanceId?: string;
+  instanceId: string | null;
   /**
    * Last report of the period, null when it has none
    */
@@ -2741,7 +2751,7 @@ export type InvoiceLineMetering = {
   /**
    * The usage journal rows the line was measured from
    */
-  ledger?: InvoiceLineLedger;
+  ledger: InvoiceLineLedger | never;
   /**
    * In measured units: the usage for a USAGE line, the overage for an OVERAGE line
    */
@@ -2859,13 +2869,25 @@ export type InvoicePreview = {
 
 export type InvoicePreviewScenario = {
   /**
+   * Add-on versions priced in: their fees for the base's period and their metered prices, and their grants for the sample (PreviewLicenseInvoice.AddonNotFound; .InvalidAddOns for a repeated one or a quantity below 1).
+   */
+  addOns?: Array<AddonAmount> | null;
+  /**
    * The FLAT_FEE price billed as the base (PreviewLicenseInvoice.PriceNotFound). Defaults to the version's default FLAT_FEE price (PreviewLicenseInvoice.NoBasePrice when it has none).
    */
   basePriceId?: string;
   /**
-   * Usage of the metered entitlements over the period that ends, one entry per entitlement. An entitlement left out used nothing.
+   * Rate this instance's own usage, read from its journal over [P0, now): P0 of its live subscription, else one billing period back (PreviewLicenseInvoice.InstanceNotFound; .OutsideRetention when P0 is before the usage history). Not with sampleUsage.
+   */
+  instanceSlug?: string;
+  /**
+   * Usage of the metered entitlements over the period that ends, one entry per entitlement, rated against the version's grant and the listed add-ons'. An entitlement left out used nothing.
    */
   sampleUsage?: Array<SampleUsageAmount> | null;
+  /**
+   * A PRICE voucher's discount, applied as a redemption would, consuming nothing (PreviewLicenseInvoice.VoucherNotFound; .VoucherInvalid when it is not an ACTIVE PRICE voucher).
+   */
+  voucherCode?: string;
 };
 
 export type InvoiceSummary = {
@@ -2881,7 +2903,7 @@ export type InvoiceSummary = {
    * As it was when the invoice was composed
    */
   customerSlug: string;
-  daysUntilDue?: number;
+  daysUntilDue: number | null;
   /**
    * Sum of the discounts, in minor units
    */
@@ -2889,7 +2911,7 @@ export type InvoiceSummary = {
   /**
    * issuedAt + daysUntilDue
    */
-  dueAt?: string;
+  dueAt: string | null;
   /**
    * PENDING: waiting in the handoff queue for the organization's accounting system
    */
@@ -2897,20 +2919,20 @@ export type InvoiceSummary = {
   /**
    * Why a DRAFT is held: the usage journal it was measured from failed a consistency check
    */
-  holdReason?: "LEDGER_SEQUENCE_GAP" | "LEDGER_CHAIN_BREAK" | "LEDGER_COUNTER_MISMATCH";
+  holdReason: "LEDGER_SEQUENCE_GAP" | "LEDGER_CHAIN_BREAK" | "LEDGER_COUNTER_MISMATCH" | null;
   /**
    * The invoice's identifier: the key an accounting system deduplicates on
    */
   id: string;
   instanceName: string;
   instanceSlug: string;
-  issuedAt?: string;
+  issuedAt: string | null;
   /**
    * ACTIVATION bills a subscription's first period, RENEWAL the period that ended and the one that starts, FINAL what is left when a subscription ends
    */
   kind: "ACTIVATION" | "RENEWAL" | "FINAL";
   licenseSlug: string;
-  paidAt?: string;
+  paidAt: string | null;
   /**
    * Who collects it. NOOP: the organization itself, through the handoff queue
    */
@@ -2950,14 +2972,14 @@ export type InvoiceVoid = {
   /**
    * 1 to 500 characters; .ReasonRequired otherwise
    */
-  reason?: string;
+  reason: string;
 };
 
 export type InvoiceWriteOff = {
   /**
    * 1 to 500 characters; .ReasonRequired otherwise
    */
-  reason?: string;
+  reason: string;
 };
 
 export type IssuedInvoice = {
@@ -2973,7 +2995,7 @@ export type IssuedInvoice = {
    * As it was when the invoice was composed
    */
   customerSlug: string;
-  daysUntilDue?: number;
+  daysUntilDue: number | null;
   /**
    * Sum of the discounts, in minor units
    */
@@ -2981,7 +3003,7 @@ export type IssuedInvoice = {
   /**
    * issuedAt + daysUntilDue
    */
-  dueAt?: string;
+  dueAt: string | null;
   /**
    * PENDING: waiting in the handoff queue for the organization's accounting system
    */
@@ -2989,14 +3011,14 @@ export type IssuedInvoice = {
   /**
    * Why a DRAFT is held: the usage journal it was measured from failed a consistency check
    */
-  holdReason?: "LEDGER_SEQUENCE_GAP" | "LEDGER_CHAIN_BREAK" | "LEDGER_COUNTER_MISMATCH";
+  holdReason: "LEDGER_SEQUENCE_GAP" | "LEDGER_CHAIN_BREAK" | "LEDGER_COUNTER_MISMATCH" | null;
   /**
    * The invoice's identifier: the key an accounting system deduplicates on
    */
   id: string;
   instanceName: string;
   instanceSlug: string;
-  issuedAt?: string;
+  issuedAt: string | null;
   /**
    * ACTIVATION bills a subscription's first period, RENEWAL the period that ended and the one that starts, FINAL what is left when a subscription ends
    */
@@ -3008,7 +3030,7 @@ export type IssuedInvoice = {
    * Set when the lines did not fit the event: read the invoice for all of them
    */
   linesTruncated?: boolean;
-  paidAt?: string;
+  paidAt: string | null;
   /**
    * Who collects it. NOOP: the organization itself, through the handoff queue
    */
@@ -3241,9 +3263,9 @@ export type LicensePriceEvent = {
    */
   billingModel: "FLAT_FEE" | "USAGE_BASED" | "OVERAGE";
   /**
-   * The period a FLAT_FEE price is charged for. Absent on metered prices, which bill on the subscription's period.
+   * The period a FLAT_FEE price is charged for. Null on metered prices, which bill on the subscription's period.
    */
-  billingPeriod?: "MONTHLY" | "QUARTERLY" | "SEMI_ANNUAL" | "ANNUAL";
+  billingPeriod: "MONTHLY" | "QUARTERLY" | "SEMI_ANNUAL" | "ANNUAL" | null;
   /**
    * ADVANCE bills the period that starts; ARREARS the period that ended. Metered prices are always ARREARS.
    */
@@ -3256,11 +3278,11 @@ export type LicensePriceEvent = {
   /**
    * When the price was deprecated
    */
-  deprecatedAt?: string;
+  deprecatedAt: string | null;
   /**
-   * The invoice line's label; a default is derived when absent.
+   * The invoice line's label; a default is derived when it is null.
    */
-  displayLabel?: string;
+  displayLabel: string | null;
   /**
    * Order among the version's prices
    */
@@ -3282,17 +3304,17 @@ export type LicensePriceEvent = {
    */
   licenseSlug: string;
   /**
-   * What a metered price measures. Absent on FLAT_FEE prices.
+   * What a metered price measures. Null on FLAT_FEE prices.
    */
-  metered?: PriceMeter;
+  metered: PriceMeter | never;
   /**
    * A DEPRECATED price keeps billing what is already pinned to it but is no longer offered.
    */
   status: "ACTIVE" | "DEPRECATED";
   /**
-   * unitAmountDecimal as an integer number of minor units, when it is one; absent otherwise.
+   * unitAmountDecimal as an integer number of minor units, when it is one; null otherwise.
    */
-  unitAmount?: number;
+  unitAmount: number | null;
   /**
    * Amount in the currency's minor units (cents for EUR): per period for FLAT_FEE, per sale unit for metered prices. Up to 12 decimal places.
    */
@@ -3306,9 +3328,9 @@ export type LicensePriceUpdatedEvent = {
    */
   billingModel: "FLAT_FEE" | "USAGE_BASED" | "OVERAGE";
   /**
-   * The period a FLAT_FEE price is charged for. Absent on metered prices, which bill on the subscription's period.
+   * The period a FLAT_FEE price is charged for. Null on metered prices, which bill on the subscription's period.
    */
-  billingPeriod?: "MONTHLY" | "QUARTERLY" | "SEMI_ANNUAL" | "ANNUAL";
+  billingPeriod: "MONTHLY" | "QUARTERLY" | "SEMI_ANNUAL" | "ANNUAL" | null;
   /**
    * ADVANCE bills the period that starts; ARREARS the period that ended. Metered prices are always ARREARS.
    */
@@ -3325,11 +3347,11 @@ export type LicensePriceUpdatedEvent = {
   /**
    * When the price was deprecated
    */
-  deprecatedAt?: string;
+  deprecatedAt: string | null;
   /**
-   * The invoice line's label; a default is derived when absent.
+   * The invoice line's label; a default is derived when it is null.
    */
-  displayLabel?: string;
+  displayLabel: string | null;
   /**
    * Order among the version's prices
    */
@@ -3351,17 +3373,17 @@ export type LicensePriceUpdatedEvent = {
    */
   licenseSlug: string;
   /**
-   * What a metered price measures. Absent on FLAT_FEE prices.
+   * What a metered price measures. Null on FLAT_FEE prices.
    */
-  metered?: PriceMeter;
+  metered: PriceMeter | never;
   /**
    * A DEPRECATED price keeps billing what is already pinned to it but is no longer offered.
    */
   status: "ACTIVE" | "DEPRECATED";
   /**
-   * unitAmountDecimal as an integer number of minor units, when it is one; absent otherwise.
+   * unitAmountDecimal as an integer number of minor units, when it is one; null otherwise.
    */
-  unitAmount?: number;
+  unitAmount: number | null;
   /**
    * Amount in the currency's minor units (cents for EUR): per period for FLAT_FEE, per sale unit for metered prices. Up to 12 decimal places.
    */
@@ -3512,7 +3534,7 @@ export type MismatchedInvoice = {
    * As it was when the invoice was composed
    */
   customerSlug: string;
-  daysUntilDue?: number;
+  daysUntilDue: number | null;
   /**
    * Sum of the discounts, in minor units
    */
@@ -3520,7 +3542,7 @@ export type MismatchedInvoice = {
   /**
    * issuedAt + daysUntilDue
    */
-  dueAt?: string;
+  dueAt: string | null;
   /**
    * PENDING: waiting in the handoff queue for the organization's accounting system
    */
@@ -3528,20 +3550,20 @@ export type MismatchedInvoice = {
   /**
    * Why a DRAFT is held: the usage journal it was measured from failed a consistency check
    */
-  holdReason?: "LEDGER_SEQUENCE_GAP" | "LEDGER_CHAIN_BREAK" | "LEDGER_COUNTER_MISMATCH";
+  holdReason: "LEDGER_SEQUENCE_GAP" | "LEDGER_CHAIN_BREAK" | "LEDGER_COUNTER_MISMATCH" | null;
   /**
    * The invoice's identifier: the key an accounting system deduplicates on
    */
   id: string;
   instanceName: string;
   instanceSlug: string;
-  issuedAt?: string;
+  issuedAt: string | null;
   /**
    * ACTIVATION bills a subscription's first period, RENEWAL the period that ended and the one that starts, FINAL what is left when a subscription ends
    */
   kind: "ACTIVATION" | "RENEWAL" | "FINAL";
   licenseSlug: string;
-  paidAt?: string;
+  paidAt: string | null;
   /**
    * Who collects it. NOOP: the organization itself, through the handoff queue
    */
@@ -3859,6 +3881,18 @@ export type OverageLimit = {
   rows: number;
 };
 
+export type PageAddon = {
+  /**
+   * Whether more rows exist beyond this page.
+   */
+  hasMore: boolean;
+  items: Array<Addon>;
+  /**
+   * Opaque cursor for the next page. Absent when hasMore is false.
+   */
+  nextCursor?: string;
+};
+
 export type PageAuditTrail = {
   /**
    * Whether more rows exist beyond this page.
@@ -4015,12 +4049,36 @@ export type PageMetadataField = {
   nextCursor?: string;
 };
 
+export type PagePublishableKey = {
+  /**
+   * Whether more rows exist beyond this page.
+   */
+  hasMore: boolean;
+  items: Array<PublishableKey>;
+  /**
+   * Opaque cursor for the next page. Absent when hasMore is false.
+   */
+  nextCursor?: string;
+};
+
 export type PageQueuedInvoice = {
   /**
    * Whether more rows exist beyond this page.
    */
   hasMore: boolean;
   items: Array<QueuedInvoice>;
+  /**
+   * Opaque cursor for the next page. Absent when hasMore is false.
+   */
+  nextCursor?: string;
+};
+
+export type PageRedemption = {
+  /**
+   * Whether more rows exist beyond this page.
+   */
+  hasMore: boolean;
+  items: Array<Redemption>;
   /**
    * Opaque cursor for the next page. Absent when hasMore is false.
    */
@@ -4075,6 +4133,18 @@ export type PageToken = {
   nextCursor?: string;
 };
 
+export type PageVoucher = {
+  /**
+   * Whether more rows exist beyond this page.
+   */
+  hasMore: boolean;
+  items: Array<Voucher>;
+  /**
+   * Opaque cursor for the next page. Absent when hasMore is false.
+   */
+  nextCursor?: string;
+};
+
 export type PaidInvoice = {
   /**
    * The boundary the invoice bills. With the kind, it identifies the invoice within its subscription
@@ -4088,7 +4158,7 @@ export type PaidInvoice = {
    * As it was when the invoice was composed
    */
   customerSlug: string;
-  daysUntilDue?: number;
+  daysUntilDue: number | null;
   /**
    * Sum of the discounts, in minor units
    */
@@ -4096,7 +4166,7 @@ export type PaidInvoice = {
   /**
    * issuedAt + daysUntilDue
    */
-  dueAt?: string;
+  dueAt: string | null;
   externalReference?: string;
   /**
    * PENDING: waiting in the handoff queue for the organization's accounting system
@@ -4105,14 +4175,14 @@ export type PaidInvoice = {
   /**
    * Why a DRAFT is held: the usage journal it was measured from failed a consistency check
    */
-  holdReason?: "LEDGER_SEQUENCE_GAP" | "LEDGER_CHAIN_BREAK" | "LEDGER_COUNTER_MISMATCH";
+  holdReason: "LEDGER_SEQUENCE_GAP" | "LEDGER_CHAIN_BREAK" | "LEDGER_COUNTER_MISMATCH" | null;
   /**
    * The invoice's identifier: the key an accounting system deduplicates on
    */
   id: string;
   instanceName: string;
   instanceSlug: string;
-  issuedAt?: string;
+  issuedAt: string | null;
   /**
    * ACTIVATION bills a subscription's first period, RENEWAL the period that ended and the one that starts, FINAL what is left when a subscription ends
    */
@@ -4122,7 +4192,7 @@ export type PaidInvoice = {
    * The note given when it was marked paid, kept only here
    */
   note?: string;
-  paidAt?: string;
+  paidAt: string | null;
   /**
    * Who collects it. NOOP: the organization itself, through the handoff queue
    */
@@ -4194,7 +4264,7 @@ export type PaymentFailedInvoice = {
    * As it was when the invoice was composed
    */
   customerSlug: string;
-  daysUntilDue?: number;
+  daysUntilDue: number | null;
   /**
    * Sum of the discounts, in minor units
    */
@@ -4202,7 +4272,7 @@ export type PaymentFailedInvoice = {
   /**
    * issuedAt + daysUntilDue
    */
-  dueAt?: string;
+  dueAt: string | null;
   /**
    * The provider's decline or failure code, such as card_declined, expired_card, authentication_required or no_payment_method
    */
@@ -4214,20 +4284,20 @@ export type PaymentFailedInvoice = {
   /**
    * Why a DRAFT is held: the usage journal it was measured from failed a consistency check
    */
-  holdReason?: "LEDGER_SEQUENCE_GAP" | "LEDGER_CHAIN_BREAK" | "LEDGER_COUNTER_MISMATCH";
+  holdReason: "LEDGER_SEQUENCE_GAP" | "LEDGER_CHAIN_BREAK" | "LEDGER_COUNTER_MISMATCH" | null;
   /**
    * The invoice's identifier: the key an accounting system deduplicates on
    */
   id: string;
   instanceName: string;
   instanceSlug: string;
-  issuedAt?: string;
+  issuedAt: string | null;
   /**
    * ACTIVATION bills a subscription's first period, RENEWAL the period that ended and the one that starts, FINAL what is left when a subscription ends
    */
   kind: "ACTIVATION" | "RENEWAL" | "FINAL";
   licenseSlug: string;
-  paidAt?: string;
+  paidAt: string | null;
   /**
    * Who collects it. NOOP: the organization itself, through the handoff queue
    */
@@ -4425,7 +4495,7 @@ export type PortalEntitlement = {
   /**
    * What the licence, the add-ons and the boosts each contribute
    */
-  provenance: Provenance;
+  provenance: Provenance | never;
   slug: string;
   /**
    * license: the licence grants it; addon: only add-ons do
@@ -4446,7 +4516,7 @@ export type PortalInstanceSummary = {
   /**
    * Its subscription's status; null when it was never subscribed
    */
-  billingStatus: "TRIAL" | "ACTIVE" | "PAST_DUE" | "CANCELED";
+  billingStatus: "TRIAL" | "ACTIVE" | "PAST_DUE" | "CANCELED" | null;
   licenseSlug: string;
   name: string;
   slug: string;
@@ -4551,9 +4621,9 @@ export type Price = {
    */
   billingModel: "FLAT_FEE" | "USAGE_BASED" | "OVERAGE";
   /**
-   * The period a FLAT_FEE price is charged for. Absent on metered prices, which bill on the subscription's period.
+   * The period a FLAT_FEE price is charged for. Null on metered prices, which bill on the subscription's period.
    */
-  billingPeriod?: "MONTHLY" | "QUARTERLY" | "SEMI_ANNUAL" | "ANNUAL";
+  billingPeriod: "MONTHLY" | "QUARTERLY" | "SEMI_ANNUAL" | "ANNUAL" | null;
   /**
    * ADVANCE bills the period that starts; ARREARS the period that ended. Metered prices are always ARREARS.
    */
@@ -4566,11 +4636,11 @@ export type Price = {
   /**
    * When the price was deprecated
    */
-  deprecatedAt?: string;
+  deprecatedAt: string | null;
   /**
-   * The invoice line's label; a default is derived when absent.
+   * The invoice line's label; a default is derived when it is null.
    */
-  displayLabel?: string;
+  displayLabel: string | null;
   /**
    * Order among the version's prices
    */
@@ -4584,17 +4654,17 @@ export type Price = {
    */
   isDefault: boolean;
   /**
-   * What a metered price measures. Absent on FLAT_FEE prices.
+   * What a metered price measures. Null on FLAT_FEE prices.
    */
-  metered?: PriceMeter;
+  metered: PriceMeter | never;
   /**
    * A DEPRECATED price keeps billing what is already pinned to it but is no longer offered.
    */
   status: "ACTIVE" | "DEPRECATED";
   /**
-   * unitAmountDecimal as an integer number of minor units, when it is one; absent otherwise.
+   * unitAmountDecimal as an integer number of minor units, when it is one; null otherwise.
    */
-  unitAmount?: number;
+  unitAmount: number | null;
   /**
    * Amount in the currency's minor units (cents for EUR): per period for FLAT_FEE, per sale unit for metered prices. Up to 12 decimal places.
    */
@@ -4662,11 +4732,11 @@ export type Provenance = {
   /**
    * The licence's grant; null when only add-ons grant the entitlement
    */
-  license: ProvenanceLicense;
+  license: ProvenanceLicense | never;
   /**
    * How a number was composed; null for BOOLEAN and CONFIG, and when no add-on or boost changes it
    */
-  number: ProvenanceNumber;
+  number: ProvenanceNumber | never;
 };
 
 export type ProvenanceAddon = {
@@ -5094,7 +5164,7 @@ export type PushFailedInvoice = {
    * As it was when the invoice was composed
    */
   customerSlug: string;
-  daysUntilDue?: number;
+  daysUntilDue: number | null;
   /**
    * Sum of the discounts, in minor units
    */
@@ -5102,7 +5172,7 @@ export type PushFailedInvoice = {
   /**
    * issuedAt + daysUntilDue
    */
-  dueAt?: string;
+  dueAt: string | null;
   /**
    * PENDING: waiting in the handoff queue for the organization's accounting system
    */
@@ -5110,14 +5180,14 @@ export type PushFailedInvoice = {
   /**
    * Why a DRAFT is held: the usage journal it was measured from failed a consistency check
    */
-  holdReason?: "LEDGER_SEQUENCE_GAP" | "LEDGER_CHAIN_BREAK" | "LEDGER_COUNTER_MISMATCH";
+  holdReason: "LEDGER_SEQUENCE_GAP" | "LEDGER_CHAIN_BREAK" | "LEDGER_COUNTER_MISMATCH" | null;
   /**
    * The invoice's identifier: the key an accounting system deduplicates on
    */
   id: string;
   instanceName: string;
   instanceSlug: string;
-  issuedAt?: string;
+  issuedAt: string | null;
   /**
    * ACTIVATION bills a subscription's first period, RENEWAL the period that ended and the one that starts, FINAL what is left when a subscription ends
    */
@@ -5127,7 +5197,7 @@ export type PushFailedInvoice = {
    */
   lastPushError: string;
   licenseSlug: string;
-  paidAt?: string;
+  paidAt: string | null;
   /**
    * Who collects it. NOOP: the organization itself, through the handoff queue
    */
@@ -5182,7 +5252,7 @@ export type PushedInvoice = {
    * As it was when the invoice was composed
    */
   customerSlug: string;
-  daysUntilDue?: number;
+  daysUntilDue: number | null;
   /**
    * Sum of the discounts, in minor units
    */
@@ -5190,7 +5260,7 @@ export type PushedInvoice = {
   /**
    * issuedAt + daysUntilDue
    */
-  dueAt?: string;
+  dueAt: string | null;
   externalInvoiceId: string;
   /**
    * PENDING: waiting in the handoff queue for the organization's accounting system
@@ -5199,20 +5269,20 @@ export type PushedInvoice = {
   /**
    * Why a DRAFT is held: the usage journal it was measured from failed a consistency check
    */
-  holdReason?: "LEDGER_SEQUENCE_GAP" | "LEDGER_CHAIN_BREAK" | "LEDGER_COUNTER_MISMATCH";
+  holdReason: "LEDGER_SEQUENCE_GAP" | "LEDGER_CHAIN_BREAK" | "LEDGER_COUNTER_MISMATCH" | null;
   /**
    * The invoice's identifier: the key an accounting system deduplicates on
    */
   id: string;
   instanceName: string;
   instanceSlug: string;
-  issuedAt?: string;
+  issuedAt: string | null;
   /**
    * ACTIVATION bills a subscription's first period, RENEWAL the period that ended and the one that starts, FINAL what is left when a subscription ends
    */
   kind: "ACTIVATION" | "RENEWAL" | "FINAL";
   licenseSlug: string;
-  paidAt?: string;
+  paidAt: string | null;
   providerInvoiceNumber?: string;
   /**
    * Who collects it. NOOP: the organization itself, through the handoff queue
@@ -5262,7 +5332,7 @@ export type QueuedInvoice = {
    * As it was when the invoice was composed
    */
   customerSlug: string;
-  daysUntilDue?: number;
+  daysUntilDue: number | null;
   /**
    * Sum of the discounts, in minor units
    */
@@ -5270,7 +5340,7 @@ export type QueuedInvoice = {
   /**
    * issuedAt + daysUntilDue
    */
-  dueAt?: string;
+  dueAt: string | null;
   handoff: InvoiceHandoff;
   /**
    * PENDING: waiting in the handoff queue for the organization's accounting system
@@ -5279,20 +5349,20 @@ export type QueuedInvoice = {
   /**
    * Why a DRAFT is held: the usage journal it was measured from failed a consistency check
    */
-  holdReason?: "LEDGER_SEQUENCE_GAP" | "LEDGER_CHAIN_BREAK" | "LEDGER_COUNTER_MISMATCH";
+  holdReason: "LEDGER_SEQUENCE_GAP" | "LEDGER_CHAIN_BREAK" | "LEDGER_COUNTER_MISMATCH" | null;
   /**
    * The invoice's identifier: the key an accounting system deduplicates on
    */
   id: string;
   instanceName: string;
   instanceSlug: string;
-  issuedAt?: string;
+  issuedAt: string | null;
   /**
    * ACTIVATION bills a subscription's first period, RENEWAL the period that ended and the one that starts, FINAL what is left when a subscription ends
    */
   kind: "ACTIVATION" | "RENEWAL" | "FINAL";
   licenseSlug: string;
-  paidAt?: string;
+  paidAt: string | null;
   /**
    * Who collects it. NOOP: the organization itself, through the handoff queue
    */
@@ -5345,6 +5415,10 @@ export type Reconciliation = {
    */
   discounts: Array<DiscountDifference>;
   /**
+   * A SEND_INVOICE invoice the provider gives another due date than Kaiten's dueAt
+   */
+  dueDate?: DueDateDifference;
+  /**
    * Discounts the provider applied that Kaiten did not create, such as a coupon added in its dashboard
    */
   extraDiscounts: Array<ExtraDiscount>;
@@ -5353,7 +5427,7 @@ export type Reconciliation = {
    */
   extraInProvider: Array<string>;
   /**
-   * Whether the provider's subtotal less its discounts was compared, its tax being included in the amounts
+   * Whether the provider's subtotal was compared, its tax being included in the amounts
    */
   inclusiveTax: boolean;
   lines: Array<LineDifference>;
@@ -5374,21 +5448,21 @@ export type Redemption = {
    */
   applicationsCount: number;
   /**
-   * 1 for ONE_TIME, durationInPeriods for REPEATING; absent for FOREVER
+   * 1 for ONE_TIME, durationInPeriods for REPEATING; null for FOREVER
    */
-  applicationsMax?: number;
+  applicationsMax: number | null;
   codeHint: string;
   /**
-   * When a boost stops applying; absent for a PRICE voucher, counted in invoices, and for FOREVER
+   * When a boost stops applying; null for a PRICE voucher, counted in invoices, and for FOREVER
    */
-  effectiveExpiresAt?: string;
+  effectiveExpiresAt: string | null;
   effectiveStartsAt: string;
-  expiredAt?: string;
+  expiredAt: string | null;
   readonly id: string;
   instanceSlug: string;
   redeemedAt: string;
-  revokedAt?: string;
-  revokedReason?: string;
+  revokedAt: string | null;
+  revokedReason: string | null;
   status: "ACTIVE" | "EXPIRED" | "REVOKED";
   voucherId: string;
   voucherName: string;
@@ -5454,7 +5528,7 @@ export type ReleasedInvoice = {
    * As it was when the invoice was composed
    */
   customerSlug: string;
-  daysUntilDue?: number;
+  daysUntilDue: number | null;
   /**
    * Sum of the discounts, in minor units
    */
@@ -5462,7 +5536,7 @@ export type ReleasedInvoice = {
   /**
    * issuedAt + daysUntilDue
    */
-  dueAt?: string;
+  dueAt: string | null;
   /**
    * PENDING: waiting in the handoff queue for the organization's accounting system
    */
@@ -5474,20 +5548,20 @@ export type ReleasedInvoice = {
   /**
    * Why a DRAFT is held: the usage journal it was measured from failed a consistency check
    */
-  holdReason?: "LEDGER_SEQUENCE_GAP" | "LEDGER_CHAIN_BREAK" | "LEDGER_COUNTER_MISMATCH";
+  holdReason: "LEDGER_SEQUENCE_GAP" | "LEDGER_CHAIN_BREAK" | "LEDGER_COUNTER_MISMATCH" | null;
   /**
    * The invoice's identifier: the key an accounting system deduplicates on
    */
   id: string;
   instanceName: string;
   instanceSlug: string;
-  issuedAt?: string;
+  issuedAt: string | null;
   /**
    * ACTIVATION bills a subscription's first period, RENEWAL the period that ended and the one that starts, FINAL what is left when a subscription ends
    */
   kind: "ACTIVATION" | "RENEWAL" | "FINAL";
   licenseSlug: string;
-  paidAt?: string;
+  paidAt: string | null;
   /**
    * Who collects it. NOOP: the organization itself, through the handoff queue
    */
@@ -5566,7 +5640,7 @@ export type RevocationReason = {
   /**
    * 1 to 500 characters; .ReasonRequired otherwise
    */
-  reason?: string;
+  reason: string;
 };
 
 export type RolloutDate = {
@@ -5826,9 +5900,9 @@ export type SessionLine = {
   serviceTo: string;
   type: "BASE" | "ADDON" | "USAGE" | "OVERAGE" | "DISCOUNT";
   /**
-   * Minor units; empty on a DISCOUNT line
+   * Minor units; null on a DISCOUNT line
    */
-  unitAmountDecimal: string;
+  unitAmountDecimal: string | null;
 };
 
 export type SessionPortal = {
@@ -5845,7 +5919,7 @@ export type SessionPortal = {
   /**
    * The session's instance; null for a session bound to the customer only
    */
-  instance: PortalInstance;
+  instance: PortalInstance | never;
   /**
    * The customer's instances, for a session bound to the customer only; empty otherwise
    */
@@ -5853,15 +5927,15 @@ export type SessionPortal = {
   /**
    * The payment method the customer's invoices are charged to; null when none is saved
    */
-  paymentMethod: PortalPaymentMethod;
+  paymentMethod: PortalPaymentMethod | never;
   /**
    * The instance's subscription; null when it has none, or the session is bound to no instance
    */
-  subscription: SessionSubscription;
+  subscription: SessionSubscription | never;
   /**
    * What the next boundary will bill, on usage so far; null without a live subscription
    */
-  upcomingInvoice: PortalUpcomingInvoice;
+  upcomingInvoice: PortalUpcomingInvoice | never;
   /**
    * When this snapshot was read
    */
@@ -5901,7 +5975,7 @@ export type SessionSubscription = {
   /**
    * A plan change the vendor scheduled for the next boundary
    */
-  scheduledChange: SessionScheduledChange;
+  scheduledChange: SessionScheduledChange | never;
   status: "TRIAL" | "ACTIVE" | "PAST_DUE" | "CANCELED";
   trialEndsAt: string | null;
 };
@@ -5958,17 +6032,17 @@ export type StartedSubscription = {
   basePrice: Price;
   billingPeriod: "MONTHLY" | "QUARTERLY" | "SEMI_ANNUAL" | "ANNUAL";
   cancelAtPeriodEnd: boolean;
-  cancelRequestedAt?: string;
-  canceledAt?: string;
-  cancellationReason?: string;
+  cancelRequestedAt: string | null;
+  canceledAt: string | null;
+  cancellationReason: string | null;
   /**
    * Effective: the subscription's own, else the organization's default
    */
   collectionMethod: "SEND_INVOICE" | "CHARGE_AUTOMATICALLY";
   /**
-   * The subscription's own collection method; absent when it takes the organization's
+   * The subscription's own collection method; null when it takes the organization's
    */
-  collectionMethodOverride?: string;
+  collectionMethodOverride: string | null;
   createdAt: string;
   currency: string;
   /**
@@ -5983,16 +6057,16 @@ export type StartedSubscription = {
    */
   daysUntilDue: number;
   /**
-   * The subscription's own payment terms; absent when it takes the organization's
+   * The subscription's own payment terms; null when it takes the organization's
    */
-  daysUntilDueOverride?: number;
+  daysUntilDueOverride: number | null;
   id: string;
   instanceName: string;
   /**
    * As it was at the subscription's last write
    */
   instanceSlug: string;
-  pastDueSince?: string;
+  pastDueSince: string | null;
   /**
    * Who collects its invoices. NOOP: the organization itself, through the handoff queue
    */
@@ -6000,7 +6074,7 @@ export type StartedSubscription = {
   /**
    * A plan change waiting for the next boundary
    */
-  scheduledChange?: ScheduledChange;
+  scheduledChange: ScheduledChange | never;
   /**
    * When billing started: usage before it is never billed
    */
@@ -6009,7 +6083,7 @@ export type StartedSubscription = {
   /**
    * When the trial ends, or ended: usage before it is never billed
    */
-  trialEndsAt?: string;
+  trialEndsAt: string | null;
   updatedAt: string;
 };
 
@@ -6249,7 +6323,7 @@ export type TotalsDifference = {
   kaitenTotal: number;
   providerSubtotal?: number;
   /**
-   * With inclusive tax: the provider's discounts, taken off its subtotal
+   * With inclusive tax: the provider's discounts, already taken off its subtotal
    */
   providerTotalDiscount?: number;
   providerTotalExcludingTax: number;
@@ -6268,7 +6342,7 @@ export type UncollectibleInvoice = {
    * As it was when the invoice was composed
    */
   customerSlug: string;
-  daysUntilDue?: number;
+  daysUntilDue: number | null;
   /**
    * Sum of the discounts, in minor units
    */
@@ -6276,7 +6350,7 @@ export type UncollectibleInvoice = {
   /**
    * issuedAt + daysUntilDue
    */
-  dueAt?: string;
+  dueAt: string | null;
   /**
    * PENDING: waiting in the handoff queue for the organization's accounting system
    */
@@ -6284,20 +6358,20 @@ export type UncollectibleInvoice = {
   /**
    * Why a DRAFT is held: the usage journal it was measured from failed a consistency check
    */
-  holdReason?: "LEDGER_SEQUENCE_GAP" | "LEDGER_CHAIN_BREAK" | "LEDGER_COUNTER_MISMATCH";
+  holdReason: "LEDGER_SEQUENCE_GAP" | "LEDGER_CHAIN_BREAK" | "LEDGER_COUNTER_MISMATCH" | null;
   /**
    * The invoice's identifier: the key an accounting system deduplicates on
    */
   id: string;
   instanceName: string;
   instanceSlug: string;
-  issuedAt?: string;
+  issuedAt: string | null;
   /**
    * ACTIVATION bills a subscription's first period, RENEWAL the period that ended and the one that starts, FINAL what is left when a subscription ends
    */
   kind: "ACTIVATION" | "RENEWAL" | "FINAL";
   licenseSlug: string;
-  paidAt?: string;
+  paidAt: string | null;
   /**
    * Who collects it. NOOP: the organization itself, through the handoff queue
    */
@@ -6487,7 +6561,7 @@ export type VoidedInvoice = {
    * As it was when the invoice was composed
    */
   customerSlug: string;
-  daysUntilDue?: number;
+  daysUntilDue: number | null;
   /**
    * Sum of the discounts, in minor units
    */
@@ -6495,7 +6569,7 @@ export type VoidedInvoice = {
   /**
    * issuedAt + daysUntilDue
    */
-  dueAt?: string;
+  dueAt: string | null;
   /**
    * PENDING: waiting in the handoff queue for the organization's accounting system
    */
@@ -6503,20 +6577,20 @@ export type VoidedInvoice = {
   /**
    * Why a DRAFT is held: the usage journal it was measured from failed a consistency check
    */
-  holdReason?: "LEDGER_SEQUENCE_GAP" | "LEDGER_CHAIN_BREAK" | "LEDGER_COUNTER_MISMATCH";
+  holdReason: "LEDGER_SEQUENCE_GAP" | "LEDGER_CHAIN_BREAK" | "LEDGER_COUNTER_MISMATCH" | null;
   /**
    * The invoice's identifier: the key an accounting system deduplicates on
    */
   id: string;
   instanceName: string;
   instanceSlug: string;
-  issuedAt?: string;
+  issuedAt: string | null;
   /**
    * ACTIVATION bills a subscription's first period, RENEWAL the period that ended and the one that starts, FINAL what is left when a subscription ends
    */
   kind: "ACTIVATION" | "RENEWAL" | "FINAL";
   licenseSlug: string;
-  paidAt?: string;
+  paidAt: string | null;
   /**
    * Who collects it. NOOP: the organization itself, through the handoff queue
    */
@@ -6768,9 +6842,9 @@ export type AddonPriceUpdateWritable = {
    */
   billingModel: "FLAT_FEE" | "USAGE_BASED" | "OVERAGE";
   /**
-   * The period a FLAT_FEE price is charged for. Absent on metered prices, which bill on the subscription's period.
+   * The period a FLAT_FEE price is charged for. Null on metered prices, which bill on the subscription's period.
    */
-  billingPeriod?: "MONTHLY" | "QUARTERLY" | "SEMI_ANNUAL" | "ANNUAL";
+  billingPeriod: "MONTHLY" | "QUARTERLY" | "SEMI_ANNUAL" | "ANNUAL" | null;
   /**
    * ADVANCE bills the period that starts; ARREARS the period that ended. Metered prices are always ARREARS.
    */
@@ -6782,11 +6856,11 @@ export type AddonPriceUpdateWritable = {
   /**
    * When the price was deprecated
    */
-  deprecatedAt?: string;
+  deprecatedAt: string | null;
   /**
-   * The invoice line's label; a default is derived when absent.
+   * The invoice line's label; a default is derived when it is null.
    */
-  displayLabel?: string;
+  displayLabel: string | null;
   /**
    * Order among the version's prices
    */
@@ -6796,17 +6870,17 @@ export type AddonPriceUpdateWritable = {
    */
   isDefault: boolean;
   /**
-   * What a metered price measures. Absent on FLAT_FEE prices.
+   * What a metered price measures. Null on FLAT_FEE prices.
    */
-  metered?: PriceMeter;
+  metered: PriceMeter | never;
   /**
    * A DEPRECATED price keeps billing what is already pinned to it but is no longer offered.
    */
   status: "ACTIVE" | "DEPRECATED";
   /**
-   * unitAmountDecimal as an integer number of minor units, when it is one; absent otherwise.
+   * unitAmountDecimal as an integer number of minor units, when it is one; null otherwise.
    */
-  unitAmount?: number;
+  unitAmount: number | null;
   /**
    * Amount in the currency's minor units (cents for EUR): per period for FLAT_FEE, per sale unit for metered prices. Up to 12 decimal places.
    */
@@ -6859,17 +6933,17 @@ export type BillingStartedWritable = {
   basePrice: PriceWritable;
   billingPeriod: "MONTHLY" | "QUARTERLY" | "SEMI_ANNUAL" | "ANNUAL";
   cancelAtPeriodEnd: boolean;
-  cancelRequestedAt?: string;
-  canceledAt?: string;
-  cancellationReason?: string;
+  cancelRequestedAt: string | null;
+  canceledAt: string | null;
+  cancellationReason: string | null;
   /**
    * Effective: the subscription's own, else the organization's default
    */
   collectionMethod: "SEND_INVOICE" | "CHARGE_AUTOMATICALLY";
   /**
-   * The subscription's own collection method; absent when it takes the organization's
+   * The subscription's own collection method; null when it takes the organization's
    */
-  collectionMethodOverride?: string;
+  collectionMethodOverride: string | null;
   createdAt: string;
   currency: string;
   /**
@@ -6884,16 +6958,16 @@ export type BillingStartedWritable = {
    */
   daysUntilDue: number;
   /**
-   * The subscription's own payment terms; absent when it takes the organization's
+   * The subscription's own payment terms; null when it takes the organization's
    */
-  daysUntilDueOverride?: number;
+  daysUntilDueOverride: number | null;
   id: string;
   instanceName: string;
   /**
    * As it was at the subscription's last write
    */
   instanceSlug: string;
-  pastDueSince?: string;
+  pastDueSince: string | null;
   /**
    * Who collects its invoices. NOOP: the organization itself, through the handoff queue
    */
@@ -6905,7 +6979,7 @@ export type BillingStartedWritable = {
   /**
    * A plan change waiting for the next boundary
    */
-  scheduledChange?: ScheduledChangeWritable;
+  scheduledChange: ScheduledChangeWritable | never;
   /**
    * When billing started: usage before it is never billed
    */
@@ -6914,7 +6988,7 @@ export type BillingStartedWritable = {
   /**
    * When the trial ends, or ended: usage before it is never billed
    */
-  trialEndsAt?: string;
+  trialEndsAt: string | null;
   updatedAt: string;
 };
 
@@ -6929,17 +7003,17 @@ export type CanceledSubscriptionWritable = {
   basePrice: PriceWritable;
   billingPeriod: "MONTHLY" | "QUARTERLY" | "SEMI_ANNUAL" | "ANNUAL";
   cancelAtPeriodEnd: boolean;
-  cancelRequestedAt?: string;
-  canceledAt?: string;
-  cancellationReason?: string;
+  cancelRequestedAt: string | null;
+  canceledAt: string | null;
+  cancellationReason: string | null;
   /**
    * Effective: the subscription's own, else the organization's default
    */
   collectionMethod: "SEND_INVOICE" | "CHARGE_AUTOMATICALLY";
   /**
-   * The subscription's own collection method; absent when it takes the organization's
+   * The subscription's own collection method; null when it takes the organization's
    */
-  collectionMethodOverride?: string;
+  collectionMethodOverride: string | null;
   createdAt: string;
   currency: string;
   /**
@@ -6954,9 +7028,9 @@ export type CanceledSubscriptionWritable = {
    */
   daysUntilDue: number;
   /**
-   * The subscription's own payment terms; absent when it takes the organization's
+   * The subscription's own payment terms; null when it takes the organization's
    */
-  daysUntilDueOverride?: number;
+  daysUntilDueOverride: number | null;
   /**
    * The FINAL invoice of an immediate cancellation
    */
@@ -6967,7 +7041,7 @@ export type CanceledSubscriptionWritable = {
    * As it was at the subscription's last write
    */
   instanceSlug: string;
-  pastDueSince?: string;
+  pastDueSince: string | null;
   /**
    * Who collects its invoices. NOOP: the organization itself, through the handoff queue
    */
@@ -6975,7 +7049,7 @@ export type CanceledSubscriptionWritable = {
   /**
    * A plan change waiting for the next boundary
    */
-  scheduledChange?: ScheduledChangeWritable;
+  scheduledChange: ScheduledChangeWritable | never;
   /**
    * When billing started: usage before it is never billed
    */
@@ -6984,7 +7058,7 @@ export type CanceledSubscriptionWritable = {
   /**
    * When the trial ends, or ended: usage before it is never billed
    */
-  trialEndsAt?: string;
+  trialEndsAt: string | null;
   updatedAt: string;
 };
 
@@ -6999,17 +7073,17 @@ export type CancellationWritable = {
   basePrice: PriceWritable;
   billingPeriod: "MONTHLY" | "QUARTERLY" | "SEMI_ANNUAL" | "ANNUAL";
   cancelAtPeriodEnd: boolean;
-  cancelRequestedAt?: string;
-  canceledAt?: string;
-  cancellationReason?: string;
+  cancelRequestedAt: string | null;
+  canceledAt: string | null;
+  cancellationReason: string | null;
   /**
    * Effective: the subscription's own, else the organization's default
    */
   collectionMethod: "SEND_INVOICE" | "CHARGE_AUTOMATICALLY";
   /**
-   * The subscription's own collection method; absent when it takes the organization's
+   * The subscription's own collection method; null when it takes the organization's
    */
-  collectionMethodOverride?: string;
+  collectionMethodOverride: string | null;
   createdAt: string;
   currency: string;
   /**
@@ -7024,13 +7098,13 @@ export type CancellationWritable = {
    */
   daysUntilDue: number;
   /**
-   * The subscription's own payment terms; absent when it takes the organization's
+   * The subscription's own payment terms; null when it takes the organization's
    */
-  daysUntilDueOverride?: number;
+  daysUntilDueOverride: number | null;
   /**
-   * The FINAL invoice, when the cancellation issued one
+   * The FINAL invoice; null when the cancellation issued none (a trial)
    */
-  finalInvoiceId?: string;
+  finalInvoiceId: string | null;
   id: string;
   instanceName: string;
   /**
@@ -7041,7 +7115,7 @@ export type CancellationWritable = {
    * How it was canceled; a trial is canceled at once in either mode
    */
   mode: "AT_PERIOD_END" | "IMMEDIATE";
-  pastDueSince?: string;
+  pastDueSince: string | null;
   /**
    * Who collects its invoices. NOOP: the organization itself, through the handoff queue
    */
@@ -7049,7 +7123,7 @@ export type CancellationWritable = {
   /**
    * A plan change waiting for the next boundary
    */
-  scheduledChange?: ScheduledChangeWritable;
+  scheduledChange: ScheduledChangeWritable | never;
   /**
    * When billing started: usage before it is never billed
    */
@@ -7058,7 +7132,7 @@ export type CancellationWritable = {
   /**
    * When the trial ends, or ended: usage before it is never billed
    */
-  trialEndsAt?: string;
+  trialEndsAt: string | null;
   updatedAt: string;
 };
 
@@ -7073,17 +7147,17 @@ export type CancellationChangeWritable = {
   basePrice: PriceWritable;
   billingPeriod: "MONTHLY" | "QUARTERLY" | "SEMI_ANNUAL" | "ANNUAL";
   cancelAtPeriodEnd: boolean;
-  cancelRequestedAt?: string;
-  canceledAt?: string;
-  cancellationReason?: string;
+  cancelRequestedAt: string | null;
+  canceledAt: string | null;
+  cancellationReason: string | null;
   /**
    * Effective: the subscription's own, else the organization's default
    */
   collectionMethod: "SEND_INVOICE" | "CHARGE_AUTOMATICALLY";
   /**
-   * The subscription's own collection method; absent when it takes the organization's
+   * The subscription's own collection method; null when it takes the organization's
    */
-  collectionMethodOverride?: string;
+  collectionMethodOverride: string | null;
   createdAt: string;
   currency: string;
   /**
@@ -7098,9 +7172,9 @@ export type CancellationChangeWritable = {
    */
   daysUntilDue: number;
   /**
-   * The subscription's own payment terms; absent when it takes the organization's
+   * The subscription's own payment terms; null when it takes the organization's
    */
-  daysUntilDueOverride?: number;
+  daysUntilDueOverride: number | null;
   /**
    * The boundary the cancellation takes effect at
    */
@@ -7111,7 +7185,7 @@ export type CancellationChangeWritable = {
    * As it was at the subscription's last write
    */
   instanceSlug: string;
-  pastDueSince?: string;
+  pastDueSince: string | null;
   /**
    * Who collects its invoices. NOOP: the organization itself, through the handoff queue
    */
@@ -7119,7 +7193,7 @@ export type CancellationChangeWritable = {
   /**
    * A plan change waiting for the next boundary
    */
-  scheduledChange?: ScheduledChangeWritable;
+  scheduledChange: ScheduledChangeWritable | never;
   /**
    * When billing started: usage before it is never billed
    */
@@ -7128,7 +7202,7 @@ export type CancellationChangeWritable = {
   /**
    * When the trial ends, or ended: usage before it is never billed
    */
-  trialEndsAt?: string;
+  trialEndsAt: string | null;
   updatedAt: string;
 };
 
@@ -7453,7 +7527,7 @@ export type EntitlementUsageWritable = {
    */
   licenseSlug: string;
   /**
-   * License grant this usage is measured against, discriminated by the 'type' field. Null when the license grants no value; -1 means unlimited for a NUMBER entitlement.
+   * The effective value this usage is measured against (the licence's grant, with the instance's add-ons and boosts applied; source and provenance say which), discriminated by the 'type' field. Absent when nothing grants the entitlement a value; -1 means unlimited for a NUMBER entitlement.
    */
   limit?:
     | ({
@@ -7621,17 +7695,17 @@ export type InstanceBillingWritable = {
   basePrice: PriceWritable;
   billingPeriod: "MONTHLY" | "QUARTERLY" | "SEMI_ANNUAL" | "ANNUAL";
   cancelAtPeriodEnd: boolean;
-  cancelRequestedAt?: string;
-  canceledAt?: string;
-  cancellationReason?: string;
+  cancelRequestedAt: string | null;
+  canceledAt: string | null;
+  cancellationReason: string | null;
   /**
    * Effective: the subscription's own, else the organization's default
    */
   collectionMethod: "SEND_INVOICE" | "CHARGE_AUTOMATICALLY";
   /**
-   * The subscription's own collection method; absent when it takes the organization's
+   * The subscription's own collection method; null when it takes the organization's
    */
-  collectionMethodOverride?: string;
+  collectionMethodOverride: string | null;
   createdAt: string;
   currency: string;
   /**
@@ -7646,16 +7720,16 @@ export type InstanceBillingWritable = {
    */
   daysUntilDue: number;
   /**
-   * The subscription's own payment terms; absent when it takes the organization's
+   * The subscription's own payment terms; null when it takes the organization's
    */
-  daysUntilDueOverride?: number;
+  daysUntilDueOverride: number | null;
   id: string;
   instanceName: string;
   /**
    * As it was at the subscription's last write
    */
   instanceSlug: string;
-  pastDueSince?: string;
+  pastDueSince: string | null;
   /**
    * Who collects its invoices. NOOP: the organization itself, through the handoff queue
    */
@@ -7663,7 +7737,7 @@ export type InstanceBillingWritable = {
   /**
    * A plan change waiting for the next boundary
    */
-  scheduledChange?: ScheduledChangeWritable;
+  scheduledChange: ScheduledChangeWritable | never;
   /**
    * When billing started: usage before it is never billed
    */
@@ -7672,7 +7746,7 @@ export type InstanceBillingWritable = {
   /**
    * When the trial ends, or ended: usage before it is never billed
    */
-  trialEndsAt?: string;
+  trialEndsAt: string | null;
   updatedAt: string;
 };
 
@@ -7745,7 +7819,7 @@ export type InvoiceWritable = {
   /**
    * The address the invoice is for, as it was when composed. Personal data: it appears in no event
    */
-  billingEmail?: string;
+  billingEmail: string | null;
   /**
    * The boundary the invoice bills. With the kind, it identifies the invoice within its subscription
    */
@@ -7758,7 +7832,7 @@ export type InvoiceWritable = {
    * As it was when the invoice was composed
    */
   customerSlug: string;
-  daysUntilDue?: number;
+  daysUntilDue: number | null;
   /**
    * Sum of the discounts, in minor units
    */
@@ -7766,7 +7840,7 @@ export type InvoiceWritable = {
   /**
    * issuedAt + daysUntilDue
    */
-  dueAt?: string;
+  dueAt: string | null;
   handoff: InvoiceHandoff;
   /**
    * PENDING: waiting in the handoff queue for the organization's accounting system
@@ -7775,22 +7849,22 @@ export type InvoiceWritable = {
   /**
    * When the invoice was held and released
    */
-  hold?: HoldRecord;
+  hold: HoldRecord | never;
   /**
    * Every meter whose journal failed a check
    */
-  holdDetail?: HoldDetail;
+  holdDetail: HoldDetail | never;
   /**
    * Why a DRAFT is held: the usage journal it was measured from failed a consistency check
    */
-  holdReason?: "LEDGER_SEQUENCE_GAP" | "LEDGER_CHAIN_BREAK" | "LEDGER_COUNTER_MISMATCH";
+  holdReason: "LEDGER_SEQUENCE_GAP" | "LEDGER_CHAIN_BREAK" | "LEDGER_COUNTER_MISMATCH" | null;
   /**
    * The invoice's identifier: the key an accounting system deduplicates on
    */
   id: string;
   instanceName: string;
   instanceSlug: string;
-  issuedAt?: string;
+  issuedAt: string | null;
   /**
    * ACTIVATION bills a subscription's first period, RENEWAL the period that ended and the one that starts, FINAL what is left when a subscription ends
    */
@@ -7798,11 +7872,11 @@ export type InvoiceWritable = {
   licenseId: string;
   licenseSlug: string;
   lines: Array<InvoiceLineWritable>;
-  paidAt?: string;
+  paidAt: string | null;
   /**
-   * The invoice in its payment provider; absent for NOOP
+   * The invoice in its payment provider; null for NOOP
    */
-  provider?: ProviderRecord;
+  provider: ProviderRecord | never;
   /**
    * Who collects it. NOOP: the organization itself, through the handoff queue
    */
@@ -7810,11 +7884,11 @@ export type InvoiceWritable = {
   /**
    * The invoice recomposed from this VOID one
    */
-  replacedByInvoiceId?: string;
+  replacedByInvoiceId: string | null;
   /**
    * The VOID invoice this one was recomposed from
    */
-  replacesInvoiceId?: string;
+  replacesInvoiceId: string | null;
   /**
    * Earliest start of its lines' service periods
    */
@@ -7843,21 +7917,21 @@ export type InvoiceWritable = {
    * subtotal − discountTotal, in minor units
    */
   total: number;
-  uncollectibleAt?: string;
+  uncollectibleAt: string | null;
   updatedAt: string;
-  voidReason?: string;
-  voidedAt?: string;
+  voidReason: string | null;
+  voidedAt: string | null;
 };
 
 export type InvoiceLineWritable = {
   /**
    * The add-on version an ADDON line bills
    */
-  addonId?: string;
+  addonId: string | null;
   /**
    * The add-on price an ADDON line bills
    */
-  addonPriceId?: string;
+  addonPriceId: string | null;
   /**
    * round_half_up(quantity × unitAmountDecimal), in minor units; negative on a DISCOUNT line
    */
@@ -7865,11 +7939,11 @@ export type InvoiceLineWritable = {
   /**
    * The price's billing model; absent on a DISCOUNT line
    */
-  billingModel?: "FLAT_FEE" | "USAGE_BASED" | "OVERAGE";
+  billingModel: "FLAT_FEE" | "USAGE_BASED" | "OVERAGE" | null;
   /**
    * ADVANCE lines bill the period that starts at the boundary, ARREARS lines the one that ends there; absent on a DISCOUNT line
    */
-  billingTiming?: "ADVANCE" | "ARREARS";
+  billingTiming: "ADVANCE" | "ARREARS" | null;
   /**
    * Set on a preview line whose sample exceeded what the licence accepts: reports above that are rejected, so the excess is not billed
    */
@@ -7881,15 +7955,15 @@ export type InvoiceLineWritable = {
   /**
    * How a DISCOUNT line was computed
    */
-  discount?: InvoiceLineDiscountWritable;
+  discount: InvoiceLineDiscountWritable | never;
   /**
    * The metered entitlement, on USAGE and OVERAGE lines
    */
-  entitlementId?: string;
+  entitlementId: string | null;
   /**
    * Its slug, as it was when the line was composed
    */
-  entitlementSlug?: string;
+  entitlementSlug: string | null;
   /**
    * The line's identifier, stable for the invoice's life; absent on a preview
    */
@@ -7897,31 +7971,31 @@ export type InvoiceLineWritable = {
   /**
    * The instance's attachment an ADDON line bills
    */
-  instanceAddonId?: string;
+  instanceAddonId: string | null;
   /**
    * The redemption a DISCOUNT line applies
    */
-  instanceVoucherId?: string;
+  instanceVoucherId: string | null;
   /**
    * The price's display label, else a derived one
    */
   label: string;
   /**
-   * The licence price the line bills; absent on an ADDON line
+   * The licence price the line bills; null on an ADDON line
    */
-  licensePriceId?: string;
+  licensePriceId: string | null;
   /**
    * How a USAGE or OVERAGE line's quantity was measured
    */
-  metering?: InvoiceLineMetering;
+  metering: InvoiceLineMetering | never;
   /**
    * The arithmetic of an OVERAGE line
    */
-  overage?: InvoiceLineOverage;
+  overage: InvoiceLineOverage | never;
   /**
    * The line in the payment provider, once pushed
    */
-  provider?: InvoiceLineProvider;
+  provider: InvoiceLineProvider | never;
   /**
    * In sale units, a decimal string: 1 on a BASE line, the quantity held on an ADDON line
    */
@@ -7945,11 +8019,11 @@ export type InvoiceLineWritable = {
   /**
    * The price's unit amount in minor units; absent on a DISCOUNT line
    */
-  unitAmountDecimal?: string;
+  unitAmountDecimal: string | null;
   /**
    * The voucher a DISCOUNT line applies
    */
-  voucherId?: string;
+  voucherId: string | null;
   [key: string]: unknown;
 };
 
@@ -7959,15 +8033,15 @@ export type InvoiceLineDiscountWritable = {
    */
   application: number;
   /**
-   * How many invoices the redemption discounts; absent for FOREVER
+   * How many invoices the redemption discounts; null for FOREVER
    */
-  applicationsMax?: number;
+  applicationsMax: number | null;
   appliesTo: "LICENSE_BASE" | "ADDONS" | "BOTH" | "SELECTED_PRICES";
   /**
    * What its targets still amounted to before it, exact, in minor units
    */
   base: string;
-  currency?: string;
+  currency: string | null;
   discountType: "PERCENTAGE" | "FIXED_AMOUNT";
   /**
    * The percentage, or the amount in minor units
@@ -8044,7 +8118,7 @@ export type IssuedInvoiceWritable = {
    * As it was when the invoice was composed
    */
   customerSlug: string;
-  daysUntilDue?: number;
+  daysUntilDue: number | null;
   /**
    * Sum of the discounts, in minor units
    */
@@ -8052,7 +8126,7 @@ export type IssuedInvoiceWritable = {
   /**
    * issuedAt + daysUntilDue
    */
-  dueAt?: string;
+  dueAt: string | null;
   /**
    * PENDING: waiting in the handoff queue for the organization's accounting system
    */
@@ -8060,14 +8134,14 @@ export type IssuedInvoiceWritable = {
   /**
    * Why a DRAFT is held: the usage journal it was measured from failed a consistency check
    */
-  holdReason?: "LEDGER_SEQUENCE_GAP" | "LEDGER_CHAIN_BREAK" | "LEDGER_COUNTER_MISMATCH";
+  holdReason: "LEDGER_SEQUENCE_GAP" | "LEDGER_CHAIN_BREAK" | "LEDGER_COUNTER_MISMATCH" | null;
   /**
    * The invoice's identifier: the key an accounting system deduplicates on
    */
   id: string;
   instanceName: string;
   instanceSlug: string;
-  issuedAt?: string;
+  issuedAt: string | null;
   /**
    * ACTIVATION bills a subscription's first period, RENEWAL the period that ended and the one that starts, FINAL what is left when a subscription ends
    */
@@ -8079,7 +8153,7 @@ export type IssuedInvoiceWritable = {
    * Set when the lines did not fit the event: read the invoice for all of them
    */
   linesTruncated?: boolean;
-  paidAt?: string;
+  paidAt: string | null;
   /**
    * Who collects it. NOOP: the organization itself, through the handoff queue
    */
@@ -8223,9 +8297,9 @@ export type LicensePriceEventWritable = {
    */
   billingModel: "FLAT_FEE" | "USAGE_BASED" | "OVERAGE";
   /**
-   * The period a FLAT_FEE price is charged for. Absent on metered prices, which bill on the subscription's period.
+   * The period a FLAT_FEE price is charged for. Null on metered prices, which bill on the subscription's period.
    */
-  billingPeriod?: "MONTHLY" | "QUARTERLY" | "SEMI_ANNUAL" | "ANNUAL";
+  billingPeriod: "MONTHLY" | "QUARTERLY" | "SEMI_ANNUAL" | "ANNUAL" | null;
   /**
    * ADVANCE bills the period that starts; ARREARS the period that ended. Metered prices are always ARREARS.
    */
@@ -8237,11 +8311,11 @@ export type LicensePriceEventWritable = {
   /**
    * When the price was deprecated
    */
-  deprecatedAt?: string;
+  deprecatedAt: string | null;
   /**
-   * The invoice line's label; a default is derived when absent.
+   * The invoice line's label; a default is derived when it is null.
    */
-  displayLabel?: string;
+  displayLabel: string | null;
   /**
    * Order among the version's prices
    */
@@ -8259,17 +8333,17 @@ export type LicensePriceEventWritable = {
    */
   licenseSlug: string;
   /**
-   * What a metered price measures. Absent on FLAT_FEE prices.
+   * What a metered price measures. Null on FLAT_FEE prices.
    */
-  metered?: PriceMeter;
+  metered: PriceMeter | never;
   /**
    * A DEPRECATED price keeps billing what is already pinned to it but is no longer offered.
    */
   status: "ACTIVE" | "DEPRECATED";
   /**
-   * unitAmountDecimal as an integer number of minor units, when it is one; absent otherwise.
+   * unitAmountDecimal as an integer number of minor units, when it is one; null otherwise.
    */
-  unitAmount?: number;
+  unitAmount: number | null;
   /**
    * Amount in the currency's minor units (cents for EUR): per period for FLAT_FEE, per sale unit for metered prices. Up to 12 decimal places.
    */
@@ -8282,9 +8356,9 @@ export type LicensePriceUpdatedEventWritable = {
    */
   billingModel: "FLAT_FEE" | "USAGE_BASED" | "OVERAGE";
   /**
-   * The period a FLAT_FEE price is charged for. Absent on metered prices, which bill on the subscription's period.
+   * The period a FLAT_FEE price is charged for. Null on metered prices, which bill on the subscription's period.
    */
-  billingPeriod?: "MONTHLY" | "QUARTERLY" | "SEMI_ANNUAL" | "ANNUAL";
+  billingPeriod: "MONTHLY" | "QUARTERLY" | "SEMI_ANNUAL" | "ANNUAL" | null;
   /**
    * ADVANCE bills the period that starts; ARREARS the period that ended. Metered prices are always ARREARS.
    */
@@ -8300,11 +8374,11 @@ export type LicensePriceUpdatedEventWritable = {
   /**
    * When the price was deprecated
    */
-  deprecatedAt?: string;
+  deprecatedAt: string | null;
   /**
-   * The invoice line's label; a default is derived when absent.
+   * The invoice line's label; a default is derived when it is null.
    */
-  displayLabel?: string;
+  displayLabel: string | null;
   /**
    * Order among the version's prices
    */
@@ -8322,17 +8396,17 @@ export type LicensePriceUpdatedEventWritable = {
    */
   licenseSlug: string;
   /**
-   * What a metered price measures. Absent on FLAT_FEE prices.
+   * What a metered price measures. Null on FLAT_FEE prices.
    */
-  metered?: PriceMeter;
+  metered: PriceMeter | never;
   /**
    * A DEPRECATED price keeps billing what is already pinned to it but is no longer offered.
    */
   status: "ACTIVE" | "DEPRECATED";
   /**
-   * unitAmountDecimal as an integer number of minor units, when it is one; absent otherwise.
+   * unitAmountDecimal as an integer number of minor units, when it is one; null otherwise.
    */
-  unitAmount?: number;
+  unitAmount: number | null;
   /**
    * Amount in the currency's minor units (cents for EUR): per period for FLAT_FEE, per sale unit for metered prices. Up to 12 decimal places.
    */
@@ -8373,6 +8447,18 @@ export type NumberEntitlementValueWritable = {
    * Numeric value
    */
   value: number;
+};
+
+export type PageAddonWritable = {
+  /**
+   * Whether more rows exist beyond this page.
+   */
+  hasMore: boolean;
+  items: Array<AddonWritable>;
+  /**
+   * Opaque cursor for the next page. Absent when hasMore is false.
+   */
+  nextCursor?: string;
 };
 
 export type PageComponentWritable = {
@@ -8507,6 +8593,30 @@ export type PageMetadataFieldWritable = {
   nextCursor?: string;
 };
 
+export type PagePublishableKeyWritable = {
+  /**
+   * Whether more rows exist beyond this page.
+   */
+  hasMore: boolean;
+  items: Array<PublishableKeyWritable>;
+  /**
+   * Opaque cursor for the next page. Absent when hasMore is false.
+   */
+  nextCursor?: string;
+};
+
+export type PageRedemptionWritable = {
+  /**
+   * Whether more rows exist beyond this page.
+   */
+  hasMore: boolean;
+  items: Array<RedemptionWritable>;
+  /**
+   * Opaque cursor for the next page. Absent when hasMore is false.
+   */
+  nextCursor?: string;
+};
+
 export type PageReleaseWritable = {
   /**
    * Whether more rows exist beyond this page.
@@ -8537,6 +8647,18 @@ export type PageTokenWritable = {
    */
   hasMore: boolean;
   items: Array<TokenWritable>;
+  /**
+   * Opaque cursor for the next page. Absent when hasMore is false.
+   */
+  nextCursor?: string;
+};
+
+export type PageVoucherWritable = {
+  /**
+   * Whether more rows exist beyond this page.
+   */
+  hasMore: boolean;
+  items: Array<VoucherWritable>;
   /**
    * Opaque cursor for the next page. Absent when hasMore is false.
    */
@@ -8595,7 +8717,7 @@ export type PortalEntitlementWritable = {
   /**
    * What the licence, the add-ons and the boosts each contribute
    */
-  provenance: ProvenanceWritable;
+  provenance: ProvenanceWritable | never;
   slug: string;
   /**
    * license: the licence grants it; addon: only add-ons do
@@ -8611,9 +8733,9 @@ export type PriceWritable = {
    */
   billingModel: "FLAT_FEE" | "USAGE_BASED" | "OVERAGE";
   /**
-   * The period a FLAT_FEE price is charged for. Absent on metered prices, which bill on the subscription's period.
+   * The period a FLAT_FEE price is charged for. Null on metered prices, which bill on the subscription's period.
    */
-  billingPeriod?: "MONTHLY" | "QUARTERLY" | "SEMI_ANNUAL" | "ANNUAL";
+  billingPeriod: "MONTHLY" | "QUARTERLY" | "SEMI_ANNUAL" | "ANNUAL" | null;
   /**
    * ADVANCE bills the period that starts; ARREARS the period that ended. Metered prices are always ARREARS.
    */
@@ -8625,11 +8747,11 @@ export type PriceWritable = {
   /**
    * When the price was deprecated
    */
-  deprecatedAt?: string;
+  deprecatedAt: string | null;
   /**
-   * The invoice line's label; a default is derived when absent.
+   * The invoice line's label; a default is derived when it is null.
    */
-  displayLabel?: string;
+  displayLabel: string | null;
   /**
    * Order among the version's prices
    */
@@ -8639,17 +8761,17 @@ export type PriceWritable = {
    */
   isDefault: boolean;
   /**
-   * What a metered price measures. Absent on FLAT_FEE prices.
+   * What a metered price measures. Null on FLAT_FEE prices.
    */
-  metered?: PriceMeter;
+  metered: PriceMeter | never;
   /**
    * A DEPRECATED price keeps billing what is already pinned to it but is no longer offered.
    */
   status: "ACTIVE" | "DEPRECATED";
   /**
-   * unitAmountDecimal as an integer number of minor units, when it is one; absent otherwise.
+   * unitAmountDecimal as an integer number of minor units, when it is one; null otherwise.
    */
-  unitAmount?: number;
+  unitAmount: number | null;
   /**
    * Amount in the currency's minor units (cents for EUR): per period for FLAT_FEE, per sale unit for metered prices. Up to 12 decimal places.
    */
@@ -8668,11 +8790,11 @@ export type ProvenanceWritable = {
   /**
    * The licence's grant; null when only add-ons grant the entitlement
    */
-  license: ProvenanceLicenseWritable;
+  license: ProvenanceLicenseWritable | never;
   /**
    * How a number was composed; null for BOOLEAN and CONFIG, and when no add-on or boost changes it
    */
-  number: ProvenanceNumber;
+  number: ProvenanceNumber | never;
 };
 
 export type ProvenanceAddonWritable = {
@@ -8741,20 +8863,20 @@ export type RedemptionWritable = {
    */
   applicationsCount: number;
   /**
-   * 1 for ONE_TIME, durationInPeriods for REPEATING; absent for FOREVER
+   * 1 for ONE_TIME, durationInPeriods for REPEATING; null for FOREVER
    */
-  applicationsMax?: number;
+  applicationsMax: number | null;
   codeHint: string;
   /**
-   * When a boost stops applying; absent for a PRICE voucher, counted in invoices, and for FOREVER
+   * When a boost stops applying; null for a PRICE voucher, counted in invoices, and for FOREVER
    */
-  effectiveExpiresAt?: string;
+  effectiveExpiresAt: string | null;
   effectiveStartsAt: string;
-  expiredAt?: string;
+  expiredAt: string | null;
   instanceSlug: string;
   redeemedAt: string;
-  revokedAt?: string;
-  revokedReason?: string;
+  revokedAt: string | null;
+  revokedReason: string | null;
   status: "ACTIVE" | "EXPIRED" | "REVOKED";
   voucherId: string;
   voucherName: string;
@@ -8844,7 +8966,7 @@ export type SessionPortalWritable = {
   /**
    * The session's instance; null for a session bound to the customer only
    */
-  instance: PortalInstance;
+  instance: PortalInstance | never;
   /**
    * The customer's instances, for a session bound to the customer only; empty otherwise
    */
@@ -8852,15 +8974,15 @@ export type SessionPortalWritable = {
   /**
    * The payment method the customer's invoices are charged to; null when none is saved
    */
-  paymentMethod: PortalPaymentMethod;
+  paymentMethod: PortalPaymentMethod | never;
   /**
    * The instance's subscription; null when it has none, or the session is bound to no instance
    */
-  subscription: SessionSubscription;
+  subscription: SessionSubscription | never;
   /**
    * What the next boundary will bill, on usage so far; null without a live subscription
    */
-  upcomingInvoice: PortalUpcomingInvoice;
+  upcomingInvoice: PortalUpcomingInvoice | never;
   /**
    * When this snapshot was read
    */
@@ -8886,17 +9008,17 @@ export type StartedSubscriptionWritable = {
   basePrice: PriceWritable;
   billingPeriod: "MONTHLY" | "QUARTERLY" | "SEMI_ANNUAL" | "ANNUAL";
   cancelAtPeriodEnd: boolean;
-  cancelRequestedAt?: string;
-  canceledAt?: string;
-  cancellationReason?: string;
+  cancelRequestedAt: string | null;
+  canceledAt: string | null;
+  cancellationReason: string | null;
   /**
    * Effective: the subscription's own, else the organization's default
    */
   collectionMethod: "SEND_INVOICE" | "CHARGE_AUTOMATICALLY";
   /**
-   * The subscription's own collection method; absent when it takes the organization's
+   * The subscription's own collection method; null when it takes the organization's
    */
-  collectionMethodOverride?: string;
+  collectionMethodOverride: string | null;
   createdAt: string;
   currency: string;
   /**
@@ -8911,16 +9033,16 @@ export type StartedSubscriptionWritable = {
    */
   daysUntilDue: number;
   /**
-   * The subscription's own payment terms; absent when it takes the organization's
+   * The subscription's own payment terms; null when it takes the organization's
    */
-  daysUntilDueOverride?: number;
+  daysUntilDueOverride: number | null;
   id: string;
   instanceName: string;
   /**
    * As it was at the subscription's last write
    */
   instanceSlug: string;
-  pastDueSince?: string;
+  pastDueSince: string | null;
   /**
    * Who collects its invoices. NOOP: the organization itself, through the handoff queue
    */
@@ -8928,7 +9050,7 @@ export type StartedSubscriptionWritable = {
   /**
    * A plan change waiting for the next boundary
    */
-  scheduledChange?: ScheduledChangeWritable;
+  scheduledChange: ScheduledChangeWritable | never;
   /**
    * When billing started: usage before it is never billed
    */
@@ -8937,7 +9059,7 @@ export type StartedSubscriptionWritable = {
   /**
    * When the trial ends, or ended: usage before it is never billed
    */
-  trialEndsAt?: string;
+  trialEndsAt: string | null;
   updatedAt: string;
 };
 
@@ -9206,6 +9328,14 @@ export type ListAddonsData = {
      * Only versions of this family
      */
     familySlug?: string;
+    /**
+     * Opaque pagination cursor from a previous response's nextCursor
+     */
+    cursor?: string;
+    /**
+     * Maximum number of entries to return (default 50, max 200)
+     */
+    limit?: number;
   };
   url: "/addons";
 };
@@ -9247,7 +9377,7 @@ export type ListAddonsResponses = {
   /**
    * OK
    */
-  200: Array<Addon>;
+  200: PageAddon;
 };
 
 export type ListAddonsResponse = ListAddonsResponses[keyof ListAddonsResponses];
@@ -10404,7 +10534,7 @@ export type ListHandoffData = {
     /**
      * PENDING (the default) or ACKNOWLEDGED; .InvalidStatus otherwise
      */
-    status?: string;
+    status?: "PENDING" | "ACKNOWLEDGED";
     /**
      * Opaque cursor from the previous page's nextCursor
      */
@@ -11466,6 +11596,10 @@ export type CreateCustomerSessionErrors = {
    * Internal Server Error
    */
   500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
 };
 
 export type CreateCustomerSessionError =
@@ -11518,6 +11652,10 @@ export type RevokeCustomerSessionErrors = {
    * Internal Server Error
    */
   500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
 };
 
 export type RevokeCustomerSessionError =
@@ -16180,6 +16318,10 @@ export type RecomposeInvoiceResponses = {
    * OK
    */
   200: Invoice;
+  /**
+   * The replacement of a VOID invoice, for the same boundary
+   */
+  201: Invoice;
 };
 
 export type RecomposeInvoiceResponse = RecomposeInvoiceResponses[keyof RecomposeInvoiceResponses];
@@ -16622,6 +16764,10 @@ export type UpdateLicenseFamilyErrors = {
    * Internal Server Error
    */
   500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
 };
 
 export type UpdateLicenseFamilyError = UpdateLicenseFamilyErrors[keyof UpdateLicenseFamilyErrors];
@@ -18625,6 +18771,10 @@ export type CreateSessionCheckoutError =
 
 export type CreateSessionCheckoutResponses = {
   /**
+   * A preview (dryRun), or requires_payment_method with the hosted setup page: nothing was subscribed
+   */
+  200: SessionCheckout;
+  /**
    * Created
    */
   201: SessionCheckout;
@@ -18788,6 +18938,14 @@ export type ListPublishableKeysData = {
      * Also list revoked keys
      */
     includeRevoked?: boolean;
+    /**
+     * Opaque pagination cursor from a previous response's nextCursor
+     */
+    cursor?: string;
+    /**
+     * Maximum number of entries to return (default 50, max 200)
+     */
+    limit?: number;
   };
   url: "/publishable-keys";
 };
@@ -18813,6 +18971,10 @@ export type ListPublishableKeysErrors = {
    * Internal Server Error
    */
   500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
 };
 
 export type ListPublishableKeysError = ListPublishableKeysErrors[keyof ListPublishableKeysErrors];
@@ -18821,7 +18983,7 @@ export type ListPublishableKeysResponses = {
   /**
    * OK
    */
-  200: Array<PublishableKey>;
+  200: PagePublishableKey;
 };
 
 export type ListPublishableKeysResponse =
@@ -18855,6 +19017,10 @@ export type CreatePublishableKeyErrors = {
    * Internal Server Error
    */
   500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
 };
 
 export type CreatePublishableKeyError =
@@ -18911,6 +19077,10 @@ export type UpdatePublishableKeyErrors = {
    * Internal Server Error
    */
   500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
 };
 
 export type UpdatePublishableKeyError =
@@ -18963,6 +19133,10 @@ export type RevokePublishableKeyErrors = {
    * Internal Server Error
    */
   500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
 };
 
 export type RevokePublishableKeyError =
@@ -19845,6 +20019,14 @@ export type ListVouchersData = {
     status?: "DRAFT" | "ACTIVE" | "EXPIRED" | "EXHAUSTED" | "ARCHIVED";
     voucherType?: "PRICE" | "ENTITLEMENT_BOOST";
     restrictedCustomerSlug?: string;
+    /**
+     * Opaque pagination cursor from a previous response's nextCursor
+     */
+    cursor?: string;
+    /**
+     * Maximum number of entries to return (default 50, max 200)
+     */
+    limit?: number;
   };
   url: "/vouchers";
 };
@@ -19886,7 +20068,7 @@ export type ListVouchersResponses = {
   /**
    * OK
    */
-  200: Array<Voucher>;
+  200: PageVoucher;
 };
 
 export type ListVouchersResponse = ListVouchersResponses[keyof ListVouchersResponses];
@@ -20282,7 +20464,16 @@ export type ListVoucherRedemptionsData = {
      */
     voucherId: string;
   };
-  query?: never;
+  query?: {
+    /**
+     * Opaque pagination cursor from a previous response's nextCursor
+     */
+    cursor?: string;
+    /**
+     * Maximum number of entries to return (default 50, max 200)
+     */
+    limit?: number;
+  };
   url: "/vouchers/{voucherId}/redemptions";
 };
 
@@ -20324,7 +20515,7 @@ export type ListVoucherRedemptionsResponses = {
   /**
    * OK
    */
-  200: Array<Redemption>;
+  200: PageRedemption;
 };
 
 export type ListVoucherRedemptionsResponse =

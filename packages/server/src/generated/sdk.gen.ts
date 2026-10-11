@@ -5050,7 +5050,7 @@ export class Licenses {
   /**
    * Preview a license invoice
    *
-   * Composes the RENEWAL invoice a subscription to this licence version would be billed at a boundary now, without writing anything: the sample usage rated in arrears over the billing period that ends, and the base price for the period that starts (or the one that ends, for an ARREARS base). Works on DRAFT versions, to check prices before publishing. Requires billing to be enabled for the organization.
+   * Composes the RENEWAL invoice a subscription to this licence version would be billed at a boundary now, without writing anything: an instance's usage or a sample, rated in arrears over the billing period that ends; the base price for the period that starts (or the one that ends, for an ARREARS base); the listed add-ons; a voucher's discount. Works on DRAFT versions, to check prices before publishing. Requires billing to be enabled for the organization.
    */
   public static previewLicenseInvoice<ThrowOnError extends boolean = false>(
     options: Options<PreviewLicenseInvoiceData, ThrowOnError>,
