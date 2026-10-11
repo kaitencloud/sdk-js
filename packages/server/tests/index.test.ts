@@ -294,9 +294,33 @@ describe("usage report keys and the usage history", () => {
 
     expect(isTransactionIdReused(error)).toBe(true);
     expect(error).toBeInstanceOf(TransactionIdReusedError);
-    // The body named no original report: the error is typed all the same.
+    // The body named no original report: the error is typed all the same, and
+    // still names the key the refused report was sent with.
     expect((error as TransactionIdReusedError).original).toBeUndefined();
+    expect((error as TransactionIdReusedError).transactionId).toBe("evt-1");
     expect(isThresholdExceeded(error)).toBe(false);
+  });
+
+  test("a reused-key refusal names the key whichever way the request carried it", async () => {
+    const client = createKaitenClient({
+      token: "t",
+      baseUrl: "https://example.test",
+      fetch: async () => problem(409, "ReportEntitlementUsageMetric.TransactionIdReused"),
+    });
+
+    const error = await Instances.reportEntitlementUsageMetric({
+      client,
+      path: { instanceSlug: "inst-1", entitlementSlug: "seats" },
+      body: {
+        behavior: "set",
+        transactionId: "A.z_9:x-0",
+        value: { type: "number", value: 4 },
+        metadata: { transactionId: "not-the-key" },
+      },
+    }).catch((caught: unknown) => caught);
+
+    expect((error as TransactionIdReusedError).transactionId).toBe("A.z_9:x-0");
+    expect((error as TransactionIdReusedError).status).toBe(409);
   });
 
   test("the threshold refusal is not mistaken for a reused key", async () => {
