@@ -299,7 +299,7 @@ export type AddonPriceUpdate = {
   /**
    * What a metered price measures. Null on FLAT_FEE prices.
    */
-  metered: PriceMeter | never;
+  metered: PriceMeter | null;
   /**
    * A DEPRECATED price keeps billing what is already pinned to it but is no longer offered.
    */
@@ -561,7 +561,7 @@ export type BillingStarted = {
   /**
    * A plan change waiting for the next boundary
    */
-  scheduledChange: ScheduledChange | never;
+  scheduledChange: ScheduledChange | null;
   /**
    * When billing started: usage before it is never billed
    */
@@ -659,7 +659,7 @@ export type CanceledSubscription = {
   /**
    * A plan change waiting for the next boundary
    */
-  scheduledChange: ScheduledChange | never;
+  scheduledChange: ScheduledChange | null;
   /**
    * When billing started: usage before it is never billed
    */
@@ -733,7 +733,7 @@ export type Cancellation = {
   /**
    * A plan change waiting for the next boundary
    */
-  scheduledChange: ScheduledChange | never;
+  scheduledChange: ScheduledChange | null;
   /**
    * When billing started: usage before it is never billed
    */
@@ -803,7 +803,7 @@ export type CancellationChange = {
   /**
    * A plan change waiting for the next boundary
    */
-  scheduledChange: ScheduledChange | never;
+  scheduledChange: ScheduledChange | null;
   /**
    * When billing started: usage before it is never billed
    */
@@ -1206,7 +1206,7 @@ export type CustomerInProvider = {
   /**
    * Its default payment method; null when there is none
    */
-  paymentMethod: PaymentMethodLabels | never;
+  paymentMethod: PaymentMethodLabels | null;
   providerKind: "STRIPE";
   syncedAt: string | null;
   /**
@@ -2182,7 +2182,7 @@ export type InstanceBilling = {
   /**
    * A plan change waiting for the next boundary
    */
-  scheduledChange: ScheduledChange | never;
+  scheduledChange: ScheduledChange | null;
   /**
    * When billing started: usage before it is never billed
    */
@@ -2489,11 +2489,11 @@ export type Invoice = {
   /**
    * When the invoice was held and released
    */
-  hold: HoldRecord | never;
+  hold: HoldRecord | null;
   /**
    * Every meter whose journal failed a check
    */
-  holdDetail: HoldDetail | never;
+  holdDetail: HoldDetail | null;
   /**
    * Why a DRAFT is held: the usage journal it was measured from failed a consistency check
    */
@@ -2516,7 +2516,7 @@ export type Invoice = {
   /**
    * The invoice in its payment provider; null for NOOP
    */
-  provider: ProviderRecord | never;
+  provider: ProviderRecord | null;
   /**
    * Who collects it. NOOP: the organization itself, through the handoff queue
    */
@@ -2618,7 +2618,7 @@ export type InvoiceLine = {
   /**
    * How a DISCOUNT line was computed
    */
-  discount: InvoiceLineDiscount | never;
+  discount: InvoiceLineDiscount | null;
   /**
    * The metered entitlement, on USAGE and OVERAGE lines
    */
@@ -2650,15 +2650,15 @@ export type InvoiceLine = {
   /**
    * How a USAGE or OVERAGE line's quantity was measured
    */
-  metering: InvoiceLineMetering | never;
+  metering: InvoiceLineMetering | null;
   /**
    * The arithmetic of an OVERAGE line
    */
-  overage: InvoiceLineOverage | never;
+  overage: InvoiceLineOverage | null;
   /**
    * The line in the payment provider, once pushed
    */
-  provider: InvoiceLineProvider | never;
+  provider: InvoiceLineProvider | null;
   /**
    * In sale units, a decimal string: 1 on a BASE line, the quantity held on an ADDON line
    */
@@ -2751,7 +2751,7 @@ export type InvoiceLineMetering = {
   /**
    * The usage journal rows the line was measured from
    */
-  ledger: InvoiceLineLedger | never;
+  ledger: InvoiceLineLedger | null;
   /**
    * In measured units: the usage for a USAGE line, the overage for an OVERAGE line
    */
@@ -3306,7 +3306,7 @@ export type LicensePriceEvent = {
   /**
    * What a metered price measures. Null on FLAT_FEE prices.
    */
-  metered: PriceMeter | never;
+  metered: PriceMeter | null;
   /**
    * A DEPRECATED price keeps billing what is already pinned to it but is no longer offered.
    */
@@ -3375,7 +3375,7 @@ export type LicensePriceUpdatedEvent = {
   /**
    * What a metered price measures. Null on FLAT_FEE prices.
    */
-  metered: PriceMeter | never;
+  metered: PriceMeter | null;
   /**
    * A DEPRECATED price keeps billing what is already pinned to it but is no longer offered.
    */
@@ -4473,16 +4473,7 @@ export type PortalEntitlement = {
   /**
    * The effective value: a number's limit (-1 unlimited), a BOOLEAN's flag, a CONFIG's object
    */
-  limitValue:
-    | ({
-        type: "number";
-      } & NumberEntitlementValue)
-    | ({
-        type: "boolean";
-      } & BooleanEntitlementValue)
-    | ({
-        type: "object";
-      } & ConfigEntitlementValue);
+  limitValue: NumberEntitlementValue | BooleanEntitlementValue | ConfigEntitlementValue | null;
   /**
    * The most usage accepted, limit × (1 + percent ÷ 100); null when unlimited, and for BOOLEAN and CONFIG
    */
@@ -4495,7 +4486,7 @@ export type PortalEntitlement = {
   /**
    * What the licence, the add-ons and the boosts each contribute
    */
-  provenance: Provenance | never;
+  provenance: Provenance | null;
   slug: string;
   /**
    * license: the licence grants it; addon: only add-ons do
@@ -4656,7 +4647,7 @@ export type Price = {
   /**
    * What a metered price measures. Null on FLAT_FEE prices.
    */
-  metered: PriceMeter | never;
+  metered: PriceMeter | null;
   /**
    * A DEPRECATED price keeps billing what is already pinned to it but is no longer offered.
    */
@@ -4732,11 +4723,11 @@ export type Provenance = {
   /**
    * The licence's grant; null when only add-ons grant the entitlement
    */
-  license: ProvenanceLicense | never;
+  license: ProvenanceLicense | null;
   /**
    * How a number was composed; null for BOOLEAN and CONFIG, and when no add-on or boost changes it
    */
-  number: ProvenanceNumber | never;
+  number: ProvenanceNumber | null;
 };
 
 export type ProvenanceAddon = {
@@ -5919,7 +5910,7 @@ export type SessionPortal = {
   /**
    * The session's instance; null for a session bound to the customer only
    */
-  instance: PortalInstance | never;
+  instance: PortalInstance | null;
   /**
    * The customer's instances, for a session bound to the customer only; empty otherwise
    */
@@ -5927,15 +5918,15 @@ export type SessionPortal = {
   /**
    * The payment method the customer's invoices are charged to; null when none is saved
    */
-  paymentMethod: PortalPaymentMethod | never;
+  paymentMethod: PortalPaymentMethod | null;
   /**
    * The instance's subscription; null when it has none, or the session is bound to no instance
    */
-  subscription: SessionSubscription | never;
+  subscription: SessionSubscription | null;
   /**
    * What the next boundary will bill, on usage so far; null without a live subscription
    */
-  upcomingInvoice: PortalUpcomingInvoice | never;
+  upcomingInvoice: PortalUpcomingInvoice | null;
   /**
    * When this snapshot was read
    */
@@ -5975,7 +5966,7 @@ export type SessionSubscription = {
   /**
    * A plan change the vendor scheduled for the next boundary
    */
-  scheduledChange: SessionScheduledChange | never;
+  scheduledChange: SessionScheduledChange | null;
   status: "TRIAL" | "ACTIVE" | "PAST_DUE" | "CANCELED";
   trialEndsAt: string | null;
 };
@@ -6074,7 +6065,7 @@ export type StartedSubscription = {
   /**
    * A plan change waiting for the next boundary
    */
-  scheduledChange: ScheduledChange | never;
+  scheduledChange: ScheduledChange | null;
   /**
    * When billing started: usage before it is never billed
    */
@@ -6872,7 +6863,7 @@ export type AddonPriceUpdateWritable = {
   /**
    * What a metered price measures. Null on FLAT_FEE prices.
    */
-  metered: PriceMeter | never;
+  metered: PriceMeter | null;
   /**
    * A DEPRECATED price keeps billing what is already pinned to it but is no longer offered.
    */
@@ -6979,7 +6970,7 @@ export type BillingStartedWritable = {
   /**
    * A plan change waiting for the next boundary
    */
-  scheduledChange: ScheduledChangeWritable | never;
+  scheduledChange: ScheduledChangeWritable | null;
   /**
    * When billing started: usage before it is never billed
    */
@@ -7049,7 +7040,7 @@ export type CanceledSubscriptionWritable = {
   /**
    * A plan change waiting for the next boundary
    */
-  scheduledChange: ScheduledChangeWritable | never;
+  scheduledChange: ScheduledChangeWritable | null;
   /**
    * When billing started: usage before it is never billed
    */
@@ -7123,7 +7114,7 @@ export type CancellationWritable = {
   /**
    * A plan change waiting for the next boundary
    */
-  scheduledChange: ScheduledChangeWritable | never;
+  scheduledChange: ScheduledChangeWritable | null;
   /**
    * When billing started: usage before it is never billed
    */
@@ -7193,7 +7184,7 @@ export type CancellationChangeWritable = {
   /**
    * A plan change waiting for the next boundary
    */
-  scheduledChange: ScheduledChangeWritable | never;
+  scheduledChange: ScheduledChangeWritable | null;
   /**
    * When billing started: usage before it is never billed
    */
@@ -7737,7 +7728,7 @@ export type InstanceBillingWritable = {
   /**
    * A plan change waiting for the next boundary
    */
-  scheduledChange: ScheduledChangeWritable | never;
+  scheduledChange: ScheduledChangeWritable | null;
   /**
    * When billing started: usage before it is never billed
    */
@@ -7849,11 +7840,11 @@ export type InvoiceWritable = {
   /**
    * When the invoice was held and released
    */
-  hold: HoldRecord | never;
+  hold: HoldRecord | null;
   /**
    * Every meter whose journal failed a check
    */
-  holdDetail: HoldDetail | never;
+  holdDetail: HoldDetail | null;
   /**
    * Why a DRAFT is held: the usage journal it was measured from failed a consistency check
    */
@@ -7876,7 +7867,7 @@ export type InvoiceWritable = {
   /**
    * The invoice in its payment provider; null for NOOP
    */
-  provider: ProviderRecord | never;
+  provider: ProviderRecord | null;
   /**
    * Who collects it. NOOP: the organization itself, through the handoff queue
    */
@@ -7955,7 +7946,7 @@ export type InvoiceLineWritable = {
   /**
    * How a DISCOUNT line was computed
    */
-  discount: InvoiceLineDiscountWritable | never;
+  discount: InvoiceLineDiscountWritable | null;
   /**
    * The metered entitlement, on USAGE and OVERAGE lines
    */
@@ -7987,15 +7978,15 @@ export type InvoiceLineWritable = {
   /**
    * How a USAGE or OVERAGE line's quantity was measured
    */
-  metering: InvoiceLineMetering | never;
+  metering: InvoiceLineMetering | null;
   /**
    * The arithmetic of an OVERAGE line
    */
-  overage: InvoiceLineOverage | never;
+  overage: InvoiceLineOverage | null;
   /**
    * The line in the payment provider, once pushed
    */
-  provider: InvoiceLineProvider | never;
+  provider: InvoiceLineProvider | null;
   /**
    * In sale units, a decimal string: 1 on a BASE line, the quantity held on an ADDON line
    */
@@ -8335,7 +8326,7 @@ export type LicensePriceEventWritable = {
   /**
    * What a metered price measures. Null on FLAT_FEE prices.
    */
-  metered: PriceMeter | never;
+  metered: PriceMeter | null;
   /**
    * A DEPRECATED price keeps billing what is already pinned to it but is no longer offered.
    */
@@ -8398,7 +8389,7 @@ export type LicensePriceUpdatedEventWritable = {
   /**
    * What a metered price measures. Null on FLAT_FEE prices.
    */
-  metered: PriceMeter | never;
+  metered: PriceMeter | null;
   /**
    * A DEPRECATED price keeps billing what is already pinned to it but is no longer offered.
    */
@@ -8696,15 +8687,10 @@ export type PortalEntitlementWritable = {
    * The effective value: a number's limit (-1 unlimited), a BOOLEAN's flag, a CONFIG's object
    */
   limitValue:
-    | ({
-        type: "number";
-      } & NumberEntitlementValueWritable)
-    | ({
-        type: "boolean";
-      } & BooleanEntitlementValue)
-    | ({
-        type: "object";
-      } & ConfigEntitlementValue);
+    | NumberEntitlementValueWritable
+    | BooleanEntitlementValue
+    | ConfigEntitlementValue
+    | null;
   /**
    * The most usage accepted, limit × (1 + percent ÷ 100); null when unlimited, and for BOOLEAN and CONFIG
    */
@@ -8717,7 +8703,7 @@ export type PortalEntitlementWritable = {
   /**
    * What the licence, the add-ons and the boosts each contribute
    */
-  provenance: ProvenanceWritable | never;
+  provenance: ProvenanceWritable | null;
   slug: string;
   /**
    * license: the licence grants it; addon: only add-ons do
@@ -8763,7 +8749,7 @@ export type PriceWritable = {
   /**
    * What a metered price measures. Null on FLAT_FEE prices.
    */
-  metered: PriceMeter | never;
+  metered: PriceMeter | null;
   /**
    * A DEPRECATED price keeps billing what is already pinned to it but is no longer offered.
    */
@@ -8790,11 +8776,11 @@ export type ProvenanceWritable = {
   /**
    * The licence's grant; null when only add-ons grant the entitlement
    */
-  license: ProvenanceLicenseWritable | never;
+  license: ProvenanceLicenseWritable | null;
   /**
    * How a number was composed; null for BOOLEAN and CONFIG, and when no add-on or boost changes it
    */
-  number: ProvenanceNumber | never;
+  number: ProvenanceNumber | null;
 };
 
 export type ProvenanceAddonWritable = {
@@ -8966,7 +8952,7 @@ export type SessionPortalWritable = {
   /**
    * The session's instance; null for a session bound to the customer only
    */
-  instance: PortalInstance | never;
+  instance: PortalInstance | null;
   /**
    * The customer's instances, for a session bound to the customer only; empty otherwise
    */
@@ -8974,15 +8960,15 @@ export type SessionPortalWritable = {
   /**
    * The payment method the customer's invoices are charged to; null when none is saved
    */
-  paymentMethod: PortalPaymentMethod | never;
+  paymentMethod: PortalPaymentMethod | null;
   /**
    * The instance's subscription; null when it has none, or the session is bound to no instance
    */
-  subscription: SessionSubscription | never;
+  subscription: SessionSubscription | null;
   /**
    * What the next boundary will bill, on usage so far; null without a live subscription
    */
-  upcomingInvoice: PortalUpcomingInvoice | never;
+  upcomingInvoice: PortalUpcomingInvoice | null;
   /**
    * When this snapshot was read
    */
@@ -9050,7 +9036,7 @@ export type StartedSubscriptionWritable = {
   /**
    * A plan change waiting for the next boundary
    */
-  scheduledChange: ScheduledChangeWritable | never;
+  scheduledChange: ScheduledChangeWritable | null;
   /**
    * When billing started: usage before it is never billed
    */
