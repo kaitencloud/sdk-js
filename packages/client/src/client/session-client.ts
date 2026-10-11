@@ -22,7 +22,10 @@ import {
   mapSubscription,
   mapVoucherValidation,
 } from "./session-mapping.ts";
-import type { SessionSubscription as WireSubscription } from "../core/index.ts";
+import type {
+  SessionPortal as WirePortal,
+  SessionSubscription as WireSubscription,
+} from "../core/index.ts";
 import type {
   CheckoutInput,
   CheckoutResult,
@@ -124,7 +127,7 @@ export class KaitenSessionClient implements KaitenSessionClientLike {
   }
 
   async getPortal(): Promise<KaitenPortal> {
-    return mapPortal(await this.call("GET", "portal", "getPortal()"));
+    return mapPortal(await this.call<WirePortal>("GET", "portal", "getPortal()"));
   }
 
   async listInvoices(

@@ -17,6 +17,12 @@ interface Answers {
   addon: KaitenApi.SessionAddon;
   addonDetached: KaitenApi.SessionAddon;
   cancel: KaitenApi.SessionSubscription;
+  portal: KaitenApi.SessionPortal;
+  portalCanceling: KaitenApi.SessionPortal;
+  portalCustomerWide: KaitenApi.SessionPortal;
+  portalNeverSubscribed: KaitenApi.SessionPortal;
+  portalPastDue: KaitenApi.SessionPortal;
+  portalScheduledChange: KaitenApi.SessionPortal;
   reactivate: KaitenApi.SessionSubscription;
   errors: Record<
     | "addonIncompatible"

@@ -16,6 +16,9 @@ import type {
   ResolvedEntitlement,
 } from "./types.ts";
 
+/** `ACTIVE` (charged automatically), `EXPIRED` or `FAILED` (save another one). Open: more may come. */
+export type PaymentMethodStatus = "ACTIVE" | "EXPIRED" | "FAILED" | (string & {});
+
 /** `TRIAL`, `ACTIVE`, `PAST_DUE` or `CANCELED`. Open: more may come. */
 export type SubscriptionStatus = "TRIAL" | "ACTIVE" | "PAST_DUE" | "CANCELED" | (string & {});
 
@@ -83,23 +86,27 @@ export interface PortalSubscription {
   scheduledChange: { price: BillingPrice; effectiveAt: string } | null;
 }
 
-/** The labels of a customer's payment method. Never its number. */
+/**
+ * The labels of a customer's payment method. Never its number. The provider
+ * gives what it knows: a label it does not give is `null`.
+ */
 export interface PaymentMethodSummary {
-  /** `ACTIVE`, `EXPIRED` or `FAILED`. Open. */
-  status: string;
-  brand: string;
-  last4: string;
-  expMonth: number;
-  expYear: number;
+  status: PaymentMethodStatus;
+  brand: string | null;
+  last4: string | null;
+  expMonth: number | null;
+  expYear: number | null;
 }
 
 /** A voucher redeemed on the session's instance. Never its code. */
 export interface PortalVoucher {
   name: string;
-  /** `PRICE` (a discount) or `ENTITLEMENT_BOOST`. Open. */
-  voucherType: string;
-  status: string;
+  /** `PRICE` (a discount) or `ENTITLEMENT_BOOST`. Open: more may come. */
+  voucherType: "PRICE" | "ENTITLEMENT_BOOST" | (string & {});
+  /** `ACTIVE`, `EXPIRED` or `REVOKED`. Open: more may come. */
+  status: "ACTIVE" | "EXPIRED" | "REVOKED" | (string & {});
   effectiveStartsAt: string;
+  /** When a boost stops applying. Null when it does not expire, and for a `PRICE` voucher, which is counted in invoices. */
   effectiveExpiresAt: string | null;
 }
 
@@ -149,23 +156,65 @@ export interface SessionInvoice extends InvoiceTotals {
   lines: SessionInvoiceLine[];
 }
 
+/** The customer a session acts for. */
+export interface PortalCustomer {
+  slug: string;
+  name: string;
+  /** Where its invoices are sent. Null until one is set. */
+  billingEmail: string | null;
+}
+
+/** The instance a session is bound to. */
+export interface PortalInstance {
+  slug: string;
+  name: string;
+  licenseSlug: string;
+  licenseName: string;
+}
+
+/** One of a customer's instances, as listed on a session bound to the customer only. */
+export interface PortalInstanceSummary {
+  slug: string;
+  name: string;
+  licenseSlug: string;
+  /** Its subscription's status. Null when it was never subscribed. */
+  billingStatus: SubscriptionStatus | null;
+}
+
+/** What the next invoice will total, as the server estimates it now, on the usage so far. */
+export interface UpcomingInvoice extends InvoiceTotals {
+  /** When it is issued. */
+  boundaryAt: string;
+}
+
+/**
+ * An add-on an instance holds, on a portal or once its quantity is set. It is
+ * an {@link Addon} whose members a session always knows.
+ */
+export interface SessionAddon extends Addon {
+  familySlug: string;
+  /** How many units the instance holds; `0` when it holds none. */
+  quantity: number;
+  /** The most units one instance may hold. Null when unbounded. */
+  maxQuantity: number | null;
+  /**
+   * Every price it is billed at: the flat fee of the subscription's period and
+   * the metered prices. A quantity change is billed from the next renewal, with
+   * no proration.
+   */
+  billingPrices: BillingPrice[];
+}
+
 /**
  * Everything a customer portal shows, for the session's customer and, on a
  * session bound to an instance, that instance.
  */
 export interface KaitenPortal {
-  customer: { slug: string; name: string; billingEmail: string | null };
-  /** The instance the session is bound to. Null on a customer-wide session. */
-  instance: { slug: string; name: string; licenseSlug: string; licenseName: string } | null;
-  /** The customer's instances, on a customer-wide session. Null on a bound one. */
-  instances:
-    | {
-        slug: string;
-        name: string;
-        licenseSlug: string;
-        billingStatus: SubscriptionStatus | null;
-      }[]
-    | null;
+  customer: PortalCustomer;
+  /** The instance the session is bound to. Null on a session bound to the customer only. */
+  instance: PortalInstance | null;
+  /** The customer's instances, on a session bound to the customer only. Empty on a bound one. */
+  instances: PortalInstanceSummary[];
   /** The bound instance's subscription. Null when it has none, or the session is not bound. */
   subscription: PortalSubscription | null;
   /**
@@ -175,12 +224,14 @@ export interface KaitenPortal {
    */
   entitlements: ResolvedEntitlement[];
   /** The add-ons attached to the bound instance, each with its `quantity`. */
-  addOns: Addon[];
+  addOns: SessionAddon[];
   vouchers: PortalVoucher[];
+  /** The payment method the customer's invoices are charged to. Null when none is saved. */
   paymentMethod: PaymentMethodSummary | null;
-  /** What the next invoice will total, as the server estimates it now. */
-  upcomingInvoice: (InvoiceTotals & { boundaryAt: string }) | null;
+  /** Null without a live subscription. */
+  upcomingInvoice: UpcomingInvoice | null;
   capabilities: BillingCapabilities;
+  /** When this snapshot was read. */
   updatedAt: string;
 }
 
