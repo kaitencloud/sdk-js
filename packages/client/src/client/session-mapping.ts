@@ -5,6 +5,7 @@
 // and an interval count, a price a `BillingPrice`. The amounts and totals are the
 // server's, passed as they come: the SDK never sums or rounds a price.
 
+import type * as Api from "../core/index.ts";
 import type { PublicAddOn } from "../core/index.ts";
 import { billingInterval, entitlementValue, list, mapAddon, mapBillingPrice } from "./billing.ts";
 import { entitlementStatus } from "./normalize.ts";
@@ -35,18 +36,23 @@ function withCurrencyCode<T>(raw: Raw): T {
 }
 
 /** The subscription of the portal, of a checkout, of a cancel or a reactivate. */
-export function mapSubscription(raw: Raw): PortalSubscription {
-  const { currency, billingPeriod, basePrice, scheduledChange: change, ...rest } = raw;
-  const period = billingInterval(billingPeriod);
+export function mapSubscription(raw: Api.SessionSubscription): PortalSubscription {
+  const period = billingInterval(raw.billingPeriod);
+  const change = raw.scheduledChange;
   return {
-    ...(rest as PortalSubscription),
-    currencyCode: currency,
-    billingInterval: period?.interval,
+    status: raw.status,
+    providerKind: raw.providerKind,
+    collectionMethod: raw.collectionMethod,
+    currencyCode: raw.currency,
+    ...(period ? { billingInterval: period.interval } : {}),
     ...(period?.intervalCount ? { intervalCount: period.intervalCount } : {}),
-    basePrice: mapBillingPrice(basePrice ?? {}),
-    cancelAtPeriodEnd: rest.cancelAtPeriodEnd === true,
+    basePrice: mapBillingPrice(raw.basePrice),
+    currentPeriodStart: raw.currentPeriodStart,
+    currentPeriodEnd: raw.currentPeriodEnd,
+    trialEndsAt: raw.trialEndsAt ?? null,
+    cancelAtPeriodEnd: raw.cancelAtPeriodEnd === true,
     scheduledChange: change
-      ? { price: mapBillingPrice(change.price ?? {}), effectiveAt: change.effectiveAt }
+      ? { price: mapBillingPrice(change.price), effectiveAt: change.effectiveAt }
       : null,
   };
 }
@@ -130,7 +136,7 @@ export function mapCheckout(raw: Raw): CheckoutResult {
   if (raw.status === "subscribed") {
     return {
       ...(raw as CheckoutSubscribed),
-      subscription: mapSubscription(raw.subscription ?? {}),
+      subscription: mapSubscription(raw.subscription),
       activationInvoice: raw.activationInvoice ? mapInvoice(raw.activationInvoice) : null,
       // Likewise the hosted page, when the payment needs none.
       payment: raw.payment && {

@@ -22,6 +22,7 @@ import {
   mapSubscription,
   mapVoucherValidation,
 } from "./session-mapping.ts";
+import type { SessionSubscription as WireSubscription } from "../core/index.ts";
 import type {
   CheckoutInput,
   CheckoutResult,
@@ -142,13 +143,13 @@ export class KaitenSessionClient implements KaitenSessionClientLike {
 
   async cancelSubscription(input: { reason?: string } = {}): Promise<PortalSubscription> {
     return mapSubscription(
-      await this.call("POST", "billing/cancel", "cancelSubscription()", input),
+      await this.call<WireSubscription>("POST", "billing/cancel", "cancelSubscription()", input),
     );
   }
 
   async reactivateSubscription(): Promise<PortalSubscription> {
     return mapSubscription(
-      await this.call("POST", "billing/reactivate", "reactivateSubscription()", {}),
+      await this.call<WireSubscription>("POST", "billing/reactivate", "reactivateSubscription()"),
     );
   }
 

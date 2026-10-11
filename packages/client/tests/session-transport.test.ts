@@ -7,6 +7,7 @@ import type {
   KaitenCustomerSession,
   KaitenSessionClientLike,
 } from "../src/index.ts";
+import { answer } from "./support/session-answers.ts";
 
 const T0 = Date.parse("2026-10-06T10:00:00.000Z");
 const MINUTE = 60_000;
@@ -207,16 +208,8 @@ describe("session mode: Bearer kst_ on session routes only, refreshed before exp
         setupSessionId: "cs_1",
         expiresAt: "2026-10-06T11:00:00Z",
       },
-      "/api/public/session/billing/cancel": {
-        status: "ACTIVE",
-        currency: "EUR",
-        cancelAtPeriodEnd: true,
-      },
-      "/api/public/session/billing/reactivate": {
-        status: "ACTIVE",
-        currency: "EUR",
-        cancelAtPeriodEnd: false,
-      },
+      "/api/public/session/billing/cancel": answer("cancel"),
+      "/api/public/session/billing/reactivate": answer("reactivate"),
       "/api/public/session/billing/portal-session": { url: "https://pay.test/p", expiresAt: "x" },
       "/api/public/session/billing/payment-method-session": {
         url: "https://pay.test/m",
@@ -271,7 +264,7 @@ describe("session mode: Bearer kst_ on session routes only, refreshed before exp
       ["GET", "/api/public/session/invoices?cursor=c2&limit=20", undefined],
       ["POST", "/api/public/session/checkout", '{"licensePriceId":"lp-pro-m","dryRun":true}'],
       ["POST", "/api/public/session/billing/cancel", "{}"],
-      ["POST", "/api/public/session/billing/reactivate", "{}"],
+      ["POST", "/api/public/session/billing/reactivate", undefined],
       [
         "POST",
         "/api/public/session/billing/portal-session",

@@ -63,10 +63,10 @@ export interface KaitenPage<T> {
 /** The subscription of a session's instance. */
 export interface PortalSubscription {
   status: SubscriptionStatus;
-  /** `STRIPE` or `NOOP` (billed outside any payment provider). Open. */
-  providerKind: string;
-  /** `CHARGE_AUTOMATICALLY` or `SEND_INVOICE`. Open. */
-  collectionMethod: string;
+  /** `STRIPE`, or `NOOP` (billed outside any payment provider). Open: more may come. */
+  providerKind: "STRIPE" | "NOOP" | (string & {});
+  /** `CHARGE_AUTOMATICALLY` or `SEND_INVOICE`. Open: more may come. */
+  collectionMethod: "CHARGE_AUTOMATICALLY" | "SEND_INVOICE" | (string & {});
   currencyCode: CurrencyCode;
   /** The billing period, as an interval; a quarter is three months. */
   billingInterval?: BillingInterval;
