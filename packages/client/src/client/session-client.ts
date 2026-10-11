@@ -11,6 +11,7 @@ import {
   resolveApiBaseUrl,
   resolveFetchImplementation,
   retryable,
+  retryAfterDelay,
 } from "../core/http.ts";
 import { KaitenError, KaitenNetworkError } from "../core/runtime/errors.ts";
 import { retry } from "../core/runtime/retry.ts";
@@ -114,7 +115,8 @@ const invalidSession = (detail: string) =>
  * `getCustomerSession` however many requests wait on it; when the API refuses
  * it anyway (401), it is renewed once and the request sent once more, and a
  * second refusal reaches `onAuthError`. A read is replayed after a network
- * failure or a 5xx; a write never is.
+ * failure or a 5xx, after the `Retry-After` the API sent if it sent one (at most
+ * 30 seconds), and a write never is.
  */
 export class KaitenSessionClient implements KaitenSessionClientLike {
   private readonly config: KaitenSessionClientConfig;
@@ -265,6 +267,7 @@ export class KaitenSessionClient implements KaitenSessionClientLike {
       {
         retryImmediately: true,
         shouldRetry: (error, iteration) => retryable(method === "GET", error, iteration),
+        delayOf: retryAfterDelay,
       },
     );
   }

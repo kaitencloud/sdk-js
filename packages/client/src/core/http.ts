@@ -112,9 +112,38 @@ export function retryAfterSeconds(response: Response): number | undefined {
   return Number.isNaN(at) ? undefined : Math.max(0, Math.ceil((at - Date.now()) / 1000));
 }
 
+/**
+ * The longest a retry waits for a `Retry-After`, in seconds. A server asking for
+ * more than this is asking for a pause no read should hold a screen for; the
+ * error still carries what it said, for the host to act on.
+ */
+export const MAX_RETRY_AFTER_SECONDS = 30;
+
+/**
+ * The errors whose `retryAfterSeconds` is the default a wait refusal reports and
+ * not something the response said. A retry does not wait for those: it backs off
+ * as it does for any failure, since the API asked for nothing the client heard.
+ */
+const unheard = new WeakSet<KaitenError>();
+
+/**
+ * How long to wait before replaying after `error`, in milliseconds: the API's
+ * `Retry-After`, capped at {@link MAX_RETRY_AFTER_SECONDS}. `undefined` when the
+ * response carried none the client could read, and the retry then backs off as
+ * it always has.
+ */
+export function retryAfterDelay(error: unknown): number | undefined {
+  if (!(error instanceof KaitenError) || unheard.has(error)) return undefined;
+  const seconds = error.retryAfterSeconds;
+  return seconds === undefined ? undefined : Math.min(seconds, MAX_RETRY_AFTER_SECONDS) * 1000;
+}
+
 /** The error a response that failed carries: a `KaitenError`, or the class of the refusal it is. */
 export function apiErrorOf(body: unknown, response: Response): KaitenError {
-  return kaitenErrorOf(toKaitenApiError(body, response.status), retryAfterSeconds(response));
+  const seconds = retryAfterSeconds(response);
+  const error = kaitenErrorOf(toKaitenApiError(body, response.status), seconds);
+  if (seconds === undefined) unheard.add(error);
+  return error;
 }
 
 /** Refuses a secret credential in a browser, before anything is sent. */

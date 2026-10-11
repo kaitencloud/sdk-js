@@ -261,8 +261,8 @@ export class BoundaryPendingError extends WaitError {
  *
  * `retryAfterSeconds` is how long to wait, at least 30 from the API; when the
  * response carries no `Retry-After` the client can read, it is 60. A read is
- * sent again by the client; a write never is, since whether it took effect is
- * not known.
+ * sent again by the client after that delay, at most 30 seconds; a write never
+ * is, since whether it took effect is not known.
  */
 export class ProviderUnavailableError extends WaitError {
   override name = "ProviderUnavailableError";

@@ -12,6 +12,7 @@ import {
   resolveApiBaseUrl,
   resolveFetchImplementation,
   retryable,
+  retryAfterDelay,
 } from "./http.ts";
 import type { KaitenAuthScheme, KaitenClientConfig } from "./config.ts";
 
@@ -42,7 +43,9 @@ export interface KaitenRunOptions {
   /**
    * Whether replaying this call is safe. Defaults to `true`, which is correct
    * for every read and for the OFREP evaluations. Set it to `false` on anything
-   * that mutates server state — the transport then never retries it.
+   * that mutates server state — the transport then never retries it. A replay
+   * waits for the `Retry-After` of the failure when it has one, at most 30
+   * seconds, and backs off otherwise.
    */
   idempotent?: boolean;
   /**
@@ -183,6 +186,7 @@ export class KaitenTransport {
         retryImmediately: true,
         shouldRetry: (error, iteration) =>
           retryable(idempotent, error, iteration, options.retryStatuses),
+        delayOf: retryAfterDelay,
       },
     );
   }
