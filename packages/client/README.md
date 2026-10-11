@@ -108,10 +108,13 @@ try {
 ```
 
 - **One key per measurement.** A key is scoped to the instance and the
-  entitlement, and the API remembers it for 35 days by default. The same business
-  event can feed two meters under one key. A correction is a new report under a
-  new key, with `behavior: "set"` for an absolute value: under the original key
-  it is refused with `TransactionIdReusedError` (409), which is never retried.
+  entitlement. The API remembers it for 35 days by default, and that window is
+  what makes a retry safe: a report sent again under the same key inside it is
+  applied once, while a key older than that is forgotten and counts as new. The
+  same business event can feed two meters under one key. A correction is a new
+  report under a new key, with `behavior: "set"` for an absolute value: under the
+  original key it is refused with `TransactionIdReusedError` (409), which is
+  never retried.
 - **Retries.** With a key, and only then, a report that fails on the network,
   times out or answers a 500, 502, 503 or 504 is retried, up to three attempts,
   all under the same key. Any other status, a 501 for one, is returned as it came:

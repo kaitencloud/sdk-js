@@ -249,11 +249,12 @@ export interface ReportUsageInput {
    * and case-sensitively, such as a UUID or `llm-call:9f2c:tokens`.
    *
    * The API applies a report once per key, per instance and entitlement, over
-   * its idempotency horizon (35 days by default): sent again with the same
-   * `behavior` and value, the report answers its original result with
-   * `idempotentReplayed: true` and counts nothing; sent with another
-   * `behavior` or value, it is refused with `TransactionIdReusedError`. A
-   * refused report (`ThresholdExceeded`) does not spend its key.
+   * its idempotency window (35 days by default; a key older than that is
+   * forgotten and counts as new): sent again with the same `behavior` and value,
+   * the report answers its original result with `idempotentReplayed: true` and
+   * counts nothing; sent with another `behavior` or value, it is refused with
+   * `TransactionIdReusedError`. A refused report (`ThresholdExceeded`) does not
+   * spend its key.
    *
    * With a key, and only then, the client retries a report that failed on the
    * network or with a 500, 502, 503 or 504, up to three attempts under the same
