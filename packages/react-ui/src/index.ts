@@ -80,8 +80,9 @@ export {
 export {
   CheckoutSummary,
   type CheckoutSummaryProps,
-  type CheckoutItem,
-} from "./components/checkout-flow/checkout-flow.tsx";
+  type CheckoutSummarySelection,
+} from "./components/checkout-flow/checkout-summary.tsx";
+export { CheckoutFlow, type CheckoutFlowProps } from "./components/checkout-flow/checkout-flow.tsx";
 export {
   EntitlementStatusBar,
   type EntitlementStatusBarProps,

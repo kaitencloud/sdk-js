@@ -31,6 +31,71 @@ export type KaitenDateFormatter = {
   bivarianceHack(date: KaitenDateInput): string;
 }["bivarianceHack"];
 
+/**
+ * The words around the amounts of a checkout, from the first choice to the last payment status.
+ * The amounts come from the server already formatted by `formatMoney`.
+ */
+export interface KaitenCheckoutWords {
+  title: string;
+  /** The heading of a summary that stands alone. */
+  summary: string;
+  /** Accessible name of the quantity of an add-on, for a stepper. */
+  quantity: (name: string) => string;
+  decrease: (name: string) => string;
+  increase: (name: string) => string;
+  voucherLabel: string;
+  voucherApply: string;
+  voucherApplied: string;
+  voucherRemove: string;
+  /** Said of every code the API refuses, whatever the reason: it never says which. */
+  voucherInvalid: string;
+  /** Said when the API asks to be given a moment: too many calls were made. */
+  rateLimited: string;
+  /** Said beside a code that was typed and not applied: it is not part of the checkout until it is. */
+  voucherPending: string;
+  skipTrial: string;
+  billingEmail: string;
+  billingEmailHint: string;
+  /** Said in place of a summary while the customer has no billing email: the API prices nothing before it. */
+  billingEmailFirst: string;
+  /** The label of the total the server computed for what is due today. */
+  dueToday: string;
+  /** The total of a trial, which is nothing: "€0.00 today". Receives the formatted amount. */
+  todayAmount: (amount: string) => string;
+  /** Receives the RAW ISO bound and formats it itself, like `billingSummary.renewsOn`. */
+  trialEndsOn: (isoDate: string) => string;
+  choosePrice: string;
+  /** Names the entitlements the instance is over, already joined: "Seats, API calls". */
+  quotaExceeded: (names: string) => string;
+  unavailable: string;
+  error: string;
+  /** Shown instead of a flow for a plan with no price to buy. */
+  notSold: string;
+  subscribe: string;
+  processing: string;
+  cancel: string;
+  /** A visible statement that card details are not the host's, nor Kaiten's. */
+  paymentNote: string;
+  awaitingPaymentMethod: string;
+  reopenSetup: string;
+  setupDone: string;
+  setupIncomplete: string;
+  subscribed: string;
+  nothingDue: string;
+  paymentReceived: string;
+  receipt: string;
+  confirmPayment: string;
+  completePayment: string;
+  waitingForPayment: string;
+  paymentStillOpen: string;
+  paymentFailed: string;
+  updatePaymentMethod: string;
+  paymentMethodUpdated: string;
+  payInvoice: string;
+  alreadySubscribed: string;
+  managePlan: string;
+}
+
 export interface KaitenLocalization {
   /**
    * Formats a price for display. `amount` is in minor units (e.g. cents) and
@@ -212,27 +277,13 @@ export interface KaitenLocalization {
     /** The unit of a usage price that names none, nor does its entitlement: "per unit". */
     unit: string;
   };
-  checkoutFlow: {
-    title: string;
-    description: string;
-    plan: string;
-    addOn: string;
-    total: string;
-    processing: string;
-    proceedToPayment: string;
-    cancel: string;
-    error: string;
-    /** Short suffix for monthly pricing in unstyled summary lines */
-    intervalShortMonth: string;
-    /** Short suffix for yearly pricing in unstyled summary lines */
-    intervalShortYear: string;
-    /**
-     * Screen-reader label for a price token, e.g. "$79.00 per month". Receives
-     * the already-formatted price string (from `formatMoney`) so the symbol and
-     * digits are spoken correctly rather than "$79.00/mo" → "dollar sign...".
-     */
-    priceLabel: (price: string, interval: string | undefined) => string;
-  };
+  /**
+   * What `CheckoutFlow` and `CheckoutSummary` say. Optional, and absent from the English defaults
+   * the core carries: the words of a checkout are `@kaitencloud/react-ui`'s to default, so that a
+   * host that draws no checkout does not carry them. A language pack carries its own whole, and
+   * a host's override of one string is merged over the English the components hold.
+   */
+  checkoutFlow?: KaitenCheckoutWords;
 }
 
 /**

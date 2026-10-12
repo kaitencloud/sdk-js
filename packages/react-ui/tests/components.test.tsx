@@ -9,7 +9,6 @@ import { kaitenClientMock } from "./support/kaiten-client-double.ts";
 import { useKaitenDataContext } from "@kaitencloud/react/internal";
 
 import {
-  CheckoutSummary,
   CustomerPortal,
   FeatureComparison,
   formatKaitenDate,
@@ -965,60 +964,6 @@ test("Show + useEntitlementCheck support numeric remaining thresholds", async ()
     expect(screen.getByText("render prop blocked: 50 remaining, 95% used")).toBeDefined();
     expect(screen.getByText("show fallback")).toBeDefined();
   });
-});
-
-test("CheckoutSummary supports unstyled mode", () => {
-  installFetchMock();
-  const onCheckout = vi.fn();
-
-  render(
-    <KaitenProvider mode="public" publishableKey="pk_demo" polling={{ enabled: false }}>
-      <CheckoutSummary
-        unstyled
-        onCheckout={onCheckout}
-        items={[
-          {
-            slug: "pro",
-            name: "Pro",
-            price: 7900,
-            currencyCode: "USD",
-            interval: "month",
-            type: "plan",
-          },
-        ]}
-      />
-    </KaitenProvider>,
-  );
-
-  fireEvent.click(screen.getByRole("button", { name: "Continue" }));
-  expect(onCheckout).toHaveBeenCalled();
-});
-
-test("CheckoutSummary unstyled uses localized interval suffixes", () => {
-  installFetchMock();
-
-  render(
-    <KaitenProvider mode="public" publishableKey="pk_demo" polling={{ enabled: false }}>
-      <CheckoutSummary
-        unstyled
-        onCheckout={() => {}}
-        items={[
-          {
-            slug: "pro",
-            name: "Pro",
-            price: 7900,
-            currencyCode: "USD",
-            interval: "month",
-            type: "plan",
-          },
-        ]}
-      />
-    </KaitenProvider>,
-  );
-
-  const body = document.body.textContent ?? "";
-  expect(body).toContain(formatKaitenMoney(7900, "USD"));
-  expect(body).toContain("/mo");
 });
 
 test("CustomerPortal sections render rich entitlement, add-on, and flag variants", async () => {

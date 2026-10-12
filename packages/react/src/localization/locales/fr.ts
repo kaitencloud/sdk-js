@@ -147,22 +147,57 @@ export const fr: KaitenLocalization = {
     unit: "unité",
   },
   checkoutFlow: {
-    title: "Récapitulatif",
-    description: "Vérifiez votre sélection avant de continuer.",
-    plan: "Offre",
-    addOn: "Option",
-    total: "Total",
-    processing: "Traitement…",
-    proceedToPayment: "Continuer",
-    cancel: "Annuler",
+    title: "Paiement",
+    summary: "Récapitulatif",
+    quantity: (name) => `Quantité de ${name}`,
+    decrease: (name) => `Retirer un ${name}`,
+    increase: (name) => `Ajouter un ${name}`,
+    voucherLabel: "Code promo",
+    voucherApply: "Appliquer",
+    voucherApplied: "Code promo appliqué",
+    voucherRemove: "Retirer le code promo",
+    voucherInvalid: "Ce code ne peut pas être utilisé.",
+    rateLimited: "Trop de tentatives. Réessayez dans un instant.",
+    voucherPending: "Appliquez le code, ou videz le champ, pour continuer.",
+    skipTrial: "Commencer sans l'essai gratuit",
+    billingEmail: "E-mail de facturation",
+    billingEmailHint: "Les factures sont envoyées à cette adresse.",
+    billingEmailFirst: "Saisissez votre e-mail de facturation pour voir ce qui est dû aujourd'hui.",
+    dueToday: "À payer aujourd'hui",
+    todayAmount: (amount) => `${amount} aujourd'hui`,
+    trialEndsOn: (isoDate) => `Fin de l'essai le ${formatKaitenDate(isoDate, { locale: "fr-FR" })}`,
+    choosePrice: "Choisissez une offre pour voir ce qui est dû aujourd'hui.",
+    quotaExceeded: (names) =>
+      `Votre usage dépasse ce que cette offre inclut : ${names}. Choisissez une offre plus large, ou des options.`,
+    unavailable:
+      "Le prestataire de paiement est injoignable pour le moment. Réessayez dans un instant.",
     error: "Impossible de finaliser. Veuillez réessayer.",
-    intervalShortMonth: "/mois",
-    intervalShortYear: "/an",
-    priceLabel: (price, interval) => {
-      if (!interval) return price;
-      if (interval === "month") return `${price} par mois`;
-      if (interval === "year") return `${price} par an`;
-      return `${price} par ${interval}`;
-    },
+    notSold: "Cette offre ne peut pas être achetée en ligne.",
+    subscribe: "Souscrire",
+    processing: "Traitement…",
+    cancel: "Annuler",
+    paymentNote:
+      "Vos données de carte sont traitées par le prestataire de paiement. Elles n'arrivent jamais sur ce site.",
+    awaitingPaymentMethod:
+      "Enregistrez votre moyen de paiement dans la fenêtre que nous avons ouverte. Nous continuons dès votre retour.",
+    reopenSetup: "Rouvrir la page",
+    setupDone: "J'ai enregistré mon moyen de paiement",
+    setupIncomplete:
+      "Nous n'avons pas encore reçu de moyen de paiement. Rouvrez la page, ou vérifiez à nouveau.",
+    subscribed: "Vous êtes abonné",
+    nothingDue: "Rien à payer aujourd'hui.",
+    paymentReceived: "Paiement reçu.",
+    receipt: "Voir le reçu",
+    confirmPayment: "Confirmez votre paiement pour terminer.",
+    completePayment: "Finaliser le paiement",
+    waitingForPayment: "En attente de votre paiement…",
+    paymentStillOpen:
+      "Nous n'avons pas encore vu votre paiement. Nous vérifierons à nouveau à votre retour dans cette fenêtre.",
+    paymentFailed: "Vous êtes abonné, mais votre carte a été refusée.",
+    updatePaymentMethod: "Mettre à jour le moyen de paiement",
+    paymentMethodUpdated: "Moyen de paiement mis à jour.",
+    payInvoice: "Payer la facture",
+    alreadySubscribed: "Vous avez déjà un abonnement.",
+    managePlan: "Gérer votre abonnement",
   },
 };

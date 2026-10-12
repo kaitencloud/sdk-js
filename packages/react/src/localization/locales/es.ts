@@ -147,22 +147,58 @@ export const es: KaitenLocalization = {
     unit: "unidad",
   },
   checkoutFlow: {
-    title: "Resumen",
-    description: "Revise su selección antes de continuar.",
-    plan: "Plan",
-    addOn: "Complemento",
-    total: "Total",
-    processing: "Procesando…",
-    proceedToPayment: "Continuar",
-    cancel: "Cancelar",
+    title: "Pago",
+    summary: "Resumen",
+    quantity: (name) => `Cantidad de ${name}`,
+    decrease: (name) => `Quitar uno de ${name}`,
+    increase: (name) => `Añadir uno de ${name}`,
+    voucherLabel: "Código promocional",
+    voucherApply: "Aplicar",
+    voucherApplied: "Código aplicado",
+    voucherRemove: "Quitar el código",
+    voucherInvalid: "Este código no se puede usar.",
+    rateLimited: "Demasiados intentos. Inténtelo de nuevo en un momento.",
+    voucherPending: "Aplique el código, o vacíe el campo, para continuar.",
+    skipTrial: "Empezar sin la prueba gratuita",
+    billingEmail: "Correo de facturación",
+    billingEmailHint: "Las facturas se envían a esta dirección.",
+    billingEmailFirst: "Introduzca su correo de facturación para ver lo que se paga hoy.",
+    dueToday: "A pagar hoy",
+    todayAmount: (amount) => `${amount} hoy`,
+    trialEndsOn: (isoDate) =>
+      `La prueba termina el ${formatKaitenDate(isoDate, { locale: "es-ES" })}`,
+    choosePrice: "Elija un plan para ver lo que se paga hoy.",
+    quotaExceeded: (names) =>
+      `Su uso supera lo que incluye este plan: ${names}. Elija un plan mayor o complementos.`,
+    unavailable:
+      "No se puede contactar con el proveedor de pagos ahora mismo. Inténtelo de nuevo en un momento.",
     error: "No se pudo finalizar. Vuelva a intentarlo.",
-    intervalShortMonth: "/mes",
-    intervalShortYear: "/año",
-    priceLabel: (price, interval) => {
-      if (!interval) return price;
-      if (interval === "month") return `${price} al mes`;
-      if (interval === "year") return `${price} al año`;
-      return `${price} por ${interval}`;
-    },
+    notSold: "Este plan no se puede comprar en línea.",
+    subscribe: "Suscribirse",
+    processing: "Procesando…",
+    cancel: "Cancelar",
+    paymentNote:
+      "Los datos de su tarjeta los gestiona el proveedor de pagos. Nunca llegan a este sitio.",
+    awaitingPaymentMethod:
+      "Guarde su método de pago en la ventana que abrimos. Continuaremos en cuanto vuelva.",
+    reopenSetup: "Abrir la página de nuevo",
+    setupDone: "Ya guardé mi método de pago",
+    setupIncomplete:
+      "Todavía no hemos recibido un método de pago. Abra la página de nuevo o compruebe otra vez.",
+    subscribed: "Está suscrito",
+    nothingDue: "Hoy no hay nada que pagar.",
+    paymentReceived: "Pago recibido.",
+    receipt: "Ver el recibo",
+    confirmPayment: "Confirme su pago para terminar.",
+    completePayment: "Completar el pago",
+    waitingForPayment: "Esperando su pago…",
+    paymentStillOpen:
+      "Todavía no hemos visto su pago. Lo comprobaremos de nuevo cuando vuelva a esta ventana.",
+    paymentFailed: "Está suscrito, pero su tarjeta fue rechazada.",
+    updatePaymentMethod: "Actualizar el método de pago",
+    paymentMethodUpdated: "Método de pago actualizado.",
+    payInvoice: "Pagar la factura",
+    alreadySubscribed: "Ya tiene una suscripción.",
+    managePlan: "Gestionar su suscripción",
   },
 };

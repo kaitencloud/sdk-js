@@ -467,7 +467,7 @@ function buildStoryClientOptions(
  * inherits the parent's cache provider, so supplying one here isolates the whole
  * subtree. Real consumers are unaffected: distinct customers mean distinct keys.
  */
-function useIsolatedSWRCache(): () => Cache {
+export function useIsolatedSWRCache(): () => Cache {
   const cache = React.useMemo<Cache>(() => new Map(), []);
   return React.useCallback(() => cache, [cache]);
 }

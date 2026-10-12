@@ -124,9 +124,24 @@ const SCENARIOS = [
     unstyled: true,
   },
   {
+    // What a host that draws its own checkout ships: the hooks of the `billing` entry and the
+    // provider they read from. Nothing styled is in it, and nothing of it is in the scenarios
+    // above, which is the point of the entry.
+    name: "billing · useCheckout + KaitenProvider",
+    code: `import { KaitenProvider } from "@kaitencloud/react"; import { useCheckout } from "@kaitencloud/react/billing"; console.log(KaitenProvider, useCheckout);`,
+    budgetGzip: 28_700,
+    unstyled: true,
+  },
+  {
+    name: "billing · everything",
+    code: `import * as all from "@kaitencloud/react/billing"; console.log(all);`,
+    budgetGzip: 17_950,
+    unstyled: true,
+  },
+  {
     name: "locales · fr alone",
     code: `import { fr } from "@kaitencloud/react/locales"; console.log(fr);`,
-    budgetGzip: 3_000,
+    budgetGzip: 3_350,
     unstyled: true,
   },
   {
@@ -151,9 +166,16 @@ const SCENARIOS = [
     budgetGzip: 48_000,
   },
   {
+    // What a host that offers a checkout ships: the flow, the hooks it is made of, and the words
+    // of its English. A host that offers none does not: the four scenarios above are not in it.
+    name: "react-ui · CheckoutFlow + KaitenProvider + KaitenStyleRoot",
+    code: `import { CheckoutFlow, KaitenProvider, KaitenStyleRoot } from "@kaitencloud/react-ui"; console.log(CheckoutFlow, KaitenProvider, KaitenStyleRoot);`,
+    budgetGzip: 52_550,
+  },
+  {
     name: "react-ui · everything",
     code: `import * as all from "@kaitencloud/react-ui"; console.log(all);`,
-    budgetGzip: 62_300,
+    budgetGzip: 70_500,
   },
   {
     name: "client · KaitenClient alone",

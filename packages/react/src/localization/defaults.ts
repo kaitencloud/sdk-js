@@ -136,23 +136,4 @@ export const defaultLocalization: KaitenLocalization = {
     perUnit: "per {unit}",
     unit: "unit",
   },
-  checkoutFlow: {
-    title: "Checkout",
-    description: "Review your selection before proceeding.",
-    plan: "Plan",
-    addOn: "Add-on",
-    total: "Total",
-    processing: "Processing...",
-    proceedToPayment: "Continue",
-    cancel: "Cancel",
-    error: "Unable to complete checkout. Please try again.",
-    intervalShortMonth: "/mo",
-    intervalShortYear: "/year",
-    priceLabel: (price, interval) => {
-      if (!interval) return price;
-      if (interval === "month") return `${price} per month`;
-      if (interval === "year") return `${price} per year`;
-      return `${price} per ${interval}`;
-    },
-  },
 };

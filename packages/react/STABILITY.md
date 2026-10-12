@@ -103,12 +103,22 @@ release, as billing ships:
   the types of their options and results. They need `mode="customer-session"`. Every amount
   they carry is the server's, from a checkout's `dryRun` or an invoice, and none is added up.
   The `problem` of a checkout is a closed list for now, and may grow.
-- **`CheckoutSummary`** (`@kaitencloud/react-ui`). It shows the total of the
-  items it is given, summed in the browser. Billing's rule is the opposite: the
-  amount due is the server's, from a checkout's `dryRun` (`dueToday`), and the
-  SDK never adds prices up. Until the component is rebuilt on that, its total is
-  a summary of the host's own numbers, never an amount to charge, and its props
-  will change.
+- **`CheckoutSummary` and `CheckoutFlow`** (`@kaitencloud/react-ui`), a checkout drawn:
+  what is due today and a customer's whole checkout. They are `useCheckoutPreview` and
+  `useCheckout`, with markup. The amount due is the server's, from a checkout's `dryRun`
+  (`dueToday`), and the SDK never adds prices up. `CheckoutSummary` took the items of the
+  host's own total before; it takes the selection to price, or a preview that something else
+  holds, and its props changed with it.
+  `CheckoutItem`, the type of those items, left the exports with them. A pricing table also draws a
+  plan's boolean or configuration grant as an included feature (a check and its name) where it
+  drew the word "boolean", and omits a boolean that is off.
+- **The words of a checkout**, `KaitenLocalization.checkoutFlow` (typed `KaitenCheckoutWords`).
+  An optional section: the provider's English defaults do not carry it, the English lives in
+  `@kaitencloud/react-ui`, and a language pack of `@kaitencloud/react/locales` carries its
+  own whole. A host's override of one string is merged over them. The section's earlier keys
+  (`title`, `description`, `plan`, `addOn`, `total`, `proceedToPayment` and the interval
+  names) are gone: they were the words of the previous `CheckoutSummary`, and the keys of the
+  present one replace them.
 - **The billing half of `PricingTable`** (`@kaitencloud/react-ui`): the price
   passed to `onSelectPlan`, and the "Contact us" link of a plan that is not
   `selfServe`.
@@ -123,7 +133,7 @@ Usable today, but **shape may change** in a minor release (treat as `@experiment
 - **What `@kaitencloud/react-ui` adds.** Its styled components (default,
   non-`unstyled` rendering): `CustomerPortal` (and its sections
   `CurrentPlan`/`IncludedFeatures`/`UsageMeters`/`AddOns`/`FlagsSummary`),
-  `PricingTable`, `FeatureComparison`, `CheckoutSummary`, `Paywall`, `PlanBadge`,
+  `PricingTable`, `FeatureComparison`, `CheckoutSummary`, `CheckoutFlow`, `Paywall`, `PlanBadge`,
   `UpgradeButton`, `EntitlementStatusBar`, `FeatureCatalog`, `BillingSummary`,
   `KaitenBranding`. The names it re-exports from the core keep the core's
   guarantee.

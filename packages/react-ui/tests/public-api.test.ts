@@ -27,6 +27,7 @@ const STYLED_SURFACE = [
   "PlanBadge",
   "UpgradeButton",
   "CheckoutSummary",
+  "CheckoutFlow",
   "EntitlementStatusBar",
   "BillingSummary",
 ] as const;

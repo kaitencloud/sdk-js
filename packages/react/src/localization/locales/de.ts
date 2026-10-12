@@ -147,22 +147,58 @@ export const de: KaitenLocalization = {
     unit: "Einheit",
   },
   checkoutFlow: {
-    title: "Zusammenfassung",
-    description: "Überprüfen Sie Ihre Auswahl, bevor Sie fortfahren.",
-    plan: "Tarif",
-    addOn: "Zusatzoption",
-    total: "Gesamt",
-    processing: "Wird verarbeitet…",
-    proceedToPayment: "Fortfahren",
-    cancel: "Abbrechen",
+    title: "Bezahlung",
+    summary: "Zusammenfassung",
+    quantity: (name) => `Menge von ${name}`,
+    decrease: (name) => `Eine Einheit ${name} entfernen`,
+    increase: (name) => `Eine Einheit ${name} hinzufügen`,
+    voucherLabel: "Gutscheincode",
+    voucherApply: "Einlösen",
+    voucherApplied: "Gutschein angewendet",
+    voucherRemove: "Gutschein entfernen",
+    voucherInvalid: "Dieser Code kann nicht verwendet werden.",
+    rateLimited: "Zu viele Versuche. Versuchen Sie es gleich noch einmal.",
+    voucherPending: "Wenden Sie den Code an oder leeren Sie das Feld, um fortzufahren.",
+    skipTrial: "Ohne kostenlose Testphase starten",
+    billingEmail: "E-Mail für die Rechnung",
+    billingEmailHint: "Rechnungen werden an diese Adresse gesendet.",
+    billingEmailFirst: "Geben Sie Ihre Rechnungs-E-Mail ein, um zu sehen, was heute fällig ist.",
+    dueToday: "Heute fällig",
+    todayAmount: (amount) => `${amount} heute`,
+    trialEndsOn: (isoDate) =>
+      `Testphase endet am ${formatKaitenDate(isoDate, { locale: "de-DE" })}`,
+    choosePrice: "Wählen Sie einen Tarif, um zu sehen, was heute fällig ist.",
+    quotaExceeded: (names) =>
+      `Ihre Nutzung liegt über dem, was dieser Tarif enthält: ${names}. Wählen Sie einen größeren Tarif oder Zusatzoptionen.`,
+    unavailable:
+      "Der Zahlungsdienstleister ist gerade nicht erreichbar. Versuchen Sie es gleich erneut.",
     error: "Abschluss nicht möglich. Bitte versuchen Sie es erneut.",
-    intervalShortMonth: "/Monat",
-    intervalShortYear: "/Jahr",
-    priceLabel: (price, interval) => {
-      if (!interval) return price;
-      if (interval === "month") return `${price} pro Monat`;
-      if (interval === "year") return `${price} pro Jahr`;
-      return `${price} pro ${interval}`;
-    },
+    notSold: "Dieser Tarif kann nicht online gekauft werden.",
+    subscribe: "Abonnieren",
+    processing: "Wird verarbeitet…",
+    cancel: "Abbrechen",
+    paymentNote:
+      "Ihre Kartendaten werden vom Zahlungsdienstleister verarbeitet. Sie erreichen diese Website nie.",
+    awaitingPaymentMethod:
+      "Speichern Sie Ihre Zahlungsmethode in dem geöffneten Fenster. Wir machen weiter, sobald Sie zurück sind.",
+    reopenSetup: "Seite erneut öffnen",
+    setupDone: "Ich habe meine Zahlungsmethode gespeichert",
+    setupIncomplete:
+      "Wir haben noch keine Zahlungsmethode erhalten. Öffnen Sie die Seite erneut oder prüfen Sie noch einmal.",
+    subscribed: "Sie sind abonniert",
+    nothingDue: "Heute ist nichts zu zahlen.",
+    paymentReceived: "Zahlung eingegangen.",
+    receipt: "Beleg ansehen",
+    confirmPayment: "Bestätigen Sie Ihre Zahlung, um abzuschließen.",
+    completePayment: "Zahlung abschließen",
+    waitingForPayment: "Warten auf Ihre Zahlung…",
+    paymentStillOpen:
+      "Wir haben Ihre Zahlung noch nicht gesehen. Wir prüfen erneut, wenn Sie zu diesem Fenster zurückkehren.",
+    paymentFailed: "Sie sind abonniert, aber Ihre Karte wurde abgelehnt.",
+    updatePaymentMethod: "Zahlungsmethode aktualisieren",
+    paymentMethodUpdated: "Zahlungsmethode aktualisiert.",
+    payInvoice: "Rechnung bezahlen",
+    alreadySubscribed: "Sie haben bereits ein Abonnement.",
+    managePlan: "Abonnement verwalten",
   },
 };
