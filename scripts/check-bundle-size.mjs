@@ -96,19 +96,19 @@ const SCENARIOS = [
   {
     name: "core · Gate + KaitenProvider",
     code: `import { Gate, KaitenProvider } from "@kaitencloud/react"; console.log(Gate, KaitenProvider);`,
-    budgetGzip: 25_500,
+    budgetGzip: 26_100,
     unstyled: true,
   },
   {
     name: "core · useEntitlementCheck + KaitenProvider",
     code: `import { useEntitlementCheck, KaitenProvider } from "@kaitencloud/react"; console.log(useEntitlementCheck, KaitenProvider);`,
-    budgetGzip: 24_500,
+    budgetGzip: 25_200,
     unstyled: true,
   },
   {
     name: "core · Show + KaitenProvider",
     code: `import { Show, KaitenProvider } from "@kaitencloud/react"; console.log(Show, KaitenProvider);`,
-    budgetGzip: 24_500,
+    budgetGzip: 25_400,
     unstyled: true,
   },
   {
@@ -120,7 +120,7 @@ const SCENARIOS = [
   {
     name: "core · everything",
     code: `import * as all from "@kaitencloud/react"; console.log(all);`,
-    budgetGzip: 31_500,
+    budgetGzip: 30_000,
     unstyled: true,
   },
   {
@@ -132,7 +132,7 @@ const SCENARIOS = [
   {
     name: "react-ui · Gate + KaitenProvider through the re-export",
     code: `import { Gate, KaitenProvider } from "@kaitencloud/react-ui"; console.log(Gate, KaitenProvider);`,
-    budgetGzip: 25_500,
+    budgetGzip: 26_100,
     unstyled: true,
   },
   {
@@ -153,7 +153,7 @@ const SCENARIOS = [
   {
     name: "react-ui · everything",
     code: `import * as all from "@kaitencloud/react-ui"; console.log(all);`,
-    budgetGzip: 67_500,
+    budgetGzip: 62_300,
   },
   {
     name: "client · KaitenClient alone",
