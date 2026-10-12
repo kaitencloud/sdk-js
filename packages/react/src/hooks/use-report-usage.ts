@@ -16,10 +16,12 @@ export interface ReportUsageArgs {
   entitlementSlug: string;
   /**
    * The report, sent as it is. Give it a `transactionId` to make it
-   * idempotent: the client then retries it after a network failure or a 5xx,
-   * under the same key, and the API counts it once. Without one it is sent
-   * exactly once. A key reused with another value rejects with
-   * `TransactionIdReusedError`, through `onError`; see `ReportUsageInput`.
+   * idempotent: the client then sends it again, under the same key, after a
+   * network failure or a 500, 502, 503 or 504 (waiting out the `Retry-After` the
+   * API sent, up to 30 seconds), and the API counts it once. Without one it is
+   * sent exactly once. A key reused with another value rejects with
+   * `TransactionIdReusedError`, and a malformed one, before any request, with
+   * `InvalidTransactionIdError`, both through `onError`; see `ReportUsageInput`.
    */
   input: ReportUsageInput;
 }
@@ -83,7 +85,8 @@ function bumpEntitlementUsage(
  * The meter is bumped before the answer arrives, then reconciled with the
  * server's snapshot. A report the API recognises as one it already applied
  * under the same `transactionId` resolves with `idempotentReplayed: true` and
- * counts nothing: the reconciliation takes the bump back.
+ * counts nothing: the reconciliation takes the bump back. When the API kept
+ * the report but dropped its metadata, `metadataDropped` says why.
  */
 export function useReportUsage(options?: {
   onSuccess?: (data: ReportUsageResult) => void;
