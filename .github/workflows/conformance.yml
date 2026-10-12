@@ -1,0 +1,71 @@
+name: Conformance
+
+# A customer's whole journey through a running Kaiten, taken with @kaitencloud/client and
+# @kaitencloud/server alone: examples/conformance/conformance.spec.ts. It reads a stack
+# that its environment names, subscribes an instance on it and cancels, and holds each
+# answer to the API contract.
+#
+# The variables come from the repository's secrets. Without them the suite skips and
+# says what it needs, as it does on a pull request from a fork, which gets no secrets;
+# with some of them it fails, so that a repository that lost a secret does not look
+# like one that passed. See examples/conformance/README.md for what each holds.
+#
+# The stack must offer an instance with no subscription for each run: the journey
+# subscribes it, and a subscribed instance cannot be subscribed again. Runs are
+# serialized, since they share the instance the secrets name.
+
+on:
+  workflow_dispatch:
+  pull_request:
+  # Nightly, later. A scheduled workflow only runs from the default branch, which does not
+  # carry this file yet, nor the contract this suite holds Kaiten to until that contract
+  # is published; and every night needs an instance with no subscription. Uncomment it
+  # when both are true.
+  #
+  # schedule:
+  #   - cron: "17 3 * * *"
+
+concurrency:
+  group: conformance
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  conformance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: pnpm/action-setup@v6.1.0
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - uses: voidzero-dev/setup-vp@v1.21.1
+        with:
+          # actions/setup-node and pnpm/action-setup own Node.js and pnpm. Vite+
+          # only provides vp, at the catalog's vite-plus version.
+          node-manager: false
+          package-manager: false
+          cache: true
+          run-install: false
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      # The suite imports the packages through their built dist/.
+      - name: Build packages
+        run: vp run -r build
+      # The credentials are in the environment of this step alone: installing and
+      # building run repository code and dependency scripts, which have no use for them.
+      - name: Run the conformance suite
+        working-directory: examples/conformance
+        env:
+          KAITEN_CONFORMANCE_API_URL: ${{ secrets.KAITEN_CONFORMANCE_API_URL }}
+          KAITEN_CONFORMANCE_PUBLISHABLE_KEY: ${{ secrets.KAITEN_CONFORMANCE_PUBLISHABLE_KEY }}
+          KAITEN_CONFORMANCE_SERVER_TOKEN: ${{ secrets.KAITEN_CONFORMANCE_SERVER_TOKEN }}
+          KAITEN_CONFORMANCE_CUSTOMER_SLUG: ${{ secrets.KAITEN_CONFORMANCE_CUSTOMER_SLUG }}
+          KAITEN_CONFORMANCE_INSTANCE_SLUG: ${{ secrets.KAITEN_CONFORMANCE_INSTANCE_SLUG }}
+          KAITEN_CONFORMANCE_RETURN_URL: ${{ secrets.KAITEN_CONFORMANCE_RETURN_URL }}
+          KAITEN_CONFORMANCE_STRIPE_TEST_KEY: ${{ secrets.KAITEN_CONFORMANCE_STRIPE_TEST_KEY }}
+        run: vp test --reporter=verbose conformance.spec.ts

@@ -102,8 +102,9 @@ next to this repository, or a schema file named by `KAITEN_GRAPHQL_SCHEMA`.
 - **build**: every package, the license and notice files and the manifest of each
   tarball, the client's bundle-size budgets, and that no browser bundle carries a
   token, the name of a secret variable or code of `@kaitencloud/server`.
-- **test**: the tests of every package and of the Node example, and those of the
-  repository's own scripts (`vp test run scripts`).
+- **test**: the tests of every package and of the Node example, those of the
+  conformance example (which skip the live suite and rehearse its code), and those of
+  the repository's own scripts (`vp test run scripts`).
 - **compat-1.0**: code written against `@kaitencloud/client` 1.0.0 compiles against
   the tarball npm serves for 1.0.0 and against the one this tree would publish, and
   every name 1.0.0 exports is still exported, a value still a value, except
@@ -113,8 +114,13 @@ next to this repository, or a schema file named by `KAITEN_GRAPHQL_SCHEMA`.
   dry run, and, once the React packages are in the tree, that they compile against
   the lowest client their range allows. Advisory: it is meant to fail while the client
   a React package needs is not on npm yet, and it blocks in the release procedure.
+- **Conformance** (its own workflow, `conformance.yml`, run by hand or on a pull
+  request): a customer's whole journey through a running Kaiten with the two packages
+  alone, each answer held to the API contract. It reads the stack it runs against from the
+  repository's secrets and skips without them. [`examples/conformance`](examples/conformance)
+  says what it needs.
 
-Each of the last four is a script you can run yourself, after `vp run -r build`:
+Four of these are scripts you can run yourself, after `vp run -r build`:
 `pnpm run check:no-secrets`, `pnpm run check:compat-1.0`,
 `pnpm run check:release-dependencies` and `pnpm run test:scripts`.
 
