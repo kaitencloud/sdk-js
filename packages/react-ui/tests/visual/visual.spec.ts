@@ -32,6 +32,16 @@ async function gotoStory(page: Page, storyId: string) {
 
   // Give SWR + React Suspense one tick to settle after the SDK shell mounts.
   await page.waitForLoadState("networkidle");
+
+  // A story that drives its component (pressing a button, typing a code) ends in its state when
+  // its `play` function has finished, and `networkidle` does not know when that is.
+  await page.waitForFunction(() => {
+    const preview = (
+      window as unknown as { __STORYBOOK_PREVIEW__?: { currentRender?: { phase?: string } } }
+    ).__STORYBOOK_PREVIEW__;
+    const phase = preview?.currentRender?.phase;
+    return phase === "finished" || phase === "completed";
+  });
 }
 
 test.describe("Visual regression — Storybook stories", () => {

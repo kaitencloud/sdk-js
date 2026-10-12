@@ -48,6 +48,49 @@ export const STORIES: Array<{ name: string; storyId: string }> = [
   // is the remaining layout variant.)
   { name: "customer-portal--full", storyId: "flows-customerportal--full" },
   { name: "customer-portal--vertical", storyId: "flows-customerportal--vertical" },
+  // CheckoutSummary — what is due today, as the server says it.
+  {
+    name: "checkout-summary--plan-and-add-ons",
+    storyId: "flows-checkoutsummary--plan-and-add-ons",
+  },
+  { name: "checkout-summary--with-a-voucher", storyId: "flows-checkoutsummary--with-a-voucher" },
+  {
+    name: "checkout-summary--total-of-the-server",
+    storyId: "flows-checkoutsummary--total-of-the-server",
+  },
+  { name: "checkout-summary--free-trial", storyId: "flows-checkoutsummary--free-trial" },
+  { name: "checkout-summary--loading", storyId: "flows-checkoutsummary--loading" },
+  { name: "checkout-summary--nothing-chosen", storyId: "flows-checkoutsummary--nothing-chosen" },
+  { name: "checkout-summary--over-quota", storyId: "flows-checkoutsummary--over-quota" },
+  { name: "checkout-summary--provider-down", storyId: "flows-checkoutsummary--provider-down" },
+  // CheckoutFlow — a checkout in every state a customer meets, from choosing to the last payment status.
+  { name: "checkout-flow--default", storyId: "flows-checkoutflow--default" },
+  {
+    name: "checkout-flow--add-ons-and-voucher",
+    storyId: "flows-checkoutflow--add-ons-and-voucher",
+  },
+  { name: "checkout-flow--voucher-refused", storyId: "flows-checkoutflow--voucher-refused" },
+  { name: "checkout-flow--free-trial", storyId: "flows-checkoutflow--free-trial" },
+  {
+    name: "checkout-flow--billing-email-needed",
+    storyId: "flows-checkoutflow--billing-email-needed",
+  },
+  { name: "checkout-flow--processing", storyId: "flows-checkoutflow--processing" },
+  {
+    name: "checkout-flow--saving-a-payment-method",
+    storyId: "flows-checkoutflow--saving-a-payment-method",
+  },
+  { name: "checkout-flow--subscribed", storyId: "flows-checkoutflow--subscribed" },
+  {
+    name: "checkout-flow--subscribed-with-a-trial",
+    storyId: "flows-checkoutflow--subscribed-with-a-trial",
+  },
+  { name: "checkout-flow--payment-to-confirm", storyId: "flows-checkoutflow--payment-to-confirm" },
+  { name: "checkout-flow--payment-processing", storyId: "flows-checkoutflow--payment-processing" },
+  { name: "checkout-flow--card-declined", storyId: "flows-checkoutflow--card-declined" },
+  { name: "checkout-flow--already-subscribed", storyId: "flows-checkoutflow--already-subscribed" },
+  { name: "checkout-flow--over-quota", storyId: "flows-checkoutflow--over-quota" },
+  { name: "checkout-flow--provider-down", storyId: "flows-checkoutflow--provider-down" },
   // Paywall — modal chrome that previously had a11y/focus issues.
   { name: "paywall--soft-near-limit", storyId: "flows-paywall--soft-near-limit" },
   { name: "paywall--hard-over-limit", storyId: "flows-paywall--hard-over-limit" },

@@ -74,7 +74,32 @@ const STORIES: Array<{ name: string; storyId: string }> = [
     storyId: "flows-customerportal--current-plan-in-a-session-quarterly",
   },
   { name: "billing-summary", storyId: "flows-billingsummary--default" },
-  { name: "checkout-summary", storyId: "flows-checkoutsummary--plan-and-addons" },
+  // What is due today: the server's lines and total, a trial, and what stands in their place.
+  { name: "checkout-summary", storyId: "flows-checkoutsummary--plan-and-add-ons" },
+  { name: "checkout-summary (voucher)", storyId: "flows-checkoutsummary--with-a-voucher" },
+  { name: "checkout-summary (trial)", storyId: "flows-checkoutsummary--free-trial" },
+  { name: "checkout-summary (refused)", storyId: "flows-checkoutsummary--over-quota" },
+  // A checkout, in every state a customer meets: choosing, with a code, then paying and what
+  // became of the payment. Each draws the widest line it can: the period choices, the stepper
+  // rows, the voucher row and the provider's link.
+  { name: "checkout-flow", storyId: "flows-checkoutflow--default" },
+  {
+    name: "checkout-flow (add-ons and voucher)",
+    storyId: "flows-checkoutflow--add-ons-and-voucher",
+  },
+  { name: "checkout-flow (voucher refused)", storyId: "flows-checkoutflow--voucher-refused" },
+  { name: "checkout-flow (trial)", storyId: "flows-checkoutflow--free-trial" },
+  { name: "checkout-flow (billing email)", storyId: "flows-checkoutflow--billing-email-needed" },
+  { name: "checkout-flow (processing)", storyId: "flows-checkoutflow--processing" },
+  {
+    name: "checkout-flow (saving a payment method)",
+    storyId: "flows-checkoutflow--saving-a-payment-method",
+  },
+  { name: "checkout-flow (subscribed)", storyId: "flows-checkoutflow--subscribed" },
+  { name: "checkout-flow (payment to confirm)", storyId: "flows-checkoutflow--payment-to-confirm" },
+  { name: "checkout-flow (card declined)", storyId: "flows-checkoutflow--card-declined" },
+  { name: "checkout-flow (already subscribed)", storyId: "flows-checkoutflow--already-subscribed" },
+  { name: "checkout-flow (over quota)", storyId: "flows-checkoutflow--over-quota" },
   // Overlay — already container-queried, and the model the rest should follow.
   { name: "paywall (soft)", storyId: "flows-paywall--soft-near-limit" },
   { name: "paywall (hard)", storyId: "flows-paywall--hard-over-limit" },
@@ -112,6 +137,15 @@ async function gotoStory(page: Page, storyId: string, width: number) {
 
   await page.locator("[data-kaiten-harness]").waitFor({ state: "attached", timeout: 5000 });
   await page.waitForLoadState("networkidle");
+
+  // A story that drives its component ends in its state when its `play` function has finished.
+  await page.waitForFunction(() => {
+    const preview = (
+      window as unknown as { __STORYBOOK_PREVIEW__?: { currentRender?: { phase?: string } } }
+    ).__STORYBOOK_PREVIEW__;
+    const phase = preview?.currentRender?.phase;
+    return phase === "finished" || phase === "completed";
+  });
 }
 
 /**
