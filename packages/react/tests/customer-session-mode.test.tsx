@@ -12,6 +12,12 @@ import { cleanup, render, renderHook, screen, waitFor } from "@testing-library/r
 import { afterEach, expect, test, vi } from "vite-plus/test";
 import { KaitenSessionClient, type KaitenSessionClientLike } from "@kaitencloud/client";
 
+// What Kaiten answers, produced by its own code and held to the API contract by the
+// client's tests: a session bound to `initech-prod` on Pro, and the public catalog of
+// Acme. The suites below pin what the provider does with them, not their shape.
+import sessionAnswers from "../../client/tests/fixtures/session.initech.json" with { type: "json" };
+import acmeCatalog from "../../client/tests/fixtures/public-catalog.acme.json" with { type: "json" };
+
 import {
   Gate,
   KaitenProvider,
@@ -33,148 +39,26 @@ import {
 
 const API = "https://kaiten.test/api";
 const PK = `pk_${"a".repeat(43)}`;
-const P = "2026-10-01T00:00:00.000Z";
-const P1 = "2026-11-01T00:00:00.000Z";
 
-const price = (id: string, period: string | null, unitAmount: number, isDefault = true) => ({
-  id,
-  billingModel: "FLAT_FEE",
-  billingPeriod: period,
-  currency: "EUR",
-  unitAmount,
-  unitAmountDecimal: `${unitAmount}`,
-  metered: null,
-  displayLabel: "Monthly",
-  isDefault,
-  status: "ACTIVE",
-});
-
-/** `GET /public/session/portal` of a session bound to `initech-prod`, on Pro. */
+/**
+ * `GET /public/session/portal` of a session bound to `initech-prod`, on Pro. A
+ * voucher doubles `api-calls`, and the licence allows no overage on it: the effective
+ * ceiling is the limit, 200,000.
+ */
 function portalPayload(apiCallsUsed = 30_000) {
-  return {
-    customer: { slug: "initech", name: "Initech", billingEmail: "ap@initech.test" },
-    instance: {
-      slug: "initech-prod",
-      name: "Initech Prod",
-      licenseSlug: "pro-v2",
-      licenseName: "Pro",
-    },
-    instances: null,
-    subscription: {
-      status: "ACTIVE",
-      providerKind: "STRIPE",
-      collectionMethod: "CHARGE_AUTOMATICALLY",
-      currency: "EUR",
-      billingPeriod: "MONTHLY",
-      basePrice: price("lp-pro-m", "MONTHLY", 4900),
-      currentPeriodStart: P,
-      currentPeriodEnd: P1,
-      trialEndsAt: null,
-      cancelAtPeriodEnd: false,
-      scheduledChange: null,
-    },
-    entitlements: [
-      {
-        // The licence grants 100,000; a voucher doubles it.
-        slug: "api-calls",
-        name: "API calls",
-        type: "NUMBER",
-        limitValue: 200_000,
-        currentValue: apiCallsUsed,
-        unlimited: false,
-        limitCapExceededOveragePercent: 0,
-        maximumAllowedUsage: 200_000,
-        percentageUsed: (apiCallsUsed / 200_000) * 100,
-        currentPeriodStart: P,
-        currentPeriodEnd: P1,
-        source: "license",
-        provenance: {
-          license: { value: { type: "number", value: 100_000 } },
-          addons: [],
-          boosts: [{ modifierType: "MULTIPLY", modifierValue: 2 }],
-          number: {
-            license: 100_000,
-            afterAddons: 100_000,
-            boostSet: null,
-            boostAdd: null,
-            boostMultiply: 2,
-            unlimited: false,
-            effective: 200_000,
-          },
-        },
-      },
-      {
-        slug: "priority-support",
-        name: "Priority support",
-        type: "BOOLEAN",
-        limitValue: true,
-        currentValue: null,
-        unlimited: false,
-        maximumAllowedUsage: null,
-        percentageUsed: null,
-        source: "addon",
-      },
-    ],
-    addOns: [
-      {
-        addonSlug: "extra-seats-v1",
-        familySlug: "extra-seats",
-        name: "Extra seats",
-        quantity: 3,
-        maxQuantity: 50,
-        prices: [price("ap-seats-m", "MONTHLY", 1000)],
-      },
-      {
-        addonSlug: "support-v1",
-        familySlug: "support",
-        name: "Priority support",
-        quantity: 1,
-        maxQuantity: 1,
-        prices: [price("ap-support-m", "MONTHLY", 2000)],
-      },
-    ],
-    vouchers: [],
-    paymentMethod: { status: "ACTIVE", brand: "visa", last4: "4242", expMonth: 12, expYear: 2030 },
-    upcomingInvoice: null,
-    capabilities: { paymentMethods: true, invoices: true, unsubscribe: true, checkout: false },
-    updatedAt: "2026-10-06T10:00:00.000Z",
-  };
+  const portal = structuredClone(sessionAnswers.portal);
+  const apiCalls = portal.entitlements.find((entitlement) => entitlement.slug === "api-calls")!;
+  apiCalls.currentValue = apiCallsUsed;
+  apiCalls.percentageUsed = (apiCallsUsed / 200_000) * 100;
+  apiCalls.limitCapExceededOveragePercent = 0;
+  apiCalls.maximumAllowedUsage = 200_000;
+  return portal;
 }
 
-/** `GET /public/catalog`: Starter and Pro, Pro also sold quarterly. */
+/** `GET /public/catalog`: Starter and Pro, Pro also sold quarterly and half-yearly. */
 const CATALOG = {
-  plans: [
-    {
-      familySlug: "starter",
-      licenseSlug: "starter-v1",
-      licenseId: "lic-starter",
-      name: "Starter",
-      lifecycleState: "PUBLISHED",
-      pricingType: "PAID",
-      selfServe: true,
-      selfServeCtaUrl: null,
-      currency: "EUR",
-      prices: [price("lp-starter-m", "MONTHLY", 1900)],
-      compatibleAddonFamilies: [],
-      entitlements: [],
-    },
-    {
-      familySlug: "pro",
-      licenseSlug: "pro-v2",
-      licenseId: "lic-pro",
-      name: "Pro",
-      lifecycleState: "PUBLISHED",
-      pricingType: "PAID",
-      selfServe: true,
-      selfServeCtaUrl: null,
-      currency: "EUR",
-      prices: [price("lp-pro-q", "QUARTERLY", 13500), price("lp-pro-m", "MONTHLY", 4900)],
-      compatibleAddonFamilies: ["extra-seats"],
-      entitlements: [],
-    },
-  ],
-  addOns: [],
-  capabilities: { checkout: true, paymentMethods: true },
+  ...acmeCatalog,
+  plans: acmeCatalog.plans.filter((plan) => ["starter", "pro"].includes(plan.familySlug)),
 };
 
 const json = (body: unknown, status = 200) =>
@@ -267,7 +151,7 @@ test("builds the licensing snapshot from the portal, and invents nothing", async
   const snapshot = result.current.snapshot.data!;
 
   // The commercial half is the portal's, not a hard-coded empty one.
-  expect(snapshot.addOns.map((addon) => addon.slug)).toEqual(["extra-seats-v1", "support-v1"]);
+  expect(snapshot.addOns.map((addon) => addon.slug)).toEqual(["extra-seats-v1", "gpu-pack-v1"]);
   expect(snapshot.addOns[0]).toMatchObject({ quantity: 3, maxQuantity: 50 });
   expect(snapshot.credits).toEqual([]);
   expect(snapshot.capabilities).toEqual({
@@ -276,12 +160,12 @@ test("builds the licensing snapshot from the portal, and invents nothing", async
     unsubscribe: true,
     checkout: false,
   });
-  expect(snapshot.entitlements.map((entitlement) => entitlement.source)).toEqual([
-    "license",
-    "addon",
-  ]);
-  expect(snapshot.entitlements[0]!.provenance?.boosts[0]?.modifierType).toBe("MULTIPLY");
-  expect(snapshot.updatedAt).toBe("2026-10-06T10:00:00.000Z");
+  const bySlug = (slug: string) =>
+    snapshot.entitlements.find((entitlement) => entitlement.slug === slug);
+  expect(bySlug("api-calls")?.source).toBe("license");
+  expect(bySlug("priority-support")?.source).toBe("addon");
+  expect(bySlug("api-calls")?.provenance?.boosts[0]?.modifierType).toBe("MULTIPLY");
+  expect(snapshot.updatedAt).toBe(sessionAnswers.portal.updatedAt);
 
   // The portal carries none of the ids and audit fields these types require.
   expect(snapshot.customer).toBeNull();
@@ -308,7 +192,38 @@ test("usePortal answers what the portal says, and the session client is reachabl
   expect(portal.instance?.licenseSlug).toBe("pro-v2");
   expect(portal.subscription).toMatchObject({ status: "ACTIVE", currencyCode: "EUR" });
   expect(portal.paymentMethod).toMatchObject({ brand: "visa", last4: "4242" });
+  // A session bound to an instance lists no instances: the answer is empty, never null.
+  expect(portal.instances).toEqual([]);
   expect(result.current.client).toBe(sessionClient);
+});
+
+test("reads a session bound to the customer only: no instance, its instances listed, no entitlement", async () => {
+  const { fetchSpy } = stubApi(() => sessionAnswers.portalCustomerWide);
+  vi.stubGlobal("fetch", fetchSpy);
+
+  const { result } = renderHook(
+    () => ({
+      portal: usePortal(),
+      snapshot: useLicensingSnapshot(),
+      plans: usePlans(),
+      upgrades: useUpgradeOptions(),
+    }),
+    { wrapper: wrapperFor(sessionClientFor(fetchSpy), PK) },
+  );
+
+  await waitFor(() => expect(result.current.plans.data).toBeDefined());
+  await waitFor(() => expect(result.current.portal.data).toBeDefined());
+  const portal: KaitenPortal = result.current.portal.data!;
+  expect(portal.instance).toBeNull();
+  expect(portal.instances.map((instance) => instance.slug)).toEqual([
+    "initech-prod",
+    "initech-lab",
+  ]);
+  expect(portal.instances[1]!.billingStatus).toBeNull();
+  expect(portal.subscription).toBeNull();
+  expect(result.current.snapshot.data?.entitlements).toEqual([]);
+  // Nothing is bound, so there is no current plan to offer an upgrade from.
+  expect(result.current.upgrades.data).toBeUndefined();
 });
 
 test("gates on the portal's effective value, not the licence's", async () => {
