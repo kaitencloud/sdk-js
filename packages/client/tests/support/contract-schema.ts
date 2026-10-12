@@ -35,9 +35,16 @@ type Schema = {
   format?: string;
 };
 
+type Operation = {
+  responses?: Record<string, { content?: Record<string, { schema?: Schema }> }>;
+};
+
 const contract = parse(
   readFileSync(new URL("../../../../contracts/openapi.yaml", import.meta.url), "utf8"),
-) as { components: { schemas: Record<string, Schema> } };
+) as {
+  components: { schemas: Record<string, Schema> };
+  paths: Record<string, Record<string, Operation>>;
+};
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
@@ -134,4 +141,55 @@ function problems(schema: Schema, value: unknown, path: string): string[] {
 /** What is wrong with `value` as an instance of the contract's schema `name`; empty when it fits. */
 export function contractProblems(name: string, value: unknown): string[] {
   return problems({ $ref: `#/components/schemas/${name}` }, value, name);
+}
+
+/**
+ * The paths of the contract, each as a pattern its requests match
+ * (`/public/session/addons/{addonSlug}` matches `/public/session/addons/seats`).
+ * A path with fewer parameters is tried first, so that `/customers/export` is not
+ * taken for `/customers/{customerSlug}`.
+ */
+const PATH_PATTERNS = Object.keys(contract.paths)
+  .map((template) => ({
+    template,
+    parameters: (template.match(/\{/g) ?? []).length,
+    pattern: new RegExp(
+      `^${template.replace(/[.*+?^$()|[\]\\]/g, "\\$&").replace(/\{[^}]+\}/g, "[^/]+")}$`,
+    ),
+  }))
+  .sort((a, b) => a.parameters - b.parameters);
+
+/**
+ * What is wrong with `value` as the body of the answer `status` to `method path`,
+ * by the response the contract declares for that operation; empty when it fits.
+ * `path` is below the API's own prefix (`/public/catalog`, not `/api/public/catalog`),
+ * the query left out. An answer the contract does not declare is a problem too,
+ * and so is a body where the contract declares none.
+ */
+export function responseProblems(
+  method: string,
+  path: string,
+  status: number,
+  value: unknown,
+): string[] {
+  const where = `${method.toUpperCase()} ${path} answering ${status}`;
+  const match = PATH_PATTERNS.find(({ pattern }) => pattern.test(path));
+  const operation = match && contract.paths[match.template]?.[method.toLowerCase()];
+  if (!operation) return [`${where}: the contract has no such operation`];
+
+  const response = operation.responses?.[String(status)];
+  if (!response) return [`${where}: the contract declares no such answer`];
+
+  const media = response.content;
+  if (!media) {
+    return value === undefined ? [] : [`${where}: the contract declares no body, and one was sent`];
+  }
+  const schema = (
+    media["application/json"] ??
+    media["application/problem+json"] ??
+    Object.values(media)[0]
+  )?.schema;
+  if (!schema) return [];
+  if (value === undefined) return [`${where}: the contract declares a body, and none was sent`];
+  return problems(schema, value, where);
 }

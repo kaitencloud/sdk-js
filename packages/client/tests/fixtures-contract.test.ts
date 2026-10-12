@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs";
 
 import { describe, expect, test } from "vite-plus/test";
 
-import { contractProblems } from "./support/contract-schema.ts";
+import { contractProblems, responseProblems } from "./support/contract-schema.ts";
 import { ADDON_ONLY_ROW, EFFECTIVE_TOKENS_ROW } from "./support/effective-usage.ts";
 import { QUOTA_EXCEEDED } from "./support/session-answers.ts";
 
@@ -97,5 +97,76 @@ describe("the effective usage rows", () => {
         provenance: { ...EFFECTIVE_TOKENS_ROW.provenance, boosts: "none" },
       }),
     ).not.toEqual([]);
+  });
+});
+
+describe("the response of an operation", () => {
+  const { errors, ...answers } = fixture<
+    Record<string, unknown> & { errors: Record<string, { status: number; body: unknown }> }
+  >("session.initech.json");
+
+  test("is found by the operation and the status, and the answer is held to it", () => {
+    expect(responseProblems("GET", "/public/session/portal", 200, answers.portal)).toEqual([]);
+    expect(
+      responseProblems("get", "/public/session/invoices", 200, answers.invoicesFirstPage),
+    ).toEqual([]);
+    expect(
+      responseProblems("POST", "/public/session/checkout", 200, answers.checkoutPreview),
+    ).toEqual([]);
+    expect(
+      responseProblems("POST", "/public/session/checkout", 201, answers.checkoutSubscribed),
+    ).toEqual([]);
+    expect(
+      responseProblems(
+        "POST",
+        "/public/session/checkout",
+        409,
+        errors.checkoutAlreadySubscribed!.body,
+      ),
+    ).toEqual([]);
+  });
+
+  test("reads a parameter of the path, and a status with no body", () => {
+    expect(
+      responseProblems("PUT", "/public/session/addons/extra-seats", 200, answers.addon),
+    ).toEqual([]);
+    expect(
+      responseProblems(
+        "POST",
+        "/customer-sessions/00000000-0000-4000-8000-000000000001/revoke",
+        204,
+        undefined,
+      ),
+    ).toEqual([]);
+    expect(
+      responseProblems(
+        "POST",
+        "/customer-sessions/00000000-0000-4000-8000-000000000001/revoke",
+        204,
+        { a: 1 },
+      ),
+    ).not.toEqual([]);
+  });
+
+  test("is refused when the answer, the status or the operation is not the contract's", () => {
+    const { subscription: _subscription, ...withoutSubscription } = answers.portal as Record<
+      string,
+      unknown
+    >;
+    expect(responseProblems("GET", "/public/session/portal", 200, withoutSubscription)).not.toEqual(
+      [],
+    );
+    expect(responseProblems("GET", "/public/session/portal", 418, answers.portal)).toEqual([
+      "GET /public/session/portal answering 418: the contract declares no such answer",
+    ]);
+    expect(responseProblems("DELETE", "/public/session/portal", 200, answers.portal)).toEqual([
+      "DELETE /public/session/portal answering 200: the contract has no such operation",
+    ]);
+    expect(responseProblems("GET", "/public/nothing", 200, {})).toEqual([
+      "GET /public/nothing answering 200: the contract has no such operation",
+    ]);
+    expect(responseProblems("GET", "/public/session/portal", 200, undefined)).toEqual([
+      "GET /public/session/portal answering 200: the contract declares a body, and none was sent",
+    ]);
   });
 });
