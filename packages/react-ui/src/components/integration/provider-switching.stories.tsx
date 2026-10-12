@@ -21,7 +21,7 @@ const meta: Meta = {
     docs: {
       description: {
         component:
-          "Public pricing and authenticated customer portal share one top-level Kaiten session provider. Toggle the state to verify the SDK scope switches without nesting providers.",
+          "Public pricing and authenticated customer portal share one top-level Kaiten scope provider. Toggle the state to verify the SDK scope switches without nesting providers.",
       },
     },
   },

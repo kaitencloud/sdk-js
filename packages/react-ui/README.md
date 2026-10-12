@@ -79,7 +79,8 @@ function App() {
 ```
 
 Provider modes (`authenticated`, `static`, `public`, `customer-session`), credentials, polling,
-localization and the session switch are the core's; they are documented in
+localization and `KaitenScopeProvider`, which switches the scope when a user signs in, are the
+core's; they are documented in
 [`@kaitencloud/react`](../react/README.md).
 
 ### Where to put the style root

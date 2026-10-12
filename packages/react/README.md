@@ -382,7 +382,7 @@ style is scoped to.
 
 ### Switching from public to signed in
 
-Use one top-level SDK scope whose config follows your app session. Do not render an authenticated
+Use one top-level SDK scope whose config follows your application's own sign-in. Do not render an authenticated
 `KaitenProvider` inside a public one after login: nested providers are intentionally pass-through, so
 the inner scope will keep using the outer provider data.
 
