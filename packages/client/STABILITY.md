@@ -1,8 +1,9 @@
 <!--
   Maintainers: every name below must match a real export. Before a release,
   check this document against src/index.ts here and in packages/server.
-  tests/compat-1.0.test.ts holds code written against 1.0 and must keep
-  compiling unchanged.
+  tests/compat-1.0.test.ts and tests/compat/consumer-1.0.ts hold code written
+  against 1.0 and must keep compiling unchanged: scripts/check-compat-1.0.mjs
+  compiles the second against the 1.0.0 tarball and against this tree.
 -->
 
 # Stability & versioning — `@kaitencloud/client` and `@kaitencloud/server`
