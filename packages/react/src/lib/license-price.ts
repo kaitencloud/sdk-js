@@ -127,8 +127,9 @@ function meteredUnit(
 
 /**
  * The parts of a price's label, or `null` when the price cannot be written
- * without guessing: it has no amount, it is neither a flat fee nor a usage price
- * the SDK knows, or its currency is missing.
+ * without guessing: it has no amount, or it is neither a flat fee nor a usage price
+ * the SDK knows. The currency is the price's, else `options.currencyCode`, else the
+ * default one, as `formatKaitenMoney` has it.
  *
  * A flat fee is per billing period: "/month", "/year", and "every 3 months" for a
  * quarterly one. A usage or overage price is per sale unit: "per 1M tokens". An
