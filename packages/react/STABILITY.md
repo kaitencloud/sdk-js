@@ -133,6 +133,15 @@ release, as billing ships:
   replace it on the provider's hosted page, or manage it in the provider's own billing portal.
   It is an element of `CustomerPortal` under a session, and it is not there at all (no element,
   no empty card) when the portal says the provider cannot capture a payment method.
+- **The subscription in `CurrentPlan`, `BillingSummary` and `Paywall`** (`@kaitencloud/react-ui`),
+  under `mode="customer-session"`: the status the portal gives (running, in its trial, canceled and
+  ending with its period, past due, over, or no subscription to speak of), when it renews or ends,
+  a plan change that is scheduled, and, in `BillingSummary`, the price of the subscription and the
+  labels of the payment method (what the host passes in `billing` wins). Billing status closes no
+  wall: a `Paywall` says where the subscription stands (`data-subscription`, and a sentence when it
+  explains the wall) and offers to "Subscribe" instead of "Upgrade" to a customer who can buy a plan
+  by themselves (`capabilities.checkout`). None of them reads the end date of a licence, which billing
+  never moves.
 - **The words of the portal and of a subscription**, `KaitenLocalization.portalBilling` and
   `KaitenLocalization.subscription` (typed `KaitenPortalBillingWords` and
   `KaitenSubscriptionWords`), and `KaitenLocalization.paymentMethodCard`

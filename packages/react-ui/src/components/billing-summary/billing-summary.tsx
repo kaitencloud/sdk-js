@@ -7,7 +7,9 @@ import {
   useEntitlements,
   useLicense,
   useLicensingSnapshot,
+  usePortal,
   isCustomerFacing,
+  formatKaitenPrice,
   useLocalization,
   DEFAULT_CURRENCY_CODE,
   type BillingInterval,
@@ -20,6 +22,13 @@ import { useTrackComponent } from "@kaitencloud/react/internal";
 import { Button } from "../ui/button.tsx";
 import { Separator } from "../ui/separator.tsx";
 import { Skeleton } from "../ui/skeleton.tsx";
+import { describePaymentMethod } from "../payment-method-card/payment-method-card.tsx";
+import { usePaymentMethodWords, useSubscriptionWords } from "../shared/billing-words.ts";
+import {
+  describeSubscription,
+  useSubscriptionState,
+  type SubscriptionDescription,
+} from "../shared/subscription-state.ts";
 import { KaitenBranding } from "../shared/kaiten-branding.tsx";
 import { ProgressBar } from "../shared/progress-bar.tsx";
 import { SectionError } from "../shared/section-error.tsx";
@@ -29,17 +38,17 @@ import { isUnlimited } from "../shared/unlimited.tsx";
 const WARNING_THRESHOLD = 80;
 
 /**
- * What the host has to tell us, because the API does not know it.
+ * What the host tells the summary about money, where the licensing API does not know it.
  *
- * Kaiten has no money model: a licence carries no price, `LicensingSnapshot.capabilities`
- * reports `paymentMethods: false` / `invoices: false` as a hard-coded literal on BOTH
- * read paths, and there is no invoice or payment-method resource anywhere in the core
- * (see AUDIT_SDK_FIGMA_2026-08.md). So these fields are host-supplied and have NO
- * fallback to the snapshot — deliberately.
+ * Under `mode="authenticated"` a licence carries no price, and there is no invoice or payment
+ * method anywhere in what the snapshot reads, so these fields are the host's and have NO fallback
+ * to the snapshot, deliberately. Under `mode="customer-session"` the portal says the price of the
+ * subscription and the labels of the payment method itself, and the summary shows them for whatever
+ * the host left out here; what the host supplies wins over the portal.
  *
- * Anything absent here is not rendered at all. That is the whole point: a price wired
- * to a source that always returns nothing would render an empty slot indistinguishable
- * from a customer who genuinely has no price, and it would do it silently.
+ * Anything absent is not rendered at all. That is the whole point: a price wired to a source that
+ * always returns nothing would render an empty slot indistinguishable from a customer who
+ * genuinely has no price, and it would do it silently.
  */
 export interface BillingSummaryBilling {
   /** Amount in the currency's MINOR units (integer) — `29900` is $299.00. */
@@ -115,8 +124,19 @@ export function BillingSummary({
   const snapshot = useLicensingSnapshot();
   const license = useLicense();
   const entitlements = useEntitlements();
+  const subscriptionWords = useSubscriptionWords();
+  const paymentWords = usePaymentMethodWords();
+  const portal = usePortal().data;
 
-  const term = snapshot.data?.licenseTerm ?? null;
+  // Under a customer session the subscription is what the portal says it is, and the licence's
+  // term is not consulted at all: billing never moves a licence's end date, so a summary that read
+  // it would say a subscription that renewed had ended. Under any other mode the term is all there
+  // is, and it is information as it always was.
+  const sessionState = useSubscriptionState();
+  const described: SubscriptionDescription | null = sessionState
+    ? describeSubscription(sessionState, subscriptionWords, localization)
+    : null;
+  const term = sessionState ? null : (snapshot.data?.licenseTerm ?? null);
   // A customer session has no licence: its portal names the plan.
   const planName = license.data?.name ?? snapshot.data?.currentPlan?.name ?? null;
 
@@ -161,22 +181,42 @@ export function BillingSummary({
   const title = headerText ?? localization.billingSummary.title;
   const description = subheaderText ?? localization.billingSummary.description;
 
-  const statusLabel = term
-    ? {
-        active: localization.billingSummary.statusActive,
-        expired: localization.billingSummary.statusExpired,
-        not_started: localization.billingSummary.statusNotStarted,
-      }[term.status]
-    : null;
+  const statusLabel = sessionState
+    ? sessionState.kind === "active"
+      ? subscriptionWords.active
+      : (described?.status?.label ?? null)
+    : term
+      ? {
+          active: localization.billingSummary.statusActive,
+          expired: localization.billingSummary.statusExpired,
+          not_started: localization.billingSummary.statusNotStarted,
+        }[term.status]
+      : null;
 
   // Raw ISO in, formatted string out — the pack owns the formatting, so the locale
   // travels with it. Same contract as `usageMeters.currentWindow`.
-  const termDate = term
-    ? {
-        active: () => localization.billingSummary.renewsOn(term.expiresAt),
-        expired: () => localization.billingSummary.expiredOn(term.expiresAt),
-        not_started: () => localization.billingSummary.startsOn(term.startsAt),
-      }[term.status]()
+  const termDate = sessionState
+    ? (described?.detail ?? null)
+    : term
+      ? {
+          active: () => localization.billingSummary.renewsOn(term.expiresAt),
+          expired: () => localization.billingSummary.expiredOn(term.expiresAt),
+          not_started: () => localization.billingSummary.startsOn(term.startsAt),
+        }[term.status]()
+      : null;
+
+  // What the portal says of the money, for whatever the host did not say itself: the price of the
+  // subscription while it lasts, and the labels of the payment method it is charged to.
+  const subscription = sessionState?.subscription ?? null;
+  const sessionPrice =
+    subscription && sessionState?.kind !== "canceled"
+      ? formatKaitenPrice(subscription.basePrice, localization)
+      : null;
+  const sessionPaymentMethod = portal?.paymentMethod
+    ? (() => {
+        const labels = describePaymentMethod(portal.paymentMethod, paymentWords);
+        return labels.expiry ? `${labels.label} · ${labels.expiry}` : labels.label;
+      })()
     : null;
 
   const priceLabel =
@@ -184,7 +224,13 @@ export function BillingSummary({
       ? `${localization.formatMoney(billing.amount, billing.currencyCode ?? DEFAULT_CURRENCY_CODE)}${
           billing.interval ? ` / ${billing.interval}` : ""
         }`
-      : null;
+      : sessionPrice;
+  const paymentMethodLabel = billing?.paymentMethodLabel ?? sessionPaymentMethod;
+  // A session bound to the customer only has no subscription to summarise, and says so.
+  const unbound = sessionState?.kind === "unbound";
+  const active = sessionState
+    ? sessionState.kind === "active" || sessionState.kind === "trial"
+    : term?.status === "active";
 
   if (unstyled) {
     return (
@@ -202,12 +248,15 @@ export function BillingSummary({
             {termDate ? ` — ${termDate}` : ""}
           </p>
         ) : null}
+        {unbound ? <p>{subscriptionWords.none}</p> : null}
+        {described?.change ? <p>{described.change}</p> : null}
+        {described?.notice ? <p role="status">{described.notice}</p> : null}
         {priceLabel ? (
           <p className="ktn-own" data-slot="billing-summary-price">
             {priceLabel}
           </p>
         ) : null}
-        {billing?.paymentMethodLabel ? <p>{billing.paymentMethodLabel}</p> : null}
+        {paymentMethodLabel ? <p>{paymentMethodLabel}</p> : null}
         <ul>
           {meters.map((entitlement) => (
             <li key={entitlement.slug}>
@@ -279,7 +328,7 @@ export function BillingSummary({
               aria-hidden="true"
               className={cn(
                 "ktn-own size-2 shrink-0 rounded-full",
-                term?.status === "active" ? "bg-ktn-success" : "bg-ktn-muted-foreground",
+                active ? "bg-ktn-success" : "bg-ktn-muted-foreground",
               )}
             />
             {planName}
@@ -299,18 +348,27 @@ export function BillingSummary({
               {termDate ? (
                 <p className="ktn-own text-xs text-ktn-muted-foreground">{termDate}</p>
               ) : null}
+              {described?.change ? (
+                <p className="ktn-own text-xs text-ktn-muted-foreground">{described.change}</p>
+              ) : null}
+              {sessionState?.kind === "canceled" && described?.notice ? (
+                <p className="ktn-own text-xs text-ktn-muted-foreground">{described.notice}</p>
+              ) : null}
             </div>
           ) : null}
 
-          {/* Money and payment method render ONLY from `billing`. See the type's note:
-              nothing in the API supplies them, so there is nothing to fall back to. */}
-          {priceLabel || billing?.paymentMethodLabel ? (
+          {unbound ? (
+            <p className="ktn-own text-sm text-ktn-muted-foreground">{subscriptionWords.none}</p>
+          ) : null}
+
+          {/* Money and payment method come from the host's `billing`, and under a customer
+              session from the portal for whatever the host left out. Under any other mode nothing
+              in the API supplies them, so there is nothing to fall back to. */}
+          {priceLabel || paymentMethodLabel ? (
             <div className="ktn-own flex flex-col gap-0.5">
               {priceLabel ? <p className="ktn-own text-sm font-semibold">{priceLabel}</p> : null}
-              {billing?.paymentMethodLabel ? (
-                <p className="ktn-own text-xs text-ktn-muted-foreground">
-                  {billing.paymentMethodLabel}
-                </p>
+              {paymentMethodLabel ? (
+                <p className="ktn-own text-xs text-ktn-muted-foreground">{paymentMethodLabel}</p>
               ) : null}
             </div>
           ) : null}
@@ -380,6 +438,17 @@ export function BillingSummary({
               {localization.billingSummary.noUsage}
             </p>
           )}
+
+          {sessionState?.kind === "past_due" && described?.notice ? (
+            <div
+              data-slot="billing-summary-warning"
+              role="status"
+              className="ktn-own flex items-center gap-3 rounded-ktn-lg border border-warning-subtle-foreground/30 bg-warning-subtle p-3 text-xs text-warning-subtle-foreground"
+            >
+              <AlertIcon className="ktn-own size-4 shrink-0" aria-hidden="true" />
+              <span className="ktn-own">{described.notice}</span>
+            </div>
+          ) : null}
 
           {breached ? (
             <div

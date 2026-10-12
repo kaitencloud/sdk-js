@@ -12,6 +12,8 @@ import { Button } from "../ui/button.tsx";
 import { Dialog, DialogDescription, DialogTitle } from "../ui/dialog.tsx";
 import { ProgressBar } from "../shared/progress-bar.tsx";
 import { KaitenBranding } from "../shared/kaiten-branding.tsx";
+import { useSubscriptionWords } from "../shared/billing-words.ts";
+import { describeSubscription, useSubscriptionState } from "../shared/subscription-state.ts";
 import type { KaitenAppearance } from "../../appearance/types.ts";
 
 /**
@@ -74,6 +76,8 @@ const HOST_SUBTREE = "ktn-host";
 function ctaLabel(
   action: PortalAction | undefined,
   localization: ReturnType<typeof useLocalization>,
+  /** What a customer who can buy a plan by themselves is offered in place of "Upgrade". */
+  subscribe: string | null,
 ): string {
   switch (action?.type) {
     case "add_quota":
@@ -84,7 +88,7 @@ function ctaLabel(
       return localization.paywall.contactSales;
     case "upgrade_plan":
     default:
-      return localization.paywall.upgrade;
+      return subscribe ?? localization.paywall.upgrade;
   }
 }
 
@@ -140,6 +144,8 @@ function PaywallRoot({
   const trigger = usePaywallTrigger(entitlement, { threshold, min, flagKey, onError });
   const icons = useIcons();
   const localization = useLocalization();
+  const subscriptionWords = useSubscriptionWords();
+  const subscriptionState = useSubscriptionState();
   const [dismissed, setDismissed] = React.useState(false);
   // Hard mode only: the modal was closed. The wall stays — see the dialog below.
   const [modalDismissed, setModalDismissed] = React.useState(false);
@@ -242,6 +248,22 @@ function PaywallRoot({
             trigger.limit.toLocaleString(),
           );
 
+  // Under a customer session the portal also says where the subscription stands. That never opens
+  // or closes a wall (billing status closes none), but it explains one: a subscription that is over,
+  // a payment that failed, a cancellation or a trial that runs out. And a customer who can buy a plan
+  // by themselves is offered to subscribe, not to upgrade.
+  const described = subscriptionState
+    ? describeSubscription(subscriptionState, subscriptionWords, localization)
+    : null;
+  const note =
+    subscriptionState?.kind === "past_due" || subscriptionState?.kind === "canceled"
+      ? (described?.notice ?? null)
+      : subscriptionState?.ending || subscriptionState?.kind === "trial"
+        ? (described?.detail ?? null)
+        : null;
+  const subscribe = subscriptionState?.capabilities.checkout ? subscriptionWords.subscribe : null;
+  const subscriptionKind = subscriptionState?.kind;
+
   const handleDismiss = () => {
     setDismissed(true);
     onDismiss?.();
@@ -249,13 +271,19 @@ function PaywallRoot({
 
   if (unstyled) {
     return (
-      <div data-slot="paywall" data-reason={trigger.reason ?? undefined} className="ktn-own">
+      <div
+        data-slot="paywall"
+        data-reason={trigger.reason ?? undefined}
+        data-subscription={subscriptionKind}
+        className="ktn-own"
+      >
         <div {...INERT} className={HOST_SUBTREE}>
           {children}
         </div>
         <div ref={overlayRef} role="group" aria-label={reasonLabel}>
           <p>{reasonLabel}</p>
           <p>{description}</p>
+          {note ? <p>{note}</p> : null}
           {trigger.metered ? (
             <p>
               {trigger.current} / {trigger.limit}
@@ -263,7 +291,7 @@ function PaywallRoot({
           ) : null}
           {onUpgrade ? (
             <button type="button" onClick={() => onUpgrade(trigger.recommendedAction)}>
-              {ctaLabel(trigger.recommendedAction, localization)}
+              {ctaLabel(trigger.recommendedAction, localization, subscribe)}
             </button>
           ) : null}
           {mode === "soft" ? (
@@ -309,7 +337,11 @@ function PaywallRoot({
          * the modal by accident — Escape and the close button are the deliberate
          * exits.
          */}
-        <Dialog data-reason={trigger.reason ?? undefined} onDismiss={() => setModalDismissed(true)}>
+        <Dialog
+          data-reason={trigger.reason ?? undefined}
+          data-subscription={subscriptionKind}
+          onDismiss={() => setModalDismissed(true)}
+        >
           <PaywallCard
             reasonLabel={reasonLabel}
             description={description}
@@ -321,6 +353,8 @@ function PaywallRoot({
             ArrowIcon={ArrowIcon}
             dialog
             localization={localization}
+            note={note}
+            subscribe={subscribe}
           />
         </Dialog>
       </>
@@ -342,6 +376,7 @@ function PaywallRoot({
     <div
       data-slot="paywall"
       data-reason={trigger.reason ?? undefined}
+      data-subscription={subscriptionKind}
       className={cn("ktn-own", "relative min-h-20", merged.elements?.paywallOverlay)}
     >
       {/* Masked content is inert: not focusable, not clickable, hidden from AT. */}
@@ -368,6 +403,8 @@ function PaywallRoot({
             LockIcon={LockIconComp}
             ArrowIcon={ArrowIcon}
             localization={localization}
+            note={note}
+            subscribe={subscribe}
           />
         </div>
       </div>
@@ -386,6 +423,8 @@ function PaywallCard({
   LockIcon,
   ArrowIcon,
   localization,
+  note,
+  subscribe,
   dialog = false,
 }: {
   reasonLabel: string;
@@ -398,6 +437,9 @@ function PaywallCard({
   LockIcon: React.ComponentType<{ className?: string }>;
   ArrowIcon: React.ComponentType<{ className?: string }>;
   localization: ReturnType<typeof useLocalization>;
+  /** What the subscription behind the wall adds to its reason, when it is worth saying. */
+  note: string | null;
+  subscribe: string | null;
   dialog?: boolean;
 }) {
   const title = dialog ? <DialogTitle>{reasonLabel}</DialogTitle> : <span>{reasonLabel}</span>;
@@ -452,6 +494,14 @@ function PaywallCard({
             </p>
           ) : null}
           {descriptionNode}
+          {note ? (
+            <p
+              data-slot="paywall-subscription-note"
+              className="ktn-own text-sm text-muted-foreground"
+            >
+              {note}
+            </p>
+          ) : null}
         </div>
       </CardContent>
       <CardFooter className="flex-col items-stretch gap-6">
@@ -463,7 +513,7 @@ function PaywallCard({
                  only, so the compact wall's width arithmetic is untouched. */
               className="ktn-cta-gradient flex-1"
             >
-              {ctaLabel(trigger.recommendedAction, localization)}
+              {ctaLabel(trigger.recommendedAction, localization, subscribe)}
               <ArrowIcon className="size-4" />
             </Button>
           ) : null}

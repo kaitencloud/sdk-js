@@ -190,7 +190,7 @@ const SCENARIOS = [
   {
     name: "react-ui · everything",
     code: `import * as all from "@kaitencloud/react-ui"; console.log(all);`,
-    budgetGzip: 77_900,
+    budgetGzip: 79_850,
   },
   {
     name: "client · KaitenClient alone",
