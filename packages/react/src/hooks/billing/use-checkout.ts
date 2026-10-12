@@ -243,9 +243,12 @@ export function useCheckout(options: UseCheckoutOptions = {}): UseCheckoutResult
   const priced = flow.step === "selecting" ? selection : (flow.committed ?? selection);
   const knownWithoutEmail = portal.data?.customer.billingEmail === null;
   // The API asks for the email before it prices anything for a customer that has none:
-  // there is nothing to ask it until one is given.
+  // there is nothing to ask it until one is given. Nor until the portal has said whether the
+  // customer has one, which a read still under way does not: the first request would be made
+  // blind, and refused for it as often as not.
   const waitingForEmail = knownWithoutEmail && !isPlausibleEmail(priced.billingEmail);
-  const preview = useCheckoutPreview(waitingForEmail ? null : priced, {
+  const waitingForPortal = portal.isLoading && portal.data === undefined;
+  const preview = useCheckoutPreview(waitingForEmail || waitingForPortal ? null : priced, {
     debounceMs: options.debounceMs,
     refusedVoucherCode,
   });

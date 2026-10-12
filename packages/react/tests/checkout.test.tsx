@@ -586,6 +586,29 @@ test("an email is asked for when the customer has none, and nothing is priced un
   expect(probe.now.canSubmit).toBe(true);
 });
 
+test("nothing is priced before the portal has said whether the customer has an email", async () => {
+  const client = unsubscribedSession({ portal: portalWithoutEmail() });
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => (release = resolve));
+  const read = client.getPortal.bind(client);
+  vi.spyOn(client, "getPortal").mockImplementation(async () => {
+    await gate;
+    return read();
+  });
+  const probe = await mount(client);
+
+  // The first request would be made blind: refused as often as not, for want of an address.
+  await settle(1_000);
+  expect(probe.now.preview.status).toBe("idle");
+  expect(previews(client)).toHaveLength(0);
+
+  release();
+  await settle();
+  // The portal says there is none: still nothing to ask, until one is given.
+  expect(probe.now.needsBillingEmail).toBe(true);
+  expect(previews(client)).toHaveLength(0);
+});
+
 test("the email goes with the checkout, and again with the setup session, which asks for it as well", async () => {
   popupOpens();
   const client = unsubscribedSession({ portal: portalWithoutEmail() });
