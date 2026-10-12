@@ -16,10 +16,14 @@ in a browser, [`@openfeature/ofrep-provider`](https://www.npmjs.com/package/@ope
 in Node. Kaiten implements the protocol, so no Kaiten provider is needed, and
 [`examples/node`](examples/node) shows the Node one.
 
-A secret key never goes in a browser bundle. This release has no credential for your end
-users' browsers yet, so call Kaiten from your backend: `@kaitencloud/server` covers the
-whole API, and `@kaitencloud/client` runs there too, as [`examples/node`](examples/node)
-shows.
+A secret key never goes in a browser bundle. A browser holds one of two credentials of
+its own: a publishable key (`pk_`), which reads the catalogue, and a customer session
+(`kst_`), which your backend mints for a signed-in customer and which reads that
+customer's licensing snapshot and billing. `@kaitencloud/server` issues both, as
+[its README](packages/server#publishable-keys) explains, and `@kaitencloud/client` is
+the one that uses them. Everything else goes through your backend: `@kaitencloud/server`
+covers the whole API, and `@kaitencloud/client` runs there too, as
+[`examples/node`](examples/node) shows.
 
 ## Install
 
@@ -35,7 +39,8 @@ Node backend that runs without an account.
 
 | Prefix   | What it is                                                                                            | Where it may live           | Consumed by                                              |
 | -------- | ----------------------------------------------------------------------------------------------------- | --------------------------- | -------------------------------------------------------- |
-| `pk_`    | Publishable key, not accepted by the API yet                                                          | Browser                     | `@kaitencloud/client`                                    |
+| `pk_`    | Publishable key: reads the catalogue and nothing that belongs to a customer                           | Browser                     | `@kaitencloud/client`                                    |
+| `kst_`   | Customer session: minted by your backend for one customer, short-lived                                | Browser                     | `@kaitencloud/client`                                    |
 | `ksh_`   | Access token, scoped to one organization                                                              | Server only                 | `@kaitencloud/server`, `@kaitencloud/client` on a server |
 | `ksm_`   | Platform credential: authenticates `system:kaiten`, carries **no** organization, and reaches them all | Kaiten's control plane only | no package here                                          |
 | `sk_`    | Secret key of a future in-app mode, reserved and not issued yet                                       | Server only                 | —                                                        |

@@ -286,9 +286,8 @@ wrapped: they are `Billing.writeOffInvoice`, `Billing.voidInvoice`, `Billing.rec
 ## Publishable keys
 
 A web page that shows your plans reads your public catalog with a **publishable key**
-(`pk_`), the one credential a browser may hold. It reads that catalog and nothing else, so it
-can ship in the page source. Issue one from your backend, with a token that holds
-`write:publishable_keys`:
+(`pk_`). It reads that catalog and nothing else, so it can ship in the page source. Issue one
+from your backend, with a token that holds `write:publishable_keys`:
 
 ```ts
 import { PublishableKeys } from "@kaitencloud/server";
@@ -308,7 +307,8 @@ issued.key; // "pk_…": the key, in this answer only
   `scheme://host[:port]` with no path: `https`, or `http` for localhost, 50 at most. A request
   from another origin is refused. An empty list allows no browser origin, but a request without
   an `Origin` header, such as server-side rendering, still goes through. Give each site its own
-  key, so one that leaks is revoked alone.
+  key, so one that leaks is revoked alone. The origins of your live keys are also where a
+  [customer session](#customer-sessions) may be used from.
 - `PublishableKeys.listPublishableKeys` pages the keys, newest first (`includeRevoked` adds the
   revoked ones, `read:publishable_keys`). `updatePublishableKey` changes a live key's `label` or
   `allowedOrigins`, from the next request on; a revoked key answers a 409.
@@ -319,6 +319,79 @@ issued.key; // "pk_…": the key, in this answer only
 
 Managing keys is part of billing: an organization that cannot reach it is refused with a 403
 `Billing.Disabled` or `Billing.NotEntitled`, or with a 503 `Billing.EntitlementCheckUnavailable`
+when whether its plan includes billing could not be checked.
+
+## Customer sessions
+
+A browser acting for one signed-in customer, such as a customer portal or a checkout, has no
+credential of its own. Your backend mints it a **customer session** (`kst_`) with a token that
+holds `write:customer_sessions`, and hands it to the page. The session acts for that customer on
+`/api/public/session/*` and nowhere else: [`@kaitencloud/client`](../client)'s
+`KaitenSessionClient` sends it. Mint it where the customer is signed in:
+
+```ts
+import { CustomerSessions } from "@kaitencloud/server";
+
+// The endpoint your page calls to get a session for its signed-in customer.
+async function sessionForPage(customerSlug: string, instanceSlug?: string) {
+  const { data: session } = await CustomerSessions.createCustomerSession({
+    client,
+    throwOnError: true,
+    body: { customerSlug, instanceSlug, ttlSeconds: 1800 },
+  });
+
+  // `session.id` is what revokes it: keep it if you will.
+  return { token: session.token, expiresAt: session.expiresAt };
+}
+```
+
+- **`customerSlug`** is required. **`instanceSlug`** binds the session to one of that customer's
+  instances: checkout, cancel and the other subscription routes need it, and without it the
+  session reads the whole customer. A customer or an instance the organization does not have is
+  a 404 (`CreateCustomerSession.CustomerNotFound`, `.InstanceNotFound`), and an instance of
+  another customer a 422 (`.InstanceNotOfCustomer`).
+- **`ttlSeconds`** is how long the session lives: **300 to 3600 seconds**, 1800 (30 minutes)
+  when omitted. Anything else is a 422 `CreateCustomerSession.InvalidTtl`; the SDK sends the
+  value as it is and lets the API say.
+- **The `token` is shown once.** Kaiten keeps a digest of it. It is a bearer credential for
+  that customer, so hand it to that customer's browser and to nothing else, and keep it out of
+  your logs.
+- **A browser may send the session only from an origin that one of your live publishable keys
+  allows.** The origins of a session are the union of the `allowedOrigins` of the organization's
+  live keys, so a page whose origin is on none of them gets a 403 `PublicAuth.OriginNotAllowed`.
+  A request without an `Origin` header, such as the one a backend makes, is not checked.
+- What the session writes is attributed to the caller that minted it.
+
+**Renew a session before `expiresAt`.** A session cannot be extended: it stops authenticating
+when it ends, and the API answers its routes with a 401 as it does for a session that was
+never valid. Mint a new one before then. `KaitenSessionClient` asks your endpoint for a new one
+60 seconds before `expiresAt`, and again after a 401, so an endpoint that mints a session on
+every call is enough. The session being replaced is left to run out, or revoked.
+
+**Revoke a session when the customer signs out, or when their access changes:**
+
+```ts
+await CustomerSessions.revokeCustomerSession({
+  client,
+  throwOnError: true,
+  path: { sessionId: session.id },
+});
+```
+
+The session stops authenticating on the next request, on every API replica: Kaiten looks it up
+on each one. Revoking it again is safe, and an id the organization does not have is a 404
+(`RevokeCustomerSession.NotFound`).
+
+**Minting is limited to 50 sessions a second per organization.** The API keeps a bucket that
+holds 100, and each API replica counts for itself. One session per signed-in visit is far
+below it; a loop that mints one per request is not. Past it the API answers a 429
+`CreateCustomerSession.RateLimited` with a `Retry-After`, which `isRateLimited(error)` recognizes
+and `error.retryAfterSeconds` reads. The SDK does not send a mint again by itself, so the wait is
+yours to keep. A session is limited too, to 10 requests a second with a burst of 20 on each
+replica, which its page meets as a 429 `PublicAuth.RateLimited`.
+
+Minting and revoking are part of billing: an organization that cannot reach it is refused with a
+403 `Billing.Disabled` or `Billing.NotEntitled`, or with a 503 `Billing.EntitlementCheckUnavailable`
 when whether its plan includes billing could not be checked.
 
 ## Webhooks

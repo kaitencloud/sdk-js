@@ -19,8 +19,9 @@ backend, and send your pages only what they need. On a server, this client takes
 [`@kaitencloud/server`](../server) covers the whole API. In a browser, the client refuses
 to send a `ksh_`, `ksm_` or `sk_` credential.
 
-A browser has one credential of its own: a publishable key (`pk_`), which reads your
-public catalog and nothing else. It needs a Kaiten server that serves the public routes
+A browser has a credential of its own for the public catalog: a publishable key (`pk_`),
+which reads it and nothing else. For a signed-in customer it uses a customer session
+(`kst_`), described [below](#customer-sessions). It needs a Kaiten server that serves the public routes
 (`/api/public/*`).
 
 A publishable key is `pk_` followed by 43 letters, digits, `-` or `_`.
@@ -102,17 +103,18 @@ purchase button.
 ### Customer sessions
 
 A browser acting for one signed-in customer — a customer portal, a checkout — uses a
-customer session (`kst_`), which your backend mints with `createCustomerSession` of
-[`@kaitencloud/server`](../server) and hands to the page. `KaitenSessionClient` sends
-it, given a `getCustomerSession` callback that fetches one:
+customer session (`kst_`), which your backend mints with
+`CustomerSessions.createCustomerSession` of [`@kaitencloud/server`](../server#customer-sessions)
+and hands to the page. `KaitenSessionClient` sends it, given a `getCustomerSession` callback
+that fetches one:
 
 ```ts
 import { KaitenSessionClient } from "@kaitencloud/client";
 
 const billing = new KaitenSessionClient({
   apiUrl: "https://kaiten.example.com/api",
-  // Your own endpoint, which calls createCustomerSession and returns
-  // { token, expiresAt }.
+  // Your own endpoint, which calls CustomerSessions.createCustomerSession and
+  // returns { token, expiresAt }.
   getCustomerSession: () => fetch("/billing/session", { method: "POST" }).then((r) => r.json()),
 });
 
@@ -137,7 +139,7 @@ reaches `onAuthError`.
 | `validateVoucher({ code, licensePriceId? })`                        | `POST /public/session/vouchers/validate`                 |
 | `setAddonQuantity(addonSlug, quantity)`                             | `PUT /public/session/addons/{addonSlug}`                 |
 
-A session bound to an instance (`createCustomerSession` takes an `instanceSlug`) reads
+A session bound to an instance (`CustomerSessions.createCustomerSession` takes an `instanceSlug`) reads
 that instance's subscription, its entitlements, its add-ons and the estimate of its next
 invoice. One bound to the customer only reads the customer, its `instances` and its
 payment method, and the rest is `null` or empty. The portal's entitlements are the

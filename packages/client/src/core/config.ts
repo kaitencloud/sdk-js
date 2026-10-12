@@ -63,7 +63,8 @@ export interface KaitenClientConfig {
 
 /**
  * A customer session, as the vendor's backend mints it with
- * `createCustomerSession` of `@kaitencloud/server` and hands it to the browser.
+ * `CustomerSessions.createCustomerSession` of `@kaitencloud/server` and hands it
+ * to the browser.
  */
 export interface KaitenCustomerSession {
   /** The `kst_` session token. */
