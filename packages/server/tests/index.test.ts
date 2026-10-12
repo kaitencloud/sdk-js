@@ -1,7 +1,7 @@
 // Copyright 2026 KAITEN INC
 // SPDX-License-Identifier: Apache-2.0
 
-import { describe, expect, test } from "vite-plus/test";
+import { describe, expect, expectTypeOf, test } from "vite-plus/test";
 import {
   Customers,
   createKaitenClient,
@@ -12,6 +12,7 @@ import {
   isTransactionIdReused,
   TransactionIdReusedError,
 } from "../src/index.ts";
+import type { ReportEntitlementUsageMetricData } from "../src/index.ts";
 
 const jsonOk = async () =>
   new Response("[]", { status: 200, headers: { "content-type": "application/json" } });
@@ -278,6 +279,23 @@ describe("usage report keys and the usage history", () => {
     });
 
     expect(await seen[0]?.json()).toMatchObject({ transactionId: "evt-1" });
+  });
+
+  test("the body of a usage report is typed with its transactionId", () => {
+    // The key rides in the body of the generated operation, as an optional
+    // string: a report without one still compiles, and one with one is not an
+    // excess property.
+    expectTypeOf<ReportEntitlementUsageMetricData["body"]["transactionId"]>().toEqualTypeOf<
+      string | undefined
+    >();
+    expectTypeOf<{
+      value: { type: "number"; value: number };
+      behavior: "append";
+      transactionId: string;
+    }>().toExtend<ReportEntitlementUsageMetricData["body"]>();
+    expectTypeOf<{
+      value: { type: "number"; value: number };
+    }>().toExtend<ReportEntitlementUsageMetricData["body"]>();
   });
 
   test("the reused-key conflict is recognised by its code, with or without the original report", async () => {
