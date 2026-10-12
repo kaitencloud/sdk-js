@@ -48,6 +48,14 @@ const STORIES: Array<{ name: string; storyId: string }> = [
   { name: "pricing-table (4 plans)", storyId: "elements-pricingtable--four-columns" },
   // A "Contact us" link in place of a plan's button, beside a priceless plan.
   { name: "pricing-table (billing catalog)", storyId: "elements-pricingtable--billing-catalog" },
+  // The catalogue Kaiten serves for Acme: eight plans, a price in dinars at three decimals
+  // that is the widest a card carries, and a plan with no price at all.
+  { name: "pricing-table (served catalog)", storyId: "elements-pricingtable--billing-v-3" },
+  // The error a refused catalogue read leaves in the slot, with its retry.
+  {
+    name: "pricing-table (origin not allowed)",
+    storyId: "elements-pricingtable--origin-not-allowed",
+  },
   { name: "feature-catalog", storyId: "elements-featurecatalog--default" },
   // Wide table — switches to stacked cards at a viewport breakpoint (`ktn-only-*`).
   { name: "feature-comparison", storyId: "elements-featurecomparison--default" },
@@ -60,6 +68,11 @@ const STORIES: Array<{ name: string; storyId: string }> = [
   // Composite surfaces — several sections under one root.
   { name: "customer-portal", storyId: "flows-customerportal--full" },
   { name: "customer-portal (vertical)", storyId: "flows-customerportal--vertical" },
+  // The current plan of a customer session, whose quarterly price is the longest line it draws.
+  {
+    name: "current-plan (customer session, quarterly)",
+    storyId: "flows-customerportal--current-plan-in-a-session-quarterly",
+  },
   { name: "billing-summary", storyId: "flows-billingsummary--default" },
   { name: "checkout-summary", storyId: "flows-checkoutsummary--plan-and-addons" },
   // Overlay — already container-queried, and the model the rest should follow.

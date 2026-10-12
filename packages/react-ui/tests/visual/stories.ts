@@ -32,6 +32,15 @@ export const STORIES: Array<{ name: string; storyId: string }> = [
   { name: "pricing-table--separate-layout", storyId: "elements-pricingtable--separate-layout" },
   // Prices as the billing API serves them, and a plan that is not self-serve.
   { name: "pricing-table--billing-catalog", storyId: "elements-pricingtable--billing-catalog" },
+  // The catalogue Kaiten serves for Acme, read by the real client: 8 plans in euros, yen
+  // and dinars, a plan sold by contact and one with no default fee. The story id is
+  // Storybook's: it splits the "3" of "v3" into a word of its own.
+  { name: "pricing-table--billing-v3", storyId: "elements-pricingtable--billing-v-3" },
+  // A publishable key used from a page its owner did not allow: an error with a retry.
+  {
+    name: "pricing-table--origin-not-allowed",
+    storyId: "elements-pricingtable--origin-not-allowed",
+  },
   // FeatureComparison — sticky header column.
   { name: "feature-comparison--default", storyId: "elements-featurecomparison--default" },
   // CustomerPortal — composite surface, exercises every section. (The old

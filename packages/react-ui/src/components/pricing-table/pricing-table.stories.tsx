@@ -3,7 +3,10 @@ import { action } from "storybook/actions";
 import { expect, userEvent, within } from "storybook/test";
 
 import {
+  acmeCatalog,
   KaitenPublicStoryProvider,
+  KaitenServedCatalogStoryProvider,
+  originNotAllowedReply,
   scenarioPortalDefault,
 } from "../../../.storybook/kaiten-mock.tsx";
 import { PricingTable, type PricingPlan } from "./pricing-table.tsx";
@@ -337,6 +340,70 @@ export const BillingCatalog: Story = {
       "href",
       "https://example.com/contact",
     );
+  },
+};
+
+// The catalogue Kaiten serves for Acme, read by the real client: 8 plans in euros, yen and
+// dinars, in the order it serves them. Only Pro sells an annual fee, and it also sells a
+// quarterly one and two usage prices, none of which is its headline; Enterprise is sold by
+// contact, and Solo has no default fee. The yen have no decimals, the dinars three.
+const servedCatalog = { status: 200, body: acmeCatalog };
+
+export const BillingV3: Story = {
+  name: "Billing v3",
+  decorators: [
+    (Story) => (
+      <KaitenServedCatalogStoryProvider reply={servedCatalog}>
+        <Story />
+      </KaitenServedCatalogStoryProvider>
+    ),
+  ],
+  // No `plans`: the table reads the catalogue itself. (An `undefined` arg does not unset
+  // the one the meta gives, so the story renders it without.)
+  render: (args) => <PricingTable {...args} plans={undefined} />,
+  args: {
+    showFeatureComparison: false,
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+
+    await expect(await canvas.findByText("Starter")).toBeInTheDocument();
+    await expect(canvasElement.querySelectorAll('[data-slot="card-title"]')).toHaveLength(8);
+    await expect(canvas.getByText("¥980")).toBeInTheDocument();
+    await expect(canvas.getByText("KWD 12.500")).toBeInTheDocument();
+    // The monthly fee, and not the quarterly one, is Pro's price.
+    await expect(canvas.getByText("€49.00")).toBeInTheDocument();
+    await expect(canvas.queryByText("€135.00")).toBeNull();
+    await expect(canvas.getByRole("link", { name: "Contact us" })).toHaveAttribute(
+      "href",
+      "https://acme.test/contact",
+    );
+  },
+};
+
+// A publishable key used from a page its owner did not allow: the catalogue read answers
+// 403 `PublicAuth.OriginNotAllowed`. The visitor gets an error they can retry, never an
+// empty page that reads like a shop with nothing in it. (Retrying is tested in
+// `tests/pricing-table-served-catalog.test.tsx`, where the second answer can differ.)
+export const OriginNotAllowed: Story = {
+  name: "Origin not allowed",
+  decorators: [
+    (Story) => (
+      <KaitenServedCatalogStoryProvider reply={originNotAllowedReply}>
+        <Story />
+      </KaitenServedCatalogStoryProvider>
+    ),
+  ],
+  render: (args) => <PricingTable {...args} plans={undefined} />,
+  args: {
+    showFeatureComparison: false,
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+
+    await expect(await canvas.findByRole("alert")).toBeInTheDocument();
+    await expect(canvasElement.querySelectorAll('[data-slot="card-title"]')).toHaveLength(0);
+    await expect(canvas.getByRole("button", { name: "Try again" })).toBeInTheDocument();
   },
 };
 

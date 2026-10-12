@@ -2,7 +2,12 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { action } from "storybook/actions";
 import { expect, within } from "storybook/test";
 
-import { KaitenStoryProvider, scenarioPortalDefault } from "../../../.storybook/kaiten-mock.tsx";
+import {
+  initechSession,
+  KaitenSessionStoryProvider,
+  KaitenStoryProvider,
+  scenarioPortalDefault,
+} from "../../../.storybook/kaiten-mock.tsx";
 import {
   CurrentPlan,
   CustomerPortal,
@@ -197,4 +202,49 @@ export const StandaloneSectionsStacked: Story = {
       <IncludedFeatures />
     </div>
   ),
+};
+
+// A customer session has no licence: the portal names the plan and the subscription, and
+// CurrentPlan says what the portal says. The portals are the ones Kaiten serves for Initech.
+export const CurrentPlanInASession: Story = {
+  name: "Current plan in a customer session",
+  decorators: [
+    (Story) => (
+      <KaitenSessionStoryProvider portal={initechSession.portal}>
+        <Story />
+      </KaitenSessionStoryProvider>
+    ),
+  ],
+  render: () => <CurrentPlan />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+
+    await expect(await canvas.findByText("Pro")).toBeInTheDocument();
+    await expect(canvasElement.querySelector('[data-slot="current-plan-price"]')).toHaveTextContent(
+      "€49.00/month",
+    );
+    await expect(canvas.getByText(/^Renews on/)).toBeInTheDocument();
+  },
+};
+
+export const CurrentPlanInASessionQuarterly: Story = {
+  name: "Current plan in a customer session, quarterly and past due",
+  decorators: [
+    (Story) => (
+      <KaitenSessionStoryProvider portal={initechSession.portalPastDue}>
+        <Story />
+      </KaitenSessionStoryProvider>
+    ),
+  ],
+  render: () => <CurrentPlan />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+
+    await expect(await canvas.findByText("Pro")).toBeInTheDocument();
+    await expect(canvasElement.querySelector('[data-slot="current-plan-price"]')).toHaveTextContent(
+      "€135.00 every 3 months",
+    );
+    // A subscription past due is not said to renew.
+    await expect(canvas.queryByText(/^Renews on/)).toBeNull();
+  },
 };

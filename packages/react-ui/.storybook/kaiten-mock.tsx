@@ -3,7 +3,9 @@ import { SWRConfig } from "swr";
 import type { Cache } from "swr";
 
 import {
+  KaitenClient,
   KaitenError,
+  KaitenSessionClient,
   normalizeResolvedEntitlements,
   resolveLicenseTerm,
 } from "@kaitencloud/client";
@@ -523,6 +525,134 @@ export function KaitenPublicStoryProvider({
         polling={{ enabled: false }}
         hideBranding={hideBranding}
         client={client}
+      >
+        <KaitenStyleRoot>{children}</KaitenStyleRoot>
+      </KaitenProvider>
+    </SWRConfig>
+  );
+}
+
+/**
+ * What the public catalogue of Acme is, as Kaiten serves it for `GET /public/catalog`:
+ * produced by Kaiten's own code and held to the API contract by the client's tests. A
+ * story that draws a catalogue from it draws what the client makes of a real one.
+ */
+export { default as acmeCatalog } from "../../client/tests/fixtures/public-catalog.acme.json";
+
+/** What the API answers a catalogue read: a status, a body, and the problem it is. */
+export interface ServedCatalogReply {
+  status: number;
+  body: unknown;
+}
+
+/**
+ * What Kaiten answers a publishable key used from an origin its owner did not allow: the
+ * problem document its own error renderer writes for a 403 `PublicAuth.OriginNotAllowed`.
+ */
+export const originNotAllowedReply: ServedCatalogReply = {
+  status: 403,
+  body: {
+    type: "https://tools.ietf.org/html/rfc7231#section-6.5.3",
+    title: "Forbidden",
+    status: 403,
+    detail: "this publishable key does not allow requests from this origin",
+    instance: "/api/public/catalog",
+    code: "PublicAuth.OriginNotAllowed",
+  },
+};
+
+/**
+ * A public provider on the real client, which reads the catalogue from a `fetch` that
+ * answers `reply`: the mapping, the splitting of prices into `prices` and
+ * `billingPrices`, and the errors are the client's own, not a double's.
+ */
+export function KaitenServedCatalogStoryProvider({
+  children,
+  reply,
+}: {
+  children: React.ReactNode;
+  reply: ServedCatalogReply;
+}) {
+  const client = React.useMemo(
+    () =>
+      new KaitenClient({
+        apiUrl: STORYBOOK_API_BASE,
+        authScheme: "publishable",
+        tokenProvider: () => "pk_storybook_served",
+        fetch: async () =>
+          new Response(JSON.stringify(reply.body), {
+            status: reply.status,
+            headers: {
+              "Content-Type": reply.status < 400 ? "application/json" : "application/problem+json",
+            },
+          }),
+      }),
+    [reply],
+  );
+  const provider = useIsolatedSWRCache();
+
+  return (
+    <SWRConfig value={{ provider }}>
+      <KaitenProvider
+        mode="public"
+        apiUrl={STORYBOOK_API_BASE}
+        // Not the key of the other public provider: the same scope as a provider above it
+        // would be a passthrough, and the stories would draw the plans of that one.
+        publishableKey="pk_storybook_served"
+        polling={{ enabled: false }}
+        client={client}
+      >
+        <KaitenStyleRoot>{children}</KaitenStyleRoot>
+      </KaitenProvider>
+    </SWRConfig>
+  );
+}
+
+/**
+ * What the portal of a customer session answers, for Initech, as Kaiten serves it for
+ * `GET /public/session/portal`: one entry per state (`portal` is an instance on Pro, subscribed
+ * monthly; `portalPastDue` a quarterly subscription whose payment failed; `portalCustomerWide` a
+ * session bound to the customer only). Produced by Kaiten's own code and held to the API
+ * contract by the client's tests.
+ */
+export { default as initechSession } from "../../client/tests/fixtures/session.initech.json";
+
+/**
+ * A customer-session provider on the real client and the real session client, whose `fetch`
+ * answers the portal with `portal`: what a component draws is what the client makes of it.
+ */
+export function KaitenSessionStoryProvider({
+  children,
+  portal,
+}: {
+  children: React.ReactNode;
+  portal: unknown;
+}) {
+  const sessionClient = React.useMemo(
+    () =>
+      new KaitenSessionClient({
+        apiUrl: STORYBOOK_API_BASE,
+        fetch: async () =>
+          new Response(JSON.stringify(portal), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          }),
+        getCustomerSession: () => ({
+          token: `kst_${"s".repeat(43)}`,
+          expiresAt: new Date(Date.now() + 30 * 60_000).toISOString(),
+        }),
+      }),
+    [portal],
+  );
+  const provider = useIsolatedSWRCache();
+
+  return (
+    <SWRConfig value={{ provider }}>
+      <KaitenProvider
+        mode="customer-session"
+        sessionClient={sessionClient}
+        apiUrl={STORYBOOK_API_BASE}
+        polling={{ enabled: false }}
       >
         <KaitenStyleRoot>{children}</KaitenStyleRoot>
       </KaitenProvider>
