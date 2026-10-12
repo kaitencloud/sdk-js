@@ -60,3 +60,79 @@ test("respects caller fraction-digit overrides", () => {
   });
   expect(out).toBe("$79");
 });
+
+// The three exponents a catalogue can carry: EUR counts hundredths, JPY has no minor
+// unit and KWD counts thousandths. A price is an integer of minor units, so what is
+// shown has to give the same integer back, whatever the currency.
+
+test("formats the fixed cases of each exponent, as Intl writes them", () => {
+  const cases: [number, string, string, string][] = [
+    [4900, "EUR", "en-US", "€49.00"],
+    [4900, "EUR", "fr-FR", "49,00 €"],
+    [980, "JPY", "en-US", "¥980"],
+    [12500, "KWD", "en-US", "KWD 12.500"],
+    [3000, "USD", "en-US", "$30.00"],
+    [0, "EUR", "en-US", "€0.00"],
+  ];
+
+  for (const [amount, currency, locale, expected] of cases) {
+    expect(formatKaitenMoney(amount, currency, { locale })).toBe(expected);
+  }
+});
+
+test("shows the three decimals of a Kuwaiti dinar, never two", () => {
+  expect(formatKaitenMoney(1, "KWD", { locale: "en-US" })).toBe("KWD 0.001");
+  expect(formatKaitenMoney(999, "KWD", { locale: "en-US" })).toBe("KWD 0.999");
+  expect(formatKaitenMoney(1000, "KWD", { locale: "en-US" })).toBe("KWD 1.000");
+  expect(formatKaitenMoney(12_345_678, "KWD", { locale: "en-US" })).toBe("KWD 12,345.678");
+});
+
+// A seeded generator, so a failure replays: the property is about the arithmetic, not
+// about luck.
+function generator(seed: number): () => number {
+  let state = seed >>> 0;
+  return () => {
+    state = (state + 0x6d2b79f5) >>> 0;
+    let mixed = Math.imul(state ^ (state >>> 15), state | 1);
+    mixed ^= mixed + Math.imul(mixed ^ (mixed >>> 7), mixed | 61);
+    return ((mixed ^ (mixed >>> 14)) >>> 0) / 4_294_967_296;
+  };
+}
+
+/**
+ * The minor units a formatted amount stands for: its digits, with the grouping and
+ * the symbol taken out, read as a decimal and shifted by the currency's exponent,
+ * all on strings and BigInt. A float would hide the drift the property looks for.
+ */
+function minorUnitsOf(shown: string, decimalSeparator: string, exponent: number): bigint {
+  const digits = shown.replace(new RegExp(`[^0-9${decimalSeparator}]`, "g"), "");
+  const [whole = "", fraction = ""] = digits.split(decimalSeparator);
+  expect(fraction.length).toBeLessThanOrEqual(exponent);
+  return BigInt(whole + fraction.padEnd(exponent, "0"));
+}
+
+const EXPONENTS = [
+  ["EUR", 2],
+  ["JPY", 0],
+  ["KWD", 3],
+] as const;
+
+test.each(EXPONENTS)(
+  "%s: 10,000 random amounts up to 10^12 give the same minor units back",
+  (currency, exponent) => {
+    const next = generator(0x4b41_4954 + exponent);
+    const amounts = [0, 1, 10 ** exponent, 10 ** 12];
+    while (amounts.length < 10_000) amounts.push(Math.floor(next() * 10 ** 12));
+
+    for (const amount of amounts) {
+      const english = formatKaitenMoney(amount, currency, { locale: "en-US" });
+      expect(minorUnitsOf(english, ".", exponent), `${amount} shown as ${english}`).toBe(
+        BigInt(amount),
+      );
+      const french = formatKaitenMoney(amount, currency, { locale: "fr-FR" });
+      expect(minorUnitsOf(french, ",", exponent), `${amount} shown as ${french}`).toBe(
+        BigInt(amount),
+      );
+    }
+  },
+);
