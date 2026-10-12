@@ -21,9 +21,12 @@ import type { KaitenAppearance } from "../../appearance/types.ts";
 import { useIcons } from "../../appearance/icons.tsx";
 
 // ---------------------------------------------------------------------------
-// Phase 4: This component requires the Checkout API in Kaiten.
-// Until POST /checkout/sessions is available, it operates in "redirect" mode:
-// the consumer provides an onCheckout callback that handles payment externally.
+// This component is a shell around a total the host computes. With Kaiten billing
+// the amount due is the server's: a checkout's `dryRun`
+// (POST /public/session/checkout) answers what is due today, and the SDK never adds
+// prices up. Until the component is rebuilt on that answer, it operates in
+// "redirect" mode: the consumer provides an onCheckout callback that handles
+// payment externally.
 // ---------------------------------------------------------------------------
 
 export interface CheckoutItem {
