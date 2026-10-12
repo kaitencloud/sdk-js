@@ -16,7 +16,12 @@ import { LocalizationProvider } from "../localization/context.tsx";
 import type { KaitenLocalizationOverrides } from "../localization/types.ts";
 import { TelemetryProvider } from "../telemetry/context.tsx";
 import type { KaitenTelemetryOptions } from "../telemetry/types.ts";
-import type { KaitenBrandingCapability, KaitenCatalog, LicensingSnapshot } from "../types.ts";
+import type {
+  KaitenBrandingCapability,
+  KaitenCatalog,
+  LicensingSnapshot,
+  SessionSnapshotMembers,
+} from "../types.ts";
 import { kaitenKeys } from "../hooks/query-keys.ts";
 import type { UseKaitenQueryResult } from "../hooks/use-kaiten-query.ts";
 import { snapshotFromPortal } from "../lib/portal-snapshot.ts";
@@ -52,7 +57,7 @@ interface KaitenContextValue {
 
 interface KaitenDataContextValue {
   catalog: UseKaitenQueryResult<KaitenCatalog>;
-  snapshot: UseKaitenQueryResult<LicensingSnapshot>;
+  snapshot: UseKaitenQueryResult<LicensingSnapshot & SessionSnapshotMembers>;
   portal: UseKaitenQueryResult<KaitenPortal>;
   branding: KaitenBrandingCapability;
   isLoading: boolean;
@@ -630,7 +635,9 @@ function KaitenProviderRoot(props: KaitenProviderProps) {
     error: snapshotError,
     mutate: snapshotMutate,
   } = snapshotSWR;
-  const snapshot = React.useMemo<UseKaitenQueryResult<LicensingSnapshot>>(() => {
+  const snapshot = React.useMemo<
+    UseKaitenQueryResult<LicensingSnapshot & SessionSnapshotMembers>
+  >(() => {
     if (sessionClient) {
       // A customer session's snapshot is its portal, read once, with the plans
       // of the catalog beside it.

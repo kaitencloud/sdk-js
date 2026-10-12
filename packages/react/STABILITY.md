@@ -92,7 +92,8 @@ release, as billing ships:
   `useKaitenSessionClient`), and a customer session as the
   `authenticatedConfig` of `KaitenScopeProvider`. What every other hook
   answers under this mode — a snapshot built from the portal, with no customer,
-  instance, licence or flags — is part of it.
+  instance, licence or flags, and with the bound instance's `currentPlan` and
+  `subscription` — is part of it.
 - **`CheckoutSummary`** (`@kaitencloud/react-ui`). It shows the total of the
   items it is given, summed in the browser. Billing's rule is the opposite: the
   amount due is the server's, from a checkout's `dryRun` (`dueToday`), and the

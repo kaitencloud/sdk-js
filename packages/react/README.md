@@ -291,7 +291,12 @@ dependencies to import it. The session goes in `Authorization: Bearer kst_…`, 
 - **`useCustomer`, `useInstance` and `useLicense` answer nothing.** The portal
   names the customer, the instance and the licence without the ids, audit fields
   and dates those types carry, so the snapshot leaves them `null` rather than
-  invent them. `usePortal()` returns what the portal says, and
+  invent them. What it does say about the plan is on the snapshot, as it says it:
+  `useLicensingSnapshot().data.currentPlan` is the bound instance's plan (`slug`
+  and `name`), and `.subscription` its subscription (`status`, `basePrice`,
+  `currentPeriodEnd`, `billingInterval` and `intervalCount`, `cancelAtPeriodEnd`,
+  `scheduledChange`). Both are `null` on a session bound to the customer only, and
+  `undefined` under any other mode. `usePortal()` returns the whole portal, and
   `useUpgradeOptions` finds the current plan by the bound instance's licence.
 - **No flags, no usage reports.** Neither is on the session's routes: the
   snapshot has no flags, and `useReportUsage` refuses before any request. Report

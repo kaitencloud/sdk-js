@@ -59,6 +59,8 @@ export type {
 
 export type { KaitenApiError, KaitenThrownError } from "@kaitencloud/client";
 
+export type { SessionSnapshotMembers } from "./lib/portal-snapshot.ts";
+
 export type {
   KaitenDateFormatOptions,
   KaitenDateFormatter,
