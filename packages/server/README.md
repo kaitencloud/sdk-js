@@ -253,6 +253,44 @@ nothing again by themselves. Write-off, void, recompose, release-hold and the ex
 wrapped: they are `Billing.writeOffInvoice`, `Billing.voidInvoice`, `Billing.recomposeInvoice`,
 `Billing.releaseInvoiceHold` and `Billing.exportInvoices`, which take the same `client`.
 
+## Publishable keys
+
+A web page that shows your plans reads your public catalog with a **publishable key**
+(`pk_`), the one credential a browser may hold. It reads that catalog and nothing else, so it
+can ship in the page source. Issue one from your backend, with a token that holds
+`write:publishable_keys`:
+
+```ts
+import { PublishableKeys } from "@kaitencloud/server";
+
+const { data: issued } = await PublishableKeys.createPublishableKey({
+  client,
+  throwOnError: true,
+  body: { label: "Marketing site", allowedOrigins: ["https://www.example.com"] },
+});
+
+issued.key; // "pk_…": the key, in this answer only
+```
+
+- **The key is shown once.** Kaiten keeps a digest of it. Every other answer carries
+  `keyHint`, its last four characters, to tell your keys apart.
+- **`allowedOrigins`** are the browser origins that may send the key, each as
+  `scheme://host[:port]` with no path: `https`, or `http` for localhost, 50 at most. A request
+  from another origin is refused. An empty list allows no browser origin, but a request without
+  an `Origin` header, such as server-side rendering, still goes through. Give each site its own
+  key, so one that leaks is revoked alone.
+- `PublishableKeys.listPublishableKeys` pages the keys, newest first (`includeRevoked` adds the
+  revoked ones, `read:publishable_keys`). `updatePublishableKey` changes a live key's `label` or
+  `allowedOrigins`, from the next request on; a revoked key answers a 409.
+  `revokePublishableKey` ends a key on the next request, for good, and is safe to repeat.
+- The page sends the key with [`@kaitencloud/client`](../client), as `authScheme: "publishable"`.
+  The API limits a key to 20 requests a second, with a burst of 40, which each API replica
+  counts for itself; beyond it the page gets a 429 with a `Retry-After`.
+
+Managing keys is part of billing: an organization that cannot reach it is refused with a 403
+`Billing.Disabled` or `Billing.NotEntitled`, or with a 503 `Billing.EntitlementCheckUnavailable`
+when whether its plan includes billing could not be checked.
+
 ## Webhooks
 
 The contract declares the `com.kaiten.*` events, billing's among them (invoices issued,
