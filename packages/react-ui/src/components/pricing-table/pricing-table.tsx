@@ -20,11 +20,17 @@ import {
   useLocalization,
   DEFAULT_CURRENCY_CODE,
   type BillingInterval,
+  type BillingPrice,
   type Plan,
   type PlanPrice,
 } from "@kaitencloud/react";
 import { useAssertWrappedByKaitenProvider } from "../../style-root/kaiten-style-root.tsx";
-import { isHeadlinePrice, useTrackComponent } from "@kaitencloud/react/internal";
+import {
+  isHeadlinePrice,
+  kaitenPriceParts,
+  useTrackComponent,
+  type KaitenPriceParts,
+} from "@kaitencloud/react/internal";
 import { FeatureComparison } from "../feature-comparison/feature-comparison.tsx";
 import { KaitenBranding } from "../shared/kaiten-branding.tsx";
 import { CardLoading } from "../shared/loading.tsx";
@@ -97,33 +103,58 @@ function resolveColumns(count: 2 | 3 | 4): string {
 }
 
 /**
- * The price a card shows for the selected interval, and the suffix under it.
+ * The price a card shows for the selected interval.
  *
  * Only a flat fee billed every single `interval` qualifies: a quarterly price
  * (`interval: "month"`, `intervalCount: 3`) under "/month" would read as a
  * third of what it costs, and a usage price as the whole bill. Among several,
- * the default one. The suffix is the interval, never the price's free-text
- * `label` ("Monthly" from the API made "€49.00/Monthly").
+ * the default one. The suffix under the amount is written from the price itself,
+ * in the pack's language: never from its free-text `label` ("Monthly" from the API
+ * made "€49.00/Monthly").
+ *
+ * A plan that sells nothing for the interval shows the price it has, with its own
+ * period: a plan with a monthly fee only reads "/month" when the visitor picks
+ * "Annual", never "/year". A plan whose only default flat fee is quarterly shows it
+ * as "every 3 months".
+ *
+ * `price` is what `onSelectPlan` hands back: the price of the plan the card showed,
+ * when it showed one of its prices, as a checkout names it.
  */
 function getPlanPrice(
   plan: Plan,
   interval: BillingInterval,
-): { amount?: number; label: string; price?: PlanPrice } {
+): { display?: PlanPrice | BillingPrice; price?: PlanPrice } {
   const candidates = plan.prices?.filter((price) => isHeadlinePrice(price, interval)) ?? [];
   const matchedPrice = candidates.find((price) => price.isDefault) ?? candidates[0];
   if (matchedPrice) {
-    return { amount: matchedPrice.amount, label: interval, price: matchedPrice };
+    return { display: matchedPrice, price: matchedPrice };
   }
 
   if (interval === "year" && typeof plan.annualPrice === "number") {
-    return { amount: plan.annualPrice, label: "year" };
+    return { display: { amount: plan.annualPrice, interval: "year" } };
   }
 
-  if (interval === plan.interval || interval === "month") {
-    return { amount: plan.price, label: plan.interval ?? "month" };
-  }
+  // Nothing is sold for this interval: the plan's default flat fee of the shortest
+  // period, from the 1.0-typed list and from the catalog's own, which also holds the
+  // quarterly and half-yearly ones. It keeps its own period and its own id.
+  const periodInMonths = (price: PlanPrice) =>
+    (price.intervalCount ?? 1) * (price.interval === "year" ? 12 : 1);
+  const own = [...(plan.prices ?? []), ...(plan.billingPrices ?? [])]
+    .filter(
+      (price): price is PlanPrice =>
+        price.isDefault === true &&
+        (price.billingModel ?? "FLAT_FEE") === "FLAT_FEE" &&
+        typeof price.amount === "number" &&
+        (price.interval === "month" || price.interval === "year"),
+    )
+    .sort((a, b) => periodInMonths(a) - periodInMonths(b))[0];
+  if (own) return { display: own, price: own };
 
-  return { amount: plan.price, label: plan.interval ?? interval };
+  // `price` is the monthly fee, unless the plan says what its interval is.
+  if (typeof plan.price === "number") {
+    return { display: { amount: plan.price, interval: plan.interval ?? "month" } };
+  }
+  return {};
 }
 
 // Render a plan's price WITHOUT the silent `?? 0` coercion that made paid tiers
@@ -131,15 +162,12 @@ function getPlanPrice(
 // amount. When the amount is missing we show a localized "Custom" label (and the
 // interval suffix is dropped) so the host is forced to notice, not ship a fake €0.
 function renderPlanPrice(
-  amount: number | undefined,
-  label: string,
+  price: PlanPrice | BillingPrice | undefined,
   currencyCode: string,
   localization: ReturnType<typeof useLocalization>,
-): { value: string; showInterval: boolean } {
-  if (typeof amount === "number") {
-    return { value: localization.formatMoney(amount, currencyCode), showInterval: true };
-  }
-  return { value: localization.pricingTable.customPrice, showInterval: false };
+): KaitenPriceParts {
+  const parts = price && kaitenPriceParts(price, localization, { currencyCode });
+  return parts ?? { amount: localization.pricingTable.customPrice, suffix: "", attached: true };
 }
 
 // Add-ons follow the same rule as the plan price above. `?? 0` published a paid
@@ -347,7 +375,7 @@ function PricingTableView({
   React.useEffect(() => {
     if (typeof process !== "undefined" && process.env.NODE_ENV === "production") return;
     const priceless = visiblePlans.filter(
-      (plan) => typeof getPlanPrice(plan, interval).amount !== "number",
+      (plan) => getPlanPrice(plan, interval).display === undefined,
     );
     if (priceless.length) {
       console.warn(
@@ -410,8 +438,7 @@ function PricingTableView({
           {visiblePlans.map((plan) => {
             const price = getPlanPrice(plan, interval);
             const rendered = renderPlanPrice(
-              price.amount,
-              price.label,
+              price.display,
               plan.currencyCode ?? DEFAULT_CURRENCY_CODE,
               localization,
             );
@@ -420,8 +447,8 @@ function PricingTableView({
                 <h3>{plan.name}</h3>
                 {plan.description ? <p>{plan.description}</p> : null}
                 <p>
-                  {rendered.value}
-                  {rendered.showInterval ? `/${price.label}` : null}
+                  {rendered.amount}
+                  {rendered.suffix ? `${rendered.attached ? "" : " "}${rendered.suffix}` : null}
                 </p>
                 <ul>
                   {(plan.features ?? []).map((feature) => (
@@ -538,6 +565,11 @@ function PricingTableView({
         {visiblePlans.map((plan) => {
           const isHighlighted = plan.highlighted || plan.slug === highlightPlan;
           const resolvedPrice = getPlanPrice(plan, interval);
+          const renderedPrice = renderPlanPrice(
+            resolvedPrice.display,
+            plan.currencyCode ?? DEFAULT_CURRENCY_CODE,
+            localization,
+          );
           const planFeatures = plan.features ?? [];
           const addOns = plan.addOns ?? [];
 
@@ -592,18 +624,11 @@ function PricingTableView({
                  */}
                 <div className="flex flex-wrap items-baseline gap-1">
                   <span className="min-w-0 font-ktn-display text-[2.5rem] leading-none font-bold break-words">
-                    {
-                      renderPlanPrice(
-                        resolvedPrice.amount,
-                        resolvedPrice.label,
-                        plan.currencyCode ?? DEFAULT_CURRENCY_CODE,
-                        localization,
-                      ).value
-                    }
+                    {renderedPrice.amount}
                   </span>
-                  {typeof resolvedPrice.amount === "number" ? (
+                  {renderedPrice.suffix ? (
                     <span className="font-ktn-mono text-[13px] text-ktn-muted-foreground">
-                      /{resolvedPrice.label}
+                      {renderedPrice.suffix}
                     </span>
                   ) : null}
                 </div>
