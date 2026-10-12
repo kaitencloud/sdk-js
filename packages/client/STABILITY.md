@@ -21,7 +21,8 @@ API extends — grow without breaking anyone.
 - Add **optional** members to the types the SDK returns (`Plan`, `PlanPrice`,
   `ResolvedEntitlement`, …) and to the types you pass in (`KaitenClientConfig`,
   `ReportUsageInput`, …).
-- Add methods to `KaitenClient` and `KaitenSessionClient`. You never implement
+- Add methods to `KaitenClient` and `KaitenSessionClient`, and to the server's
+  `KaitenBilling`, `KaitenHandoffQueue` and `KaitenInvoices`. You never implement
   those classes: their private fields make them nominal.
 - Add an **optional** last parameter to a method, `KaitenClientLike`'s included.
   `getCatalog(options?)` gained one in 1.2. A call without it behaves as before,
@@ -151,5 +152,14 @@ its `code`. A later minor release may give another refusal a class; it will exte
   `Customers`, `Instances`, …) are generated from the API contract and follow it.
   A contract change can change them in a minor release; the curated surface above
   does not move with them.
+- **`KaitenWebhookType` and `KaitenWebhookEvent`** (server) are derived from the
+  webhooks the API contract declares. An event the API starts to send is a new member
+  of both, so a `switch` over `event.type` keeps a `default` for the events it does
+  not handle. The helpers that verify and narrow an event (`verifyKaitenWebhook`,
+  `isKaitenWebhookOfType`) are inside the guarantee.
+- **What the server's helpers take and return.** `KaitenBilling`, `KaitenHandoffQueue`
+  and `KaitenInvoices` have class and method names inside the guarantee. Their inputs
+  and outputs (`HandoffClaim`, `Invoice`, `InvoicePayment`, …) are the generated
+  contract types, and move with the contract like the resource classes do.
 - Members tagged `@internal`, such as `KaitenTransport.callPublic`, are used
   between the SDK's own modules and may change in any release.
