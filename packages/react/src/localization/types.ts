@@ -96,6 +96,115 @@ export interface KaitenCheckoutWords {
   managePlan: string;
 }
 
+/**
+ * How a customer session's subscription is said: the status of `CurrentPlan` and
+ * `BillingSummary`, the note on a `Paywall`. Dates are RAW ISO bounds, formatted by the pack, like
+ * `currentPlan.renewsOn`.
+ */
+export interface KaitenSubscriptionWords {
+  trial: string;
+  active: string;
+  /** A subscription with an invoice past its due date. It changes nothing a customer may do. */
+  pastDue: string;
+  canceled: string;
+  trialEndsOn: (isoDate: string) => string;
+  /** The end of a subscription that was canceled and runs until its period is over. */
+  endsOn: (isoDate: string) => string;
+  /** A plan change scheduled for a later renewal. Receives the formatted price and the RAW date. */
+  changesOn: (price: string, isoDate: string) => string;
+  pastDueNotice: string;
+  canceledNotice: string;
+  /** Said where a subscription would be: a session bound to the customer, with no instance. */
+  none: string;
+  /** What a wall offers a customer who can buy a plan by themselves. */
+  subscribe: string;
+}
+
+/**
+ * What the customer portal says beyond the sections that were always there: the invoices, the
+ * cancellation, the quantity of an add-on, a voucher check and where a limit comes from. Dates are
+ * RAW ISO bounds, formatted by the pack.
+ */
+export interface KaitenPortalBillingWords {
+  invoices: string;
+  noInvoices: string;
+  /** The period an invoice covers. */
+  invoicePeriod: (fromIsoDate: string, toIsoDate: string) => string;
+  kindActivation: string;
+  kindRenewal: string;
+  kindFinal: string;
+  statusManual: string;
+  statusPushed: string;
+  statusPaid: string;
+  statusFailed: string;
+  statusUncollectible: string;
+  statusVoid: string;
+  pay: string;
+  pdf: string;
+  loadMore: string;
+  cancel: string;
+  /** Receives the RAW end of the period: the date the subscription ends on. */
+  cancelPrompt: (isoDate: string) => string;
+  /** Said in place of {@link cancelPrompt} to a customer in their trial, whose cancellation is at once. */
+  cancelTrialPrompt: string;
+  cancelConfirm: string;
+  cancelKeep: string;
+  reactivate: string;
+  /** A change the API refused while a billing period is being closed, waited out. */
+  closingPeriod: string;
+  /** The same refusal, a second time: the customer tries again. */
+  stillClosing: string;
+  unavailable: string;
+  actionFailed: string;
+  addonQuantity: (name: string) => string;
+  addonLess: (name: string) => string;
+  addonMore: (name: string) => string;
+  addonUpTo: (max: string) => string;
+  addonRemovePrompt: (name: string) => string;
+  addonRemoveNote: string;
+  addonRemove: string;
+  addonKeep: string;
+  vouchers: string;
+  voucherLabel: string;
+  voucherCheck: string;
+  /** Said of every code the API refuses, whatever the reason: it never says which. */
+  voucherInvalid: string;
+  voucherAtCheckout: string;
+  /** A voucher check that was refused for coming too often. Receives the seconds to wait. */
+  voucherWait: (seconds: number) => string;
+  /** The button that opens how a limit is made up. */
+  provenance: string;
+  provenanceBase: string;
+  provenanceAddOn: string;
+  provenanceVoucher: string;
+  /** A limit the add-ons set in another way than by adding: the server's figure after them. */
+  provenanceWithAddOns: string;
+  provenanceUnlimited: string;
+}
+
+/** What `PaymentMethodCard` says. */
+export interface KaitenPaymentMethodWords {
+  title: string;
+  none: string;
+  /** What a payment method is called when the provider gave no brand. */
+  card: string;
+  /** Receives the month and the year as the card writes them: "12/2030". */
+  expires: (monthYear: string) => string;
+  expired: string;
+  failed: string;
+  expiredNotice: string;
+  failedNotice: string;
+  add: string;
+  update: string;
+  manage: string;
+  opening: string;
+  saving: string;
+  saved: string;
+  incomplete: string;
+  unavailable: string;
+  error: string;
+}
+
 export interface KaitenLocalization {
   /**
    * Formats a price for display. `amount` is in minor units (e.g. cents) and
@@ -284,6 +393,15 @@ export interface KaitenLocalization {
    * a host's override of one string is merged over the English the components hold.
    */
   checkoutFlow?: KaitenCheckoutWords;
+  /**
+   * What `CurrentPlan`, `BillingSummary` and `Paywall` say of a customer session's subscription.
+   * Optional and absent from the English defaults, like `checkoutFlow`.
+   */
+  subscription?: KaitenSubscriptionWords;
+  /** What `CustomerPortal` says of a customer session's invoices, cancellation, add-ons and vouchers. Optional, like `checkoutFlow`. */
+  portalBilling?: KaitenPortalBillingWords;
+  /** What `PaymentMethodCard` says. Optional, like `checkoutFlow`. */
+  paymentMethodCard?: KaitenPaymentMethodWords;
 }
 
 /**

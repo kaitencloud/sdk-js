@@ -63,6 +63,9 @@ export type { SessionSnapshotMembers } from "./lib/portal-snapshot.ts";
 
 export type {
   KaitenCheckoutWords,
+  KaitenPaymentMethodWords,
+  KaitenPortalBillingWords,
+  KaitenSubscriptionWords,
   KaitenDateFormatOptions,
   KaitenDateFormatter,
   KaitenDateInput,

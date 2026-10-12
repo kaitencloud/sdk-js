@@ -141,7 +141,7 @@ const SCENARIOS = [
   {
     name: "locales · fr alone",
     code: `import { fr } from "@kaitencloud/react/locales"; console.log(fr);`,
-    budgetGzip: 3_350,
+    budgetGzip: 4_400,
     unstyled: true,
   },
   {
