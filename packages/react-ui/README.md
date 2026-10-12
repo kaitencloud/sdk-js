@@ -40,12 +40,14 @@ an exact version if you build on it, and read the changelog before upgrading.
 Two elements: the provider carries the data and renders nothing; the style root
 renders the `<div class="kaiten">` every SDK style is scoped to.
 
-> **Which credential.** This release has no customer-scoped credential for your end
-> users' browsers, so authenticated mode below needs a token you are prepared to
-> expose there: see the core's
-> [Authenticated mode](../react/README.md#authenticated-mode). For a pricing page,
-> read the catalog on your backend and hand it to `mode="static"`, as in
-> [Marketing site: a static catalog](../react/README.md#marketing-site-a-static-catalog).
+> **Which credential.** Authenticated mode below needs a token you are prepared to
+> expose in your end users' browsers: see the core's
+> [Authenticated mode](../react/README.md#authenticated-mode). A Kaiten server that
+> ships billing adds the browser's own credentials, a publishable key for the
+> catalog and a customer session for one customer
+> ([Customer session](../react/README.md#customer-session)). Until then, for a
+> pricing page, read the catalog on your backend and hand it to `mode="static"`, as
+> in [Marketing site: a static catalog](../react/README.md#marketing-site-a-static-catalog).
 
 ```tsx
 import { KaitenProvider, KaitenStyleRoot, Paywall } from "@kaitencloud/react-ui";
@@ -76,7 +78,7 @@ function App() {
 }
 ```
 
-Provider modes (`authenticated`, `static`, `public`), credentials, polling,
+Provider modes (`authenticated`, `static`, `public`, `customer-session`), credentials, polling,
 localization and the session switch are the core's; they are documented in
 [`@kaitencloud/react`](../react/README.md).
 
@@ -371,8 +373,8 @@ default and may not match the palette you imported.
 
 ## Known limitations
 
-- `CheckoutSummary` is a redirect shell: no checkout session API backs it.
-- Prices come from the catalog the host supplies: Kaiten models no money server-side (see the core's [Data source](../react/README.md#data-source)).
+- `CheckoutSummary` is a redirect shell: no checkout session API backs it, and the total it shows is the sum of the items the host gave it. With Kaiten billing, the amount due is the server's (a checkout's `dryRun`); the component will be rebuilt on it, and is experimental until then (see [STABILITY.md](STABILITY.md)).
+- Prices come from the catalog: the one the host supplies, or with Kaiten billing the public catalog. `PricingTable` shows a plan's default monthly or annual flat fee, never a quarterly or usage price under "/month", and links a plan that is not self-serve to its `selfServeCtaUrl` ("Contact us"). `onSelectPlan` receives the price the card showed.
 - `PricingTable` shows every published plan, one column each. Several versions of one license family can be published at once, and each gets its own column; a host that publishes more than one should filter the catalog, or pass `hidePlans`.
 
 ## Development

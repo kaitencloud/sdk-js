@@ -57,8 +57,8 @@ React app and a Node backend that run without an account.
 
 | Prefix   | What it is                                                                                            | Where it may live           | Consumed by                                              |
 | -------- | ----------------------------------------------------------------------------------------------------- | --------------------------- | -------------------------------------------------------- |
-| `pk_`    | Publishable key: reads the catalogue and nothing that belongs to a customer                           | Browser                     | `@kaitencloud/client`                                    |
-| `kst_`   | Customer session: minted by your backend for one customer, short-lived                                | Browser                     | `@kaitencloud/client`                                    |
+| `pk_`    | Publishable key: reads the catalogue and nothing that belongs to a customer                           | Browser                     | `@kaitencloud/client`, `@kaitencloud/react`              |
+| `kst_`   | Customer session: minted by your backend for one customer, valid for 5 to 60 minutes                  | Browser                     | `@kaitencloud/client`, `@kaitencloud/react`              |
 | `ksh_`   | Access token, scoped to one organization                                                              | Server only                 | `@kaitencloud/server`, `@kaitencloud/client` on a server |
 | `ksm_`   | Platform credential: authenticates `system:kaiten`, carries **no** organization, and reaches them all | Kaiten's control plane only | no package here                                          |
 | `sk_`    | Secret key of a future in-app mode, reserved and not issued yet                                       | Server only                 | —                                                        |

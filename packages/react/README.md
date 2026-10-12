@@ -46,13 +46,14 @@ import it from `@kaitencloud/client`.
 
 ### Authenticated mode
 
-> **Which credential.** This release has no customer-scoped credential for your end
-> users' browsers. The API accepts a `ksh_` token, which the client refuses to send
-> from a browser, or a JWT from the identity provider its gateway trusts, and both
-> carry rights over a whole organization: see
+> **Which credential.** The API accepts a `ksh_` token, which the client refuses to
+> send from a browser, or a JWT from the identity provider its gateway trusts, and
+> both carry rights over a whole organization: see
 > [`@kaitencloud/client`](../client/README.md#authentication), which also lists the
-> scopes each read needs. For a pricing page, read the catalog on your backend and
-> hand it to [`mode="static"`](#marketing-site-a-static-catalog).
+> scopes each read needs. The customer-scoped credential for your end users'
+> browsers is a customer session, which Kaiten billing adds: see
+> [Customer session](#customer-session). For a pricing page, read the catalog on
+> your backend and hand it to [`mode="static"`](#marketing-site-a-static-catalog).
 
 ```tsx
 import { Gate, KaitenProvider } from "@kaitencloud/react";
@@ -84,8 +85,8 @@ at an app's root without joining its layout.
 
 ### Marketing site: a static catalog
 
-A pricing page has no customer and needs no credential — and no backend serves a
-publishable key anyway (see [Public mode](#public-mode)).
+A pricing page has no customer and needs no credential — and only a Kaiten server
+with billing serves a publishable key (see [Public mode](#public-mode)).
 `mode="static"` takes the catalog the host already holds and renders it: no key,
 no client, **no request**, no polling.
 
@@ -132,17 +133,17 @@ function Plans() {
 `KaitenCatalog` is plain data, so it crosses a server/client boundary as a prop.
 `usePlans()` returns it on the first render, so nothing loads and nothing can
 fail — and `@kaitencloud/react-ui`'s `PricingTable`, `FeatureComparison` and
-`FeatureCatalog` read it through the same hook. Prices are part of it: Kaiten
-models no money server-side (see [Data source](#data-source)), so a static
-catalog is where a marketing page's prices live.
+`FeatureCatalog` read it through the same hook. Prices are part of it: until
+Kaiten billing, the server models no money, so a static catalog is where a
+marketing page's prices live.
 `KaitenScopeProvider` accepts a static config as its `publicConfig` (see
-[Switching](#switching-from-public-to-authenticated)), so the signed-out half of
+[Switching](#switching-from-public-to-signed-in)), so the signed-out half of
 an app can be static and the signed-in half live.
 
 What a static provider cannot do, it says: `useReportUsage` and a contextual
 `useFeatureFlag` reject with the mode in the message, and `usePaywallTrigger`
 (so `Gate`, so `Paywall`) fails open with a development warning — gating needs a
-customer, which only `mode="authenticated"` has.
+customer, which only `mode="authenticated"` and `mode="customer-session"` have.
 
 #### Fetching the catalog server-side (Next.js App Router, Astro, a build step)
 
@@ -193,8 +194,9 @@ fetched, and the page arrives as finished HTML — no round-trip, no skeleton.
 
 ### Public mode
 
-> **Not served by the platform.** No backend endpoint accepts a `pk_` key, so this
-> snippet returns no data against a real API. Use `mode="static"` above; switching
+> **Experimental, and served by Kaiten billing.** Public mode reads
+> `GET {apiUrl}/public/catalog`, a route of the Kaiten release that ships billing; a
+> server without it answers 404. Until then use `mode="static"` above; switching
 > is a change of config block, not of components. For fixture data in tests and
 > Storybook, `createMockKaitenClient()` from
 > [`@kaitencloud/client/testing`](../client/README.md#testing-without-an-api--kaitencloudclienttesting)
@@ -210,6 +212,94 @@ fetched, and the page arrives as finished HTML — no round-trip, no skeleton.
   <Plans />
 </KaitenProvider>
 ```
+
+A publishable key is public by design: it ships in your pages, and it grants the
+read-only catalog of your organization's public plans and nothing else. The API
+checks it against the origins you allowed for it on every request, and refuses it
+anywhere but the catalog. The SDK sends it the same way: in the
+`X-Kaiten-Publishable-Key` header, never `Authorization`, with no cookie, to
+`/public/catalog` only. Anything else a public provider is asked for — a usage
+report, a flag evaluated with a context — is refused before any request.
+
+The catalog lists the default version of each plan family the organization made public:
+
+- `prices` holds the plan's default monthly and annual flat fees, which
+  `plan.price` and `plan.annualPrice` repeat. A quarterly or semi-annual fee, a
+  usage or overage price, or a price in fractions of a minor unit is only in
+  `billingPrices`: read `intervalCount` and `billingModel` there before you print
+  "/ month".
+- `selfServe` says whether a visitor can subscribe to the plan by themselves.
+  When it is false, offer `selfServeCtaUrl` ("Contact us" for a `CUSTOM` plan),
+  and nothing when it is null. `PricingTable` does both.
+- `addOns` and `capabilities` (`checkout`, `paymentMethods`) sit beside `plans`.
+
+### Customer session
+
+> **Experimental, and served by Kaiten billing.** Like public mode, this mode needs
+> the Kaiten release that ships billing, and may change before billing ships.
+
+`mode="customer-session"` is one customer, signed in to your application, seen
+through a customer session (`kst_`): their subscription, their effective
+entitlements, their add-ons and payment method — what a customer portal, a
+checkout and the paywalls in front of that customer read. Your backend mints the
+session with `CustomerSessions.createCustomerSession` of
+[`@kaitencloud/server`](../server/README.md#customer-sessions), behind your own
+authentication, and the browser fetches it from there; it never holds a secret.
+
+```tsx
+import { KaitenSessionClient } from "@kaitencloud/client";
+import { KaitenProvider, usePortal } from "@kaitencloud/react";
+
+// Once, outside render: the provider's scope and cache follow this object.
+const sessionClient = new KaitenSessionClient({
+  apiUrl: "https://kaiten.example.com/api",
+  // Your endpoint, which returns { token, expiresAt }. Called again before the
+  // session expires, and once more if the API refuses it.
+  getCustomerSession: () => fetch("/billing/session", { method: "POST" }).then((r) => r.json()),
+});
+
+function Billing() {
+  return (
+    <KaitenProvider
+      mode="customer-session"
+      sessionClient={sessionClient}
+      // Optional: the catalog, for `usePlans`, `useUpgradeOptions` and a pricing table.
+      apiUrl="https://kaiten.example.com/api"
+      publishableKey={KAITEN_PUBLISHABLE_KEY}
+    >
+      <Usage />
+    </KaitenProvider>
+  );
+}
+
+function Usage() {
+  const { data: portal } = usePortal();
+  return <p>{portal?.subscription?.status}</p>;
+}
+```
+
+The provider takes the client rather than building one, so an application that
+never offers a portal does not bundle it; add `@kaitencloud/client` to your
+dependencies to import it. The session goes in `Authorization: Bearer kst_…`, to
+`/public/session/*` only.
+
+- **The licensing snapshot is the portal's.** Its `entitlements` are effective
+  — the licence grant with its add-ons and voucher boosts applied — with their
+  usage and a `provenance` that says how each layer contributed; `addOns` and
+  `capabilities` are the portal's too, and `plans` the catalog's.
+  `useEntitlementCheck`, `usePaywallTrigger`, `Gate` and `Paywall` gate on them.
+- **`useCustomer`, `useInstance` and `useLicense` answer nothing.** The portal
+  names the customer, the instance and the licence without the ids, audit fields
+  and dates those types carry, so the snapshot leaves them `null` rather than
+  invent them. `usePortal()` returns what the portal says, and
+  `useUpgradeOptions` finds the current plan by the bound instance's licence.
+- **No flags, no usage reports.** Neither is on the session's routes: the
+  snapshot has no flags, and `useReportUsage` refuses before any request. Report
+  usage from your backend.
+- **Writes go through the client.** `useKaitenSessionClient()` returns it, for
+  `checkout`, `cancelSubscription`, `setAddonQuantity`, `listInvoices` and the
+  rest; call `usePortal().refetch()` once one succeeds. Totals always come from
+  the server: a checkout's `dryRun` says what is due today.
 
 #### Tokens that expire
 
@@ -245,30 +335,33 @@ function App() {
 
 ## Provider modes
 
-`KaitenProvider` supports three runtime modes:
+`KaitenProvider` supports four runtime modes:
 
 - `mode="authenticated"` with `accessToken`, `customerId`, and optional `instanceId` — a customer's snapshot: plan, entitlements, usage, flags
 - `mode="static"` with `catalog` — the plans the host already holds; no key, no request (see the quick start above)
-- `mode="public"` with `publishableKey` — a live catalog read; **not served by the platform**, see [Public mode](#public-mode)
+- `mode="public"` with `publishableKey` — a live catalog read, from a Kaiten server with billing; see [Public mode](#public-mode)
+- `mode="customer-session"` with `sessionClient`, and optional `publishableKey` — one customer's portal through a customer session, from a Kaiten server with billing; see [Customer session](#customer-session)
 
-The two live modes take:
+The three live modes take:
 
 - `apiUrl?: string` — your Kaiten API's base URL, `/api` included. Defaults to `/api`, resolved against
   the current origin, which is almost never what you want in a deployed app; set
   it explicitly. Outside a browser (SSR) the relative default resolves against
   `http://localhost`.
 - `polling?: { enabled?: boolean; interval?: number }` — on by default in
-  `authenticated` mode only, every 5 minutes. The snapshot carries usage that
-  other actors move; the catalog changes on a release, so a public provider polls
-  only when asked. A read happens on mount, on that schedule and on `refetch` —
-  never on focus or reconnect.
+  `authenticated` and `customer-session` modes, every 5 minutes. The snapshot and
+  the portal carry usage that other actors move; the catalog changes on a
+  release, so a public provider polls only when asked, and a customer session
+  never re-reads its catalog on that schedule. A read happens on mount, on that
+  schedule and on `refetch` — never on focus or reconnect.
 - `client?: KaitenClientLike` — a client of your own, such as the fake from
   [`@kaitencloud/client/testing`](../client/README.md#bringing-your-own-client).
-- `initialData?: { snapshot?, catalog? }` — data fetched server-side, rendered on
-  the first paint without a skeleton; the provider then revalidates it on its
-  polling schedule.
+  Under `customer-session`, it reads the catalog.
+- `initialData?: { snapshot?, catalog?, portal? }` — data fetched server-side,
+  rendered on the first paint without a skeleton; the provider then revalidates
+  it on its polling schedule.
 
-All three modes take:
+All four modes take:
 
 - `hideBranding?: boolean` — a request, granted only when the licence allows it;
   `useKaitenBranding()` is the rule, and `@kaitencloud/react-ui`'s
@@ -287,7 +380,7 @@ Theming lives with the components: `appearance` is a prop of
 `@kaitencloud/react-ui`'s `KaitenStyleRoot`, which renders the element every SDK
 style is scoped to.
 
-### Switching from public to authenticated
+### Switching from public to signed in
 
 Use one top-level SDK scope whose config follows your app session. Do not render an authenticated
 `KaitenProvider` inside a public one after login: nested providers are intentionally pass-through, so
@@ -335,8 +428,10 @@ to authenticated snapshot data when it becomes available. The SDK scope is remou
 boundary so the client and the SWR cache move together; state above the provider is preserved.
 
 `publicConfig` also takes a static catalog — `{ mode: "static", catalog }` — which is the
-signed-out half to use in place of publishable keys, which no endpoint serves: the pricing page renders from
+signed-out half to use until your Kaiten server serves publishable keys: the pricing page renders from
 data the host holds, and the same shell switches to the customer's live snapshot after login.
+`authenticatedConfig` also takes a customer session — `{ mode: "customer-session", sessionClient }`
+— for a storefront whose signed-in half is the customer's portal and checkout.
 
 ## Headless hooks
 
@@ -445,14 +540,18 @@ window.addEventListener("kaiten:plan-changed", (event) => {
 
 ## Data source
 
-Components consume the licensing snapshot and plan catalog composed by
-`@kaitencloud/client` — GraphQL-first against the platform's `/graphql` aggregate,
-with a REST fan-out fallback for older APIs; feature flags are evaluated over OFREP.
-There are no dedicated `/api/components/*` endpoints.
+In `authenticated` mode, components consume the licensing snapshot and plan catalog
+composed by `@kaitencloud/client` — GraphQL-first against the platform's `/graphql`
+aggregate, with a REST fan-out fallback for older APIs; feature flags are evaluated
+over OFREP. There are no dedicated `/api/components/*` endpoints.
+
+With Kaiten billing, `public` and `customer-session` modes read the public routes
+billing adds instead, and nothing else: `/public/catalog` with a publishable key,
+`/public/session/*` with a customer session.
 
 ## Known limitations
 
-- `mode="public"` / publishable keys are not served by the platform; the client-side surface is ready. `mode="static"` covers the marketing-site case.
+- `mode="public"` and `mode="customer-session"` need a Kaiten server that ships billing, and are experimental until it ships. `mode="static"` covers the marketing-site case today.
 - Branding removal depends on backend capabilities exposed on `catalog` or `snapshot`.
 - `useUpgradeOptions` offers every published plan but the current one. Several versions of one license family can be published at once, so a customer on one version is offered the others too; `familyId` on each plan tells them apart.
 - Telemetry is opt-in and transport-injected; the SDK does not ship a hosted telemetry endpoint.
