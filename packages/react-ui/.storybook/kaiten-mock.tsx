@@ -51,10 +51,10 @@ function isoNow(): string {
  *
  * `baseInstance` used to set `startLicenseDate === endLicenseDate === now`, i.e. a
  * zero-length term that `resolveLicenseTerm` reads as **expired**. That went
- * unnoticed for as long as the double omitted `licenseTerm` altogether — with the
- * field absent, `useEntitlementCheck`'s `licenseLapsed` branch was unreachable and
- * every story sailed past it. Once the double started deriving the term the way the
- * client does, every fixture gated closed at once.
+ * unnoticed for as long as the double omitted `licenseTerm` altogether. Once the
+ * double started deriving the term the way the client does, every story that shows
+ * the term read "expired". The term is information and closes no gate, so the stories
+ * that gate are unaffected, but the ones that show a plan need a plan that is current.
  *
  * Relative rather than pinned, deliberately: fixed dates would be a time bomb that
  * expires the entire story suite on a future morning. A story that renders the date

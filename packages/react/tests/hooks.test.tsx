@@ -1130,9 +1130,10 @@ test("an entitlement whose usage could not be read fails closed", async () => {
   expect(result.current.limit).toBe(1000);
 });
 
-// An expired license grants nothing. `endLicenseDate` was carried on the
-// Instance and read by no one, so a lapsed license kept every entitlement.
-test("an expired license denies every entitlement it used to grant", async () => {
+// The end of a licence closes no gate. `endLicenseDate` is information: billing
+// never moves it, so a subscription that renews would otherwise lose its entitlements
+// on a date it has no say in, while the server went on serving it.
+test("an expired licence term closes no gate: the entitlements decide", async () => {
   const expired: LicensingSnapshot = {
     ...baseSnapshot,
     licenseTerm: {
@@ -1144,21 +1145,42 @@ test("an expired license denies every entitlement it used to grant", async () =>
 
   const { result } = renderHook(
     () => ({
-      metered: useEntitlementCheck("api_calls"), // 950/1000 — would be allowed
+      metered: useEntitlementCheck("api_calls"), // 950/1000: allowed
       boolean: useEntitlementCheck("sso"),
+      full: useEntitlementCheck("seats"), // at its limit: denied by its usage, not by the term
+      trigger: usePaywallTrigger("api_calls"),
     }),
     { wrapper: authenticatedWrapper({ snapshot: expired }) },
   );
 
   await waitFor(() => expect(result.current.metered.entitlement).not.toBeNull());
 
-  expect(result.current.metered.allowed).toBe(false);
-  expect(result.current.boolean.allowed).toBe(false);
-  // The grant is still described, so the UI can say what the license covered.
-  expect(result.current.metered.limit).toBe(1000);
+  expect(result.current.metered).toMatchObject({ allowed: true, current: 950, limit: 1000 });
+  expect(result.current.boolean.allowed).toBe(true);
+  expect(result.current.full.allowed).toBe(false);
+  // Near its limit, as its usage says, and not "not entitled" as the term would have it.
+  expect(result.current.trigger).toMatchObject({ shouldShow: true, reason: "near_limit" });
 });
 
-test("a license inside its term is unaffected", async () => {
+test("a licence term that has not started closes no gate either", async () => {
+  const early: LicensingSnapshot = {
+    ...baseSnapshot,
+    licenseTerm: {
+      status: "not_started",
+      startsAt: "2027-01-01T00:00:00.000Z",
+      expiresAt: "2028-01-01T00:00:00.000Z",
+    },
+  };
+
+  const { result } = renderHook(() => useEntitlementCheck("api_calls"), {
+    wrapper: authenticatedWrapper({ snapshot: early }),
+  });
+
+  await waitFor(() => expect(result.current.entitlement).not.toBeNull());
+  expect(result.current.allowed).toBe(true);
+});
+
+test("a licence inside its term is unaffected", async () => {
   const active: LicensingSnapshot = {
     ...baseSnapshot,
     licenseTerm: {

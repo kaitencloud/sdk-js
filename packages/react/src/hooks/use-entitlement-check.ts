@@ -5,7 +5,6 @@ import { useTrackHook } from "../telemetry/context.tsx";
 import { useKaitenContext } from "../providers/kaiten-provider.tsx";
 import { warnUnknownEntitlement } from "../lib/unknown-entitlement.ts";
 import { useEntitlements } from "./use-kaiten-entitlements.ts";
-import { useLicensingSnapshot } from "./use-licensing-snapshot.ts";
 
 export interface EntitlementCheckOptions {
   /** Minimum remaining numeric units required for NUMBER entitlements. */
@@ -37,15 +36,8 @@ export function useEntitlementCheck(
   useTrackHook("useEntitlementCheck");
 
   const entitlements = useEntitlements();
-  const snapshot = useLicensingSnapshot();
   const { mode } = useKaitenContext();
   const min = options?.min;
-  // The instance's license period. `endLicenseDate` crossed the wire and was
-  // read by nothing, so an expired license kept every entitlement it granted.
-  // A term the SDK cannot derive (no instance, unparseable dates) stays null and
-  // changes nothing — only a definite expiry denies.
-  const licenseTerm = snapshot.data?.licenseTerm ?? null;
-  const licenseLapsed = licenseTerm != null && licenseTerm.status !== "active";
 
   // A slug the org doesn't define answers `allowed: false` — right, and
   // indistinguishable from a real denial, so a typo reads as a feature that is
@@ -86,25 +78,11 @@ export function useEntitlementCheck(
       };
     }
 
-    // A license outside its term grants nothing, whatever the grant says — this
-    // is checked before the per-type branches so an expired unlimited grant
-    // cannot answer `allowed: true` either. The entitlement is still returned so
-    // the UI can show what the license *would* cover.
-    if (licenseLapsed) {
-      return {
-        allowed: false,
-        current: 0,
-        limit: entitlement.limitValue.type === "number" ? entitlement.limitValue.value : 0,
-        percentage: 0,
-        percentageUsed: null,
-        remaining: null,
-        isUnlimited: false,
-        entitlement,
-        isLoading,
-        error,
-      };
-    }
-
+    // What the entitlement says decides, and nothing else: the instance's licence
+    // term (`snapshot.licenseTerm`) is information for a screen to show. Billing
+    // never moves `endLicenseDate`, so a gate that read it would close on a
+    // customer whose subscription renewed, and whom the server still serves. The
+    // server enforces; the SDK only reflects what it enforces.
     if (entitlement.limitValue.type === "boolean") {
       return {
         allowed: entitlement.limitValue.value === true,
@@ -199,12 +177,5 @@ export function useEntitlementCheck(
       isLoading,
       error,
     };
-  }, [
-    entitlementSlug,
-    entitlements.data,
-    entitlements.error,
-    entitlements.isLoading,
-    licenseLapsed,
-    min,
-  ]);
+  }, [entitlementSlug, entitlements.data, entitlements.error, entitlements.isLoading, min]);
 }

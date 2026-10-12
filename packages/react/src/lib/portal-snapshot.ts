@@ -12,8 +12,9 @@ import type { KaitenCatalog, KaitenPortal, LicensingSnapshot } from "../types.ts
  * `customer`, `instance` and `license` stay `null`. The portal names them, but
  * the SDK's `Customer`, `Instance` and `License` carry ids, audit fields and
  * dates the portal does not, and a snapshot with invented ones would be read as
- * real. `licenseTerm` stays `null` for the same reason, so it never denies
- * anything here: the portal's entitlements are the server's decision.
+ * real. `licenseTerm` stays `null` for the same reason, and shows no term: it
+ * is information in any case, and the portal's entitlements are the server's
+ * decision.
  */
 export function snapshotFromPortal(
   portal: KaitenPortal,
