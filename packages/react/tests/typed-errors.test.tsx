@@ -35,16 +35,58 @@ import {
 
 const API = "https://kaiten.test/api";
 
-const problem = (
-  status: number,
-  code: string,
-  headers: Record<string, string> = {},
-  errors?: unknown,
-) =>
-  new Response(JSON.stringify({ title: code, status, code, ...(errors ? { errors } : {}) }), {
+/** A refusal as Kaiten renders it: its status, its problem, and the `Retry-After` it sent. */
+interface Refusal {
+  status: number;
+  body: Record<string, unknown>;
+  retryAfter?: number;
+}
+
+const refused = ({ status, body, retryAfter }: Refusal) =>
+  new Response(JSON.stringify(body), {
     status,
-    headers: { "Content-Type": "application/problem+json", ...headers },
+    headers: {
+      "Content-Type": "application/problem+json",
+      ...(retryAfter === undefined ? {} : { "Retry-After": `${retryAfter}` }),
+    },
   });
+
+// The refusals Kaiten's own code produced for the session routes, held to the API contract
+// by the client's tests. The 429 of a read is the same refusal with the code of the public
+// surface, `PublicAuth.RateLimited`, and no `Retry-After` of its own, as a gateway may drop it.
+const REFUSALS_OF_KAITEN = sessionAnswers.errors as Record<string, Refusal>;
+
+const readRateLimited = (retryAfter?: number): Refusal => ({
+  status: 429,
+  body: {
+    ...REFUSALS_OF_KAITEN.voucherRateLimited!.body,
+    detail: "too many requests for this session",
+    instance: "/api/public/session/portal",
+    code: "PublicAuth.RateLimited",
+  },
+  retryAfter,
+});
+
+/** The refusal of a checkout whose plan the instance's usage exceeds, as its route renders it. */
+const QUOTA_EXCEEDED: Refusal = {
+  status: 422,
+  body: {
+    type: "https://tools.ietf.org/html/rfc4918#section-11.2",
+    title: "Unprocessable Entity",
+    status: 422,
+    detail:
+      "the instance already uses more than this plan allows: choose a larger plan, or add-ons",
+    instance: "/api/public/session/checkout",
+    code: "CreateSessionCheckout.QuotaExceeded",
+    errors: [
+      {
+        message: "entitlements over the plan's limit",
+        location: "body.basePriceId",
+        value: { entitlementSlugs: ["seats", "api-calls"] },
+      },
+    ],
+  },
+};
 
 const portalBody = () => new Response(JSON.stringify(sessionAnswers.portal), { status: 200 });
 
@@ -89,9 +131,7 @@ function sessionWrapper(sessionClient: KaitenSessionClientLike) {
 }
 
 test("a read refused for too many calls keeps what it had, with the class and the delay", async () => {
-  const { sessionClient, fetch } = sessionClientRefusing(() =>
-    problem(429, "PublicAuth.RateLimited", { "Retry-After": "17" }),
-  );
+  const { sessionClient, fetch } = sessionClientRefusing(() => refused(readRateLimited(17)));
   const { result } = renderHook(
     () => ({ portal: usePortal(), check: useEntitlementCheck("api-calls") }),
     {
@@ -124,7 +164,7 @@ test("a read refused for too many calls keeps what it had, with the class and th
 });
 
 test("a read refused with no Retry-After it can read is asked to wait a minute", async () => {
-  const { sessionClient } = sessionClientRefusing(() => problem(429, "PublicAuth.RateLimited"));
+  const { sessionClient } = sessionClientRefusing(() => refused(readRateLimited()));
   const { result } = renderHook(() => usePortal(), { wrapper: sessionWrapper(sessionClient) });
   await waitFor(() => expect(result.current.data).toBeDefined());
 
@@ -136,9 +176,7 @@ test("a read refused with no Retry-After it can read is asked to wait a minute",
 });
 
 test("the gate is closed on an error unless the host says to allow it, and says which error", async () => {
-  const { sessionClient } = sessionClientRefusing(() =>
-    problem(429, "PublicAuth.RateLimited", { "Retry-After": "17" }),
-  );
+  const { sessionClient } = sessionClientRefusing(() => refused(readRateLimited(17)));
   const { result } = renderHook(
     () => ({
       portal: usePortal(),
@@ -204,17 +242,10 @@ function reportingWith(reply: () => Response) {
   return { fetch, Wrapper, release };
 }
 
-const REFUSALS: [string, () => Response, (error: KaitenError) => void][] = [
+const REFUSALS: [string, Refusal, (error: KaitenError) => void][] = [
   [
     "QuotaExceededError",
-    () =>
-      problem(422, "CreateSessionCheckout.QuotaExceeded", {}, [
-        {
-          location: "body.licensePriceId",
-          message: "usage above the plan",
-          value: { entitlementSlugs: ["seats", "api-calls"] },
-        },
-      ]),
+    QUOTA_EXCEEDED,
     (error) => {
       expect(error).toBeInstanceOf(QuotaExceededError);
       expect((error as QuotaExceededError).entitlementSlugs).toEqual(["seats", "api-calls"]);
@@ -222,15 +253,15 @@ const REFUSALS: [string, () => Response, (error: KaitenError) => void][] = [
   ],
   [
     "RateLimitedError",
-    () => problem(429, "ReportEntitlementUsageMetric.RateLimited", { "Retry-After": "12" }),
+    REFUSALS_OF_KAITEN.voucherRateLimited!,
     (error) => {
       expect(error).toBeInstanceOf(RateLimitedError);
-      expect(error.retryAfterSeconds).toBe(12);
+      expect(error.retryAfterSeconds).toBe(90);
     },
   ],
   [
     "BoundaryPendingError",
-    () => problem(409, "SetSessionAddonQuantity.BoundaryPending", { "Retry-After": "60" }),
+    REFUSALS_OF_KAITEN.cancelBoundaryPending!,
     (error) => {
       expect(error).toBeInstanceOf(BoundaryPendingError);
       expect(error.retryAfterSeconds).toBe(60);
@@ -238,19 +269,19 @@ const REFUSALS: [string, () => Response, (error: KaitenError) => void][] = [
   ],
   [
     "ProviderUnavailableError",
-    () => problem(503, "CreateSessionCheckout.ProviderUnavailable", { "Retry-After": "45" }),
+    REFUSALS_OF_KAITEN.checkoutProviderUnavailable!,
     (error) => {
       expect(error).toBeInstanceOf(ProviderUnavailableError);
-      expect(error.retryAfterSeconds).toBe(45);
+      expect(error.retryAfterSeconds).toBe(30);
     },
   ],
 ];
 
 test.each(REFUSALS)(
   "a usage report refused as %s rejects with it, once, and puts the gauge back",
-  async (_name, reply, check) => {
+  async (_name, served, check) => {
     const onError = vi.fn();
-    const { fetch, Wrapper, release } = reportingWith(reply);
+    const { fetch, Wrapper, release } = reportingWith(() => refused(served));
     const { result } = renderHook(
       () => ({ report: useReportUsage({ onError }), entitlements: useEntitlements() }),
       { wrapper: Wrapper },
