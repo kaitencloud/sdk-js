@@ -17,6 +17,7 @@ import {
   activationInvoice,
   alreadySubscribed,
   callsOf,
+  cannotCapture,
   demoPortal,
   demoUnsubscribedPortal,
   extraSeats,
@@ -25,6 +26,7 @@ import {
   previewOf,
   providerUnavailable,
   quotaExceeded,
+  rateLimited,
   sessionProvider,
   setupIncomplete,
   settle,
@@ -33,6 +35,7 @@ import {
   unsubscribedSession,
   voucherInvalid,
 } from "./support/checkout.tsx";
+import { off } from "./support/session-mount.tsx";
 
 const GROWTH_MONTHLY = "price_growth_monthly";
 const GROWTH_ANNUAL = "price_growth_annual";
@@ -174,7 +177,7 @@ describe("choosing", () => {
       await act(async () => fireEvent.click(more));
       await settle(100);
     }
-    expect(more).toHaveProperty("disabled", true);
+    expect(off(more)).toBe(true);
     // The summary on screen is the last answer, until the pause has gone by; nothing can be bought on it.
     expect(previews(client)).toHaveLength(1);
     expect(total()).toBe("$79.00");
@@ -193,7 +196,7 @@ describe("choosing", () => {
 
     const fewer = button("Remove one Extra seats");
     for (let step = 0; step < 3; step += 1) await act(async () => fireEvent.click(fewer));
-    expect(fewer).toHaveProperty("disabled", true);
+    expect(off(fewer)).toBe(true);
     await settle(300);
     expect(previews(client).at(-1)).toEqual({ licensePriceId: GROWTH_MONTHLY, dryRun: true });
   });
@@ -406,6 +409,105 @@ describe("a voucher code", () => {
   });
 });
 
+describe("a voucher code that is not the checkout's yet", () => {
+  test("typed and not applied holds Subscribe back, and says why", async () => {
+    const client = selling();
+    await draw(client);
+    const field = screen.getByLabelText("Voucher code");
+    expect(button(/^Subscribe/)).toHaveProperty("disabled", false);
+
+    fireEvent.change(field, { target: { value: "WELCOME20" } });
+    expect(button(/^Subscribe/)).toHaveProperty("disabled", true);
+    const hint = within(flow()).getByText("Apply the code, or clear the field, to continue.");
+    expect(field.getAttribute("aria-describedby")).toBe(hint.id);
+
+    // Cleared, it is nothing; applied, it is the checkout's.
+    fireEvent.change(field, { target: { value: "" } });
+    expect(button(/^Subscribe/)).toHaveProperty("disabled", false);
+    fireEvent.change(field, { target: { value: "WELCOME20" } });
+    await press(button("Apply"), 300);
+    expect(button(/^Subscribe/)).toHaveProperty("disabled", false);
+    expect(within(flow()).queryByText(/Apply the code/)).toBeNull();
+  });
+
+  test("taken by the preview and refused at the checkout is one sentence, a price without it, and a way on", async () => {
+    const client = selling(() => voucherInvalid());
+    await draw(client);
+    fireEvent.change(screen.getByLabelText("Voucher code"), { target: { value: "WELCOME20" } });
+    await press(button("Apply"), 300);
+    expect(total()).toBe("$63.20");
+
+    await press(button(/^Subscribe/), 300);
+
+    const alerts = within(flow()).getAllByRole("alert");
+    expect(alerts.map((alert) => alert.textContent)).toEqual(["This code can't be used."]);
+    expect(within(flow()).queryByText("Voucher applied")).toBeNull();
+    // Priced again without it, so that no discount that is not coming is on screen.
+    expect(total()).toBe("$79.00");
+    expect(previews(client).at(-1)).toEqual({ licensePriceId: GROWTH_MONTHLY, dryRun: true });
+    expect(button(/^Subscribe/)).toHaveProperty("disabled", true);
+
+    await press(button("Remove voucher"), 300);
+    expect(within(flow()).queryByRole("alert")).toBeNull();
+    expect(button(/^Subscribe/)).toHaveProperty("disabled", false);
+  });
+});
+
+describe("where the keyboard is", () => {
+  test("a voucher that is applied keeps it, on the sentence that says so, and gives it back to the field when removed", async () => {
+    const client = selling();
+    await draw(client);
+    const field = screen.getByLabelText("Voucher code");
+    field.focus();
+    fireEvent.change(field, { target: { value: "WELCOME20" } });
+    await act(async () => fireEvent.keyDown(field, { key: "Enter" }));
+    await settle(300);
+
+    const applied = within(flow()).getByText("Voucher applied");
+    expect(document.activeElement).toBe(applied);
+
+    const remove = button("Remove voucher");
+    remove.focus();
+    await press(remove, 300);
+    expect(document.activeElement).toBe(screen.getByLabelText("Voucher code"));
+  });
+
+  test("subscribing leaves it on what the checkout says first, and a refusal on the refusal", async () => {
+    const client = selling(() => quotaExceeded("seats"));
+    await draw(client);
+    const subscribe = button(/^Subscribe/);
+    subscribe.focus();
+    await press(subscribe);
+
+    const refusal = within(flow()).getByRole("alert");
+    expect(document.activeElement).toBe(refusal);
+    cleanup();
+
+    const paid = selling();
+    await draw(paid);
+    const again = button(/^Subscribe/);
+    again.focus();
+    await press(again);
+    expect(document.activeElement).toBe(within(flow()).getByText("You're subscribed"));
+  });
+
+  test("the step of an add-on stays on its button, at its limits too", async () => {
+    const client = selling();
+    await draw(client, { addOns: [{ ...extraSeats, maxQuantity: 1 }] });
+    const more = button("Add one Extra seats");
+    more.focus();
+    await press(more, 300);
+    expect(document.activeElement).toBe(more);
+    expect(off(more)).toBe(true);
+
+    const fewer = button("Remove one Extra seats");
+    fewer.focus();
+    await press(fewer, 300);
+    expect(document.activeElement).toBe(fewer);
+    expect(off(fewer)).toBe(true);
+  });
+});
+
 // ---------------------------------------------------------------------------
 // Subscribing
 // ---------------------------------------------------------------------------
@@ -449,7 +551,7 @@ describe("subscribing", () => {
     await draw(client);
     await press(button(/^Subscribe/));
 
-    expect(button(/^Processing/)).toHaveProperty("disabled", true);
+    expect(off(button(/^Processing/))).toBe(true);
     expect(screen.getByRole("radio", { name: "$790.00/year" }).matches(":disabled")).toBe(true);
     expect(button("Add one Extra seats")).toHaveProperty("disabled", true);
     expect(screen.getByLabelText("Voucher code").matches(":disabled")).toBe(true);
@@ -668,6 +770,29 @@ describe("the payment", () => {
     );
   });
 
+  test("a payment not known yet that is found declined becomes a declined card, with the ways out", async () => {
+    const client = selling(() => subscribed("processing"), dryRun, demoPortal());
+    await draw(client);
+    await press(button(/^Subscribe/));
+    expect(within(flow()).getByText("Waiting for your payment...")).toBeTruthy();
+
+    client.setInvoices([activationInvoice("PAYMENT_FAILED")]);
+    await settle(5_000);
+
+    const root = within(flow());
+    expect(root.getByRole("alert").textContent).toBe(
+      "You're subscribed, but your card was declined.",
+    );
+    expect(root.queryByText("Waiting for your payment...")).toBeNull();
+    expect(root.getByRole("button", { name: "Update payment method" })).toBeTruthy();
+    expect(root.getByRole("link", { name: "Pay invoice" }).getAttribute("href")).toBe(
+      "https://pay.example.test/i/inv_activation",
+    );
+    // Nothing is read until the customer goes to pay.
+    await settle(30_000);
+    expect(callsOf(client, "listInvoices")).toHaveLength(1);
+  });
+
   test("paying the declined invoice on the provider's page is waited on until it is paid", async () => {
     const client = selling(() => subscribed("failed"));
     await draw(client);
@@ -781,6 +906,45 @@ describe("refusals", () => {
     down = false;
     await press(button(/^Subscribe/));
     expect(within(flow()).getByText("You're subscribed")).toBeTruthy();
+  });
+
+  test("too many calls says to wait, and not that the provider is down", async () => {
+    const client = selling(undefined, () => {
+      throw rateLimited(45);
+    });
+    await draw(client);
+    expect(within(flow()).getByRole("alert").textContent).toContain(
+      "Too many attempts. Try again in a moment.",
+    );
+    expect(within(flow()).getByRole("alert").textContent).not.toContain("provider");
+    expect(within(flow()).getByRole("button", { name: "Try again" })).toBeTruthy();
+  });
+
+  test("a plan the vendor cannot take payment for is said not to be sold here, with nothing to retry", async () => {
+    const client = selling(undefined, () => {
+      throw cannotCapture();
+    });
+    await draw(client);
+    expect(within(flow()).getByRole("alert").textContent).toBe("This plan can't be bought online.");
+    expect(within(flow()).queryByRole("button", { name: "Try again" })).toBeNull();
+    expect(button(/^Subscribe/)).toHaveProperty("disabled", true);
+  });
+
+  test("a link to a page that is not a web page is not offered", async () => {
+    const hostile = {
+      ...activationInvoice("PAYMENT_FAILED"),
+      hostedInvoiceUrl: "javascript:alert(1)",
+    };
+    const client = selling(() => ({
+      ...subscribed("requires_action", hostile),
+      payment: { status: "requires_action", hostedInvoiceUrl: "javascript:alert(1)" },
+    }));
+    await draw(client);
+    await press(button(/^Subscribe/));
+
+    expect(within(flow()).getByText("Confirm your payment to finish.")).toBeTruthy();
+    expect(links()).toHaveLength(0);
+    expect(flow().innerHTML).not.toContain("javascript:");
   });
 
   test("anything else is the generic sentence", async () => {

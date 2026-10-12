@@ -4,10 +4,9 @@ import {
   emitKaitenEvent,
   useAddOns,
   useCredits,
+  useKaitenSessionClient,
   useLocalization,
-  DEFAULT_CURRENCY_CODE,
   type Addon,
-  type CurrencyCode,
 } from "@kaitencloud/react";
 import { useMergedAppearance } from "../../../appearance/context.tsx";
 import { cn } from "../../../lib/utils.ts";
@@ -20,6 +19,8 @@ import { Skeleton } from "../../ui/skeleton.tsx";
 import { KaitenBranding } from "../../shared/kaiten-branding.tsx";
 import { SectionError } from "../../shared/section-error.tsx";
 import type { KaitenAppearance } from "../../../appearance/types.ts";
+import { getAddonDisplayPrice } from "./addon-price.ts";
+import { SessionAddOns } from "./session-addons.tsx";
 
 export interface AddOnsProps {
   appearance?: KaitenAppearance;
@@ -38,40 +39,20 @@ async function handleAddonAction(
   });
 }
 
-interface AddonDisplayPrice {
-  /** Minor units (integer). */
-  amount: number;
-  currencyCode: CurrencyCode;
-  interval: string;
-}
-
-function getAddonDisplayPrice(addon: Addon): AddonDisplayPrice | null {
-  if (typeof addon.price === "number") {
-    return {
-      amount: addon.price,
-      currencyCode: addon.currencyCode ?? DEFAULT_CURRENCY_CODE,
-      interval: addon.interval ?? "month",
-    };
-  }
-  const firstPrice = addon.prices?.[0];
-  if (firstPrice && typeof firstPrice.amount === "number") {
-    return {
-      amount: firstPrice.amount,
-      currencyCode: firstPrice.currencyCode ?? addon.currencyCode ?? DEFAULT_CURRENCY_CODE,
-      interval: firstPrice.interval ?? addon.interval ?? "month",
-    };
-  }
-  return null;
-}
-
 // Memoized: guards against host-driven re-renders with unchanged props.
 // Pass a stable `onManageAddon` (e.g. useCallback) to get the full benefit.
 export const AddOns = /* @__PURE__ */ memo(AddOnsImpl);
 
-function AddOnsImpl({ appearance, unstyled = false, onManageAddon }: AddOnsProps) {
+function AddOnsImpl(props: AddOnsProps) {
   useAssertWrappedByKaitenProvider("AddOns");
   useTrackComponent("AddOns");
 
+  // A customer session changes the quantity of an add-on itself, with the controls of its own;
+  // under any other mode the host owns the change, and `onManageAddon` is how it hears of it.
+  return useKaitenSessionClient() ? <SessionAddOns {...props} /> : <SnapshotAddOns {...props} />;
+}
+
+function SnapshotAddOns({ appearance, unstyled = false, onManageAddon }: AddOnsProps) {
   const merged = useMergedAppearance(appearance);
   const addOns = useAddOns();
   const credits = useCredits();

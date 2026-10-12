@@ -24,6 +24,8 @@ const STYLED_SURFACE = [
   "UsageMeters",
   "AddOns",
   "FlagsSummary",
+  "InvoiceList",
+  "VoucherEntry",
   "Paywall",
   "PlanBadge",
   "UpgradeButton",

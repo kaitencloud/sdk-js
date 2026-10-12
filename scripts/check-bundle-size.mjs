@@ -173,9 +173,17 @@ const SCENARIOS = [
     budgetGzip: 52_550,
   },
   {
+    // What a host that offers a customer portal ships: the sections, the billing hooks they
+    // change a subscription with, and the words of their English. A host that offers none does
+    // not: the scenarios above are not in it.
+    name: "react-ui · CustomerPortal + KaitenProvider + KaitenStyleRoot",
+    code: `import { CustomerPortal, KaitenProvider, KaitenStyleRoot } from "@kaitencloud/react-ui"; console.log(CustomerPortal, KaitenProvider, KaitenStyleRoot);`,
+    budgetGzip: 54_500,
+  },
+  {
     name: "react-ui · everything",
     code: `import * as all from "@kaitencloud/react-ui"; console.log(all);`,
-    budgetGzip: 70_500,
+    budgetGzip: 76_400,
   },
   {
     name: "client · KaitenClient alone",

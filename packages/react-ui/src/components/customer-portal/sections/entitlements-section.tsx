@@ -20,6 +20,7 @@ import { KaitenBranding } from "../../shared/kaiten-branding.tsx";
 import { SectionError } from "../../shared/section-error.tsx";
 import { isUnlimited, UnlimitedValue } from "../../shared/unlimited.tsx";
 import type { KaitenAppearance } from "../../../appearance/types.ts";
+import { ProvenanceNote } from "./provenance-note.tsx";
 
 function renderLimitLabel(
   entitlement: ResolvedEntitlement,
@@ -148,7 +149,12 @@ function IncludedFeaturesImpl({ appearance, unstyled = false }: IncludedFeatures
           {data.map((entitlement) => (
             <li key={entitlement.slug}>
               {entitlement.name}: {renderUsageLabel(entitlement, localization)} /{" "}
-              {renderLimitLabel(entitlement, localization)}
+              {renderLimitLabel(entitlement, localization)}{" "}
+              <ProvenanceNote
+                unstyled
+                name={entitlement.name}
+                provenance={entitlement.provenance}
+              />
             </li>
           ))}
         </ul>
@@ -199,6 +205,7 @@ function IncludedFeaturesImpl({ appearance, unstyled = false }: IncludedFeatures
         ) : (
           renderLimitLabel(entitlement, localization)
         )}
+        <ProvenanceNote name={entitlement.name} provenance={entitlement.provenance} />
       </TableCell>
       <TableCell className={cn("text-right", merged.elements?.tableCell)}>
         <Badge variant={statusVariant(entitlement.status)}>
@@ -231,6 +238,7 @@ function IncludedFeaturesImpl({ appearance, unstyled = false }: IncludedFeatures
             ? localization.includedFeatures.unlimited
             : renderLimitLabel(entitlement, localization)}
         </span>
+        <ProvenanceNote name={entitlement.name} provenance={entitlement.provenance} />
       </div>
       <Badge variant={statusVariant(entitlement.status)}>
         {statusLabel(entitlement, localization)}

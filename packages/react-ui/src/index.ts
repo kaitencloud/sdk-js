@@ -61,6 +61,10 @@ export {
   type AddOnsProps,
   FlagsSummary,
   type FlagsSummaryProps,
+  InvoiceList,
+  type InvoiceListProps,
+  VoucherEntry,
+  type VoucherEntryProps,
 } from "./components/customer-portal/customer-portal.tsx";
 export { Paywall, type PaywallProps } from "./components/paywall/paywall.tsx";
 export { PlanBadge, type PlanBadgeProps } from "./components/plan-badge/plan-badge.tsx";

@@ -1,0 +1,479 @@
+import type { Meta, StoryObj } from "@storybook/react-vite";
+import { expect, userEvent, waitFor, within } from "storybook/test";
+import { fr } from "@kaitencloud/react/locales";
+
+import { initechSession } from "../../../.storybook/kaiten-mock.tsx";
+import { portalDecorator, refusal } from "../../../.storybook/portal-mock.tsx";
+import { AddOns, CurrentPlan, CustomerPortal, UsageMeters } from "./customer-portal.tsx";
+import { InvoiceList } from "./sections/invoices-section.tsx";
+import { VoucherEntry } from "./sections/voucher-section.tsx";
+
+/**
+ * A customer portal under `mode="customer-session"`, read through the real session client from what
+ * Kaiten answered for Initech. Every story carries its own provider, built once for it: a story is a
+ * customer in one situation, and the situation is the portal it is given and the refusals it is
+ * scripted. `meta` carries none, because a nested provider with the same scope is a no-op.
+ */
+const meta: Meta<typeof CustomerPortal> = {
+  title: "Flows/Customer portal (session)",
+  component: CustomerPortal,
+  decorators: [portalDecorator()],
+};
+
+export default meta;
+
+type Story = StoryObj<typeof meta>;
+
+const SLOW = { timeout: 5_000 };
+
+/** The recorded portal of an active subscription, changed the way a story says. */
+function changed(change: (portal: Record<string, any>) => void): Record<string, any> {
+  const portal: Record<string, any> = structuredClone(initechSession.portal);
+  change(portal);
+  return portal;
+}
+
+const trial = changed((portal) => {
+  portal.subscription.status = "TRIAL";
+  portal.subscription.trialEndsAt = "2026-11-01T00:00:00Z";
+  portal.upcomingInvoice.boundaryAt = "2026-11-01T00:00:00Z";
+});
+
+const canceled = changed((portal) => {
+  portal.subscription.status = "CANCELED";
+  portal.subscription.cancelAtPeriodEnd = false;
+  portal.upcomingInvoice = null;
+  portal.capabilities = { ...portal.capabilities, unsubscribe: false, checkout: true };
+});
+
+const [paid, failed] = initechSession.invoicesFirstPage.items;
+const [billedOutside] = initechSession.invoicesLastPage.items;
+
+/** Every status a customer meets in the list, the open ones first as the server serves them. */
+const mixedInvoices = [
+  {
+    ...failed,
+    id: "inv_open",
+    status: "PUSHED",
+    providerInvoiceNumber: "INV-0004",
+    total: 4980,
+    invoicePdfUrl: "https://pay.initech.test/i/4.pdf",
+  },
+  { ...failed, id: "inv_failed", providerInvoiceNumber: "INV-0003" },
+  paid,
+  {
+    ...paid,
+    id: "inv_void",
+    status: "VOID",
+    providerInvoiceNumber: "INV-0000",
+    hostedInvoiceUrl: null,
+    invoicePdfUrl: null,
+    paidAt: null,
+  },
+  billedOutside,
+];
+
+/** Waits for the portal's first read to be drawn. */
+async function drawn(canvasElement: HTMLElement) {
+  const canvas = within(canvasElement);
+  await canvas.findByText("Pro", {}, SLOW);
+  return canvas;
+}
+
+export const Full: Story = {
+  name: "A portal in a customer session",
+  play: async ({ canvasElement }) => {
+    const canvas = await drawn(canvasElement);
+    for (const title of [
+      "Current plan",
+      "Included features",
+      "Usage meters",
+      "Add-ons",
+      "Invoices",
+      "Voucher",
+    ]) {
+      await expect((await canvas.findAllByText(title, {}, SLOW)).length).toBeGreaterThan(0);
+    }
+    await expect(canvas.getByText(/^Renews on/)).toBeInTheDocument();
+    await expect(
+      await canvas.findByRole("button", { name: "Cancel subscription" }, SLOW),
+    ).toBeInTheDocument();
+  },
+};
+
+export const CancelAsked: Story = {
+  name: "Cancelling: asked first",
+  args: { elements: ["CurrentPlan"] },
+  play: async ({ canvasElement }) => {
+    const canvas = await drawn(canvasElement);
+    await userEvent.click(await canvas.findByRole("button", { name: "Cancel subscription" }));
+    await expect(canvas.getByText(/Your subscription will end on/)).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Cancel at period end" })).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Keep my subscription" })).toBeInTheDocument();
+    // The button that was pressed is gone: the keyboard is on the question that replaced it.
+    await waitFor(() =>
+      expect(canvasElement.ownerDocument.activeElement).toBe(
+        canvas.getByText(/Your subscription will end on/),
+      ),
+    );
+  },
+};
+
+export const CancelScheduled: Story = {
+  name: "Cancellation scheduled",
+  args: { elements: ["CurrentPlan"] },
+  decorators: [portalDecorator({ portal: "portalCanceling" })],
+  play: async ({ canvasElement }) => {
+    const canvas = await drawn(canvasElement);
+    await expect(canvas.getByText(/^Ends on/)).toBeInTheDocument();
+    await expect(
+      canvas.getByRole("button", { name: "Reactivate subscription" }),
+    ).toBeInTheDocument();
+    await expect(canvas.queryByRole("button", { name: "Cancel subscription" })).toBeNull();
+  },
+};
+
+export const CancelAfterwards: Story = {
+  name: "Cancelled just now",
+  args: { elements: ["CurrentPlan"] },
+  play: async ({ canvasElement }) => {
+    const canvas = await drawn(canvasElement);
+    await userEvent.click(await canvas.findByRole("button", { name: "Cancel subscription" }));
+    await userEvent.click(canvas.getByRole("button", { name: "Cancel at period end" }));
+    await expect(await canvas.findByText(/^Ends on/, {}, SLOW)).toBeInTheDocument();
+    await expect(
+      canvas.getByRole("button", { name: "Reactivate subscription" }),
+    ).toBeInTheDocument();
+  },
+};
+
+export const ClosingPeriod: Story = {
+  name: "Cancelling while a billing period is being closed",
+  args: { elements: ["CurrentPlan"] },
+  decorators: [
+    portalDecorator({ scripts: { "POST billing/cancel": [refusal("cancelBoundaryPending")] } }),
+  ],
+  play: async ({ canvasElement }) => {
+    const canvas = await drawn(canvasElement);
+    await userEvent.click(await canvas.findByRole("button", { name: "Cancel subscription" }));
+    await userEvent.click(canvas.getByRole("button", { name: "Cancel at period end" }));
+    await expect(
+      await canvas.findByText(/We're closing your billing period/, {}, SLOW),
+    ).toBeInTheDocument();
+  },
+};
+
+export const PastDue: Story = {
+  name: "Payment past due",
+  args: { elements: ["CurrentPlan", "InvoiceList"] },
+  decorators: [portalDecorator({ portal: "portalPastDue" })],
+  play: async ({ canvasElement }) => {
+    const canvas = await drawn(canvasElement);
+    await expect(canvas.getAllByText("Payment failed").length).toBeGreaterThan(0);
+    await expect(canvas.getByText("Your latest payment didn't go through.")).toBeInTheDocument();
+    // A subscription past due is not said to renew.
+    await expect(canvas.queryByText(/^Renews on/)).toBeNull();
+  },
+};
+
+export const Trial: Story = {
+  name: "In a trial",
+  args: { elements: ["CurrentPlan"] },
+  decorators: [portalDecorator({ portal: trial })],
+  play: async ({ canvasElement }) => {
+    const canvas = await drawn(canvasElement);
+    await expect(canvas.getByText("Trial")).toBeInTheDocument();
+    await expect(canvas.getByText(/^Trial ends on/)).toBeInTheDocument();
+  },
+};
+
+export const Canceled: Story = {
+  name: "Subscription over",
+  args: { elements: ["CurrentPlan"] },
+  decorators: [portalDecorator({ portal: canceled })],
+  play: async ({ canvasElement }) => {
+    const canvas = await drawn(canvasElement);
+    await expect(canvas.getByText("Canceled")).toBeInTheDocument();
+    await expect(canvas.getByText("Your subscription has ended.")).toBeInTheDocument();
+    await expect(canvas.queryByRole("button", { name: /subscription$/ })).toBeNull();
+  },
+};
+
+export const ScheduledChange: Story = {
+  name: "A plan change is scheduled",
+  args: { elements: ["CurrentPlan"] },
+  decorators: [portalDecorator({ portal: "portalScheduledChange" })],
+  play: async ({ canvasElement }) => {
+    const canvas = await drawn(canvasElement);
+    await expect(canvas.getByText(/^Changes to €490\.00\/year on/)).toBeInTheDocument();
+  },
+};
+
+export const Unbound: Story = {
+  name: "A session bound to the customer only",
+  decorators: [portalDecorator({ portal: "portalCustomerWide" })],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    // No instance: no plan, no limits, no add-ons. What a customer can still do is check a voucher.
+    await expect(await canvas.findByLabelText("Voucher code", {}, SLOW)).toBeInTheDocument();
+    await expect(canvas.queryByText("Current plan")).toBeNull();
+    await expect(canvas.queryByText("Add-ons")).toBeNull();
+  },
+};
+
+export const Provenance: Story = {
+  name: "Where a limit comes from",
+  render: () => (
+    <div className="flex w-full max-w-md flex-col gap-4">
+      <UsageMeters />
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByText("API calls", {}, SLOW);
+    await userEvent.click(
+      canvas.getByRole("button", { name: "How this limit is made up: API calls" }),
+    );
+    await userEvent.click(canvas.getByRole("button", { name: "How this limit is made up: Seats" }));
+    await expect(canvas.getAllByRole("note").map((note) => note.textContent)).toEqual([
+      "(100,000 base) × 2 voucher = 200,000",
+      "5 base + 3 × 1 add-on = 8",
+    ]);
+  },
+};
+
+export const AddOnSteppers: Story = {
+  name: "Add-ons: the stepper",
+  render: () => (
+    <div className="w-full max-w-md">
+      <AddOns />
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByText("Extra seats", {}, SLOW);
+    await userEvent.click(canvas.getByRole("button", { name: "Add one Extra seats" }));
+    await waitFor(
+      () => expect(canvas.getByLabelText("Quantity of Extra seats")).toHaveTextContent("4"),
+      SLOW,
+    );
+  },
+};
+
+export const AddOnRemoveAsked: Story = {
+  name: "Add-ons: removing the last unit asks first",
+  render: () => (
+    <div className="w-full max-w-md">
+      <AddOns />
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByText("GPU pack", {}, SLOW);
+    await userEvent.click(canvas.getByRole("button", { name: "Remove one GPU pack" }));
+    await expect(canvas.getByText("Remove GPU pack from your plan?")).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Remove" })).toBeInTheDocument();
+    await waitFor(() =>
+      expect(canvasElement.ownerDocument.activeElement).toBe(
+        canvas.getByText("Remove GPU pack from your plan?"),
+      ),
+    );
+  },
+};
+
+export const AddOnClosingPeriod: Story = {
+  name: "Add-ons: a billing period is being closed",
+  render: () => (
+    <div className="w-full max-w-md">
+      <AddOns />
+    </div>
+  ),
+  decorators: [
+    portalDecorator({
+      scripts: { "PUT addons/extra-seats-v1": [refusal("cancelBoundaryPending")] },
+    }),
+  ],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByText("Extra seats", {}, SLOW);
+    await userEvent.click(canvas.getByRole("button", { name: "Add one Extra seats" }));
+    await expect(
+      await canvas.findByText(/We're closing your billing period/, {}, SLOW),
+    ).toBeInTheDocument();
+  },
+};
+
+export const AddOnRefused: Story = {
+  name: "Add-ons: a change the API refuses",
+  render: () => (
+    <div className="w-full max-w-md">
+      <AddOns />
+    </div>
+  ),
+  decorators: [
+    portalDecorator({ scripts: { "PUT addons/extra-seats-v1": [refusal("addonIncompatible")] } }),
+  ],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByText("Extra seats", {}, SLOW);
+    await userEvent.click(canvas.getByRole("button", { name: "Add one Extra seats" }));
+    await expect(
+      await canvas.findByText("That didn't work. Please try again.", {}, SLOW),
+    ).toBeInTheDocument();
+  },
+};
+
+export const Invoices: Story = {
+  name: "Invoices",
+  render: () => (
+    <div className="w-full max-w-2xl">
+      <InvoiceList />
+    </div>
+  ),
+  decorators: [portalDecorator({ invoices: mixedInvoices })],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByText("INV-0004", {}, SLOW);
+    const pay = canvas.getAllByRole("link", { name: /^Pay / });
+    await expect(pay).toHaveLength(2);
+    for (const link of pay) await expect(link).toHaveAttribute("rel", "noopener noreferrer");
+    await expect(canvas.getByText("ACME-2026-17")).toBeInTheDocument();
+  },
+};
+
+export const InvoicesPaged: Story = {
+  name: "Invoices: older ones follow",
+  render: () => (
+    <div className="w-full max-w-2xl">
+      <InvoiceList />
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(
+      await canvas.findByRole("button", { name: "Show older invoices" }, SLOW),
+    ).toBeInTheDocument();
+  },
+};
+
+export const InvoicesEmpty: Story = {
+  name: "Invoices: none yet",
+  render: () => (
+    <div className="w-full max-w-2xl">
+      <InvoiceList />
+    </div>
+  ),
+  decorators: [portalDecorator({ invoices: [] })],
+  play: async ({ canvasElement }) => {
+    await expect(
+      await within(canvasElement).findByText("No invoices yet.", {}, SLOW),
+    ).toBeInTheDocument();
+  },
+};
+
+export const InvoicesHidden: Story = {
+  name: "Invoices: the portal says they are not the customer's to see",
+  args: { elements: ["CurrentPlan", "InvoiceList"] },
+  decorators: [
+    portalDecorator({
+      portal: changed((portal) => {
+        portal.capabilities.invoices = false;
+      }),
+    }),
+  ],
+  play: async ({ canvasElement }) => {
+    const canvas = await drawn(canvasElement);
+    await expect(canvas.queryByText("Invoices")).toBeNull();
+  },
+};
+
+/** Types a code and checks it. */
+async function check(canvasElement: HTMLElement, code: string) {
+  const canvas = within(canvasElement);
+  await userEvent.type(await canvas.findByLabelText("Voucher code", {}, SLOW), code);
+  await userEvent.click(canvas.getByRole("button", { name: "Check" }));
+  return canvas;
+}
+
+const voucher = {
+  render: () => (
+    <div className="w-full max-w-md">
+      <VoucherEntry />
+    </div>
+  ),
+} satisfies Story;
+
+export const VoucherValid: Story = {
+  ...voucher,
+  name: "Voucher: a valid code",
+  play: async ({ canvasElement }) => {
+    const canvas = await check(canvasElement, "WELCOME20");
+    await expect(
+      await canvas.findByText("Welcome 20% — Applied at checkout.", {}, SLOW),
+    ).toBeInTheDocument();
+    // Typed once, and gone from the page.
+    await expect(canvasElement.innerHTML).not.toContain("WELCOME20");
+    await expect(canvas.getByLabelText("Voucher code")).toHaveValue("");
+  },
+};
+
+export const VoucherRefused: Story = {
+  ...voucher,
+  name: "Voucher: a code that cannot be used",
+  play: async ({ canvasElement }) => {
+    const canvas = await check(canvasElement, "NOPE");
+    await expect(await canvas.findByText("This code can't be used.", {}, SLOW)).toBeInTheDocument();
+  },
+};
+
+export const VoucherRateLimited: Story = {
+  ...voucher,
+  name: "Voucher: too many attempts",
+  decorators: [
+    portalDecorator({ scripts: { "POST vouchers/validate": [refusal("voucherRateLimited")] } }),
+  ],
+  play: async ({ canvasElement }) => {
+    const canvas = await check(canvasElement, "TRY");
+    await expect(
+      await canvas.findByText("Too many attempts. Try again in 2 minutes.", {}, SLOW),
+    ).toBeInTheDocument();
+  },
+};
+
+export const InFrench: Story = {
+  name: "In French",
+  decorators: [portalDecorator({}, fr)],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByText("Pro", {}, SLOW);
+    await expect(await canvas.findByText("Factures", {}, SLOW)).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Résilier l'abonnement" })).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Vérifier" })).toBeInTheDocument();
+  },
+};
+
+export const Unstyled: Story = {
+  name: "Unstyled",
+  args: { unstyled: true },
+  play: async ({ canvasElement }) => {
+    const canvas = await drawn(canvasElement);
+    await expect(
+      await canvas.findByRole("button", { name: "Cancel subscription" }, SLOW),
+    ).toBeInTheDocument();
+    await expect(canvasElement.querySelector('[data-slot="invoices"]')).not.toBeNull();
+  },
+};
+
+/** A plan card of the host's own cancels nothing. */
+export const PlanCardAlone: Story = {
+  name: "A plan card on its own: no controls",
+  render: () => (
+    <div className="w-full max-w-md">
+      <CurrentPlan />
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = await drawn(canvasElement);
+    await expect(canvas.queryByRole("button", { name: "Cancel subscription" })).toBeNull();
+  },
+};

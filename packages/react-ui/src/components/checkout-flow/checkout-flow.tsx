@@ -4,7 +4,6 @@ import {
   useCheckout,
   useInvoiceSettlement,
   usePaymentMethodSession,
-  type CheckoutProblem,
   type UseCheckoutResult,
 } from "@kaitencloud/react/billing";
 import {
@@ -23,12 +22,13 @@ import { useMergedAppearance } from "../../appearance/context.tsx";
 import type { KaitenAppearance } from "../../appearance/types.ts";
 import { cn } from "../../lib/utils.ts";
 import { useAssertWrappedByKaitenProvider } from "../../style-root/kaiten-style-root.tsx";
+import { Action, Message as FeedbackMessage } from "../shared/feedback.tsx";
+import { useFocusScope } from "../shared/focus.ts";
 import { KaitenBranding } from "../shared/kaiten-branding.tsx";
 import { Badge } from "../ui/badge.tsx";
-import { Button, buttonVariants } from "../ui/button.tsx";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "../ui/card.tsx";
 import { Input } from "../ui/input.tsx";
-import { CheckoutSummaryBody, useEntitlementNames } from "./checkout-summary.tsx";
+import { CheckoutSummaryBody, useProblemText } from "./checkout-summary.tsx";
 import { useCheckoutWords } from "./words.ts";
 
 type Words = KaitenCheckoutWords;
@@ -80,28 +80,6 @@ function addonPrice(addon: Addon, plan: BillingPrice | null): BillingPrice | nul
   return (
     fees.find((price) => plan !== null && monthsOf(price) === monthsOf(plan)) ?? fees[0] ?? null
   );
-}
-
-/** What a refusal says to a customer, for the ones that have words. Anything else is the generic error. */
-function problemText(
-  problem: CheckoutProblem | null,
-  words: Words,
-  nameOf: (slug: string) => string,
-): string {
-  switch (problem?.kind) {
-    case "quota_exceeded":
-      return words.quotaExceeded(problem.entitlementSlugs.map(nameOf).join(", "));
-    case "unavailable":
-      return words.unavailable;
-    case "voucher_invalid":
-      return words.voucherInvalid;
-    case "already_subscribed":
-      return words.alreadySubscribed;
-    case "setup_incomplete":
-      return words.setupIncomplete;
-    default:
-      return words.error;
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -181,8 +159,10 @@ function CheckoutFlowView({
   const localization = useLocalization();
   const words = useCheckoutWords();
   const icons = useIcons();
-  const nameOf = useEntitlementNames();
+  const problemText = useProblemText();
   const catalogAddOns = useKaitenDataContext().catalog.data?.addOns;
+  // A code typed and not applied is not the checkout's: Subscribe waits for it to be applied or cleared.
+  const [voucherPending, setVoucherPending] = React.useState(false);
 
   const prices = React.useMemo(() => purchasablePrices(plan, priceId), [plan, priceId]);
   const start = React.useMemo(() => initialPrice(prices, priceId), [prices, priceId]);
@@ -191,6 +171,21 @@ function CheckoutFlowView({
     returnUrl,
     onSubscribed,
   });
+
+  // Each step replaces the last one's controls: the keyboard goes to what the new one says first, and
+  // to the refusal of a checkout that sent the customer back to choosing.
+  const scope = useFocusScope();
+  const step = checkout.step;
+  const previousStep = React.useRef(step);
+  React.useEffect(() => {
+    if (previousStep.current === step) return;
+    previousStep.current = step;
+    scope.focus("step", "error");
+  }, [step, scope.focus]);
+  const failed = checkout.error !== null;
+  React.useEffect(() => {
+    if (failed) scope.focus("error", "step");
+  }, [failed, scope.focus]);
 
   if (!checkout.available) return null;
 
@@ -205,14 +200,14 @@ function CheckoutFlowView({
 
   const frame = (children: React.ReactNode, footer?: React.ReactNode) =>
     unstyled ? (
-      <section data-slot="checkout-flow" className="ktn-own">
+      <section ref={scope.ref} data-slot="checkout-flow" className="ktn-own">
         <h3>{plan.name}</h3>
         {children}
         {footer}
         <KaitenBranding unstyled />
       </section>
     ) : (
-      <div data-slot="checkout-flow" className="ktn-own w-[min(100%,36rem)]">
+      <div ref={scope.ref} data-slot="checkout-flow" className="ktn-own w-[min(100%,36rem)]">
         <Card className={cn(merged.elements?.card)}>
           <CardHeader className={cn(merged.elements?.cardHeader)}>
             <CardTitle
@@ -240,7 +235,7 @@ function CheckoutFlowView({
   if (checkout.step === "already_subscribed") {
     return frame(
       <>
-        <Message unstyled={unstyled} tone="info" text={words.alreadySubscribed} />
+        <Message unstyled={unstyled} tone="info" text={words.alreadySubscribed} focusKey="step" />
         {portalHref || onOpenPortal ? (
           <Action
             unstyled={unstyled}
@@ -258,12 +253,18 @@ function CheckoutFlowView({
   if (checkout.step === "awaiting_payment_method") {
     return frame(
       <>
-        <Message unstyled={unstyled} tone="info" text={words.awaitingPaymentMethod} />
+        <Message
+          unstyled={unstyled}
+          tone="info"
+          text={words.awaitingPaymentMethod}
+          focusKey="step"
+        />
         {checkout.error ? (
           <Message
             unstyled={unstyled}
             tone="error"
-            text={problemText(checkout.problem, words, nameOf)}
+            text={problemText(checkout.problem)}
+            focusKey="error"
           />
         ) : null}
       </>,
@@ -329,6 +330,7 @@ function CheckoutFlowView({
         applied={checkout.selection.voucherCode !== ""}
         disabled={submitting}
         onApply={checkout.setVoucherCode}
+        onPendingChange={setVoucherPending}
         words={words}
         checking={localization.states.loading}
       />
@@ -362,11 +364,13 @@ function CheckoutFlowView({
         <CheckoutSummaryBody preview={checkout.preview} unstyled={unstyled} />
       )}
 
-      {checkout.error ? (
+      {checkout.error &&
+      !(checkout.preview.voucher === "rejected" && checkout.problem?.kind === "voucher_invalid") ? (
         <Message
           unstyled={unstyled}
           tone="error"
-          text={problemText(checkout.problem, words, nameOf)}
+          text={problemText(checkout.problem)}
+          focusKey="error"
         />
       ) : null}
     </>,
@@ -379,7 +383,8 @@ function CheckoutFlowView({
           unstyled={unstyled}
           variant="default"
           fill
-          disabled={!checkout.canSubmit || submitting}
+          busy={submitting}
+          disabled={!submitting && (!checkout.canSubmit || voucherPending)}
           onClick={() => void checkout.submit()}
         >
           {submitting ? (
@@ -428,7 +433,7 @@ function Outcome({ checkout, unstyled }: { checkout: UseCheckoutResult; unstyled
   if (paid) {
     return (
       <>
-        <Message unstyled={unstyled} tone="success" text={words.subscribed} />
+        <Message unstyled={unstyled} tone="success" text={words.subscribed} focusKey="step" />
         <Message
           unstyled={unstyled}
           tone="muted"
@@ -455,7 +460,7 @@ function Outcome({ checkout, unstyled }: { checkout: UseCheckoutResult; unstyled
   if (payment.status === "failed") {
     return (
       <>
-        <Message unstyled={unstyled} tone="success" text={words.subscribed} />
+        <Message unstyled={unstyled} tone="success" text={words.subscribed} focusKey="step" />
         <Message unstyled={unstyled} tone="error" text={words.paymentFailed} />
         {method.status === "saved" ? (
           <Message unstyled={unstyled} tone="success" text={words.paymentMethodUpdated} />
@@ -500,7 +505,7 @@ function Outcome({ checkout, unstyled }: { checkout: UseCheckoutResult; unstyled
 
   return (
     <>
-      <Message unstyled={unstyled} tone="success" text={words.subscribed} />
+      <Message unstyled={unstyled} tone="success" text={words.subscribed} focusKey="step" />
       {payment.status === "requires_action" ? (
         <Message unstyled={unstyled} tone="info" text={words.confirmPayment} />
       ) : null}
@@ -523,105 +528,9 @@ function Outcome({ checkout, unstyled }: { checkout: UseCheckoutResult; unstyled
 // The pieces a flow is made of
 // ---------------------------------------------------------------------------
 
-type Tone = "info" | "success" | "error" | "muted";
-
-// A success is not said in the success colour: that green is 4.2:1 on the card's secondary
-// surface, under what text needs. It is the mark beside the sentence that is green.
-const TONES: Record<Tone, string> = {
-  info: "rounded-lg border bg-secondary p-3 text-sm",
-  success:
-    "flex items-center gap-2 rounded-lg border border-ktn-success/30 bg-secondary p-3 text-sm font-medium",
-  error:
-    "rounded-lg border border-destructive-subtle-foreground/30 bg-destructive-subtle p-3 text-sm text-destructive-subtle-foreground",
-  muted: "text-sm text-ktn-muted-foreground",
-};
-
-/** A sentence for the customer: said politely, and said at once when it is a refusal. */
-function Message({
-  text,
-  tone,
-  unstyled,
-  busy,
-}: {
-  text: string;
-  tone: Tone;
-  unstyled: boolean;
-  busy?: boolean;
-}) {
-  const CheckIcon = useIcons().check;
-  return (
-    <p
-      data-slot="checkout-flow-message"
-      data-tone={tone}
-      role={tone === "error" ? "alert" : "status"}
-      aria-busy={busy || undefined}
-      className={cn("ktn-own", unstyled ? undefined : TONES[tone])}
-    >
-      {tone === "success" && !unstyled ? (
-        <CheckIcon className="size-4 shrink-0 text-ktn-success" />
-      ) : null}
-      {text}
-    </p>
-  );
-}
-
-interface ActionProps {
-  unstyled: boolean;
-  variant: "default" | "outline" | "ghost";
-  children: React.ReactNode;
-  disabled?: boolean;
-  onClick?: () => void;
-  /** A link instead of a button. */
-  href?: string;
-  /** A link to the provider's page, in a tab of its own that has no handle on this one. */
-  external?: boolean;
-  /** Takes the width it is given. */
-  fill?: boolean;
-  /** Its name when its text is a symbol. */
-  label?: string;
-}
-
-function Action({
-  unstyled,
-  variant,
-  children,
-  disabled,
-  onClick,
-  href,
-  external,
-  fill,
-  label,
-}: ActionProps) {
-  if (href !== undefined) {
-    return (
-      <a
-        href={href}
-        {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
-        aria-label={label}
-        onClick={onClick}
-        className={
-          unstyled ? undefined : cn("ktn-own", buttonVariants({ variant }), fill && "flex-1")
-        }
-      >
-        {children}
-      </a>
-    );
-  }
-  return unstyled ? (
-    <button type="button" disabled={disabled} aria-label={label} onClick={onClick}>
-      {children}
-    </button>
-  ) : (
-    <Button
-      variant={variant}
-      disabled={disabled}
-      aria-label={label}
-      onClick={onClick}
-      className={fill ? "flex-1" : undefined}
-    >
-      {children}
-    </Button>
-  );
+/** A sentence of the checkout, found by its slot. */
+function Message(props: Omit<React.ComponentProps<typeof FeedbackMessage>, "slot">) {
+  return <FeedbackMessage slot="checkout-flow-message" {...props} />;
 }
 
 function PeriodChoice({
@@ -726,7 +635,8 @@ function AddOnSteppers({
                   unstyled={unstyled}
                   variant="outline"
                   label={words.decrease(addon.name)}
-                  disabled={disabled || quantity <= 0}
+                  disabled={disabled}
+                  busy={quantity <= 0}
                   onClick={() => onChange(addon.slug, quantity - 1)}
                 >
                   −
@@ -741,7 +651,8 @@ function AddOnSteppers({
                   unstyled={unstyled}
                   variant="outline"
                   label={words.increase(addon.name)}
-                  disabled={disabled || (max !== null && quantity >= max)}
+                  disabled={disabled}
+                  busy={max !== null && quantity >= max}
                   onClick={() => onChange(addon.slug, quantity + 1)}
                 >
                   +
@@ -767,6 +678,7 @@ function VoucherField({
   applied,
   disabled,
   onApply,
+  onPendingChange,
   words,
   checking,
 }: {
@@ -775,12 +687,27 @@ function VoucherField({
   applied: boolean;
   disabled: boolean;
   onApply: (code: string) => void;
+  /** Whether a code is typed in the field and not applied. */
+  onPendingChange: (pending: boolean) => void;
   words: Words;
   /** What is said while the server is asked about the code. */
   checking: string;
 }) {
   const [draft, setDraft] = React.useState("");
   const message = React.useId();
+  // The field turns into a sentence and a button, and back: the keyboard follows it.
+  const scope = useFocusScope();
+  const previousState = React.useRef(state);
+  React.useEffect(() => {
+    if (previousState.current === state) return;
+    previousState.current = state;
+    scope.focus(state === "applied" || state === "checking" ? "voucher-status" : "voucher-input");
+  }, [state, scope.focus]);
+  const pending = draft.trim() !== "";
+  React.useEffect(() => {
+    onPendingChange(pending);
+    return () => onPendingChange(false);
+  }, [pending, onPendingChange]);
   const apply = () => {
     const code = draft.trim();
     if (!code) return;
@@ -791,13 +718,19 @@ function VoucherField({
   if (state === "applied" || state === "checking") {
     return (
       <div
+        ref={scope.ref}
         data-slot="checkout-flow-voucher"
         className={cn(
           "ktn-own",
           unstyled ? undefined : "flex flex-wrap items-center justify-between gap-2",
         )}
       >
-        <span role="status" className={unstyled ? undefined : "text-sm"}>
+        <span
+          role="status"
+          data-focus="voucher-status"
+          tabIndex={-1}
+          className={unstyled ? undefined : "text-sm"}
+        >
           {state === "checking" ? checking : words.voucherApplied}
         </span>
         <Action unstyled={unstyled} variant="ghost" disabled={disabled} onClick={() => onApply("")}>
@@ -810,6 +743,7 @@ function VoucherField({
   const rejected = state === "rejected" && applied;
   return (
     <div
+      ref={scope.ref}
       data-slot="checkout-flow-voucher"
       className={cn("ktn-own", unstyled ? undefined : "flex flex-col gap-2")}
     >
@@ -820,6 +754,7 @@ function VoucherField({
         {unstyled ? (
           <input
             id={`${message}-input`}
+            data-focus="voucher-input"
             type="text"
             value={draft}
             disabled={disabled}
@@ -827,7 +762,7 @@ function VoucherField({
             autoCapitalize="characters"
             spellCheck={false}
             aria-invalid={rejected || undefined}
-            aria-describedby={rejected ? message : undefined}
+            aria-describedby={rejected ? message : pending ? `${message}-pending` : undefined}
             onChange={(event) => setDraft(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === "Enter") {
@@ -839,6 +774,7 @@ function VoucherField({
         ) : (
           <Input
             id={`${message}-input`}
+            data-focus="voucher-input"
             type="text"
             value={draft}
             disabled={disabled}
@@ -846,7 +782,7 @@ function VoucherField({
             autoCapitalize="characters"
             spellCheck={false}
             aria-invalid={rejected || undefined}
-            aria-describedby={rejected ? message : undefined}
+            aria-describedby={rejected ? message : pending ? `${message}-pending` : undefined}
             onChange={(event) => setDraft(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === "Enter") {
@@ -865,6 +801,14 @@ function VoucherField({
           {words.voucherApply}
         </Action>
       </div>
+      {pending ? (
+        <p
+          id={`${message}-pending`}
+          className={unstyled ? undefined : "text-xs text-ktn-muted-foreground"}
+        >
+          {words.voucherPending}
+        </p>
+      ) : null}
       {rejected ? (
         <div className={unstyled ? undefined : "flex flex-wrap items-center justify-between gap-2"}>
           <p

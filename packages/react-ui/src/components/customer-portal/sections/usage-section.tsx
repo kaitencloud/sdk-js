@@ -21,6 +21,7 @@ import { ProgressBar } from "../../shared/progress-bar.tsx";
 import { SectionError } from "../../shared/section-error.tsx";
 import { isUnlimited } from "../../shared/unlimited.tsx";
 import type { KaitenAppearance } from "../../../appearance/types.ts";
+import { ProvenanceNote } from "./provenance-note.tsx";
 
 function meteredEntitlements(entitlements: ResolvedEntitlement[]): ResolvedEntitlement[] {
   // A usage meter needs a FINITE cap to measure against. Drop unlimited (-1)
@@ -93,7 +94,12 @@ function UsageMetersImpl({ appearance, unstyled = false }: UsageMetersProps) {
                 {entitlement.name}:{" "}
                 {entitlement.currentValue?.type === "number" ? entitlement.currentValue.value : 0} /{" "}
                 {entitlement.limitValue.type === "number" ? entitlement.limitValue.value : 0}
-                {window ? ` (${window})` : ""}
+                {window ? ` (${window})` : ""}{" "}
+                <ProvenanceNote
+                  unstyled
+                  name={entitlement.name}
+                  provenance={entitlement.provenance}
+                />
               </li>
             );
           })}
@@ -139,6 +145,8 @@ function UsageMetersImpl({ appearance, unstyled = false }: UsageMetersProps) {
                   {windowLabel ? (
                     <p className="text-xs text-ktn-muted-foreground">{windowLabel}</p>
                   ) : null}
+                  {/* Where the limit comes from, when add-ons or a voucher moved it. */}
+                  <ProvenanceNote name={entitlement.name} provenance={entitlement.provenance} />
                 </div>
                 <Badge
                   variant={

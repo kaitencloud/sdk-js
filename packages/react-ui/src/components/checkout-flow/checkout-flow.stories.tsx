@@ -80,6 +80,10 @@ export const AddOnsAndVoucher: Story = {
     // The code was typed once and has left the page.
     await expect(await canvas.findByText("Voucher applied", {}, SLOW)).toBeInTheDocument();
     await expect(canvasElement.innerHTML).not.toContain(STORY_CODE);
+    // The field is gone, and the keyboard is on the sentence that took its place.
+    await waitFor(() =>
+      expect(canvasElement.ownerDocument.activeElement).toBe(canvas.getByText("Voucher applied")),
+    );
     // $79.00 + 2 × $25.00 - 20% of the base fee: the server's sum.
     await expect(await canvas.findByText("$113.20", {}, SLOW)).toBeInTheDocument();
   },
@@ -127,7 +131,10 @@ export const Processing: Story = {
   decorators: [checkoutDecorator({ outcome: "never" })],
   play: async ({ canvasElement }) => {
     const canvas = await subscribe(canvasElement);
-    await expect(await canvas.findByRole("button", { name: /^Processing/ })).toBeDisabled();
+    await expect(await canvas.findByRole("button", { name: /^Processing/ })).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
   },
 };
 

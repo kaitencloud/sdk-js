@@ -6,7 +6,7 @@ import { useAssertWrappedByKaitenProvider } from "../../style-root/kaiten-style-
 import { useTrackComponent } from "@kaitencloud/react/internal";
 import { KaitenBranding } from "../shared/kaiten-branding.tsx";
 import { SectionError } from "../shared/section-error.tsx";
-import { useLicensingSnapshot } from "@kaitencloud/react";
+import { useKaitenSessionClient, useLicensingSnapshot, usePortal } from "@kaitencloud/react";
 import type { KaitenAppearance } from "../../appearance/types.ts";
 
 import { CurrentPlan, type CurrentPlanProps } from "./sections/license-section.tsx";
@@ -14,13 +14,20 @@ import { IncludedFeatures, type IncludedFeaturesProps } from "./sections/entitle
 import { UsageMeters, type UsageMetersProps } from "./sections/usage-section.tsx";
 import { AddOns, type AddOnsProps } from "./sections/addons-section.tsx";
 import { FlagsSummary, type FlagsSummaryProps } from "./sections/flags-section.tsx";
+import { InvoiceList, type InvoiceListProps } from "./sections/invoices-section.tsx";
+import { VoucherEntry, type VoucherEntryProps } from "./sections/voucher-section.tsx";
 
 export type CustomerPortalElement =
   | "CurrentPlan"
   | "IncludedFeatures"
   | "UsageMeters"
   | "AddOns"
-  | "FlagsSummary";
+  | "FlagsSummary"
+  | "InvoiceList"
+  | "VoucherEntry";
+
+/** The elements that only a customer session has anything to say in: the portal's invoices and vouchers. */
+const SESSION_ONLY: CustomerPortalElement[] = ["InvoiceList", "VoucherEntry"];
 
 // FlagsSummary is intentionally NOT in the defaults: raw feature-flag plumbing
 // (keys, variants, rollout %) is operator/developer data, not something an end
@@ -33,8 +40,26 @@ const defaultElements: CustomerPortalElement[] = [
   "AddOns",
 ];
 
-function resolveElements(elements?: CustomerPortalElement[]): CustomerPortalElement[] {
-  return elements?.length ? elements : defaultElements;
+// A customer session has more to show than a licence does: its invoices, and a voucher to check.
+const sessionDefaultElements: CustomerPortalElement[] = [
+  ...defaultElements,
+  "InvoiceList",
+  "VoucherEntry",
+];
+
+function resolveElements(
+  elements: CustomerPortalElement[] | undefined,
+  session: boolean,
+  capabilities: { invoices: boolean } | undefined,
+): CustomerPortalElement[] {
+  const wanted = elements?.length ? elements : session ? sessionDefaultElements : defaultElements;
+  // An element that has nothing to say here leaves no empty cell in the grid, either: the portal
+  // drops it, since a cell cannot tell by itself that its content is nothing.
+  return wanted.filter(
+    (element) =>
+      (session || !SESSION_ONLY.includes(element)) &&
+      !(element === "InvoiceList" && capabilities?.invoices === false),
+  );
 }
 
 export interface CustomerPortalProps {
@@ -69,7 +94,8 @@ export function CustomerPortal({
 
   const merged = useMergedAppearance(appearance);
   const snapshot = useLicensingSnapshot();
-  const resolvedElements = resolveElements(elements);
+  const session = useKaitenSessionClient() !== null;
+  const resolvedElements = resolveElements(elements, session, usePortal().data?.capabilities);
 
   // The whole snapshot failed to load (no stale data to fall back on): render one
   // recoverable error card instead of letting every section blank out silently.
@@ -82,6 +108,7 @@ export function CustomerPortal({
       <CurrentPlan
         appearance={merged}
         unstyled={unstyled}
+        manage={session}
         onUpgradeVersion={onUpgradeVersion}
         onAddQuota={onAddQuota}
         onAddAddOn={onAddAddOn}
@@ -91,6 +118,8 @@ export function CustomerPortal({
     UsageMeters: <UsageMeters appearance={merged} unstyled={unstyled} />,
     AddOns: <AddOns appearance={merged} unstyled={unstyled} onManageAddon={onManageAddon} />,
     FlagsSummary: <FlagsSummary appearance={merged} unstyled={unstyled} />,
+    InvoiceList: <InvoiceList appearance={merged} unstyled={unstyled} />,
+    VoucherEntry: <VoucherEntry appearance={merged} unstyled={unstyled} />,
   };
 
   if (unstyled) {
@@ -142,5 +171,15 @@ export type {
   UsageMetersProps,
   AddOnsProps,
   FlagsSummaryProps,
+  InvoiceListProps,
+  VoucherEntryProps,
 };
-export { CurrentPlan, IncludedFeatures, UsageMeters, AddOns, FlagsSummary };
+export {
+  CurrentPlan,
+  IncludedFeatures,
+  UsageMeters,
+  AddOns,
+  FlagsSummary,
+  InvoiceList,
+  VoucherEntry,
+};
