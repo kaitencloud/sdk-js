@@ -376,13 +376,20 @@ export function checkReleaseShape(root, { pack = packWorkspacePackage, dryRun = 
 
 // -- Step 1: the floor of the client ---------------------------------------------
 
-/** The `import ... from "@kaitencloud/client"` statements of the `.ts` and `.tsx` files of a source directory. */
+/** A story or a test: it sits in `src` but is not part of what the package ships. */
+const NOT_SHIPPED = /\.(?:stories|test|spec)\.(?:ts|tsx)$/;
+
+/**
+ * The `import ... from "@kaitencloud/client"` statements of the `.ts` and `.tsx`
+ * files of a source directory that end up in the package: its stories and tests
+ * import the client's `testing` entry, which the package never depends on.
+ */
 export function clientImports(srcDir) {
   const statements = new Set();
   const pattern =
     /\b(?:import|export)\s+(?:type\s+)?[^;'"]*?\bfrom\s+["'](@kaitencloud\/client(?:\/[A-Za-z0-9_-]+)?)["']/g;
   for (const file of filesBelow(srcDir)) {
-    if (!/\.(ts|tsx)$/.test(file) || file.endsWith(".d.ts")) continue;
+    if (!/\.(ts|tsx)$/.test(file) || file.endsWith(".d.ts") || NOT_SHIPPED.test(file)) continue;
     for (const match of readFileSync(file, "utf8").matchAll(pattern)) {
       statements.add(`${match[0].replace(/\s+/g, " ").trim()};`);
     }

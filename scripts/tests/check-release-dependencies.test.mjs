@@ -93,6 +93,12 @@ describe("the imports a package makes from the client", () => {
     );
     write(join(src, "c.d.ts"), 'import { Declared } from "@kaitencloud/client";\n');
     write(join(src, "notes.md"), 'import { Docs } from "@kaitencloud/client";\n');
+    write(
+      join(src, "card", "card.stories.tsx"),
+      'import { demoCatalog } from "@kaitencloud/client/testing";\n',
+    );
+    write(join(src, "card", "card.test.tsx"), 'import { Tested } from "@kaitencloud/client";\n');
+    write(join(src, "card", "card.spec.ts"), 'import { Specified } from "@kaitencloud/client";\n');
 
     expect(clientImports(src)).toEqual([
       'export { type Addon } from "@kaitencloud/client";',
@@ -500,22 +506,33 @@ describe("this repository", () => {
       expect(
         publishedPackages(repoRoot)
           .map(({ name }) => name)
-          .sort(),
+          .toSorted((a, b) => a.localeCompare(b)),
       ).toEqual(["@kaitencloud/client", "@kaitencloud/server"]);
       expect(results.filter((result) => result.rule.endsWith("tarball"))).toHaveLength(2);
     },
     LONG,
   );
 
-  test("has no React package yet, so the floor of the client has nothing to compile", async () => {
-    const [result] = await checkClientFloor(repoRoot, {
-      fetchTarball: () => {
-        throw new Error("nothing should be fetched");
-      },
-    });
+  test(
+    "reads the floor of the client for both React packages, and only react imports the client",
+    async () => {
+      // A client at the floor that exports nothing: whatever `react` imports is missing.
+      const results = await checkClientFloor(repoRoot, {
+        fetchTarball: (_spec, into) => clientTarball(into, []),
+      });
 
-    expect(result.status).toBe("skip");
-  });
+      expect(results.map(({ rule }) => rule).toSorted((a, b) => a.localeCompare(b))).toEqual([
+        "@kaitencloud/react client floor",
+        "@kaitencloud/react-ui client floor",
+      ]);
+      const react = results.find(({ rule }) => rule === "@kaitencloud/react client floor");
+      const reactUi = results.find(({ rule }) => rule === "@kaitencloud/react-ui client floor");
+      expect(react?.status).toBe("fail");
+      expect(react?.detail).toContain("KaitenSessionClientLike");
+      expect(reactUi).toMatchObject({ status: "skip" });
+    },
+    LONG,
+  );
 });
 
 describe("the command line of the release check", () => {
