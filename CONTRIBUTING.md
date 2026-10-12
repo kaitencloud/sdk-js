@@ -234,12 +234,21 @@ npm scope:
    files, check that each `CHANGELOG.md` describes the version in its
    `package.json` (1.0.0 today), and add an empty changeset
    (`pnpm changeset --empty`).
+   The READMEs of the packages already on npm say nothing about these two until they
+   exist there: add the sentence to `packages/client/README.md` that names
+   `@kaitencloud/react` and `@kaitencloud/react-ui` as built on the client, and name
+   both in the Node 22.12+ note of `packages/server/README.md`.
 2. Build, check and pack both packages on that branch, as the Release workflow
-   does, so the tarballs carry the catalog's real ranges:
+   does, so the tarballs carry the catalog's real ranges. The release-dependencies
+   check blocks here: it compiles what `@kaitencloud/react` imports from the client
+   against the lowest client its range allows, fetched from npm, so the client that
+   carries those exports has to be published first and be the one this branch
+   builds with:
 
    ```bash
    vp run -r build
    node scripts/check-published-shape.mjs
+   node scripts/check-release-dependencies.mjs
    mkdir -p /tmp/kaiten-react-release
    (cd packages/react && pnpm pack --pack-destination /tmp/kaiten-react-release)
    (cd packages/react-ui && pnpm pack --pack-destination /tmp/kaiten-react-release)
