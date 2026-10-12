@@ -1,9 +1,10 @@
 // Copyright 2026 KAITEN INC
 // SPDX-License-Identifier: Apache-2.0
 
-// The guard of check-bundle-size.mjs that keeps a headless bundle free of code that
-// draws, tried on entries that plant what it exists to catch and on one that does
-// not. The budgets themselves are measured on the built package by the script.
+// The guards of check-bundle-size.mjs, tried on entries that plant what they exist to
+// catch and on ones that do not: a headless bundle holds no code that draws, and an
+// unstyled one, the React core, holds none of what the styled components bring. The
+// budgets themselves are measured on the built packages by the script.
 
 import { describe, expect, test } from "vite-plus/test";
 
@@ -58,5 +59,48 @@ describe("the guard against code that draws in a headless bundle", () => {
     const scenario = { ...headless(""), headless: false };
 
     expect(leaksOf(scenario, { packages: [["react", 1]], imported: ["react"] })).toEqual([]);
+  });
+});
+
+/** A scenario of the React core: it may import React, and nothing the components bring. */
+const unstyled = (code) => ({ name: "planted", code, budgetGzip: 1_000_000, unstyled: true });
+
+describe("the guard against styled dependencies in an unstyled bundle", () => {
+  test("lets React through, since the core is made of it", async () => {
+    const scenario = unstyled(
+      'import { createElement } from "react"; import { jsx } from "react/jsx-runtime"; console.log(createElement, jsx);',
+    );
+
+    expect(leaksOf(scenario, await measure(scenario))).toEqual([]);
+  });
+
+  test("names the styled dependencies, installed or not, instead of stopping on the build", async () => {
+    const scenario = unstyled(
+      'import "@radix-ui/react-slot"; import "class-variance-authority"; import "tailwind-merge"; import "react-remove-scroll";',
+    );
+
+    const leaks = leaksOf(scenario, await measure(scenario));
+
+    expect(leaks.toSorted((a, b) => a.localeCompare(b))).toEqual([
+      "@radix-ui/react-slot",
+      "class-variance-authority",
+      "react-remove-scroll",
+      "tailwind-merge",
+    ]);
+  });
+
+  test("names a styled package that is bundled, by the package of the file", () => {
+    const scenario = unstyled("");
+
+    const leaks = leaksOf(scenario, {
+      packages: [
+        ["@kaitencloud/react", 80_000],
+        ["swr", 9_000],
+        ["tailwind-merge", 21_000],
+      ],
+      imported: ["react"],
+    });
+
+    expect(leaks).toEqual(["tailwind-merge"]);
   });
 });
