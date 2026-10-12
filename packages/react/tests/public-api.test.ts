@@ -82,6 +82,10 @@ const REMOVED_EXPORTS = [
   "useKaitenFlags",
   "useKaitenAddOns",
   "useKaitenCredits",
+  // The generated API namespace is the client's: a host that wants the raw
+  // operations imports `KaitenApi` from `@kaitencloud/client`, which tracks the
+  // contract, rather than through a package that would then freeze it.
+  "KaitenApi",
 ] as const;
 
 test("every documented public identifier is exported from the package root", () => {

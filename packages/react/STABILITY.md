@@ -38,8 +38,8 @@ integration points:
 
 - **The `@kaitencloud/react` package** — it exports this blessed surface
   (provider, hooks, control primitives, helpers), the experimental telemetry types
-  and `KaitenApi.*` listed below, and no styled component, so a host on the stable
-  path also gets the smallest bundle;
+  listed below, and no styled component, so a host on the stable path also gets
+  the smallest bundle;
   `scripts/check-bundle-size.mjs` holds it there. `@kaitencloud/react-ui`
   re-exports every one of these names, by identity, so mixing the two imports in
   one app still yields one provider and one context.
@@ -82,8 +82,6 @@ Usable today, but **shape may change** in a minor release (treat as `@experiment
   (`KaitenAppearance`, the `themes.*` presets, the `--ktn-*` variable contract)
   and the prebuilt `kaiten.css`.
 - **Telemetry** — `KaitenTelemetryOptions` / `KaitenTelemetryEvent` and the event map.
-- **`KaitenApi.*`** — the raw generated OpenAPI namespace is an escape hatch; it
-  tracks the API contract and can change whenever the contract does.
 
 ## Practical guidance
 

@@ -109,7 +109,6 @@ export type {
   LicenseTerm,
   LicenseType,
   LicensingSnapshot,
-  MeterType,
   NumberEntitlementValue,
   PaymentUpdatedEventDetail,
   Plan,

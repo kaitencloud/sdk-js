@@ -47,9 +47,6 @@ export {
   isPeriodicEntitlement,
   resolveUsageScope,
 } from "@kaitencloud/client";
-// Raw generated OpenAPI types/operations namespace (advanced use); the curated
-// surface is exported through `./types.ts`.
-export { KaitenApi } from "@kaitencloud/client";
 export { emitKaitenEvent, kaitenComponentEvents } from "./events.ts";
 
 // ---------------------------------------------------------------------------

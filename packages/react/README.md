@@ -33,9 +33,10 @@ There is nothing to import for its effect: no stylesheet, no side effects.
 ### Stability
 
 What this package exports follows semantic versioning, except the parts marked
-`@experimental`: the telemetry types and the raw `KaitenApi.*` namespace, which
-may change in a minor release. [`STABILITY.md`](STABILITY.md) lists both sides,
-for this package and for `@kaitencloud/react-ui`.
+`@experimental`: the telemetry types, which may change in a minor release.
+[`STABILITY.md`](STABILITY.md) lists both sides, for this package and for
+`@kaitencloud/react-ui`. The raw generated API (`KaitenApi`) is not exported here:
+import it from `@kaitencloud/client`.
 
 ### Hook naming
 
