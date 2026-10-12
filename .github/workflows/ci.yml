@@ -75,6 +75,11 @@ jobs:
       # scenario is held to a gzip budget.
       - name: Check bundle-size budgets
         run: node scripts/check-bundle-size.mjs
+      # Anything that reaches a browser is public. The client is bundled the way a
+      # host would, and the browser build of each example is scanned: no token, no
+      # name of a secret variable, no code of @kaitencloud/server.
+      - name: Check that no browser bundle carries a secret
+        run: node scripts/check-no-secrets-in-example-build.mjs
 
   test:
     runs-on: ubuntu-latest
@@ -99,6 +104,10 @@ jobs:
         run: vp run -r build
       - name: Run workspace tests
         run: vp run -r test
+      # The checks above are code too: each is tried on a tree that passes and on
+      # one that does not.
+      - name: Test the repository's own scripts
+        run: vp test run scripts
 
   changeset:
     if: github.event_name == 'pull_request'
@@ -155,3 +164,64 @@ jobs:
         run: git diff --exit-code -- contracts packages/client/src/core/generated packages/server/src/generated packages/client/src/graphql/generated
       - name: Verify shipped GraphQL operations validate against the snapshot
         run: node scripts/check-graphql-drift.mjs --operations-only
+
+  # The jobs below are not required by the main-branch ruleset. Both read the npm
+  # registry, and a registry that is down should not hold a merge.
+
+  # Code written against 1.0.0 compiles against the tarball npm serves for 1.0.0,
+  # and against the one this tree would publish. See scripts/check-compat-1.0.mjs.
+  compat-1_0:
+    name: compat-1.0
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: pnpm/action-setup@v6.1.0
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - uses: voidzero-dev/setup-vp@v1.21.1
+        with:
+          # actions/setup-node and pnpm/action-setup own Node.js and pnpm. Vite+
+          # only provides vp, at the catalog's vite-plus version.
+          node-manager: false
+          package-manager: false
+          cache: true
+          run-install: false
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build packages
+        run: vp run -r build
+      - name: Compile a 1.0.0 consumer against 1.0.0 and against this tree
+        run: node scripts/check-compat-1.0.mjs
+
+  # What a release needs: the floor of the client for the React packages, once they
+  # are in the tree, and the shape of every published package, with npm's own dry
+  # run. Advisory here, because it is meant to fail while the client a React package
+  # needs is not on npm yet. It blocks in the release procedure. See
+  # scripts/check-release-dependencies.mjs.
+  release-dependencies:
+    name: release-dependencies
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: pnpm/action-setup@v6.1.0
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - uses: voidzero-dev/setup-vp@v1.21.1
+        with:
+          # actions/setup-node and pnpm/action-setup own Node.js and pnpm. Vite+
+          # only provides vp, at the catalog's vite-plus version.
+          node-manager: false
+          package-manager: false
+          cache: true
+          run-install: false
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build packages
+        run: vp run -r build
+      - name: Check the floor of the client and the shape of the release
+        run: node scripts/check-release-dependencies.mjs

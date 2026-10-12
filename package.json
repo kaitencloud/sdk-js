@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "build:packages": "vp run -r build",
-    "ready": "vp run -r build && node scripts/check-license-headers.mjs && node scripts/check-version-invariants.mjs && node scripts/check-openapi-drift.mjs && node scripts/check-graphql-drift.mjs && pnpm changeset status --since=origin/main && vp check && vp run -r test && node scripts/check-published-shape.mjs && node scripts/check-bundle-size.mjs",
+    "ready": "vp run -r build && node scripts/check-license-headers.mjs && node scripts/check-version-invariants.mjs && node scripts/check-openapi-drift.mjs && node scripts/check-graphql-drift.mjs && pnpm changeset status --since=origin/main && vp check && vp run -r test && node scripts/check-published-shape.mjs && node scripts/check-bundle-size.mjs && node scripts/check-no-secrets-in-example-build.mjs && node scripts/check-compat-1.0.mjs && vp test run scripts",
     "check:invariants": "node scripts/check-version-invariants.mjs",
     "check:license-headers": "node scripts/check-license-headers.mjs",
     "sync-openapi": "node scripts/sync-openapi.mjs",
@@ -17,7 +17,11 @@
     "prepare": "vp config",
     "changeset": "changeset",
     "version-packages": "changeset version && vp fmt",
-    "check:bundle-size": "node scripts/check-bundle-size.mjs"
+    "check:bundle-size": "node scripts/check-bundle-size.mjs",
+    "check:no-secrets": "node scripts/check-no-secrets-in-example-build.mjs",
+    "check:compat-1.0": "node scripts/check-compat-1.0.mjs",
+    "check:release-dependencies": "node scripts/check-release-dependencies.mjs",
+    "test:scripts": "vp test run scripts"
   },
   "devDependencies": {
     "@arethetypeswrong/core": "catalog:",
