@@ -36,10 +36,14 @@ export {
 // ---------------------------------------------------------------------------
 
 export {
+  BoundaryPendingError,
   InvalidTransactionIdError,
   KaitenClient,
   KaitenError,
   KaitenNetworkError,
+  ProviderUnavailableError,
+  QuotaExceededError,
+  RateLimitedError,
   TransactionIdReusedError,
   getUsageScope,
   isEvaluationFailure,

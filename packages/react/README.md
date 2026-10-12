@@ -505,6 +505,14 @@ Treat this as a hint, not enforcement: the server is the authority, and it will
 reject an over-quota write regardless. `Gate` stays open while the snapshot
 loads, so a guarded button never flickers behind a spinner.
 
+Under `mode="customer-session"` the state also says where the limit comes from.
+`state.source` is the layer that grants the entitlement, `"license"` or `"addon"`, and
+`state.provenance` how it got to its value: the licence's grant, the add-ons attached, the
+voucher boosts and the arithmetic (`provenance.number.effective`, `.boostMultiply`…), enough
+for a line such as "(100,000 base) × 2 voucher = 200,000". `useEntitlementCheck` returns
+them on the entitlement it holds, `check.entitlement.source` and `.provenance`. Under any
+other mode `provenance` is absent.
+
 ### Rolling out gradually
 
 Every Kaiten hook throws outside `<KaitenProvider>` — deliberately, since
@@ -521,6 +529,25 @@ function NewProjectButton() {
   return useKaitenAvailable() ? <GatedButton /> : <PlainButton />;
 }
 ```
+
+### Errors
+
+Every error a hook hands you, in `error`, in `onError` or by rejection, is the one the
+client threw, with its class and its fields: narrow it with `instanceof`.
+
+| Class                                                   | When                                                                              | What it carries                                    |
+| ------------------------------------------------------- | --------------------------------------------------------------------------------- | -------------------------------------------------- |
+| `QuotaExceededError`                                    | a checkout the plan cannot hold: the instance already uses more than it grants    | `entitlementSlugs`, the entitlements over the plan |
+| `RateLimitedError`                                      | too many calls: 429                                                               | `retryAfterSeconds`                                |
+| `BoundaryPendingError`                                  | a change refused while the billing period that ended is being closed              | `retryAfterSeconds`                                |
+| `ProviderUnavailableError`                              | the payment provider could not be reached: 503                                    | `retryAfterSeconds`                                |
+| `TransactionIdReusedError`, `InvalidTransactionIdError` | a usage report whose `transactionId` was used for another report, or is malformed | `transactionId`, and `original` for the first      |
+
+All are a `KaitenError`, so `error.status` and `error.code` keep working. The three refusals
+made to be waited out always carry `retryAfterSeconds`: the API's `Retry-After`, or 60 when the
+response had none the browser could read. The hooks do not wait for you and do not send a call
+again: a read that fails keeps the data it last had, with `error` set, and the next read is the
+polling schedule's or `refetch`'s.
 
 ## Control primitives
 

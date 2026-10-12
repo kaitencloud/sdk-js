@@ -55,8 +55,9 @@ integration points:
 - **Provider & client** — `KaitenProvider` in its `authenticated` and `static`
   modes, `KaitenScopeProvider`, `KaitenClient`, the error types (`KaitenError`,
   `KaitenNetworkError`, `TransactionIdReusedError`, `InvalidTransactionIdError`,
-  `KaitenThrownError`), and the type guards (`isEvaluationSuccess` /
-  `isEvaluationFailure`).
+  `QuotaExceededError`, `RateLimitedError`, `BoundaryPendingError`,
+  `ProviderUnavailableError`, `KaitenThrownError`), and the type guards
+  (`isEvaluationSuccess` / `isEvaluationFailure`).
 - **`unstyled` mode** of every component — you bring the markup/styles, the SDK
   brings the logic. The DOM contract (`data-slot="…"`) is the targeting surface.
 - **Headless control primitives** — `Gate` (render-prop gating; `useEntitlementCheck`

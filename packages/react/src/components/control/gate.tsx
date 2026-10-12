@@ -3,6 +3,8 @@
 import * as React from "react";
 
 import { usePaywallTrigger, type PaywallReason } from "../../hooks/use-paywall-trigger.ts";
+import type { EntitlementProvenance, ResolvedEntitlement } from "../../types.ts";
+import { useEntitlements } from "../../hooks/use-kaiten-entitlements.ts";
 import { useKaitenAvailable } from "../../providers/kaiten-provider.tsx";
 
 export interface GateState {
@@ -23,6 +25,17 @@ export interface GateState {
    * meter, it reads as a metering bug rather than "not in your plan".
    */
   metered: boolean;
+  /**
+   * The layer that grants the entitlement: the licence, or an add-on when only an add-on
+   * does. Absent while loading and when no entitlement has the slug.
+   */
+  source?: ResolvedEntitlement["source"];
+  /**
+   * Why `limit` is what it is: the licence's grant, the add-ons, the voucher boosts and the
+   * arithmetic, enough for "(100,000 base) × 2 voucher = 200,000". Only a customer
+   * session's portal carries it.
+   */
+  provenance?: EntitlementProvenance;
   isLoading: boolean;
   error: Error | null;
 }
@@ -65,6 +78,7 @@ export interface GateProps {
 
 function ActiveGate({ entitlement, flagKey, min, threshold, onError, children }: GateProps) {
   const trigger = usePaywallTrigger(entitlement, { threshold, flagKey, min, onError });
+  const granted = useEntitlements().data?.find((candidate) => candidate.slug === entitlement);
 
   const state = React.useMemo<GateState>(() => {
     // While the snapshot is in flight the gate stays open. A spinner on every
@@ -88,10 +102,12 @@ function ActiveGate({ entitlement, flagKey, min, threshold, onError, children }:
       limit: trigger.limit,
       percentage: trigger.percentage,
       metered: trigger.metered,
+      source: granted?.source,
+      provenance: granted?.provenance,
       isLoading: false,
       error: trigger.error,
     };
-  }, [trigger]);
+  }, [trigger, granted]);
 
   return children(state);
 }
