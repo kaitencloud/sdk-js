@@ -95,6 +95,14 @@ release, as billing ships:
   answers under this mode — a snapshot built from the portal, with no customer,
   instance, licence or flags, and with the bound instance's `currentPlan` and
   `subscription` — is part of it.
+- **The billing hooks** of `@kaitencloud/react/billing`, an entry of its own that the root
+  does not reach for: `useCheckout`, `useCheckoutPreview`, `useInvoices`,
+  `useInvoiceSettlement`, `useCancelSubscription`, `useReactivateSubscription`,
+  `useSetAddonQuantity`, `useBillingPortal`, `usePaymentMethodSession`,
+  `useValidateVoucher` and `isPlausibleEmail`, the rule they apply to a billing email, with
+  the types of their options and results. They need `mode="customer-session"`. Every amount
+  they carry is the server's, from a checkout's `dryRun` or an invoice, and none is added up.
+  The `problem` of a checkout is a closed list for now, and may grow.
 - **`CheckoutSummary`** (`@kaitencloud/react-ui`). It shows the total of the
   items it is given, summed in the browser. Billing's rule is the opposite: the
   amount due is the server's, from a checkout's `dryRun` (`dueToday`), and the

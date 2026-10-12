@@ -45,6 +45,12 @@ describe("published package shape", () => {
     expect(readFromRoot("src/index.ts").split("\n")[0]).toBe('"use client";');
   });
 
+  test("the billing subpath is published, and is not the root", () => {
+    // Its own entry, so that a host that offers no checkout bundles none of its hooks.
+    expect(pkg.exports["./billing"]).toBe("./dist/billing.mjs");
+    expect(readFromRoot("src/billing.ts").split("\n")[0]).toBe('"use client";');
+  });
+
   test("the internal and locales subpaths are published, and no stylesheet", () => {
     // `./locales` ships one pack per language; `./internal` is what
     // `@kaitencloud/react-ui` reaches for. Dropping either from `exports` would

@@ -11,6 +11,9 @@ export default defineConfig({
       index: "src/index.ts",
       // What `@kaitencloud/react-ui` needs from the core and a host does not.
       internal: "src/internal.ts",
+      // The hooks of a checkout and a customer portal, which a host that offers neither
+      // does not bundle.
+      billing: "src/billing.ts",
       // One export per language, so a host bundles the packs it ships.
       locales: "src/locales.ts",
       types: "src/types.ts",

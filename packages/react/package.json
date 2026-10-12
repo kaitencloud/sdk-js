@@ -25,6 +25,7 @@
   "types": "./dist/index.d.mts",
   "exports": {
     ".": "./dist/index.mjs",
+    "./billing": "./dist/billing.mjs",
     "./internal": "./dist/internal.mjs",
     "./locales": "./dist/locales.mjs",
     "./types": "./dist/types.mjs",

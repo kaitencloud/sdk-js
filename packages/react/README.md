@@ -301,10 +301,95 @@ dependencies to import it. The session goes in `Authorization: Bearer kst_…`, 
 - **No flags, no usage reports.** Neither is on the session's routes: the
   snapshot has no flags, and `useReportUsage` refuses before any request. Report
   usage from your backend.
-- **Writes go through the client.** `useKaitenSessionClient()` returns it, for
-  `checkout`, `cancelSubscription`, `setAddonQuantity`, `listInvoices` and the
-  rest; call `usePortal().refetch()` once one succeeds. Totals always come from
-  the server: a checkout's `dryRun` says what is due today.
+- **Writes go through the billing hooks.** A checkout, a cancellation, an
+  add-on quantity, the payment method and the provider's portal are hooks of
+  [`@kaitencloud/react/billing`](#billing-hooks), which read the portal again
+  once a change succeeds. `useKaitenSessionClient()` returns the client itself
+  for anything else it can do. Totals always come from the server: a checkout's
+  `dryRun` says what is due today.
+
+#### Billing hooks
+
+> **Experimental, and served by Kaiten billing.** Like the mode they need, they may
+> change before billing ships.
+
+`@kaitencloud/react/billing` holds what a checkout and a customer portal do, with no
+markup of its own: the selection and what it costs, the provider's page for a payment
+method and the way back from it, the invoices of a payment that is still open, and the
+changes a customer makes to their subscription. It is an entry of its own, so a host that
+offers neither bundles none of it. `@kaitencloud/react-ui`'s `CheckoutFlow` is these hooks,
+drawn.
+
+| Hook                                                                        | What it does                                                                    |
+| --------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| `useCheckout`                                                               | A checkout, from choosing a price to being subscribed                           |
+| `useCheckoutPreview`                                                        | What is due today for a selection, from the server, after a 300 ms pause        |
+| `useInvoices`, `useInvoiceSettlement`                                       | The customer's invoices, paged; the wait for one to be paid                     |
+| `useCancelSubscription`, `useReactivateSubscription`, `useSetAddonQuantity` | A change to the subscription; the portal is read again before it resolves       |
+| `useBillingPortal`, `usePaymentMethodSession`                               | The provider's billing portal; a hosted page to add or replace a payment method |
+| `useValidateVoucher`                                                        | A voucher code checked on its own                                               |
+
+```tsx
+import { useCheckout } from "@kaitencloud/react/billing";
+
+function Checkout({ licensePriceId }: { licensePriceId: string }) {
+  const checkout = useCheckout({ initial: { licensePriceId } });
+  const due = checkout.preview.data?.dueToday;
+
+  if (checkout.step === "subscribed") return <p>Subscribed.</p>;
+  return (
+    <>
+      <button onClick={() => checkout.setAddOnQuantity("extra-seats", 2)}>2 extra seats</button>
+      {/* The server's lines and the server's total: nothing is added up here. */}
+      {due && <p>{formatKaitenMoney(due.total, due.currencyCode)} today</p>}
+      <button disabled={!checkout.canSubmit} onClick={() => void checkout.submit()}>
+        Subscribe
+      </button>
+    </>
+  );
+}
+```
+
+- **The server prices, the SDK never does.** Each selection is priced by a checkout's
+  `dryRun`, which is the subscription rolled back: the lines and the total in
+  `preview.data` are the server's, the lines need not sum to the total, and a trial is
+  nothing due and `trialEndsAt`. A request is made once the selection has stood still for
+  300 ms, and the first one at once. Answers that arrive after a newer request are dropped.
+- **A voucher code** is typed, sent in the body of the call and nowhere else: not in a URL,
+  not in a log, not in what telemetry is told. `preview.voucher` says `applied` or `rejected`
+  (`checking` while the server is asked, and while it could not be reached to judge the code);
+  a refusal never says why. A rejected code leaves the summary the selection had without it,
+  whether the preview refused it or the checkout did after the preview took it: the selection is
+  then priced again without the code, and nothing can be submitted until the code is removed.
+- **A payment method first.** For a customer with none, `submit()` is answered with the
+  provider's setup page: it opens in a popup, or in place of the page when the browser blocks
+  popups, and the checkout goes on when the customer is back, to the page loaded with
+  `kaiten_setup_session` or to the popup that says it is done. What was chosen is kept in the
+  tab's `sessionStorage` meanwhile, voucher code included, and forgotten once the checkout
+  is done, or when the page that opened a popup is left. A page sent to the provider's own
+  keeps it for the way back, until it expires with the setup page. **Mount `useCheckout` on the page the customer comes back to**: `returnUrl` is
+  the current page, minus its fragment and any `kaiten_*` parameter, unless you say another.
+- **What became of the payment.** The instance is subscribed whatever it was: `payment`
+  says `paid`, `not_required`, `requires_action` (the customer confirms it on
+  `hostedInvoiceUrl`), `failed` (the card was refused: save another with
+  `usePaymentMethodSession`, or pay on `hostedInvoiceUrl`) or `processing`. While a payment
+  is open, the invoices are read every 5 seconds until the invoice is `PAID`, for 10 minutes,
+  and then once each time the window takes focus; the portal is read again when it is paid.
+  An invoice that is not on the newest page is looked for a few pages down. A `processing`
+  payment whose invoice turns out `PAYMENT_FAILED` becomes `failed` (with the invoice's
+  `hostedInvoiceUrl`) and stops being read; one that began as `requires_action` stays so, as
+  the invoice reads the same until the customer acts.
+- **Refusals have names.** `problem` classifies what the last attempt was refused with
+  (`quota_exceeded` and the entitlements over the plan, `already_subscribed`,
+  `voucher_invalid`, `billing_email_required`, `setup_incomplete`, `unavailable` and
+  `rate_limited` with their wait, `not_payable_online` for a paid plan the vendor has no card
+  provider for); `error` is the error itself, with its status and code. An address the API gives
+  for the provider's page that is not `http` or `https` is never opened.
+- **A billing period being closed.** `useCancelSubscription`, `useReactivateSubscription`
+  and `useSetAddonQuantity` wait out a `BoundaryPendingError` that asks for 120 seconds or
+  less, send the change once more, and say when in `retryAt`; the second answer is the
+  answer. Nothing else is sent again by a hook: a checkout, a voucher check and a payment
+  method session are made once.
 
 #### Tokens that expire
 

@@ -32,6 +32,9 @@ it alone.
 `CustomerPortal`, …), `KaitenStyleRoot` and a precompiled stylesheet, and
 re-exports the core. An application that wants Kaiten's components installs it.
 
+Its billing hooks, a checkout and a customer portal without markup, are an entry of
+their own, `@kaitencloud/react/billing`, so a host that offers neither bundles none of them.
+
 The two version independently. The core is the stable surface; the components are
 `@experimental`, as [`packages/react/STABILITY.md`](packages/react/STABILITY.md)
 records. A change to a component never forces a release on an application that
