@@ -245,6 +245,25 @@ importers:
         specifier: 'catalog:'
         version: 1.0.0(@arethetypeswrong/core@0.18.5)(@types/node@26.6.5)(@vitest/browser-playwright@5.0.1)(@vitest/coverage-v8@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(jsdom@30.0.1)(publint@0.3.25)(typescript@7.0.2)(yaml@2.9.0)
 
+  examples/conformance:
+    dependencies:
+      '@kaitencloud/client':
+        specifier: workspace:*
+        version: link:../../packages/client
+      '@kaitencloud/server':
+        specifier: workspace:*
+        version: link:../../packages/server
+    devDependencies:
+      '@types/node':
+        specifier: ^26.6.5
+        version: 26.6.5
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vite-plus:
+        specifier: 'catalog:'
+        version: 1.0.0(@arethetypeswrong/core@0.18.5)(@types/node@26.6.5)(@vitest/browser-playwright@5.0.1)(@vitest/coverage-v8@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(jsdom@30.0.1)(publint@0.3.25)(typescript@7.0.2)(yaml@2.9.0)
+
   examples/node:
     dependencies:
       '@kaitencloud/client':
