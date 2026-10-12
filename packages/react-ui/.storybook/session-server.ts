@@ -192,7 +192,14 @@ export function sessionServer(
       return { status: 200, body: answers.portalSession };
     }
     if (method === "POST" && route === "billing/payment-method-session") {
-      return { status: 200, body: answers.paymentMethodSession };
+      // The recorded page expired when it was recorded: the one a test or a story gets is open for an hour.
+      return {
+        status: 200,
+        body: {
+          ...answers.paymentMethodSession,
+          expiresAt: new Date(Date.now() + 60 * 60_000).toISOString(),
+        },
+      };
     }
     if (method === "POST" && /^billing\/payment-method-session\/[^/]+\/complete$/.test(route)) {
       change({ paymentMethod: answers.paymentMethodCompleted.paymentMethod });

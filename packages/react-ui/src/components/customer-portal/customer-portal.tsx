@@ -16,6 +16,10 @@ import { AddOns, type AddOnsProps } from "./sections/addons-section.tsx";
 import { FlagsSummary, type FlagsSummaryProps } from "./sections/flags-section.tsx";
 import { InvoiceList, type InvoiceListProps } from "./sections/invoices-section.tsx";
 import { VoucherEntry, type VoucherEntryProps } from "./sections/voucher-section.tsx";
+import {
+  PaymentMethodCard,
+  type PaymentMethodCardProps,
+} from "../payment-method-card/payment-method-card.tsx";
 
 export type CustomerPortalElement =
   | "CurrentPlan"
@@ -24,10 +28,11 @@ export type CustomerPortalElement =
   | "AddOns"
   | "FlagsSummary"
   | "InvoiceList"
-  | "VoucherEntry";
+  | "VoucherEntry"
+  | "PaymentMethodCard";
 
-/** The elements that only a customer session has anything to say in: the portal's invoices and vouchers. */
-const SESSION_ONLY: CustomerPortalElement[] = ["InvoiceList", "VoucherEntry"];
+/** The elements that only a customer session has anything to say in: the portal's invoices, vouchers and payment method. */
+const SESSION_ONLY: CustomerPortalElement[] = ["InvoiceList", "VoucherEntry", "PaymentMethodCard"];
 
 // FlagsSummary is intentionally NOT in the defaults: raw feature-flag plumbing
 // (keys, variants, rollout %) is operator/developer data, not something an end
@@ -40,17 +45,19 @@ const defaultElements: CustomerPortalElement[] = [
   "AddOns",
 ];
 
-// A customer session has more to show than a licence does: its invoices, and a voucher to check.
+// A customer session has more to show than a licence does: how it pays, a voucher to check and its
+// invoices, which are the widest and come last.
 const sessionDefaultElements: CustomerPortalElement[] = [
   ...defaultElements,
-  "InvoiceList",
+  "PaymentMethodCard",
   "VoucherEntry",
+  "InvoiceList",
 ];
 
 function resolveElements(
   elements: CustomerPortalElement[] | undefined,
   session: boolean,
-  capabilities: { invoices: boolean } | undefined,
+  capabilities: { invoices: boolean; paymentMethods: boolean } | undefined,
 ): CustomerPortalElement[] {
   const wanted = elements?.length ? elements : session ? sessionDefaultElements : defaultElements;
   // An element that has nothing to say here leaves no empty cell in the grid, either: the portal
@@ -58,7 +65,8 @@ function resolveElements(
   return wanted.filter(
     (element) =>
       (session || !SESSION_ONLY.includes(element)) &&
-      !(element === "InvoiceList" && capabilities?.invoices === false),
+      !(element === "InvoiceList" && capabilities?.invoices === false) &&
+      !(element === "PaymentMethodCard" && capabilities?.paymentMethods === false),
   );
 }
 
@@ -120,6 +128,7 @@ export function CustomerPortal({
     FlagsSummary: <FlagsSummary appearance={merged} unstyled={unstyled} />,
     InvoiceList: <InvoiceList appearance={merged} unstyled={unstyled} />,
     VoucherEntry: <VoucherEntry appearance={merged} unstyled={unstyled} />,
+    PaymentMethodCard: <PaymentMethodCard appearance={merged} unstyled={unstyled} />,
   };
 
   if (unstyled) {
@@ -156,7 +165,14 @@ export function CustomerPortal({
         )}
       >
         {resolvedElements.map((element) => (
-          <div key={element} className={cn(merged.elements?.portalSection)}>
+          <div
+            key={element}
+            // The invoices are the widest thing a portal holds: a row to themselves.
+            className={cn(
+              element === "InvoiceList" && "col-span-full",
+              merged.elements?.portalSection,
+            )}
+          >
             {elementComponents[element]}
           </div>
         ))}
@@ -173,6 +189,7 @@ export type {
   FlagsSummaryProps,
   InvoiceListProps,
   VoucherEntryProps,
+  PaymentMethodCardProps,
 };
 export {
   CurrentPlan,
@@ -182,4 +199,5 @@ export {
   FlagsSummary,
   InvoiceList,
   VoucherEntry,
+  PaymentMethodCard,
 };

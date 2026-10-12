@@ -127,6 +127,12 @@ release, as billing ships:
   says where it comes from. Their amounts are the server's and nothing in them is added up; a
   voucher code is sent in the body of the check and kept nowhere. `InvoiceList` and `VoucherEntry`
   are elements of `CustomerPortal` under a customer session and nothing under any other mode.
+- **`PaymentMethodCard`** (`@kaitencloud/react-ui`), under `mode="customer-session"`: the payment
+  method the customer's invoices are charged to, as the labels the provider gave ("Visa •••• 4242",
+  its expiry, whether it is expired or its last payment failed, never a number), and to add one,
+  replace it on the provider's hosted page, or manage it in the provider's own billing portal.
+  It is an element of `CustomerPortal` under a session, and it is not there at all (no element,
+  no empty card) when the portal says the provider cannot capture a payment method.
 - **The words of the portal and of a subscription**, `KaitenLocalization.portalBilling` and
   `KaitenLocalization.subscription` (typed `KaitenPortalBillingWords` and
   `KaitenSubscriptionWords`), and `KaitenLocalization.paymentMethodCard`
@@ -145,7 +151,7 @@ Usable today, but **shape may change** in a minor release (treat as `@experiment
 
 - **What `@kaitencloud/react-ui` adds.** Its styled components (default,
   non-`unstyled` rendering): `CustomerPortal` (and its sections
-  `CurrentPlan`/`IncludedFeatures`/`UsageMeters`/`AddOns`/`FlagsSummary`/`InvoiceList`/`VoucherEntry`),
+  `CurrentPlan`/`IncludedFeatures`/`UsageMeters`/`AddOns`/`FlagsSummary`/`InvoiceList`/`VoucherEntry`/`PaymentMethodCard`),
   `PricingTable`, `FeatureComparison`, `CheckoutSummary`, `CheckoutFlow`, `Paywall`, `PlanBadge`,
   `UpgradeButton`, `EntitlementStatusBar`, `FeatureCatalog`, `BillingSummary`,
   `KaitenBranding`. The names it re-exports from the core keep the core's

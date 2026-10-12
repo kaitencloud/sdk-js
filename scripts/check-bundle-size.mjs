@@ -173,17 +173,24 @@ const SCENARIOS = [
     budgetGzip: 52_550,
   },
   {
+    // What a host that shows a customer how they pay ships: the card, the billing hooks that add or
+    // replace a payment method and open the provider's portal, and the words of its English.
+    name: "react-ui · PaymentMethodCard + KaitenProvider + KaitenStyleRoot",
+    code: `import { PaymentMethodCard, KaitenProvider, KaitenStyleRoot } from "@kaitencloud/react-ui"; console.log(PaymentMethodCard, KaitenProvider, KaitenStyleRoot);`,
+    budgetGzip: 46_050,
+  },
+  {
     // What a host that offers a customer portal ships: the sections, the billing hooks they
     // change a subscription with, and the words of their English. A host that offers none does
     // not: the scenarios above are not in it.
     name: "react-ui · CustomerPortal + KaitenProvider + KaitenStyleRoot",
     code: `import { CustomerPortal, KaitenProvider, KaitenStyleRoot } from "@kaitencloud/react-ui"; console.log(CustomerPortal, KaitenProvider, KaitenStyleRoot);`,
-    budgetGzip: 54_500,
+    budgetGzip: 58_200,
   },
   {
     name: "react-ui · everything",
     code: `import * as all from "@kaitencloud/react-ui"; console.log(all);`,
-    budgetGzip: 76_400,
+    budgetGzip: 77_900,
   },
   {
     name: "client · KaitenClient alone",

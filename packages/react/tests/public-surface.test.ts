@@ -26,6 +26,7 @@ const STYLED_SURFACE = [
   "FlagsSummary",
   "InvoiceList",
   "VoucherEntry",
+  "PaymentMethodCard",
   "Paywall",
   "PlanBadge",
   "UpgradeButton",

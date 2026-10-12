@@ -66,6 +66,10 @@ export {
   VoucherEntry,
   type VoucherEntryProps,
 } from "./components/customer-portal/customer-portal.tsx";
+export {
+  PaymentMethodCard,
+  type PaymentMethodCardProps,
+} from "./components/payment-method-card/payment-method-card.tsx";
 export { Paywall, type PaywallProps } from "./components/paywall/paywall.tsx";
 export { PlanBadge, type PlanBadgeProps } from "./components/plan-badge/plan-badge.tsx";
 export {
