@@ -16,7 +16,8 @@ export type {
 } from "./providers/kaiten-provider.tsx";
 
 // The customer-session surface of `@kaitencloud/client`, which
-// `mode="customer-session"` reads.
+// `mode="customer-session"` reads: every type that `usePortal()` returns, that
+// `useKaitenSessionClient()` takes or gives, and the ones those are made of.
 export type {
   CheckoutInput,
   CheckoutPaymentStatus,
@@ -24,8 +25,10 @@ export type {
   CheckoutRequiresPaymentMethod,
   CheckoutResult,
   CheckoutSubscribed,
+  CompletedPaymentMethodSession,
   EntitlementProvenance,
   InvoiceKind,
+  InvoiceLineType,
   InvoiceStatus,
   InvoiceTotals,
   KaitenCustomerSession,
@@ -34,12 +37,23 @@ export type {
   KaitenPortal,
   KaitenSessionClientConfig,
   KaitenSessionClientLike,
+  PaymentMethodSession,
+  PaymentMethodStatus,
   PaymentMethodSummary,
+  PortalCustomer,
+  PortalInstance,
+  PortalInstanceSummary,
+  PortalSession,
   PortalSubscription,
   PortalVoucher,
+  SessionAddon,
   SessionInvoice,
   SessionInvoiceLine,
   SubscriptionStatus,
+  UpcomingInvoice,
+  VoucherBoost,
+  VoucherDiscount,
+  VoucherSummary,
   VoucherValidation,
 } from "@kaitencloud/client";
 
