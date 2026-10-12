@@ -19,7 +19,7 @@ import {
   formatKaitenDate,
 } from "../src/index.ts";
 import { FAKE_TIMERS, settle } from "./support/checkout.tsx";
-import { mount, off } from "./support/session-mount.tsx";
+import { mount, off, press } from "./support/session-mount.tsx";
 import { refusal, sessionServer } from "../.storybook/session-server.ts";
 import { KaitenProvider } from "./support/styled-provider.tsx";
 
@@ -37,13 +37,6 @@ afterEach(() => {
 
 const endsOn = `Ends on ${formatKaitenDate("2026-11-01T00:00:00Z")}`;
 const renewsOn = `Renews on ${formatKaitenDate("2026-11-01T00:00:00Z")}`;
-
-/** A press, and the answer of the server, and what the portal read again. */
-async function press(name: string | RegExp) {
-  await act(async () => {
-    fireEvent.click(await screen.findByRole("button", { name }));
-  });
-}
 
 // ---------------------------------------------------------------------------
 // Cancelling, and taking it back

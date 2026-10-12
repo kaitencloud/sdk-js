@@ -2,7 +2,7 @@
 // with the style root. And the small readers every such test needs.
 
 import type { ReactNode } from "react";
-import { render, type RenderResult } from "@testing-library/react";
+import { act, fireEvent, render, screen, type RenderResult } from "@testing-library/react";
 
 import type { KaitenLocalizationOverrides } from "../../src/index.ts";
 import { API, type SessionServer } from "../../.storybook/session-server.ts";
@@ -33,3 +33,15 @@ export const off = (element: Element): boolean =>
 
 /** Intl writes a non-breaking space between an amount and its symbol, in French a narrow one. */
 export const flat = (text: string | null | undefined) => (text ?? "").replace(/[\s  ]+/g, " ");
+
+/**
+ * Presses a button once it is on screen, and lets what the press started settle. The button is
+ * looked for outside `act`: React 18 holds back every update made inside one until it returns, so
+ * a button that waits for the portal to be read would never appear.
+ */
+export async function press(name: string | RegExp) {
+  const button = await screen.findByRole("button", { name });
+  await act(async () => {
+    fireEvent.click(button);
+  });
+}

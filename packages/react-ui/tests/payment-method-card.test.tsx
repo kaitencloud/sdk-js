@@ -6,13 +6,13 @@
 // API sends, so nowhere in what the card shows; and where the provider cannot capture one at all,
 // the card is not there.
 
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, expect, test, vi } from "vite-plus/test";
 import { fr } from "@kaitencloud/react/locales";
 
 import { CustomerPortal, PaymentMethodCard } from "../src/index.ts";
 import { sessionServer } from "../.storybook/session-server.ts";
-import { mount } from "./support/session-mount.tsx";
+import { mount, press } from "./support/session-mount.tsx";
 import { KaitenProvider } from "./support/styled-provider.tsx";
 
 import answers from "../../client/tests/fixtures/session.initech.json" with { type: "json" };
@@ -44,12 +44,6 @@ const visa = (patch: Record<string, unknown> = {}) => ({
   expYear: 2030,
   ...patch,
 });
-
-async function press(name: string | RegExp) {
-  await act(async () => {
-    fireEvent.click(await screen.findByRole("button", { name }));
-  });
-}
 
 test("says the labels of the payment method, and never a number", async () => {
   mount(sessionServer(), <PaymentMethodCard />);
