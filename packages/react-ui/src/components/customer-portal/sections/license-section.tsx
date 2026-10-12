@@ -3,6 +3,7 @@ import * as React from "react";
 import {
   useCredits,
   useLicense,
+  useLicensingSnapshot,
   usePlans,
   emitKaitenEvent,
   resolveLicensePrice,
@@ -14,7 +15,7 @@ import { useIcons } from "../../../appearance/icons.tsx";
 import { useMergedAppearance } from "../../../appearance/context.tsx";
 import { cn } from "../../../lib/utils.ts";
 import { useAssertWrappedByKaitenProvider } from "../../../style-root/kaiten-style-root.tsx";
-import { useTrackComponent } from "@kaitencloud/react/internal";
+import { kaitenPriceParts, useTrackComponent } from "@kaitencloud/react/internal";
 import { Card, CardContent, CardHeader, CardTitle } from "../../ui/card.tsx";
 import { Badge } from "../../ui/badge.tsx";
 import { Button } from "../../ui/button.tsx";
@@ -75,7 +76,9 @@ function CurrentPlanImpl({
   useTrackComponent("CurrentPlan");
 
   const merged = useMergedAppearance(appearance);
-  const { data, isLoading, error, refetch } = useLicense();
+  const license = useLicense();
+  const snapshot = useLicensingSnapshot();
+  const { isLoading, error, refetch } = license;
   const credits = useCredits();
   const plans = usePlans();
   const icons = useIcons();
@@ -84,18 +87,53 @@ function CurrentPlanImpl({
     null,
   );
 
+  // What there is to say about the plan. A customer's licence says it all: version,
+  // type, renewal. A customer session has no licence, only what its portal names: the
+  // plan, and the subscription, whose period is when it renews, and whose price is what
+  // is paid for it. Nothing here is made up for the lack of one.
+  const subscription = snapshot.data?.subscription ?? null;
+  const plan = React.useMemo(() => {
+    if (license.data) {
+      return {
+        slug: license.data.slug,
+        name: license.data.name,
+        version: license.data.versionName ?? license.data.version,
+        type: license.data.type,
+        renewalDate: license.data.renewalDate,
+      };
+    }
+    const named = snapshot.data?.currentPlan;
+    if (!named) return null;
+    // A subscription renews only while it is live and does not end with its period.
+    const renews = subscription?.status === "ACTIVE" && !subscription.cancelAtPeriodEnd;
+    return {
+      slug: named.slug,
+      name: named.name,
+      version: undefined,
+      type: undefined,
+      renewalDate: renews ? subscription.currentPeriodEnd : undefined,
+    };
+  }, [license.data, snapshot.data?.currentPlan, subscription]);
+
   // The portal shows what the customer holds, and until now that never included
   // what they pay for it: the price lives on `Plan`, the section reads
   // `License`, and nothing joined them. Both are in the same snapshot, so the
-  // join costs no request.
+  // join costs no request. A customer session has the subscription's own base price.
   //
-  // `null` is the normal answer today — Kaiten models no prices server-side —
-  // and it renders nothing at all. Not a "0.00", not a placeholder: an invented
-  // amount on a billing screen is worse than an absent line, and this is the
-  // wiring, waiting for a money model to fill it.
-  const price = React.useMemo(() => resolveLicensePrice(data, plans.data), [data, plans.data]);
-  const formattedPrice = price
-    ? localization.formatMoney(price.amount, price.currencyCode ?? DEFAULT_CURRENCY_CODE)
+  // `null` is the answer when the licence has no matching plan price, or when no
+  // subscription is live, and it renders nothing at all. Not a "0.00", not a
+  // placeholder: an invented amount on a billing screen is worse than an absent line.
+  const price = React.useMemo(() => {
+    if (!license.data) {
+      return subscription && subscription.status !== "CANCELED" ? subscription.basePrice : null;
+    }
+    return resolveLicensePrice(license.data, plans.data);
+  }, [license.data, plans.data, subscription]);
+  const priceParts = price
+    ? kaitenPriceParts(price, localization, { currencyCode: DEFAULT_CURRENCY_CODE })
+    : null;
+  const formattedPrice = priceParts
+    ? `${priceParts.amount}${priceParts.suffix ? `${priceParts.attached ? "" : " "}${priceParts.suffix}` : ""}`
     : null;
 
   const trigger = React.useCallback(
@@ -107,13 +145,13 @@ function CurrentPlanImpl({
       setPendingAction(key);
       try {
         const detail =
-          eventName === "kaiten:plan-changed" ? { planId: data?.slug, planName: data?.name } : {};
+          eventName === "kaiten:plan-changed" ? { planId: plan?.slug, planName: plan?.name } : {};
         await runAction(callback, eventName, detail);
       } finally {
         setPendingAction(null);
       }
     },
-    [data?.slug, data?.name],
+    [plan?.slug, plan?.name],
   );
 
   if (isLoading) {
@@ -133,10 +171,10 @@ function CurrentPlanImpl({
     );
   }
 
-  if (error && !data) {
+  if (error && !plan) {
     return <SectionError onRetry={refetch} appearance={merged} unstyled={unstyled} />;
   }
-  if (!data) return null;
+  if (!plan) return null;
 
   const ShieldIcon = icons.shield;
 
@@ -144,16 +182,15 @@ function CurrentPlanImpl({
     return (
       <section data-slot="current-plan" className="ktn-own">
         <h3>{localization.currentPlan.title}</h3>
-        <p>{data.name}</p>
-        <p>{data.versionName ?? data.version}</p>
-        <p>{data.type}</p>
+        <p>{plan.name}</p>
+        {plan.version ? <p>{plan.version}</p> : null}
+        {plan.type ? <p>{plan.type}</p> : null}
         {formattedPrice ? (
           <p data-slot="current-plan-price" className="ktn-own">
             {formattedPrice}
-            {price?.interval ? `/${price.interval}` : null}
           </p>
         ) : null}
-        {data.renewalDate ? <p>{localization.currentPlan.renewsOn(data.renewalDate)}</p> : null}
+        {plan.renewalDate ? <p>{localization.currentPlan.renewsOn(plan.renewalDate)}</p> : null}
         {credits.data?.length ? (
           <ul>
             {credits.data.map((credit) => (
@@ -173,8 +210,8 @@ function CurrentPlanImpl({
                 type="button"
                 onClick={() =>
                   void runAction(onUpgradeVersion, "kaiten:plan-changed", {
-                    planId: data.slug,
-                    planName: data.name,
+                    planId: plan.slug,
+                    planName: plan.name,
                   })
                 }
               >
@@ -214,23 +251,30 @@ function CurrentPlanImpl({
       <CardContent className={cn("flex flex-col gap-4", merged.elements?.cardContent)}>
         <div className="flex items-start justify-between gap-3">
           <div className="space-y-1">
-            <p className="text-base font-semibold">{data.name}</p>
-            <p className="text-sm text-ktn-muted-foreground">{data.versionName ?? data.version}</p>
-            {formattedPrice ? (
+            <p className="text-base font-semibold">{plan.name}</p>
+            {plan.version ? (
+              <p className="text-sm text-ktn-muted-foreground">{plan.version}</p>
+            ) : null}
+            {priceParts ? (
               <p data-slot="current-plan-price" className="ktn-own text-sm font-medium">
-                {formattedPrice}
-                {price?.interval ? (
-                  <span className="font-normal text-ktn-muted-foreground">/{price.interval}</span>
+                {priceParts.amount}
+                {priceParts.suffix ? (
+                  <span className="font-normal text-ktn-muted-foreground">
+                    {priceParts.attached ? "" : " "}
+                    {priceParts.suffix}
+                  </span>
                 ) : null}
               </p>
             ) : null}
-            {data.renewalDate ? (
+            {plan.renewalDate ? (
               <p className="text-xs text-ktn-muted-foreground">
-                {localization.currentPlan.renewsOn(data.renewalDate)}
+                {localization.currentPlan.renewsOn(plan.renewalDate)}
               </p>
             ) : null}
           </div>
-          <Badge variant={licenseTypeBadgeVariant(data.type)}>{data.type}</Badge>
+          {plan.type ? (
+            <Badge variant={licenseTypeBadgeVariant(plan.type)}>{plan.type}</Badge>
+          ) : null}
         </div>
 
         {credits.data?.length ? (

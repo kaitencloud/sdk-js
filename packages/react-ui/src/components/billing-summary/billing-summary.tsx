@@ -117,7 +117,8 @@ export function BillingSummary({
   const entitlements = useEntitlements();
 
   const term = snapshot.data?.licenseTerm ?? null;
-  const planName = license.data?.name ?? null;
+  // A customer session has no licence: its portal names the plan.
+  const planName = license.data?.name ?? snapshot.data?.currentPlan?.name ?? null;
 
   const meters = React.useMemo(
     () => meteredEntitlements(entitlements.data ?? []).slice(0, maxMeters),
