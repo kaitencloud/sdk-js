@@ -114,6 +114,11 @@ Usable today, but **shape may change** in a minor release (treat as `@experiment
   (`KaitenAppearance`, the `themes.*` presets, the `--ktn-*` variable contract)
   and the prebuilt `kaiten.css`.
 - **Telemetry** — `KaitenTelemetryOptions` / `KaitenTelemetryEvent` and the event map.
+- **Events, cache keys and small exports** — `emitKaitenEvent` and
+  `kaitenComponentEvents` (the `kaiten:*` DOM events), `kaitenKeys` and
+  `useKaitenScopeKey` (the cache keys a host can `mutate()`), `KaitenErrorBoundary`
+  and `DEFAULT_CURRENCY_CODE`. They are exported and not yet classified: treat them
+  as experimental until a release lists them above.
 
 ## How the surface grows
 
