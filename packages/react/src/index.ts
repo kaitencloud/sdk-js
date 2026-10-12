@@ -64,7 +64,11 @@ export {
   type EntitlementCheckOptions,
   type EntitlementCheckResult,
 } from "./hooks/use-entitlement-check.ts";
-export { usePaywallTrigger, type PaywallTriggerResult } from "./hooks/use-paywall-trigger.ts";
+export {
+  usePaywallTrigger,
+  type PaywallReason,
+  type PaywallTriggerResult,
+} from "./hooks/use-paywall-trigger.ts";
 export { useReportUsage, type ReportUsageArgs } from "./hooks/use-report-usage.ts";
 export { useUpgradeOptions } from "./hooks/use-upgrade-options.ts";
 export { useLicensingSnapshot } from "./hooks/use-licensing-snapshot.ts";

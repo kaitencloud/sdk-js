@@ -2,7 +2,7 @@
 
 import * as React from "react";
 
-import { usePaywallTrigger } from "../../hooks/use-paywall-trigger.ts";
+import { usePaywallTrigger, type PaywallReason } from "../../hooks/use-paywall-trigger.ts";
 import { useKaitenAvailable } from "../../providers/kaiten-provider.tsx";
 
 export interface GateState {
@@ -12,7 +12,8 @@ export interface GateState {
   blocked: boolean;
   /** Past the warning threshold but still allowed — the moment to nudge. */
   warning: boolean;
-  reason: "over_limit" | "near_limit" | "not_entitled" | "flag_disabled" | "error" | null;
+  /** Why the gate is not plainly open: see {@link PaywallReason}, which is open. */
+  reason: PaywallReason | null;
   current: number;
   limit: number;
   percentage: number;
@@ -73,11 +74,10 @@ function ActiveGate({ entitlement, flagKey, min, threshold, onError, children }:
       return { ...OPEN, isLoading: true };
     }
 
-    const blocked =
-      trigger.reason === "over_limit" ||
-      trigger.reason === "not_entitled" ||
-      trigger.reason === "flag_disabled" ||
-      trigger.reason === "error";
+    // A wall that is up and is not the nudge before the limit blocks, whatever its
+    // reason: the reasons are open, and a gate that listed the blocking ones would
+    // let through a reason it had never heard of.
+    const blocked = trigger.shouldShow && trigger.reason !== "near_limit";
 
     return {
       allowed: !blocked,

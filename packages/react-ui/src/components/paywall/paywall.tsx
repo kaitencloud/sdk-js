@@ -58,6 +58,11 @@ const HOST_SUBTREE = "ktn-host";
  *
  *   over_limit | near_limit | not_entitled | flag_disabled | error
  *
+ * and, because the set is open, whatever reason a later Kaiten billing adds: a
+ * reason this component does not know comes up as a wall with the generic wording,
+ * the content behind it inert, and `hard` mode shows it as the inline wall, not the
+ * dialog, which is kept for the three reasons that name what the customer lacks.
+ *
  * It is on every branch that renders a wall, the hard mode's `<dialog>`
  * included, and on the same element as `data-slot`. Analytics can segment on it,
  * CSS can style on it (`[data-reason="error"]`), and an E2E test can assert the

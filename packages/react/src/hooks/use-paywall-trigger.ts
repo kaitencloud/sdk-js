@@ -24,9 +24,32 @@ export interface PaywallTriggerOptions {
   onError?: "block" | "allow";
 }
 
+/**
+ * Why a paywall shows.
+ *
+ * - `over_limit`: the quota is used up.
+ * - `near_limit`: past the threshold, still allowed.
+ * - `not_entitled`: the plan does not include it.
+ * - `flag_disabled`: the flag it is behind is off.
+ * - `error`: the entitlement could not be read, and the policy is to block.
+ *
+ * The union is open: a minor release may name more, for instance when Kaiten
+ * restricts or suspends an instance for non-payment. Handle a reason you do not know
+ * as a wall, not as an error: `shouldShow` and `GateState.blocked` already say
+ * whether one is up.
+ */
+export type PaywallReason =
+  | "over_limit"
+  | "near_limit"
+  | "not_entitled"
+  | "flag_disabled"
+  | "error"
+  | (string & {});
+
 export interface PaywallTriggerResult {
   shouldShow: boolean;
-  reason: "over_limit" | "near_limit" | "not_entitled" | "flag_disabled" | "error" | null;
+  /** Why the paywall shows, or `null` when it does not. */
+  reason: PaywallReason | null;
   current: number;
   limit: number;
   percentage: number;
@@ -150,7 +173,7 @@ export function usePaywallTrigger(
     // entitlement never carried actions so this was always `undefined` and the
     // CTA was always the generic "Upgrade".
     const fallbackActions = snapshot.data?.actions ?? [];
-    const pickAction = (reason: PaywallTriggerResult["reason"]): PortalAction | undefined => {
+    const pickAction = (reason: PaywallReason | null): PortalAction | undefined => {
       if (entitlement?.actions?.[0]) return entitlement.actions[0];
       const preferred =
         reason === "over_limit" || reason === "near_limit" ? "add_quota" : "upgrade_plan";
