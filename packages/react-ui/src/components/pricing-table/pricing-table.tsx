@@ -41,16 +41,33 @@ export type PricingPlan = Plan;
 
 type PlanEntitlement = NonNullable<Plan["entitlements"]>[number];
 
-// A plan entitlement's displayed value: an explicit label wins, an unlimited
-// grant renders as ∞ (server-computed flag first, value sentinel as fallback),
-// any other number is formatted, and non-numeric falls back to type.
-function renderEntitlementValue(entitlement: PlanEntitlement): React.ReactNode {
-  if (entitlement.label) return entitlement.label;
+/**
+ * How a card draws one entitlement of its plan.
+ *
+ * A number has something to print beside its name: the grant, or an explicit
+ * `label`, with an unlimited grant drawn as ∞ (the server-computed flag first, the
+ * value sentinel as the fallback). A grant that is not a number (a boolean, a
+ * config) has no figure to print, and its type is a word of the API's, never of the
+ * customer's: it is drawn the way the plan's included features are, a check and its
+ * name, since being on the plan is what it says. A boolean grant that is off is not
+ * on the card at all: the card lists what the plan gives.
+ */
+type EntitlementDisplay =
+  | { kind: "value"; value: React.ReactNode }
+  | { kind: "included" }
+  | { kind: "omitted" };
+
+function displayEntitlement(entitlement: PlanEntitlement): EntitlementDisplay {
+  if (entitlement.label) return { kind: "value", value: entitlement.label };
   if (entitlement.value?.type === "number") {
     const unlimited = entitlement.unlimited ?? isUnlimited(entitlement.value.value);
-    return unlimited ? <UnlimitedValue /> : entitlement.value.value.toLocaleString();
+    return {
+      kind: "value",
+      value: unlimited ? <UnlimitedValue /> : entitlement.value.value.toLocaleString(),
+    };
   }
-  return entitlement.type;
+  if (entitlement.value?.type === "boolean" && !entitlement.value.value) return { kind: "omitted" };
+  return { kind: "included" };
 }
 
 type PricingLayout = "merged" | "separate";
@@ -572,6 +589,9 @@ function PricingTableView({
           );
           const planFeatures = plan.features ?? [];
           const addOns = plan.addOns ?? [];
+          const entitlements = (plan.entitlements ?? [])
+            .map((entitlement) => ({ entitlement, display: displayEntitlement(entitlement) }))
+            .filter(({ display }) => display.kind !== "omitted");
 
           return (
             <Card
@@ -644,22 +664,32 @@ function PricingTableView({
                             <span>{feature}</span>
                           </li>
                         ))}
+                        {entitlements.map(({ entitlement, display }) =>
+                          display.kind === "included" ? (
+                            <li key={entitlement.slug} className="flex items-center gap-2 text-sm">
+                              <CheckIcon className="size-4 shrink-0 text-ktn-success" />
+                              <span>{entitlement.name}</span>
+                            </li>
+                          ) : null,
+                        )}
                       </ul>
                     </section>
 
-                    {plan.entitlements?.length ? (
+                    {entitlements.some(({ display }) => display.kind === "value") ? (
                       <section className="flex flex-col gap-2">
                         <h4 className="text-sm font-medium">{localization.pricingTable.limits}</h4>
                         <ul className="flex flex-col gap-2 text-sm text-ktn-muted-foreground">
-                          {plan.entitlements.map((entitlement) => (
-                            <li
-                              key={entitlement.slug}
-                              className="flex items-center justify-between gap-3"
-                            >
-                              <span>{entitlement.name}</span>
-                              <span>{renderEntitlementValue(entitlement)}</span>
-                            </li>
-                          ))}
+                          {entitlements.map(({ entitlement, display }) =>
+                            display.kind === "value" ? (
+                              <li
+                                key={entitlement.slug}
+                                className="flex items-center justify-between gap-3"
+                              >
+                                <span>{entitlement.name}</span>
+                                <span>{display.value}</span>
+                              </li>
+                            ) : null,
+                          )}
                         </ul>
                       </section>
                     ) : null}
@@ -693,15 +723,22 @@ function PricingTableView({
                           <span>{feature}</span>
                         </li>
                       ))}
-                      {plan.entitlements?.map((entitlement) => (
-                        <li
-                          key={entitlement.slug}
-                          className="flex items-center justify-between gap-2 text-sm text-ktn-muted-foreground"
-                        >
-                          <span>{entitlement.name}</span>
-                          <span>{renderEntitlementValue(entitlement)}</span>
-                        </li>
-                      ))}
+                      {entitlements.map(({ entitlement, display }) =>
+                        display.kind === "included" ? (
+                          <li key={entitlement.slug} className="flex items-center gap-3 text-sm">
+                            <CheckIcon className="size-4 shrink-0 text-ktn-success" />
+                            <span>{entitlement.name}</span>
+                          </li>
+                        ) : (
+                          <li
+                            key={entitlement.slug}
+                            className="flex items-center justify-between gap-2 text-sm text-ktn-muted-foreground"
+                          >
+                            <span>{entitlement.name}</span>
+                            <span>{display.kind === "value" ? display.value : null}</span>
+                          </li>
+                        ),
+                      )}
                       {addOns.map((addon) => (
                         <li
                           key={addon.slug}

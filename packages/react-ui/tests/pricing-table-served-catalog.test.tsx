@@ -17,6 +17,7 @@ import {
   PricingTable,
   usePlans,
   type KaitenLocalizationOverrides,
+  type Plan,
 } from "../src/index.ts";
 import { KaitenProvider } from "./support/styled-provider.tsx";
 import {
@@ -124,6 +125,101 @@ test("yen have no decimals and dinars have three", async () => {
 
   expect(within(await card("Japan")).getByText("¥980")).toBeTruthy();
   expect(within(await card("Kuwait")).getByText("KWD 12.500")).toBeTruthy();
+});
+
+/** The names an entitlement carries in the API's own vocabulary, which are never copy. */
+const API_TYPE_WORDS = ["BOOLEAN", "NUMBER", "CONFIG", "NUMBER_AI_CREDIT"];
+
+test("a boolean grant reads as an included feature of the plan, never as its type", async () => {
+  stubCatalogApi();
+  renderTable();
+
+  // Pro includes single sign-on: a check and the name, the way an included feature
+  // is drawn, and nothing at the other end of the row. Its numbers keep their figures.
+  const pro = await card("Pro");
+  const sso = within(pro).getByText("Single sign-on").closest("li")!;
+  expect(sso.querySelector("svg")).not.toBeNull();
+  expect(sso.textContent).toBe("Single sign-on");
+  expect(within(pro).getByText("100,000")).toBeTruthy();
+  expect(within(pro).getByText("5,000,000")).toBeTruthy();
+
+  // No card of the table says a type's name.
+  for (const word of API_TYPE_WORDS) expect(document.body.textContent).not.toContain(word);
+});
+
+/** A plan with the grants a catalogue can carry, built by hand to reach the ones Acme has not. */
+const grants: Plan = {
+  slug: "grants",
+  name: "Grants",
+  currencyCode: "EUR",
+  price: 1000,
+  entitlements: [
+    { slug: "seats", name: "Seats", type: "NUMBER", value: { type: "number", value: 3 } },
+    {
+      slug: "sso",
+      name: "Single sign-on",
+      type: "BOOLEAN",
+      value: { type: "boolean", value: true },
+    },
+    { slug: "audit", name: "Audit log", type: "BOOLEAN", value: { type: "boolean", value: false } },
+    { slug: "theme", name: "Custom theme", type: "CONFIG", value: { type: "object", value: {} } },
+    { slug: "region", name: "Data region", type: "CONFIG" },
+    {
+      slug: "tier",
+      name: "Support",
+      type: "BOOLEAN",
+      value: { type: "boolean", value: true },
+      label: "24/7",
+    },
+  ],
+};
+
+test("a boolean grant that is off is not on the card; a config and a grant with no value are included", () => {
+  render(
+    <KaitenProvider mode="static" catalog={{ plans: [grants] }}>
+      <PricingTable plans={[grants]} showFeatureComparison={false} />
+    </KaitenProvider>,
+  );
+
+  const plan = within(
+    screen
+      .getByText("Grants", { selector: '[data-slot="card-title"]' })
+      .closest('[data-slot="card"]') as HTMLElement,
+  );
+  expect(plan.queryByText("Audit log")).toBeNull();
+  for (const included of ["Single sign-on", "Custom theme", "Data region"]) {
+    const row = plan.getByText(included).closest("li")!;
+    expect(row.textContent, included).toBe(included);
+    expect(row.querySelector("svg"), included).not.toBeNull();
+  }
+  // An explicit label is the figure, whatever the type.
+  expect(plan.getByText("Support").closest("li")!.textContent).toBe("Support24/7");
+  expect(plan.getByText("3")).toBeTruthy();
+  for (const word of API_TYPE_WORDS) expect(document.body.textContent).not.toContain(word);
+});
+
+test("in the separate layout the included grants join the features and the figures stay under Limits", () => {
+  render(
+    <KaitenProvider mode="static" catalog={{ plans: [grants] }}>
+      <PricingTable plans={[grants]} showFeatureComparison={false} sectionLayout="separate" />
+    </KaitenProvider>,
+  );
+
+  const sections = [...document.querySelectorAll("section")];
+  const features = sections.find(
+    (section) => section.querySelector("h4")?.textContent === "Features",
+  )!;
+  const limits = sections.find((section) => section.querySelector("h4")?.textContent === "Limits")!;
+  expect([...features.querySelectorAll("li")].map((li) => li.textContent)).toEqual([
+    "Single sign-on",
+    "Custom theme",
+    "Data region",
+  ]);
+  expect([...limits.querySelectorAll("li")].map((li) => li.textContent)).toEqual([
+    "Seats3",
+    "Support24/7",
+  ]);
+  for (const word of API_TYPE_WORDS) expect(document.body.textContent).not.toContain(word);
 });
 
 test("a plan sold by contact has no price and links to its page; one with no default fee has no action", async () => {
