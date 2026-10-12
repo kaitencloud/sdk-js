@@ -117,6 +117,12 @@ export function createKaitenClient(config: KaitenServerConfig): Client {
 
 export type { Client } from "./generated/client/index.ts";
 export {
+  KaitenBilling,
+  KaitenHandoffQueue,
+  KaitenInvoices,
+  type KaitenInvoiceFilters,
+} from "./billing.ts";
+export {
   KaitenError,
   KaitenNetworkError,
   isThresholdExceeded,
