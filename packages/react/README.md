@@ -201,7 +201,12 @@ fetched, and the page arrives as finished HTML — no round-trip, no skeleton.
 > plugs into the `client` prop.
 
 ```tsx
-<KaitenProvider mode="public" apiUrl="https://kaiten.example.com/api" publishableKey="pk_demo">
+<KaitenProvider
+  mode="public"
+  apiUrl="https://kaiten.example.com/api"
+  // `pk_` and 43 characters (32 random bytes, base64url), from the Kaiten console.
+  publishableKey={KAITEN_PUBLISHABLE_KEY}
+>
   <Plans />
 </KaitenProvider>
 ```
@@ -304,7 +309,7 @@ function BillingShell({
     <KaitenScopeProvider
       publicConfig={{
         mode: "public",
-        publishableKey: "pk_live_...",
+        publishableKey: KAITEN_PUBLISHABLE_KEY,
         polling: { enabled: false },
       }}
       authenticatedConfig={
