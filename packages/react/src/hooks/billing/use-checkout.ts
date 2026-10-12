@@ -248,10 +248,15 @@ export function useCheckout(options: UseCheckoutOptions = {}): UseCheckoutResult
   // blind, and refused for it as often as not.
   const waitingForEmail = knownWithoutEmail && !isPlausibleEmail(priced.billingEmail);
   const waitingForPortal = portal.isLoading && portal.data === undefined;
-  const preview = useCheckoutPreview(waitingForEmail || waitingForPortal ? null : priced, {
+  const priceable = useCheckoutPreview(waitingForEmail || waitingForPortal ? null : priced, {
     debounceMs: options.debounceMs,
     refusedVoucherCode,
   });
+  // A price is chosen and its summary is on its way, as far as a screen can tell.
+  const preview: CheckoutPreviewState =
+    waitingForPortal && priced.licensePriceId !== null
+      ? { ...priceable, status: "loading" }
+      : priceable;
 
   const flowProblem = checkoutProblem(flow.error);
   const needsBillingEmail =

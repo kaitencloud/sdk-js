@@ -599,7 +599,8 @@ test("nothing is priced before the portal has said whether the customer has an e
 
   // The first request would be made blind: refused as often as not, for want of an address.
   await settle(1_000);
-  expect(probe.now.preview.status).toBe("idle");
+  expect(probe.now.preview.status).toBe("loading");
+  expect(probe.now.canSubmit).toBe(false);
   expect(previews(client)).toHaveLength(0);
 
   release();
