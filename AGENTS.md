@@ -47,6 +47,16 @@ release. Add a tool name to select part of the graph. For example, run
   lines (after a `#!` line, if any). `node scripts/check-license-headers.mjs` fails
   `lint` on a file without it and `--fix` adds it to hand-written files; the
   generators write it into generated ones, so regenerate those instead.
+- `packages/client/tests/compat/consumer-1.0.ts` is an application written against
+  `@kaitencloud/client` 1.0.0. `node scripts/check-compat-1.0.mjs` compiles it against
+  the published 1.0.0 and against the build of this tree. When it stops compiling, the
+  change under test is breaking: fix the change, never the fixture.
+- A script that reads npm names the registry itself (`scripts/lib/npm-package.mjs`),
+  the scope included: a user-level mapping of `@kaitencloud` to another registry
+  outranks `--registry`. Do the same in a new one, and unpack tarballs rather than
+  install them, so that no package's script runs.
+- The tests of the scripts live in `scripts/tests` and run from the root with
+  `vp test run scripts`, after the build.
 - **Vite+ owns the Vite and Vitest versions.** Never bump `vite`, `vitest` or a
   `@vitest/*` package by itself: upgrade `vite-plus` as CONTRIBUTING.md describes, and
   `node scripts/check-version-invariants.mjs` checks that the pins agree.

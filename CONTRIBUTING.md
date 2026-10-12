@@ -100,8 +100,23 @@ next to this repository, or a schema file named by `KAITEN_GRAPHQL_SCHEMA`.
 - **lint**: the license headers, formatting, lint and types (`vp check`), version
   invariants, and the GraphQL operations against the schema snapshot.
 - **build**: every package, the license and notice files and the manifest of each
-  tarball, and the client's bundle-size budget.
-- **test**: the tests of every package and of the Node example.
+  tarball, the client's bundle-size budgets, and that no browser bundle carries a
+  token, the name of a secret variable or code of `@kaitencloud/server`.
+- **test**: the tests of every package and of the Node example, and those of the
+  repository's own scripts (`vp test run scripts`).
+- **compat-1.0**: code written against `@kaitencloud/client` 1.0.0 compiles against
+  the tarball npm serves for 1.0.0 and against the one this tree would publish, and
+  every name 1.0.0 exports is still exported, a value still a value, except
+  `MeterType`, removed on purpose in 1.1.0 (`REMOVED_SINCE_1_0`). Not required to
+  merge, because it reads the npm registry.
+- **release-dependencies**: the shape of what a release would publish, with npm's own
+  dry run, and, once the React packages are in the tree, that they compile against
+  the lowest client their range allows. Advisory: it is meant to fail while the client
+  a React package needs is not on npm yet, and it blocks in the release procedure.
+
+Each of the last four is a script you can run yourself, after `vp run -r build`:
+`pnpm run check:no-secrets`, `pnpm run check:compat-1.0`,
+`pnpm run check:release-dependencies` and `pnpm run test:scripts`.
 
 ## License headers
 
