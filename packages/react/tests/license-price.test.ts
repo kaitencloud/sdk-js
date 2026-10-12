@@ -1,7 +1,15 @@
 import { expect, test } from "vite-plus/test";
 
-import { isHeadlinePrice, resolveLicensePrice } from "../src/lib/license-price.ts";
+import {
+  formatKaitenPrice,
+  isHeadlinePrice,
+  kaitenPriceParts,
+  resolveLicensePrice,
+} from "../src/lib/license-price.ts";
+import { defaultLocalization } from "../src/localization/defaults.ts";
+import { fr } from "../src/localization/locales/fr.ts";
 import type { License, Plan } from "../src/types.ts";
+import { mappedAcmeCatalog } from "./support/acme-catalog.ts";
 
 function license(over: Partial<License> = {}): License {
   return {
@@ -153,4 +161,91 @@ test("isHeadlinePrice: a flat fee billed every single interval", () => {
   expect(isHeadlinePrice({ amount: 1, interval: "year" }, "month")).toBe(false);
   expect(isHeadlinePrice({ amount: 1, interval: "month", intervalCount: 6 }, "month")).toBe(false);
   expect(isHeadlinePrice({ amount: 1, billingModel: "OVERAGE" })).toBe(false);
+});
+
+// ---------------------------------------------------------------------------
+// How a price reads: per period, per sale unit, whole.
+//
+// Run on the catalogue Kaiten serves for Acme, through the client's mapping: the
+// plan `pro` sells a monthly, a quarterly, a half-yearly and an annual fee, a price
+// per 1M tokens and a price per call of two ten-thousandths of a cent.
+// ---------------------------------------------------------------------------
+
+const catalog = await mappedAcmeCatalog();
+const pro = catalog.plans.find((candidate) => candidate.slug === "pro-v2")!;
+const priceOf = (id: string) => pro.billingPrices!.find((price) => price.id.endsWith(id))!;
+const label = (id: string) =>
+  formatKaitenPrice(priceOf(id), defaultLocalization, { entitlements: pro.entitlements });
+
+test("a flat fee is per period, and a quarterly one says every three months", () => {
+  expect(label("0201")).toBe("€49.00/month");
+  expect(label("0204")).toBe("€490.00/year");
+  expect(label("0202")).toBe("€135.00 every 3 months");
+  expect(label("0203")).toBe("€260.00 every 6 months");
+  // A quarterly fee is never read as a monthly one.
+  expect(label("0202")).not.toContain("/month");
+});
+
+test("a usage price is per sale unit, exact, and never the headline", () => {
+  // 200 minor units of a sale unit named "1M tokens".
+  expect(label("0206")).toBe("€2.00 per 1M tokens");
+  // 0.0002 cents a call, written whole: no rounding to €0.00. The unit comes from the
+  // entitlement the price meters, since the price names none.
+  expect(priceOf("0207").amount).toBeUndefined();
+  expect(label("0207")).toBe("€0.000002 per call");
+  // The headline stays the monthly flat fee: no usage price is summed into it.
+  expect(pro.price).toBe(4900);
+  expect(pro.annualPrice).toBe(49000);
+});
+
+test("a usage price without a unit of any kind is per unit", () => {
+  const bare = { ...priceOf("0207"), meteredEntitlementSlug: "nothing-like-it" };
+  expect(formatKaitenPrice(bare, defaultLocalization, { entitlements: pro.entitlements })).toBe(
+    "€0.000002 per unit",
+  );
+  expect(formatKaitenPrice(bare, defaultLocalization)).toBe("€0.000002 per unit");
+});
+
+test("the three decimals of a dinar and the missing ones of a yen", () => {
+  const kw = catalog.plans.find((candidate) => candidate.slug === "kw-v1")!;
+  const jp = catalog.plans.find((candidate) => candidate.slug === "jp-v1")!;
+  expect(formatKaitenPrice(kw.billingPrices![0]!, defaultLocalization)).toBe("KWD 12.500/month");
+  expect(formatKaitenPrice(jp.billingPrices![0]!, defaultLocalization)).toBe("¥980/month");
+});
+
+test("each language writes the period and the unit its own way", () => {
+  expect(formatKaitenPrice(priceOf("0201"), fr)).toBe("49,00 €/mois");
+  expect(formatKaitenPrice(priceOf("0202"), fr)).toBe("135,00 € tous les 3 mois");
+  expect(formatKaitenPrice(priceOf("0206"), fr)).toBe("2,00 € par 1M tokens");
+  expect(formatKaitenPrice(priceOf("0207"), fr, { entitlements: pro.entitlements })).toBe(
+    "0,000002 € par call",
+  );
+});
+
+test("a price it cannot write without guessing has no label", () => {
+  // No amount at all.
+  expect(
+    kaitenPriceParts(
+      { ...priceOf("0201"), amount: undefined, unitAmountDecimal: undefined } as never,
+      defaultLocalization,
+    ),
+  ).toBeNull();
+  // A model the SDK does not know is never taken for a flat fee.
+  expect(
+    formatKaitenPrice({ ...priceOf("0201"), billingModel: "TIERED" }, defaultLocalization),
+  ).toBeNull();
+  expect(
+    formatKaitenPrice({ ...priceOf("0201"), billingModel: "" }, defaultLocalization),
+  ).toBeNull();
+});
+
+test("a price a host wrote itself, with no model, is a flat fee in the currency it is given", () => {
+  expect(
+    formatKaitenPrice({ amount: 7900, interval: "month" }, defaultLocalization, {
+      currencyCode: "USD",
+    }),
+  ).toBe("$79.00/month");
+  expect(formatKaitenPrice({ amount: 7900 }, defaultLocalization, { currencyCode: "USD" })).toBe(
+    "$79.00",
+  );
 });

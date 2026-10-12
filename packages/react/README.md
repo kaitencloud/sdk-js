@@ -453,8 +453,16 @@ The rules the styled components apply are exported too, so a host's own UI reach
 the same answers rather than re-deriving them: `formatKaitenMoney`,
 `formatKaitenDate`, `formatKaitenUsageWindowBound`, `pluralize`, `usageWindowLabel`,
 `isPeriodicEntitlement`, `resolveUsageScope`, `isCustomerFacing`, `unitLabel`,
-`saleUnitLabel`, `toSaleUnits`, `isUnlimited`, `resolveLicensePrice` and
-`useKaitenBranding`.
+`saleUnitLabel`, `toSaleUnits`, `isUnlimited`, `resolveLicensePrice`,
+`formatKaitenPrice` and `useKaitenBranding`.
+
+`formatKaitenPrice(price, localization, { entitlements })` writes any price of the
+catalog as a line: "€49.00/month" for a monthly fee, "€135.00 every 3 months" for a
+quarterly one, "€2.00 per 1M tokens" for a usage price, and "€0.000002 per call" for
+a price below one minor unit, whose exact `unitAmountDecimal` it writes whole instead
+of rounding to "€0.00". `formatKaitenMoney` takes that decimal string too. A usage price
+names the unit of the entitlement it meters when it names no sale unit itself, so give
+it the entitlements of the plan.
 
 ## Gating
 

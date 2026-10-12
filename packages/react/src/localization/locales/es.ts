@@ -138,6 +138,12 @@ export const es: KaitenLocalization = {
       "No se pudo verificar su acceso en este momento. Vuelva a intentarlo en un instante.",
     usageDescription: (current, limit) => `Ha utilizado ${current} de ${limit} permitidos.`,
   },
+  price: {
+    perInterval: (interval) => (interval === "month" ? "/mes" : interval === "year" ? "/año" : ""),
+    everyIntervals: (count, interval) => `cada ${count} ${interval === "year" ? "años" : "meses"}`,
+    perUnit: (unit) => `por ${unit}`,
+    unit: "unidad",
+  },
   checkoutFlow: {
     title: "Resumen",
     description: "Revise su selección antes de continuar.",

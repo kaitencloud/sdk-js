@@ -1,4 +1,4 @@
-import type { CurrencyCode } from "@kaitencloud/client";
+import type { BillingInterval, CurrencyCode } from "@kaitencloud/client";
 
 export type KaitenDateInput = string | Date;
 
@@ -10,9 +10,14 @@ export interface KaitenMoneyFormatOptions extends Omit<
   locale?: string | string[];
 }
 
-/** Formats a money amount (minor units) + ISO-4217 currency code for display. */
+/**
+ * Formats a money amount (minor units) + ISO-4217 currency code for display.
+ *
+ * `amount` is an integer of minor units, or, for a price below one of them, an exact
+ * decimal string such as the `unitAmountDecimal` `"0.0002"` of a price per call.
+ */
 export type KaitenMoneyFormatter = {
-  bivarianceHack(amount: number, currencyCode?: CurrencyCode): string;
+  bivarianceHack(amount: number | string, currencyCode?: CurrencyCode): string;
 }["bivarianceHack"];
 
 export interface KaitenDateFormatOptions extends Intl.DateTimeFormatOptions {
@@ -185,6 +190,26 @@ export interface KaitenLocalization {
     /** Shown when the paywall blocks because access data failed to load (fail-closed). */
     errorDescription: string;
     usageDescription: (current: string, limit: string) => string;
+  };
+  /**
+   * How a price reads after its amount: "/month", "every 3 months", "per 1M
+   * tokens". See `formatKaitenPrice`.
+   */
+  price: {
+    /**
+     * The suffix of a price billed every single `interval`: "/month", "/year".
+     * Empty for an interval that is not a billing period.
+     */
+    perInterval: (interval: BillingInterval) => string;
+    /**
+     * The suffix of a price billed every `count` intervals, `count` being two or
+     * more: "every 3 months" for a quarterly price.
+     */
+    everyIntervals: (count: number, interval: BillingInterval) => string;
+    /** The suffix of a usage price, after the sale unit it is per: "per 1M tokens". */
+    perUnit: (unit: string) => string;
+    /** The unit of a usage price that names none, nor does its entitlement: "per unit". */
+    unit: string;
   };
   checkoutFlow: {
     title: string;

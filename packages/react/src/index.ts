@@ -133,7 +133,7 @@ export {
 export { isUnlimited } from "./lib/unlimited.ts";
 // Which price a plan is sold at for a billing interval — the rule `PricingTable`
 // and `BillingSummary` apply, for a host rendering its own plan cards.
-export { resolveLicensePrice } from "./lib/license-price.ts";
+export { formatKaitenPrice, resolveLicensePrice } from "./lib/license-price.ts";
 
 // ---------------------------------------------------------------------------
 // Types — the whole model, so a headless host never needs a second import

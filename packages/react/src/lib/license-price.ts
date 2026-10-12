@@ -1,4 +1,14 @@
-import type { BillingInterval, License, Plan, PlanPrice } from "../types.ts";
+import { DEFAULT_CURRENCY_CODE } from "../localization/money.ts";
+import type { KaitenLocalization } from "../localization/types.ts";
+import type {
+  BillingInterval,
+  BillingPrice,
+  CurrencyCode,
+  License,
+  Plan,
+  PlanEntitlement,
+  PlanPrice,
+} from "../types.ts";
 
 /**
  * Whether a price reads as "per month" or "per year": a flat fee billed every
@@ -75,4 +85,123 @@ export function resolveLicensePrice(
   }
 
   return null;
+}
+
+/** Any price the SDK carries: the 1.0-typed `PlanPrice`, or a `BillingPrice`. */
+type AnyPrice = PlanPrice | BillingPrice;
+
+/**
+ * A price, cut where a card draws it: the amount, and what the amount is for.
+ *
+ * `attached` says the suffix is written against the amount ("€49.00/month"), and
+ * is not a phrase of its own ("€135.00 every 3 months", "€2.00 per 1M tokens").
+ */
+export interface KaitenPriceParts {
+  amount: string;
+  suffix: string;
+  attached: boolean;
+}
+
+/** The unit a usage price is per: its sale unit, else the entitlement's unit, else "unit". */
+function meteredUnit(
+  price: AnyPrice,
+  entitlements: readonly PlanEntitlement[] | undefined,
+  localization: KaitenLocalization,
+): string {
+  const entitlement = entitlements?.find((entry) => entry.slug === price.meteredEntitlementSlug);
+  const factor = price.saleUnitFactor;
+
+  // The sale unit the price names: "1M tokens", one of which the amount buys.
+  const saleUnit =
+    (price as Partial<BillingPrice>).saleUnitSingular ?? entitlement?.saleUnitSingular;
+  if (saleUnit) return saleUnit;
+
+  const single = entitlement?.unitSingular ?? entitlement?.unitPlural;
+  if (!single) return localization.price.unit;
+  // A sale unit of several measured units with no name of its own is spelled out.
+  if (typeof factor === "number" && factor > 1) {
+    return `${factor} ${entitlement?.unitPlural ?? single}`;
+  }
+  return single;
+}
+
+/**
+ * The parts of a price's label, or `null` when the price cannot be written
+ * without guessing: it has no amount, it is neither a flat fee nor a usage price
+ * the SDK knows, or its currency is missing.
+ *
+ * A flat fee is per billing period: "/month", "/year", and "every 3 months" for a
+ * quarterly one. A usage or overage price is per sale unit: "per 1M tokens". An
+ * amount below one minor unit (`unitAmountDecimal` `"0.0002"`) is written whole:
+ * "€0.000002 per call", never rounded to "€0.00".
+ */
+export function kaitenPriceParts(
+  price: AnyPrice,
+  localization: KaitenLocalization,
+  options: { currencyCode?: CurrencyCode; entitlements?: readonly PlanEntitlement[] } = {},
+): KaitenPriceParts | null {
+  const currencyCode = price.currencyCode ?? options.currencyCode ?? DEFAULT_CURRENCY_CODE;
+  const model = price.billingModel ?? "FLAT_FEE";
+
+  // An integer is a whole number of minor units, whatever else the price says; any
+  // other amount is only in the exact decimal.
+  const amount =
+    typeof price.amount === "number"
+      ? price.amount
+      : price.unitAmountDecimal !== undefined
+        ? price.unitAmountDecimal
+        : undefined;
+  if (amount === undefined) return null;
+  const shown = localization.formatMoney(amount, currencyCode);
+
+  if (model === "USAGE_BASED" || model === "OVERAGE") {
+    return {
+      amount: shown,
+      suffix: localization.price.perUnit(meteredUnit(price, options.entitlements, localization)),
+      attached: false,
+    };
+  }
+  if (model !== "FLAT_FEE") return null;
+
+  if (price.interval === undefined || price.interval === "one_time") {
+    return { amount: shown, suffix: "", attached: true };
+  }
+  const count = price.intervalCount ?? 1;
+  return count === 1
+    ? { amount: shown, suffix: localization.price.perInterval(price.interval), attached: true }
+    : {
+        amount: shown,
+        suffix: localization.price.everyIntervals(count, price.interval),
+        attached: false,
+      };
+}
+
+/**
+ * A price as a line of text: "€49.00/month", "€135.00 every 3 months",
+ * "€2.00 per 1M tokens", "€0.000002 per call". `null` when it cannot be written
+ * without guessing (see {@link kaitenPriceParts}).
+ *
+ * Pass the entitlements of the plan or add-on the price belongs to, so that a usage
+ * price names the unit of the entitlement it meters ("per call") when the price
+ * names no sale unit of its own. `Plan.price` is the headline; a usage price is
+ * never added into it, and never shown as one.
+ *
+ * ```tsx
+ * const localization = useLocalization();
+ * plan.billingPrices?.map((price) =>
+ *   formatKaitenPrice(price, localization, { entitlements: plan.entitlements }),
+ * );
+ * ```
+ *
+ * @experimental Until Kaiten billing ships (see STABILITY.md).
+ */
+export function formatKaitenPrice(
+  price: AnyPrice,
+  localization: KaitenLocalization,
+  options: { currencyCode?: CurrencyCode; entitlements?: readonly PlanEntitlement[] } = {},
+): string | null {
+  const parts = kaitenPriceParts(price, localization, options);
+  if (!parts) return null;
+  if (!parts.suffix) return parts.amount;
+  return parts.attached ? `${parts.amount}${parts.suffix}` : `${parts.amount} ${parts.suffix}`;
 }

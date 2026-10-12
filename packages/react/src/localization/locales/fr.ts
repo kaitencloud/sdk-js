@@ -138,6 +138,13 @@ export const fr: KaitenLocalization = {
       "Impossible de vérifier votre accès pour le moment. Veuillez réessayer dans un instant.",
     usageDescription: (current, limit) => `Vous avez utilisé ${current} sur ${limit} autorisés.`,
   },
+  price: {
+    perInterval: (interval) => (interval === "month" ? "/mois" : interval === "year" ? "/an" : ""),
+    everyIntervals: (count, interval) =>
+      `tous les ${count} ${interval === "year" ? "ans" : "mois"}`,
+    perUnit: (unit) => `par ${unit}`,
+    unit: "unité",
+  },
   checkoutFlow: {
     title: "Récapitulatif",
     description: "Vérifiez votre sélection avant de continuer.",

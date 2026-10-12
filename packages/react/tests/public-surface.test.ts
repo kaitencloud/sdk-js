@@ -87,6 +87,7 @@ const CORE_SURFACE = [
   "formatKaitenUsageWindowBound",
   "DEFAULT_CURRENCY_CODE",
   "formatKaitenMoney",
+  "formatKaitenPrice",
   "pluralize",
   "usageWindowLabel",
   "isCustomerFacing",

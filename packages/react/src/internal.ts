@@ -11,4 +11,4 @@
 
 export { useTrackComponent } from "./telemetry/context.tsx";
 export { useKaitenDataContext } from "./providers/kaiten-provider.tsx";
-export { isHeadlinePrice } from "./lib/license-price.ts";
+export { isHeadlinePrice, kaitenPriceParts, type KaitenPriceParts } from "./lib/license-price.ts";

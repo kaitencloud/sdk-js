@@ -68,7 +68,11 @@ integration points:
 - **Formatting and presentation utilities** — `formatKaitenMoney`,
   `formatKaitenDate`, `formatKaitenUsageWindowBound`, `pluralize`,
   `isCustomerFacing`, `unitLabel`, `saleUnitLabel`, `toSaleUnits`, `isUnlimited`,
-  `resolveLicensePrice`.
+  `resolveLicensePrice`. `formatKaitenMoney` and the `formatMoney` of a
+  localization take an integer of minor units, or an exact decimal string for a
+  price below one minor unit ("0.0002"): a `formatMoney` a host writes must accept
+  both. `KaitenLocalization.price` is a required section of a language pack, so a
+  pack built whole needs its six strings.
 - **The usage-window rule** — `isPeriodicEntitlement`, `getUsageScope`,
   `resolveUsageScope`, `usageWindowLabel`. An entitlement business rule, not a
   rendering detail: both window bounds present means a periodic counter, absent
@@ -98,6 +102,9 @@ release, as billing ships:
 - **The billing half of `PricingTable`** (`@kaitencloud/react-ui`): the price
   passed to `onSelectPlan`, and the "Contact us" link of a plan that is not
   `selfServe`.
+- **`formatKaitenPrice`** — a price as a line of text: "€49.00/month", "€135.00
+  every 3 months", "€2.00 per 1M tokens". The wording of the periods and of the
+  units is `localization.price`, in each language pack.
 
 ## Experimental surface
 

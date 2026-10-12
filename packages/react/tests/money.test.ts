@@ -136,3 +136,48 @@ test.each(EXPONENTS)(
     }
   },
 );
+
+// A price can be a fraction of a minor unit: two ten-thousandths of a cent a call. It
+// travels as an exact decimal string, and the formatter moves its digits instead of
+// dividing a float.
+
+test("writes an amount below one minor unit whole, from its decimal string", () => {
+  expect(formatKaitenMoney("0.0002", "EUR", { locale: "en-US" })).toBe("€0.000002");
+  expect(formatKaitenMoney("0.07", "USD", { locale: "en-US" })).toBe("$0.0007");
+  expect(formatKaitenMoney("0.0002", "EUR", { locale: "fr-FR" })).toBe("0,000002 €");
+});
+
+test("a decimal string of whole minor units reads like the integer", () => {
+  expect(formatKaitenMoney("200", "EUR", { locale: "en-US" })).toBe("€2.00");
+  expect(formatKaitenMoney("12500", "KWD", { locale: "en-US" })).toBe("KWD 12.500");
+  expect(formatKaitenMoney("980", "JPY", { locale: "en-US" })).toBe("¥980");
+  expect(formatKaitenMoney("0", "EUR", { locale: "en-US" })).toBe("€0.00");
+  // The point can sit inside the whole units too.
+  expect(formatKaitenMoney("4900.5", "EUR", { locale: "en-US" })).toBe("€49.005");
+});
+
+test("keeps the digits of a long decimal string that a float would round", () => {
+  expect(formatKaitenMoney("123456789012345678", "EUR", { locale: "en-US" })).toBe(
+    "€1,234,567,890,123,456.78",
+  );
+});
+
+test("a decimal string that is not plain reads as zero, as a non-finite number does", () => {
+  for (const bad of ["", "1e3", "1,5", "NaN", "-5", "4900 "]) {
+    expect(formatKaitenMoney(bad, "EUR", { locale: "en-US" }), JSON.stringify(bad)).toBe("€0.00");
+  }
+});
+
+test("the caller's fraction digits apply to a decimal string too", () => {
+  expect(
+    formatKaitenMoney("4900", "EUR", {
+      locale: "en-US",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }),
+  ).toBe("€49");
+  // A cap below the digits the amount has rounds it, as it does for an integer.
+  expect(formatKaitenMoney("0.0002", "EUR", { locale: "en-US", maximumFractionDigits: 4 })).toBe(
+    "€0.00",
+  );
+});

@@ -128,6 +128,14 @@ export const defaultLocalization: KaitenLocalization = {
     errorDescription: "We couldn't verify your access right now. Please try again in a moment.",
     usageDescription: (current, limit) => `You've used ${current} of ${limit} allowed.`,
   },
+  price: {
+    perInterval: (interval) =>
+      interval === "month" ? "/month" : interval === "year" ? "/year" : "",
+    everyIntervals: (count, interval) =>
+      `every ${count} ${interval === "year" ? "years" : "months"}`,
+    perUnit: (unit) => `per ${unit}`,
+    unit: "unit",
+  },
   checkoutFlow: {
     title: "Checkout",
     description: "Review your selection before proceeding.",
