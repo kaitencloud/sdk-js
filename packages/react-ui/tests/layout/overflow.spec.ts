@@ -73,6 +73,45 @@ const STORIES: Array<{ name: string; storyId: string }> = [
     name: "current-plan (customer session, quarterly)",
     storyId: "flows-customerportal--current-plan-in-a-session-quarterly",
   },
+  // The portal of a customer session: the controls of the plan, the stepper of the add-ons, the
+  // invoices with their links, a voucher check, and the sentences of a refusal.
+  { name: "customer portal (session)", storyId: "flows-customer-portal-session--full" },
+  {
+    name: "customer portal (session, cancelling)",
+    storyId: "flows-customer-portal-session--cancel-asked",
+  },
+  {
+    name: "customer portal (session, past due)",
+    storyId: "flows-customer-portal-session--past-due",
+  },
+  {
+    name: "customer portal (session, limits)",
+    storyId: "flows-customer-portal-session--provenance",
+  },
+  {
+    name: "customer portal (session, add-ons)",
+    storyId: "flows-customer-portal-session--add-on-steppers",
+  },
+  {
+    name: "customer portal (session, removing an add-on)",
+    storyId: "flows-customer-portal-session--add-on-remove-asked",
+  },
+  {
+    name: "customer portal (session, closing a period)",
+    storyId: "flows-customer-portal-session--add-on-closing-period",
+  },
+  {
+    name: "customer portal (session, invoices)",
+    storyId: "flows-customer-portal-session--invoices",
+  },
+  {
+    name: "customer portal (session, voucher)",
+    storyId: "flows-customer-portal-session--voucher-rate-limited",
+  },
+  {
+    name: "customer portal (session, French)",
+    storyId: "flows-customer-portal-session--in-french",
+  },
   { name: "billing-summary", storyId: "flows-billingsummary--default" },
   // What is due today: the server's lines and total, a trial, and what stands in their place.
   { name: "checkout-summary", storyId: "flows-checkoutsummary--plan-and-add-ons" },
@@ -100,6 +139,68 @@ const STORIES: Array<{ name: string; storyId: string }> = [
   { name: "checkout-flow (card declined)", storyId: "flows-checkoutflow--card-declined" },
   { name: "checkout-flow (already subscribed)", storyId: "flows-checkoutflow--already-subscribed" },
   { name: "checkout-flow (over quota)", storyId: "flows-checkoutflow--over-quota" },
+  // How a customer session pays: its labels, a badge, the sentence under it and the actions that
+  // wrap; and the summary and the walls that say where its subscription stands.
+  { name: "payment-method-card", storyId: "flows-paymentmethodcard--default" },
+  { name: "payment-method-card (expired)", storyId: "flows-paymentmethodcard--expired" },
+  { name: "payment-method-card (none yet)", storyId: "flows-paymentmethodcard--no-payment-method" },
+  {
+    name: "payment-method-card (provider down)",
+    storyId: "flows-paymentmethodcard--provider-down",
+  },
+  { name: "billing-summary (session)", storyId: "flows-billingsummary-session--running" },
+  {
+    name: "billing-summary (session, past due)",
+    storyId: "flows-billingsummary-session--past-due-quarterly",
+  },
+  {
+    name: "billing-summary (session, scheduled change)",
+    storyId: "flows-billingsummary-session--scheduled-change",
+  },
+  { name: "billing-summary (session, unbound)", storyId: "flows-billingsummary-session--unbound" },
+  { name: "paywall (session, past due)", storyId: "flows-paywall-session--past-due" },
+  { name: "paywall (session, over)", storyId: "flows-paywall-session--over" },
+  { name: "paywall (session, over, hard)", storyId: "flows-paywall-session--over-hard" },
+  // The rest of the checkout and the portal: plain markup, French, dark, and the states that end a flow.
+  { name: "checkout-flow (unstyled)", storyId: "flows-checkoutflow--unstyled" },
+  { name: "checkout-flow (french)", storyId: "flows-checkoutflow--french" },
+  { name: "checkout-flow (dark)", storyId: "flows-checkoutflow--dark" },
+  { name: "checkout-summary (unstyled)", storyId: "flows-checkoutsummary--unstyled" },
+  { name: "checkout-summary (french)", storyId: "flows-checkoutsummary--french" },
+  { name: "checkout-summary (dark)", storyId: "flows-checkoutsummary--dark" },
+  {
+    name: "customer-portal-session (cancel-afterwards)",
+    storyId: "flows-customer-portal-session--cancel-afterwards",
+  },
+  {
+    name: "customer-portal-session (invoices-paged)",
+    storyId: "flows-customer-portal-session--invoices-paged",
+  },
+  {
+    name: "customer-portal-session (invoices-hidden)",
+    storyId: "flows-customer-portal-session--invoices-hidden",
+  },
+  {
+    name: "customer-portal-session (unstyled)",
+    storyId: "flows-customer-portal-session--unstyled",
+  },
+  {
+    name: "customer-portal-session (plan-card-alone)",
+    storyId: "flows-customer-portal-session--plan-card-alone",
+  },
+  {
+    name: "payment-method-card (sent-to-the-provider)",
+    storyId: "flows-paymentmethodcard--sent-to-the-provider",
+  },
+  {
+    name: "payment-method-card (not-available)",
+    storyId: "flows-paymentmethodcard--not-available",
+  },
+  { name: "payment-method-card (unstyled)", storyId: "flows-paymentmethodcard--unstyled" },
+  {
+    name: "paywall-session (cancellation-scheduled)",
+    storyId: "flows-paywall-session--cancellation-scheduled",
+  },
   // Overlay — already container-queried, and the model the rest should follow.
   { name: "paywall (soft)", storyId: "flows-paywall--soft-near-limit" },
   { name: "paywall (hard)", storyId: "flows-paywall--hard-over-limit" },
