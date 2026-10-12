@@ -43,7 +43,7 @@
     "test": "env -u PLAYWRIGHT_BROWSERS_PATH vp test",
     "test:coverage": "env -u PLAYWRIGHT_BROWSERS_PATH vp test --coverage",
     "test:unit": "vp test --project unit",
-    "test:unit:coverage": "vp test --project unit --coverage --coverage.thresholds.lines=87 --coverage.thresholds.statements=86 --coverage.thresholds.functions=85 --coverage.thresholds.branches=74",
+    "test:unit:coverage": "vp test --project unit --coverage --coverage.thresholds.lines=89 --coverage.thresholds.statements=88 --coverage.thresholds.functions=88 --coverage.thresholds.branches=80",
     "test:storybook": "env -u PLAYWRIGHT_BROWSERS_PATH vp test --project storybook",
     "test:storybook:coverage": "env -u PLAYWRIGHT_BROWSERS_PATH vp test --project storybook --coverage",
     "test:browsers:install": "env -u PLAYWRIGHT_BROWSERS_PATH pnpm dlx playwright@1.63.0 install --with-deps chromium chromium-headless-shell",
