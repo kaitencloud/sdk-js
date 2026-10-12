@@ -51,7 +51,7 @@ integration points:
   `useUpgradeOptions`, `useKaitenAvailable`, `useKaitenBranding`,
   `useLocalization`.
 - **Provider & client** — `KaitenProvider` (its three modes: `authenticated`,
-  `public`, `static`), `KaitenSessionProvider`,
+  `public`, `static`), `KaitenScopeProvider`,
   `KaitenClient`, the error types (`KaitenError`, `KaitenNetworkError`,
   `KaitenThrownError`), and the type guards (`isEvaluationSuccess` / `isEvaluationFailure`).
 - **`unstyled` mode** of every component — you bring the markup/styles, the SDK

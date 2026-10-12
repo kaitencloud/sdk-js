@@ -10,7 +10,7 @@ import * as Kaiten from "../src/index.ts";
 const DOCUMENTED_EXPORTS = [
   // Provider & client
   "KaitenProvider",
-  "KaitenSessionProvider",
+  "KaitenScopeProvider",
   "KaitenClient",
   "KaitenErrorBoundary",
   // Headless hooks (short, unprefixed names — STABILITY.md "blessed path")

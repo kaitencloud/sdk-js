@@ -11,7 +11,7 @@ export type {
   CustomerSessionKaitenProviderConfig,
   KaitenProviderMode,
   KaitenProviderProps,
-  KaitenSessionProviderProps,
+  KaitenScopeProviderProps,
   StaticKaitenProviderConfig,
 } from "./providers/kaiten-provider.tsx";
 

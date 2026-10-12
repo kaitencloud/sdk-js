@@ -200,7 +200,7 @@ export function useKaitenAvailable(): boolean {
  *
  * Swapping it for `mode="public"` when that endpoint exists is a change of
  * config block, not of components: every hook and component reads the same
- * catalog shape either way, and `KaitenSessionProvider` accepts either as its
+ * catalog shape either way, and `KaitenScopeProvider` accepts either as its
  * `publicConfig`.
  */
 export interface StaticKaitenProviderConfig {
@@ -343,7 +343,7 @@ export type KaitenProviderProps =
   | (CustomerSessionKaitenProviderConfig & KaitenProviderSharedProps & KaitenProviderNetworkProps)
   | (StaticKaitenProviderConfig & KaitenProviderSharedProps);
 
-export type KaitenSessionProviderProps = Pick<
+export type KaitenScopeProviderProps = Pick<
   KaitenProviderProps,
   "locale" | "localization" | "telemetry" | "hideBranding" | "children"
 > & {
@@ -376,7 +376,7 @@ function getProviderScopeKey(
   if (config.mode === "static") {
     // The plans' slugs, in order. Stable across renders for the same data — a
     // catalog literal written inline is a new object every render, and a key
-    // built on identity would remount `KaitenSessionProvider` on each one — and
+    // built on identity would remount `KaitenScopeProvider` on each one — and
     // different for a different catalog, which is what a nested provider needs
     // to tell a redundant wrapper from a second, intentional scope.
     return `static:${config.catalog.plans.map((plan) => plan.slug).join(",")}`;
@@ -410,12 +410,22 @@ export function KaitenProvider(props: KaitenProviderProps) {
   return <KaitenProviderRoot {...props} />;
 }
 
-export function KaitenSessionProvider({
+/**
+ * One top-level SDK scope whose config follows the host application's own
+ * sign-in: `publicConfig` while nobody is signed in, `authenticatedConfig` once
+ * someone is. The scope is remounted when the config changes, so the client and
+ * the SWR cache move together and state above the provider is kept.
+ *
+ * It is named for the scope it switches, not for a session: a customer session
+ * (`kst_`) is a credential, and `mode="customer-session"` is how a provider reads
+ * with one. A customer session is one of the two things `authenticatedConfig` takes.
+ */
+export function KaitenScopeProvider({
   publicConfig,
   authenticatedConfig,
   children,
   ...sharedProps
-}: KaitenSessionProviderProps) {
+}: KaitenScopeProviderProps) {
   const activeConfig = authenticatedConfig ?? publicConfig;
 
   return (

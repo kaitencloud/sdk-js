@@ -38,7 +38,7 @@ import {
   type Plan,
 } from "../src/index.ts";
 import { en as defaultLocalization } from "@kaitencloud/react/locales";
-import { KaitenProvider, KaitenSessionProvider } from "./support/styled-provider.tsx";
+import { KaitenProvider, KaitenScopeProvider } from "./support/styled-provider.tsx";
 
 // --- Option A test seam ------------------------------------------------------
 // The live v1 client composes catalog/snapshot from existing endpoints and can
@@ -288,7 +288,7 @@ test("KaitenProvider supports authenticated mode snapshot loading", async () => 
 
 function SessionSwitchProbe({ authenticated }: { authenticated: boolean }) {
   return (
-    <KaitenSessionProvider
+    <KaitenScopeProvider
       publicConfig={{
         mode: "public",
         publishableKey: "pk_switch",
@@ -307,11 +307,11 @@ function SessionSwitchProbe({ authenticated }: { authenticated: boolean }) {
     >
       <PlansProbe />
       <LicenseProbe />
-    </KaitenSessionProvider>
+    </KaitenScopeProvider>
   );
 }
 
-test("KaitenSessionProvider switches from public catalog to authenticated snapshot", async () => {
+test("KaitenScopeProvider switches from public catalog to authenticated snapshot", async () => {
   installFetchMock();
 
   const { rerender } = render(<SessionSwitchProbe authenticated={false} />);

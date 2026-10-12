@@ -22,11 +22,11 @@
 
 export {
   KaitenProvider,
-  KaitenSessionProvider,
+  KaitenScopeProvider,
   type CustomerSessionKaitenProviderConfig,
   type KaitenProviderMode,
   type KaitenProviderProps,
-  type KaitenSessionProviderProps,
+  type KaitenScopeProviderProps,
   type StaticKaitenProviderConfig,
   useKaitenAvailable,
 } from "./providers/kaiten-provider.tsx";

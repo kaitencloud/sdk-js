@@ -21,7 +21,7 @@ import acmeCatalog from "../../client/tests/fixtures/public-catalog.acme.json" w
 import {
   Gate,
   KaitenProvider,
-  KaitenSessionProvider,
+  KaitenScopeProvider,
   useCustomer,
   useEntitlementCheck,
   useFeatureFlag,
@@ -397,7 +397,7 @@ test("each session client is its own scope", () => {
   expect(keyOf(first)).toMatch(/^customer-session:/);
 });
 
-test("KaitenSessionProvider moves from the public catalog to the customer's session", async () => {
+test("KaitenScopeProvider moves from the public catalog to the customer's session", async () => {
   const { fetchSpy } = stubApi();
   vi.stubGlobal("fetch", fetchSpy);
   const sessionClient = sessionClientFor(fetchSpy);
@@ -420,16 +420,16 @@ test("KaitenSessionProvider moves from the public catalog to the customer's sess
   }
 
   const { rerender } = render(
-    <KaitenSessionProvider publicConfig={publicConfig} authenticatedConfig={null}>
+    <KaitenScopeProvider publicConfig={publicConfig} authenticatedConfig={null}>
       <Probe />
-    </KaitenSessionProvider>,
+    </KaitenScopeProvider>,
   );
   await waitFor(() => expect(screen.getByTestId("probe").textContent).toBe("2:signed out"));
 
   rerender(
-    <KaitenSessionProvider publicConfig={publicConfig} authenticatedConfig={sessionConfig}>
+    <KaitenScopeProvider publicConfig={publicConfig} authenticatedConfig={sessionConfig}>
       <Probe />
-    </KaitenSessionProvider>,
+    </KaitenScopeProvider>,
   );
   await waitFor(() => expect(screen.getByTestId("probe").textContent).toBe("2:Initech"));
 });

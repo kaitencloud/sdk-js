@@ -33,7 +33,7 @@ const STYLED_SURFACE = [
 const CORE_SURFACE = [
   // Provider
   "KaitenProvider",
-  "KaitenSessionProvider",
+  "KaitenScopeProvider",
   "useKaitenAvailable",
   // Client, errors, events
   "KaitenClient",

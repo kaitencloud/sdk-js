@@ -19,7 +19,7 @@ import {
   KaitenLoaded,
   KaitenLoading,
   KaitenProvider,
-  KaitenSessionProvider,
+  KaitenScopeProvider,
   useEntitlements,
   useFeatureFlag,
   useKaitenScopeKey,
@@ -200,7 +200,7 @@ test("scope: the same catalog nested is a pass-through, a different one is its o
   expect(warn.mock.calls.map((call) => String(call[0])).join("\n")).toContain("Redundant nested");
 });
 
-test("KaitenSessionProvider renders a static catalog before login, and the snapshot after", async () => {
+test("KaitenScopeProvider renders a static catalog before login, and the snapshot after", async () => {
   const snapshot = demoSnapshot();
   kaitenClientMock.state.snapshot = snapshot;
   const fetchSpy = vi.fn();
@@ -213,7 +213,7 @@ test("KaitenSessionProvider renders a static catalog before login, and the snaps
 
   function Shell({ signedIn }: { signedIn: boolean }) {
     return (
-      <KaitenSessionProvider
+      <KaitenScopeProvider
         publicConfig={{ mode: "static", catalog }}
         authenticatedConfig={
           signedIn
@@ -228,7 +228,7 @@ test("KaitenSessionProvider renders a static catalog before login, and the snaps
       >
         <PlansProbe />
         <LicenseProbe />
-      </KaitenSessionProvider>
+      </KaitenScopeProvider>
     );
   }
 

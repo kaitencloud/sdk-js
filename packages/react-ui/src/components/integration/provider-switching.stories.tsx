@@ -8,7 +8,7 @@ import {
   STORYBOOK_API_BASE,
   STORY_IDS,
 } from "../../../.storybook/kaiten-mock.tsx";
-import { KaitenSessionProvider } from "@kaitencloud/react";
+import { KaitenScopeProvider } from "@kaitencloud/react";
 import { KaitenStyleRoot } from "../../style-root/kaiten-style-root.tsx";
 import { CustomerPortal } from "../customer-portal/customer-portal.tsx";
 import { PricingTable } from "../pricing-table/pricing-table.tsx";
@@ -42,7 +42,7 @@ function ProviderSwitchingDemo() {
   const [authenticated, setAuthenticated] = React.useState(false);
 
   return (
-    <KaitenSessionProvider
+    <KaitenScopeProvider
       publicConfig={{
         mode: "public",
         apiUrl: STORYBOOK_API_BASE,
@@ -93,7 +93,7 @@ function ProviderSwitchingDemo() {
           {authenticated ? <CustomerPortal /> : <PricingTable showFeatureComparison={false} />}
         </div>
       </KaitenStyleRoot>
-    </KaitenSessionProvider>
+    </KaitenScopeProvider>
   );
 }
 

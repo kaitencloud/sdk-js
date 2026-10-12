@@ -10,9 +10,9 @@
 import type { ReactNode } from "react";
 import {
   KaitenProvider as CoreProvider,
-  KaitenSessionProvider as CoreSessionProvider,
+  KaitenScopeProvider as CoreScopeProvider,
   type KaitenProviderProps,
-  type KaitenSessionProviderProps,
+  type KaitenScopeProviderProps,
 } from "@kaitencloud/react";
 
 import type { KaitenAppearance } from "../../src/appearance/types.ts";
@@ -31,14 +31,14 @@ export function KaitenProvider({ appearance, ...props }: KaitenProviderProps & S
   );
 }
 
-export function KaitenSessionProvider({
+export function KaitenScopeProvider({
   appearance,
   children,
   ...props
-}: KaitenSessionProviderProps & StyledProps) {
+}: KaitenScopeProviderProps & StyledProps) {
   return (
-    <CoreSessionProvider {...props}>
+    <CoreScopeProvider {...props}>
       <KaitenStyleRoot appearance={appearance}>{children}</KaitenStyleRoot>
-    </CoreSessionProvider>
+    </CoreScopeProvider>
   );
 }

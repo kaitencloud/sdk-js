@@ -134,7 +134,7 @@ fail — and `@kaitencloud/react-ui`'s `PricingTable`, `FeatureComparison` and
 `FeatureCatalog` read it through the same hook. Prices are part of it: Kaiten
 models no money server-side (see [Data source](#data-source)), so a static
 catalog is where a marketing page's prices live.
-`KaitenSessionProvider` accepts a static config as its `publicConfig` (see
+`KaitenScopeProvider` accepts a static config as its `publicConfig` (see
 [Switching](#switching-from-public-to-authenticated)), so the signed-out half of
 an app can be static and the signed-in half live.
 
@@ -287,10 +287,10 @@ Use one top-level SDK scope whose config follows your app session. Do not render
 `KaitenProvider` inside a public one after login: nested providers are intentionally pass-through, so
 the inner scope will keep using the outer provider data.
 
-For the common visitor-pricing to signed-in-app flow, use `KaitenSessionProvider`:
+For the common visitor-pricing to signed-in-app flow, use `KaitenScopeProvider`:
 
 ```tsx
-import { KaitenSessionProvider } from "@kaitencloud/react";
+import { KaitenScopeProvider } from "@kaitencloud/react";
 
 function BillingShell({
   session,
@@ -300,7 +300,7 @@ function BillingShell({
   children: React.ReactNode;
 }) {
   return (
-    <KaitenSessionProvider
+    <KaitenScopeProvider
       publicConfig={{
         mode: "public",
         publishableKey: "pk_live_...",
@@ -319,12 +319,12 @@ function BillingShell({
       }
     >
       {children}
-    </KaitenSessionProvider>
+    </KaitenScopeProvider>
   );
 }
 ```
 
-`KaitenSessionProvider` renders public catalog data while `authenticatedConfig` is empty, then switches
+`KaitenScopeProvider` renders public catalog data while `authenticatedConfig` is empty, then switches
 to authenticated snapshot data when it becomes available. The SDK scope is remounted across that
 boundary so the client and the SWR cache move together; state above the provider is preserved.
 
