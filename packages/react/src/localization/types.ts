@@ -1,4 +1,4 @@
-import type { BillingInterval, CurrencyCode } from "@kaitencloud/client";
+import type { CurrencyCode } from "@kaitencloud/client";
 
 export type KaitenDateInput = string | Date;
 
@@ -196,18 +196,19 @@ export interface KaitenLocalization {
    * tokens". See `formatKaitenPrice`.
    */
   price: {
+    /** The suffix of a price billed every month: "/month". */
+    perMonth: string;
+    /** The suffix of a price billed every year: "/year". */
+    perYear: string;
     /**
-     * The suffix of a price billed every single `interval`: "/month", "/year".
-     * Empty for an interval that is not a billing period.
+     * The suffix of a price billed every `{n}` months, `{n}` being two or more: "every {n}
+     * months" reads "every 3 months" for a quarterly price.
      */
-    perInterval: (interval: BillingInterval) => string;
-    /**
-     * The suffix of a price billed every `count` intervals, `count` being two or
-     * more: "every 3 months" for a quarterly price.
-     */
-    everyIntervals: (count: number, interval: BillingInterval) => string;
-    /** The suffix of a usage price, after the sale unit it is per: "per 1M tokens". */
-    perUnit: (unit: string) => string;
+    everyMonths: string;
+    /** The suffix of a price billed every `{n}` years, `{n}` being two or more. */
+    everyYears: string;
+    /** The suffix of a usage price, after the sale unit it is per: "per {unit}" reads "per 1M tokens". */
+    perUnit: string;
     /** The unit of a usage price that names none, nor does its entitlement: "per unit". */
     unit: string;
   };

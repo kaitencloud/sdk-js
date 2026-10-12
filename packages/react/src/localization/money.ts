@@ -12,16 +12,6 @@ export const DEFAULT_CURRENCY_CODE: CurrencyCode = "USD";
 /** A plain decimal, as `unitAmountDecimal` writes one: digits, and optionally a point and digits. */
 const DECIMAL = /^\d+(\.\d+)?$/;
 
-/** `decimal` with its point moved `places` to the left: digits only, so nothing rounds. */
-function shiftLeft(decimal: string, places: number): string {
-  const [whole = "", fraction = ""] = decimal.split(".");
-  const digits = whole + fraction;
-  const point = whole.length - places;
-  return point > 0
-    ? `${digits.slice(0, point)}.${digits.slice(point)}`
-    : `0.${"0".repeat(-point)}${digits}`;
-}
-
 /**
  * Formats a money `amount` for display.
  *
@@ -33,9 +23,9 @@ function shiftLeft(decimal: string, places: number): string {
  *
  * An integer is a price in whole minor units. A string is an exact decimal
  * amount of minor units, such as the `unitAmountDecimal` of a price below one
- * of them (`"0.0002"` cents is `€0.000002`): its digits are moved, never
- * divided, and none is dropped. A string that is not a plain decimal reads as
- * zero, as a non-finite number does.
+ * of them (`"0.0002"` cents is `€0.000002`): `Intl` reads its digits, shifted by
+ * the exponent, and none is dropped. A string that is not a plain decimal reads
+ * as zero, as a non-finite number does.
  *
  * @example
  * formatKaitenMoney(7900, "EUR", { locale: "fr-FR" }) // "79,00 €"
@@ -65,13 +55,14 @@ export function formatKaitenMoney(
     if (typeof amount === "string") {
       // With every digit the amount has, and at least the currency's own precision:
       // `Intl` keeps the currency's minimum, and the caller's fraction digits replace both.
+      // The shift is the exponent of the string, which `Intl` reads exactly.
       const exact = new Intl.NumberFormat(locale, {
         maximumFractionDigits: 20,
         ...formatOptions,
         style: "currency",
         currency: currencyCode,
       });
-      return exact.format(shiftLeft(amount, exponent) as `${number}`);
+      return exact.format(`${amount}e-${exponent}` as `${number}`);
     }
 
     const formatter = new Intl.NumberFormat(locale, {

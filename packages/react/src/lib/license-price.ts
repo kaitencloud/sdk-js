@@ -154,12 +154,10 @@ export function kaitenPriceParts(
   if (amount === undefined) return null;
   const shown = localization.formatMoney(amount, currencyCode);
 
+  const words = localization.price;
   if (model === "USAGE_BASED" || model === "OVERAGE") {
-    return {
-      amount: shown,
-      suffix: localization.price.perUnit(meteredUnit(price, options.entitlements, localization)),
-      attached: false,
-    };
+    const unit = meteredUnit(price, options.entitlements, localization);
+    return { amount: shown, suffix: words.perUnit.replace("{unit}", unit), attached: false };
   }
   if (model !== "FLAT_FEE") return null;
 
@@ -167,11 +165,12 @@ export function kaitenPriceParts(
     return { amount: shown, suffix: "", attached: true };
   }
   const count = price.intervalCount ?? 1;
+  const year = price.interval === "year";
   return count === 1
-    ? { amount: shown, suffix: localization.price.perInterval(price.interval), attached: true }
+    ? { amount: shown, suffix: year ? words.perYear : words.perMonth, attached: true }
     : {
         amount: shown,
-        suffix: localization.price.everyIntervals(count, price.interval),
+        suffix: (year ? words.everyYears : words.everyMonths).replace("{n}", String(count)),
         attached: false,
       };
 }

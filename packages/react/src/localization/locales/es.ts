@@ -139,9 +139,11 @@ export const es: KaitenLocalization = {
     usageDescription: (current, limit) => `Ha utilizado ${current} de ${limit} permitidos.`,
   },
   price: {
-    perInterval: (interval) => (interval === "month" ? "/mes" : interval === "year" ? "/año" : ""),
-    everyIntervals: (count, interval) => `cada ${count} ${interval === "year" ? "años" : "meses"}`,
-    perUnit: (unit) => `por ${unit}`,
+    perMonth: "/mes",
+    perYear: "/año",
+    everyMonths: "cada {n} meses",
+    everyYears: "cada {n} años",
+    perUnit: "por {unit}",
     unit: "unidad",
   },
   checkoutFlow: {
