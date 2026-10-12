@@ -118,7 +118,7 @@ export function ProvenanceNote({
         aria-controls={id}
         aria-label={`${words.provenance}: ${name}`}
         onClick={() => setOpen((value) => !value)}
-        className="ktn-own inline-flex size-5 shrink-0 cursor-pointer items-center justify-center rounded-full border border-ktn-border font-ktn-mono text-[11px] leading-none text-ktn-muted-foreground hover:bg-ktn-secondary focus-visible:ring-2 focus-visible:ring-ktn-primary/50 focus-visible:outline-none"
+        className="ktn-own inline-flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-full border border-ktn-border font-ktn-mono text-[11px] leading-none text-ktn-muted-foreground hover:bg-ktn-secondary focus-visible:ring-2 focus-visible:ring-ktn-primary/50 focus-visible:outline-none"
       >
         <span aria-hidden="true">i</span>
       </button>
