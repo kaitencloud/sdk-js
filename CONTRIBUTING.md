@@ -113,6 +113,12 @@ The components have a Storybook playground: `vp run @kaitencloud/react-ui#storyb
   ratchets, Storybook, visual regression and layout invariants, in the Playwright
   container, those of the conformance example (which skip the live suite and rehearse
   its code), and those of the repository's own scripts (`vp test run scripts`).
+- **storefront-e2e**: the storefront example (`examples/storefront`) in Chromium: its pricing
+  table, its checkout and its customer portal, against a stand-in for Kaiten that runs in the
+  same process, so it needs no stack and no secret. A card saved on a provider's page, a declined
+  card and a 3-D Secure challenge are played by the stand-in; the example's `live` project
+  runs the paths that need no card against a Kaiten of your own, and is not run in CI. Not
+  required to merge. [`examples/storefront`](examples/storefront) says what it proves.
 - **react-18-compat**: the React packages' unit tests against React 18, their peer
   floor.
 - **compat-1.0**: code written against `@kaitencloud/client` 1.0.0 compiles against

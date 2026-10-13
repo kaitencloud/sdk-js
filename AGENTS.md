@@ -52,6 +52,10 @@ release. Add a tool name to select part of the graph. For example, run
   lines (after a `#!` line, if any). `node scripts/check-license-headers.mjs` fails
   `lint` on a file without it and `--fix` adds it to hand-written files; the
   generators write it into generated ones, so regenerate those instead.
+- `examples/storefront` has a backend of its own, a stand-in for Kaiten, and Playwright tests that
+  serve its **build**: `vp run -r build`, then `vp run test:e2e` in the example. `vp test` there
+  runs its unit tests, which hold the stand-in to the API contract. `vp test` at the root leaves
+  `e2e/` out, since those files are Playwright's.
 - `packages/client/tests/compat/consumer-1.0.ts` is an application written against
   `@kaitencloud/client` 1.0.0. `node scripts/check-compat-1.0.mjs` compiles it against
   the published 1.0.0 and against the build of this tree. When it stops compiling, the
