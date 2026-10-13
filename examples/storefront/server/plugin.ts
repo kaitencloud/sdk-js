@@ -36,30 +36,25 @@ const json = (body: unknown) =>
     headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
   });
 
-/** The routes of the storefront's backend for an environment, and the stand-in when it is one. */
-export function storefrontRoutes(environment: Environment): {
-  routes: Route[];
-  double?: ReturnType<typeof createKaitenDouble>;
-} {
+/** The routes of the storefront's backend for an environment, with the stand-in's when it is one. */
+export function storefrontRoutes(environment: Environment): Route[] {
   if (environment.mode === "live") {
     const config: StorefrontConfig = {
       mode: "live",
       apiUrl: environment.apiUrl,
       publishableKey: environment.publishableKey,
     };
-    return {
-      routes: [
-        (request) => (new URL(request.url).pathname === CONFIG_PATH ? json(config) : undefined),
-        sessionRoute({
-          client: createKaitenClient({
-            baseUrl: environment.apiUrl,
-            token: environment.serverToken,
-          }),
-          customerSlug: environment.customerSlug,
-          instanceSlug: environment.instanceSlug,
+    return [
+      (request) => (new URL(request.url).pathname === CONFIG_PATH ? json(config) : undefined),
+      sessionRoute({
+        client: createKaitenClient({
+          baseUrl: environment.apiUrl,
+          token: environment.serverToken,
         }),
-      ],
-    };
+        customerSlug: environment.customerSlug,
+        instanceSlug: environment.instanceSlug,
+      }),
+    ];
   }
 
   // Fresh credentials for each start: the stand-in's are not in the repository, and a test
@@ -73,31 +68,28 @@ export function storefrontRoutes(environment: Environment): {
     return response;
   };
 
-  return {
-    double,
-    routes: [
-      (request) => {
-        const url = new URL(request.url);
-        if (url.pathname !== CONFIG_PATH) return undefined;
-        const config: StorefrontConfig = {
-          mode: "double",
-          apiUrl: `${url.origin}${DOUBLE_PATH}/api`,
-          publishableKey,
-        };
-        return json(config);
-      },
-      sessionRoute({
-        client: createKaitenClient({
-          baseUrl: "http://kaiten-double.invalid",
-          token: serverToken,
-          fetch: fetchDouble,
-        }),
-        customerSlug: DOUBLE_CUSTOMER,
-        instanceSlug: DOUBLE_INSTANCE,
+  return [
+    (request) => {
+      const url = new URL(request.url);
+      if (url.pathname !== CONFIG_PATH) return undefined;
+      const config: StorefrontConfig = {
+        mode: "double",
+        apiUrl: `${url.origin}${DOUBLE_PATH}/api`,
+        publishableKey,
+      };
+      return json(config);
+    },
+    sessionRoute({
+      client: createKaitenClient({
+        baseUrl: "http://kaiten-double.invalid",
+        token: serverToken,
+        fetch: fetchDouble,
       }),
-      double.route,
-    ],
-  };
+      customerSlug: DOUBLE_CUSTOMER,
+      instanceSlug: DOUBLE_INSTANCE,
+    }),
+    double.route,
+  ];
 }
 
 function mount(middlewares: Connect.Server, routes: Route[]): void {
@@ -130,7 +122,7 @@ export function storefront(): Plugin {
         ? `  storefront: running against the Kaiten at ${environment.apiUrl}`
         : "  storefront: running against a stand-in for Kaiten (set KAITEN_API_URL and the other variables of the README to use yours)",
     );
-    return storefrontRoutes(environment).routes;
+    return storefrontRoutes(environment);
   };
 
   return {

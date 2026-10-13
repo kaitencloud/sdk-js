@@ -62,8 +62,7 @@ const contractProblems = (recorder: ReturnType<typeof recordingFetch>) =>
 
 describe("the conformance journey, against the stand-in", () => {
   test("takes a customer from the catalogue to a revoked session, and every answer fits the contract", async () => {
-    const { double, recorder } = world();
-    void recorder;
+    const { double } = world();
     const configuration: Configuration = {
       apiUrl: API,
       publishableKey: PUBLISHABLE_KEY,
