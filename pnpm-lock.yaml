@@ -346,7 +346,47 @@ importers:
         version: 7.0.2
       vite-plus:
         specifier: 'catalog:'
-        version: 1.0.0(@arethetypeswrong/core@0.18.5)(@types/node@26.6.3)(@vitest/browser-playwright@5.0.1)(@vitest/coverage-v8@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(jsdom@30.0.1)(publint@0.3.24)(typescript@7.0.2)(yaml@2.9.0)
+        version: 1.0.0(@arethetypeswrong/core@0.18.5)(@types/node@26.6.5)(@vitest/browser-playwright@5.0.1)(@vitest/coverage-v8@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(jsdom@30.0.1)(publint@0.3.25)(typescript@7.0.2)(yaml@2.9.0)
+
+  examples/storefront:
+    dependencies:
+      '@kaitencloud/client':
+        specifier: workspace:*
+        version: link:../../packages/client
+      '@kaitencloud/react':
+        specifier: workspace:*
+        version: link:../../packages/react
+      '@kaitencloud/react-ui':
+        specifier: workspace:*
+        version: link:../../packages/react-ui
+      '@kaitencloud/server':
+        specifier: workspace:*
+        version: link:../../packages/server
+      react:
+        specifier: 'catalog:'
+        version: 19.3.0
+      react-dom:
+        specifier: 'catalog:'
+        version: 19.3.0(react@19.3.0)
+    devDependencies:
+      '@playwright/test':
+        specifier: 'catalog:'
+        version: 1.63.0
+      '@types/node':
+        specifier: ^26.6.5
+        version: 26.6.5
+      '@types/react':
+        specifier: 'catalog:'
+        version: 19.3.0
+      '@types/react-dom':
+        specifier: 'catalog:'
+        version: 19.3.0(@types/react@19.3.0)
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vite-plus:
+        specifier: 'catalog:'
+        version: 1.0.0(@arethetypeswrong/core@0.18.5)(@types/node@26.6.5)(@vitest/browser-playwright@5.0.1)(@vitest/coverage-v8@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(jsdom@30.0.1)(publint@0.3.25)(typescript@7.0.2)(yaml@2.9.0)
 
   packages/client:
     devDependencies:
