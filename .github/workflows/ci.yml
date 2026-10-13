@@ -218,7 +218,7 @@ jobs:
           done
       - name: Run the storefront's end-to-end tests
         working-directory: examples/storefront
-        run: vp run test:e2e
+        run: pnpm run test:e2e
       - name: Upload the traces of a failure
         if: ${{ failure() }}
         uses: actions/upload-artifact@v7.0.1

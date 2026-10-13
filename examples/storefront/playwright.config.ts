@@ -3,7 +3,7 @@ import { defineConfig, devices } from "@playwright/test";
 /**
  * End-to-end tests of the storefront, in Chromium.
  *
- * Run them after `vp run -r build`, from this directory: `vp run test:e2e`. They serve the
+ * Run them after `vp run -r build`, from this directory: `pnpm run test:e2e`. It is `pnpm run` and not `vp run` on purpose: `vp run` hides the shell's variables from a script, and the `live` project below reads them. They serve the
  * storefront's build (`vp preview`), which is the page, its backend, and a stand-in for Kaiten.
  *
  * - `stand-in` runs `checkout.spec.ts` and `failures.spec.ts` against that stand-in. It needs no

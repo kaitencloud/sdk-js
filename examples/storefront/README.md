@@ -124,12 +124,13 @@ be bought and the paid ones are shown and refused.
 vp run -r build                    # the page and the packages: the tests read their builds
 cd examples/storefront
 vp test                            # unit tests of the backend and of the stand-in: no browser
-vp run test:e2e                    # Playwright, in Chromium
+pnpm run test:e2e                  # Playwright, in Chromium
 ```
 
 The tests need Chromium: `vp run test:browsers:install` in `packages/react-ui` installs the one
-Playwright runs, and CI uses the Playwright image. `vp run test:e2e` serves the build with
-`vp preview` and runs two projects:
+Playwright runs, and CI uses the Playwright image. `pnpm run test:e2e` serves the build with
+`vp preview` and runs two projects. Run it with `pnpm run`: `vp run` hides the shell's variables from
+a script, and the live project reads them.
 
 - **`stand-in`**, `checkout.spec.ts` and `failures.spec.ts`, against the stand-in. It needs nothing,
   so it runs everywhere, CI included (`storefront-e2e` in `.github/workflows/ci.yml`).
