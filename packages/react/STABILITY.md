@@ -18,9 +18,10 @@ This document defines what is stable, what is experimental, and how we version �
 so you can build on the parts least likely to move. It covers both React
 packages: `@kaitencloud/react`, the headless core, and `@kaitencloud/react-ui`,
 the styled components built on it. **The split is the boundary**: everything in
-the core is on the blessed path below, and everything the UI package adds is
-experimental, except each component's `unstyled` rendering. The two version independently, and the UI package depends on the
-core with a caret range, so upgrading it never forks the provider.
+the core is on the blessed path below, except the names listed as experimental, and
+everything the UI package adds is experimental, except each component's `unstyled`
+rendering. The two version independently, and the UI package depends on the core with a
+caret range, so upgrading it never forks the provider.
 
 ## Versioning policy
 
@@ -39,8 +40,8 @@ Build on these first — they are the lowest-churn surface and the intended
 integration points:
 
 - **The `@kaitencloud/react` package** — it exports this blessed surface
-  (provider, hooks, control primitives, helpers), the experimental telemetry types
-  listed below, and no styled component, so a host on the stable path also gets
+  (provider, hooks, control primitives, helpers), the experimental names listed
+  below, and no styled component, so a host on the stable path also gets
   the smallest bundle;
   `scripts/check-bundle-size.mjs` holds it there. `@kaitencloud/react-ui`
   re-exports every one of these names, by identity, so mixing the two imports in
@@ -79,12 +80,22 @@ integration points:
   rendering detail: both window bounds present means a periodic counter, absent
   means lifetime, and neither answer is available when nobody read them.
 
+## Subpath exports
+
+- `@kaitencloud/react/locales` (one pack per language) and `@kaitencloud/react/types` hold the
+  stability of what they carry: a type of the blessed path is stable, and one that describes an
+  experimental surface, such as the words of a checkout, is experimental with it.
+- `@kaitencloud/react/billing` is experimental, as the hooks it holds are
+  ([below](#experimental-until-kaiten-billing-ships)).
+- `@kaitencloud/react/internal` is for `@kaitencloud/react-ui` and carries no stability
+  promise: it may change in any release.
+
 ## Experimental until Kaiten billing ships
 
 These read the routes Kaiten billing adds, which no released Kaiten server
-serves yet. They are written against the API contract that billing publishes and
-tested against answers Kaiten's own code produced, and they may change, in a minor
-release, as billing ships:
+serves yet (the README says which release they need). They are written against the API
+contract that billing publishes and tested against answers Kaiten's own code produced,
+and they may change, in a minor release, as billing ships:
 
 - **`mode="public"`** — the public catalog, `GET /public/catalog`, read with a
   publishable key.
