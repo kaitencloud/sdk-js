@@ -853,6 +853,12 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
   // ---- The control surface --------------------------------------------------
 
   async function control(request: Request, path: string): Promise<Response> {
+    // A test calls this from its own process, which sends no `Origin`. A page of another origin that a
+    // developer happens to have open must not be able to start the stand-in over.
+    const origin = request.headers.get("origin");
+    if (origin !== null && origin !== new URL(request.url).origin) {
+      return reply(403, { error: "cross_origin" });
+    }
     const body: Json =
       request.method === "POST" && request.headers.get("content-length") !== "0"
         ? await request.json().catch(() => ({}))

@@ -468,6 +468,16 @@ describe("what the stand-in does besides", () => {
     expect(((await (await call("/control/calls")).json()) as Call[]).length).toBeGreaterThan(3);
     expect(double.state().invoices).toHaveLength(1);
 
+    // A page of another origin does not control it.
+    expect(
+      (
+        await call("/control/reset", {
+          method: "POST",
+          headers: { Origin: "https://elsewhere.test" },
+        })
+      ).status,
+    ).toBe(403);
+
     // What is not the stand-in's is not answered: the storefront's own routes and its pages are another's.
     expect(
       await double.route(new Request(`${ORIGIN}/storefront-api/session`, { method: "POST" })),
