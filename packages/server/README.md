@@ -89,7 +89,7 @@ the failure: quote it when you report a problem.
 
 ## Webhooks
 
-The contract declares 49 `com.kaiten.*` events and this package ships a typed payload for
+The contract declares 55 `com.kaiten.*` events and this package ships a typed payload for
 each — but a payload alone says nothing about **who sent it**. Verify the signature before
 acting on one; until you do, the endpoint is unauthenticated and it drives licences and usage.
 
