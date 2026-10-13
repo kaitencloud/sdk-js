@@ -42,8 +42,8 @@ page ──────────── Authorization: Bearer kst_… ──�
 
 `KaitenSessionClient` calls the backend for its first request, again a minute before the session
 ends, and once more when Kaiten refuses the session, which is what [`src/config.ts`](src/config.ts)
-and [`src/app.tsx`](src/app.tsx) set up. `pnpm run check:no-secrets` scans this example's build
-for a token, the name of a secret variable and code of `@kaitencloud/server`.
+and [`src/app.tsx`](src/app.tsx) set up. `pnpm run check:no-secrets`, run from the repository root, scans
+this example's build for a token, the name of a secret variable and code of `@kaitencloud/server`.
 
 ## What is here
 
