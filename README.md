@@ -53,6 +53,16 @@ npm install @kaitencloud/react       # the headless React core only
 Each package's README has its quick start, and [`examples/`](examples) holds a
 React app and a Node backend that run without an account.
 
+## Kaiten version
+
+Minimum Kaiten version for the billing features: **the first Kaiten release with billing.** No Kaiten release carries billing yet.
+
+What needs it is the billing surface: the public catalogue read with a publishable key, a
+customer session and the portal and checkout it opens, and the `transactionId` of a usage
+report. Everything `@kaitencloud/client` and `@kaitencloud/server` 1.0.0 did works against
+the Kaiten releases it worked against, and `mode="static"` of the React packages makes no
+request. Each package's README says what it asks of the server.
+
 ## Credentials
 
 | Prefix   | What it is                                                                                            | Where it may live           | Consumed by                                              |

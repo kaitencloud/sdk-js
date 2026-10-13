@@ -10,6 +10,20 @@ where it never holds a secret, and it runs on servers too.
 npm install @kaitencloud/client
 ```
 
+## Kaiten version
+
+Minimum Kaiten version for the billing features: **the first Kaiten release with billing.** No Kaiten release carries billing yet.
+
+Three things need it. `getCatalog()` with a publishable key reads `GET /public/catalog`, and
+`KaitenSessionClient` calls the `/public/session/*` routes; a server without billing does not
+have them, answers with an error, and the call rejects with a `KaitenError`. A usage report
+with a `transactionId` is refused by such a server and sent again without its key, as
+[Reporting usage](#reporting-usage) describes. Everything else, which 1.0.0 already did (the
+catalogue and the licensing snapshot composed from the licences endpoints, usage reports
+without a key, flag evaluation), works against the Kaiten releases it worked against. What a
+newer server adds to a usage row (`source`, `provenance`, the effective limit) is read when it
+is there and left out when it is not.
+
 ## Authentication
 
 The API accepts a `ksh_` token, or a JWT from the identity provider its gateway trusts,
@@ -22,7 +36,7 @@ to send a `ksh_`, `ksm_` or `sk_` credential.
 A browser has a credential of its own for the public catalog: a publishable key (`pk_`),
 which reads it and nothing else. For a signed-in customer it uses a customer session
 (`kst_`), described [below](#customer-sessions). It needs a Kaiten server that serves the public routes
-(`/api/public/*`).
+(`/api/public/*`): see [Kaiten version](#kaiten-version).
 
 A publishable key is `pk_` followed by 43 letters, digits, `-` or `_`.
 `assertPublishableKeyShape(key)` throws for anything else (a key cut short by a paste,

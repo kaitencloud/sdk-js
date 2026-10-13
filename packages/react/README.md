@@ -21,6 +21,18 @@ npm install @kaitencloud/react
 
 There is nothing to import for its effect: no stylesheet, no side effects.
 
+## Kaiten version
+
+Minimum Kaiten version for the billing features: **the first Kaiten release with billing.** No Kaiten release carries billing yet.
+
+`mode="public"` (the catalogue, read with a publishable key from `GET {apiUrl}/public/catalog`),
+`mode="customer-session"` and the hooks of [`@kaitencloud/react/billing`](#billing-hooks) (the
+`/public/session/*` routes) need it. A server without billing answers them with an error,
+which a hook returns in `error`. `mode="static"` renders a catalogue the host already holds and
+makes no request, and `mode="authenticated"` reads what the client composes from the licences
+endpoints, so neither asks the server for more than it serves today. What the client asks of
+the server is in [its README](../client/README.md#kaiten-version).
+
 ## Package status
 
 - Import public APIs from `@kaitencloud/react`.
@@ -676,7 +688,7 @@ billing adds instead, and nothing else: `/public/catalog` with a publishable key
 
 ## Known limitations
 
-- `mode="public"` and `mode="customer-session"` need a Kaiten server that ships billing, and are experimental until it ships. `mode="static"` covers the marketing-site case today.
+- `mode="public"` and `mode="customer-session"` need a Kaiten server that ships billing ([Kaiten version](#kaiten-version)), and are experimental until it ships. `mode="static"` covers the marketing-site case today.
 - Branding removal depends on backend capabilities exposed on `catalog` or `snapshot`.
 - `useUpgradeOptions` offers every published plan but the current one. Several versions of one license family can be published at once, so a customer on one version is offered the others too; `familyId` on each plan tells them apart.
 - Telemetry is opt-in and transport-injected; the SDK does not ship a hosted telemetry endpoint.

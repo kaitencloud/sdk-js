@@ -27,6 +27,19 @@ a backend. The browser package, `@kaitencloud/client`, is **ESM-only and require
 when used outside a bundler — 22.12 is the release where Node can `require()` an ES module.
 Every bundler handles it regardless of your app's module format.
 
+## Kaiten version
+
+Minimum Kaiten version for the billing features: **the first Kaiten release with billing.** No Kaiten release carries billing yet.
+
+The resource classes are generated from the API contract, so a call to a route that a Kaiten
+release does not have is answered with an error and throws a `KaitenError`. Billing's routes
+are the ones that need it: the classes `Addons`, `Billing`, `CustomerSessions`, `Public`,
+`PublishableKeys` and `Vouchers`, the operations the other classes gained, the helpers of
+`KaitenBilling`, billing's webhook events, and the `Idempotency-Key` header of a usage report,
+which a release without it ignores: the report is counted at every sending and its answer has
+no `transactionId`. The classes and operations of 1.0.0 are unchanged and work against the
+Kaiten releases they worked against.
+
 ## Quick start
 
 ```ts
@@ -105,7 +118,8 @@ with a `TransactionIdReusedError` (409 `ReportEntitlementUsageMetric.Transaction
 `KaitenError` whose `transactionId` is the key the request's `Idempotency-Key` header carried
 and whose `original` names the report the key was first accepted with. `isTransactionIdReused`
 recognizes it. It is a bug in the caller, never a transient failure: retrying it under the
-same key loops.
+same key loops. A correction is a new report under a new key, with `behavior: "set"` for an
+absolute value, never the original key again.
 
 Four refusals of the billing routes call for a reaction of their own, and each has a predicate
 like `isThresholdExceeded`, which narrows to `KaitenError`. They test the status and the end of
