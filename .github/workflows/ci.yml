@@ -174,6 +174,59 @@ jobs:
         working-directory: packages/react-ui
         run: vp run test:layout
 
+  # The storefront example in a browser: its pricing table, its checkout and its customer
+  # portal, against a stand-in for Kaiten that runs in the same process, so the job needs no
+  # stack and no secret. examples/storefront/e2e holds the specs, and its README says what
+  # they prove and what they leave to a real Kaiten. The job does not run the `live` project,
+  # which needs a Kaiten of someone's and subscribes an instance of it.
+  #
+  # Kaiten's own compose has no fake Stripe to drive a card, a declined card or a 3-D Secure
+  # challenge, so these paths are played by the stand-in. When it has one, this job starts
+  # that stack and points the `live` project at it.
+  storefront-e2e:
+    runs-on: ubuntu-latest
+    # Same image as the `test` job, and the same tag to keep in sync with @playwright/test;
+    # scripts/check-version-invariants.mjs fails when they differ.
+    container:
+      image: mcr.microsoft.com/playwright:v1.63.0-noble
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: pnpm/action-setup@v6.1.0
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - uses: voidzero-dev/setup-vp@v1.21.1
+        with:
+          # actions/setup-node and pnpm/action-setup own Node.js and pnpm. Vite+
+          # only provides vp, at the catalog's vite-plus version.
+          node-manager: false
+          package-manager: false
+          cache: true
+          run-install: false
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      # The storefront is served from its build, which resolves the packages through their dist/.
+      - name: Build packages
+        run: vp run -r build
+      - name: Link preinstalled Playwright browsers into the default cache path
+        # See the `test` job: the scripts run with `env -u PLAYWRIGHT_BROWSERS_PATH`.
+        run: |
+          for home in "$HOME" /root; do
+            mkdir -p "$home/.cache"
+            ln -sfn /ms-playwright "$home/.cache/ms-playwright"
+          done
+      - name: Run the storefront's end-to-end tests
+        working-directory: examples/storefront
+        run: vp run test:e2e
+      - name: Upload the traces of a failure
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: storefront-e2e-traces
+          path: examples/storefront/test-results
+          retention-days: 14
+
   react-18-compat:
     # The React packages declare a `react >=18` peer floor but the workspace runs
     # React 19. Pin React 18 and run their unit suites to prove the floor holds.

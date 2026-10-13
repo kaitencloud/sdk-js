@@ -34,11 +34,12 @@ export default defineConfig({
   },
   test: {
     // `tests/visual/` and `tests/layout/` are owned by the Playwright runner
-    // (visual regression and layout invariants), and their *.spec.ts files import
-    // `@playwright/test`, not Vitest. The per-package unit project
-    // (packages/react-ui/vitest.unit.config.ts) already excludes them, but a bare
-    // `vp test` at the workspace root falls back to the default glob and would
-    // otherwise sweep them in. Keep them out here too.
+    // (visual regression and layout invariants), and so is `e2e/` (the storefront's
+    // end-to-end tests): their *.spec.ts files import `@playwright/test`, not Vitest.
+    // The per-package unit project (packages/react-ui/vitest.unit.config.ts) and the
+    // storefront's own config already leave them out, but a bare `vp test` at the
+    // workspace root falls back to the default glob and would otherwise sweep them
+    // in. Keep them out here too.
     //
     // `.claude/worktrees/` holds full checkouts of this repo made by agent
     // sessions. The root glob swept them in and collected a second copy of every
@@ -53,6 +54,7 @@ export default defineConfig({
       "**/dist/**",
       "**/tests/visual/**",
       "**/tests/layout/**",
+      "**/e2e/**",
       "**/.claude/worktrees/**",
     ],
   },
