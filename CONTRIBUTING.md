@@ -314,7 +314,8 @@ compatible with the way Kaiten is distributed.
 Preserve all required copyright, license, attribution, and NOTICE information.
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) says when an entry belongs
 there. Each published package ships a copy of it, and the build fails when a copy
-differs from the root file.
+differs from the root file. A test (`vp test run scripts`) also holds it against the icons
+and the primitives `@kaitencloud/react-ui` copies, so that a new one is a reason to read it.
 
 Do not assume that material found publicly online is available for inclusion in
 an Apache-2.0 project.
