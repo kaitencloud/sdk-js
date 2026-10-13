@@ -314,11 +314,12 @@ function releaseTree(adjust = {}) {
 
 /** Packs a package as the release does, leaving out the files listed in `without`. */
 const packer =
-  ({ without = [], manifest = {} } = {}) =>
+  ({ without = [], manifest = {}, readme } = {}) =>
   (dir, into) => {
     const staging = mkdtempSync(join(work, "pack-"));
     const base = JSON.parse(readFileSync(join(dir, "package.json"), "utf8"));
     write(join(staging, "package", "package.json"), { ...base, ...manifest });
+    if (readme !== undefined) write(join(staging, "package", "README.md"), readme);
     for (const name of ["LICENSE", "NOTICE"].filter((file) => !without.includes(file))) {
       copyFileSync(join(dir, name), join(staging, "package", name));
     }
@@ -473,6 +474,23 @@ describe("the shape of the release", () => {
 
     expect(byRule(lacking, "@kaitencloud/lib tarball").detail).toContain("lacks NOTICE");
     expect(byRule(unresolved, "@kaitencloud/lib tarball").detail).toContain('"workspace:^"');
+  });
+
+  test("fails when the README in a tarball says the package is not on npm yet", () => {
+    const root = releaseTree();
+
+    const held = checkReleaseShape(root, {
+      pack: packer({ readme: "# lib\n\n> **Not on npm yet.** It is published with billing.\n" }),
+      dryRun: accepted,
+    });
+    const released = checkReleaseShape(root, {
+      pack: packer({ readme: "# lib\n\nnpm install @kaitencloud/lib\n" }),
+      dryRun: accepted,
+    });
+
+    expect(byRule(held, "@kaitencloud/lib tarball")).toMatchObject({ status: "fail" });
+    expect(byRule(held, "@kaitencloud/lib tarball").detail).toContain("not on npm yet");
+    expect(byRule(released, "@kaitencloud/lib tarball")).toMatchObject({ status: "ok" });
   });
 
   test("fails when what a tarball says it depends on is below 1.0.0, and passes a floor of 1.x", () => {

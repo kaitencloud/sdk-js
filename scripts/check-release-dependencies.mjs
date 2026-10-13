@@ -56,6 +56,7 @@ import {
   packWorkspacePackage,
   repoRoot,
   tarballEntries,
+  tarballFile,
   tarballManifest,
   typescriptCompilers,
   unpackAsDependency,
@@ -74,6 +75,8 @@ const LEGAL_AT_ROOT = [
   "THIRD_PARTY_NOTICES.md",
 ];
 const DEPENDENCY_FIELDS = ["dependencies", "peerDependencies", "optionalDependencies"];
+/** What the README of a package held back says, until the day it is published. */
+const NOT_ON_NPM = /\bnot on npm\b/i;
 
 /** @typedef {{ status: "ok" | "fail" | "skip", rule: string, detail: string }} Result */
 
@@ -342,12 +345,20 @@ export function checkReleaseShape(root, { pack = packWorkspacePackage, dryRun = 
       }
       if (packed.license !== LICENSE)
         problems.push(`its manifest says license ${JSON.stringify(packed.license)}`);
+      // The README is the page npmjs.com shows. A package that was held back says so there,
+      // and a tarball packed the day it is released would carry that note onto npm.
+      if (
+        entries.includes("package/README.md") &&
+        NOT_ON_NPM.test(tarballFile(tarball, "README.md"))
+      ) {
+        problems.push('its README still says the package is "not on npm yet"');
+      }
       results.push(
         problems.length > 0
           ? fail(`${label} tarball`, problems.join("; "))
           : ok(
               `${label} tarball`,
-              `holds LICENSE and NOTICE; its manifest has no workspace or catalog range`,
+              `holds LICENSE and NOTICE; its manifest has no workspace or catalog range, and its README does not say it is unpublished`,
             ),
       );
 
