@@ -254,6 +254,15 @@ npm scope:
    exist there: add the sentence to `packages/client/README.md` that names
    `@kaitencloud/react` and `@kaitencloud/react-ui` as built on the client, and name
    both in the Node 22.12+ note of `packages/server/README.md`.
+   Say in the same change that the React packages are on npm. The "Not on npm yet" note
+   in the Installation section of `packages/react/README.md` and
+   `packages/react-ui/README.md` goes first: a tarball carries its README to
+   npmjs.com, and the release-dependencies check below fails while one of them says
+   so. The status line of `packages/react/STABILITY.md`, the paragraph and the install
+   block of the root `README.md` that call the React packages unpublished, the opening
+   of `ARCHITECTURE.md`, the comments of `release.yml` and `check-published-shape.mjs`
+   that call them private, and this section, which becomes a note on first versions,
+   change with them.
 2. Build, check and pack both packages on that branch, as the Release workflow
    does, so the tarballs carry the catalog's real ranges. The release-dependencies
    check blocks here: it compiles what `@kaitencloud/react` imports from the client
@@ -270,15 +279,19 @@ npm scope:
    (cd packages/react-ui && pnpm pack --pack-destination /tmp/kaiten-react-release)
    ```
 
-3. Logged in to npmjs.com, publish `@kaitencloud/react` first, then
-   `@kaitencloud/react-ui`, from those tarballs:
-   `npm publish /tmp/kaiten-react-release/kaitencloud-react-1.0.0.tgz`. If your
-   `.npmrc` maps `@kaitencloud` to another registry, add
-   `--@kaitencloud:registry=https://registry.npmjs.org/`.
+3. Read the file list of each tarball (`tar -tzf`). Then, logged in to npmjs.com,
+   publish `@kaitencloud/react` first, then `@kaitencloud/react-ui`, from those
+   tarballs: `npm publish /tmp/kaiten-react-release/kaitencloud-react-1.0.0.tgz`, then
+   the same for `kaitencloud-react-ui-1.0.0.tgz`. If your `.npmrc` maps `@kaitencloud` to
+   another registry, add `--@kaitencloud:registry=https://registry.npmjs.org/`. Run each
+   with `--dry-run` first and read the line it prints, "Publishing to ...": it has to name
+   `https://registry.npmjs.org/`.
 4. On npmjs.com, add this repository's `release.yml` as the trusted publisher of
    each package.
-5. Merge the branch. npm already has 1.0.0, so the Release workflow has nothing
-   to publish for them, and publishes their later versions itself.
+5. Merge the branch, and not before step 3: the Release workflow publishes every
+   package whose current version npm lacks, so a merge that came first would have it
+   try to publish these two, with no trusted publisher yet. Once npm has 1.0.0, the
+   workflow has nothing to publish for them, and publishes their later versions itself.
 
 ## Pull requests
 
