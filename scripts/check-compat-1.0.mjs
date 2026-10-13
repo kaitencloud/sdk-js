@@ -22,14 +22,18 @@
 //     names where.
 //
 //   node scripts/check-compat-1.0.mjs                 # after `vp run -r build`
-//   node scripts/check-compat-1.0.mjs --published <tarball>
-//                                                     # use a tarball of 1.0.0 you already have
+//   node scripts/check-compat-1.0.mjs --published <tarball> --published-server <tarball>
+//                                                     # use tarballs of 1.0.0 you already have
 //
 // A fixture only names what its author remembered to use, so a second check holds
 // the rest: every name the declarations of 1.0.0 export, from `.` and `./testing`,
 // must still be exported by this tree, and a value must still be a value. The names
 // are read by the compiler from the unpacked declarations, not from the fixture.
 // REMOVED_SINCE_1_0 lists the one name a release removed on purpose.
+//
+// `@kaitencloud/server` has no fixture, since its resource classes follow the API
+// contract, but its names are held the same way: a class, a helper or a type of
+// 1.0.0 that a release drops or renames breaks the code that imports it.
 //
 // The first run needs the npm registry; nothing is installed.
 
@@ -87,6 +91,12 @@ export function withoutRemoved(exports, removed = REMOVED_SINCE_1_0) {
   }
   return kept;
 }
+
+/** What npm published `@kaitencloud/server` 1.0.0 with. */
+export const PUBLISHED_SERVER_INTEGRITY =
+  "sha512-aGQwLzfcHSxcHp4wbjAiSiV3s3841Bka7R7fSsenzRJsPipGtfXGwbaNSvOgLXsoHM5l7TYHo4EzkBw8eGwv9Q==";
+
+const SERVER_PACKAGE = "@kaitencloud/server";
 
 /** The consumer fixtures: every `.ts` file of this directory is compiled. */
 export const CONSUMERS_DIR = join(repoRoot, "packages/client/tests/compat");
@@ -150,39 +160,61 @@ export function compileConsumers({ workDir, label, tarball, consumersDir = CONSU
 class Failure extends Error {}
 
 function main() {
-  const { values } = readArguments(process.argv.slice(2), { options: ["--published"] });
+  const { values } = readArguments(process.argv.slice(2), {
+    options: ["--published", "--published-server"],
+  });
   const given =
     values["--published"][0] === undefined ? undefined : resolve(values["--published"][0]);
+  const givenServer =
+    values["--published-server"][0] === undefined
+      ? undefined
+      : resolve(values["--published-server"][0]);
 
-  const clientDist = join(repoRoot, "packages/client/dist/index.d.mts");
-  if (!existsSync(clientDist)) {
-    throw new Failure("packages/client/dist is missing: run `vp run -r build` first.");
+  for (const dist of ["packages/client/dist/index.d.mts", "packages/server/dist/index.d.mts"]) {
+    if (!existsSync(join(repoRoot, dist))) {
+      throw new Failure(
+        `${dist.replace(/\/dist\/.*/, "/dist")} is missing: run \`vp run -r build\` first.`,
+      );
+    }
   }
 
   const work = mkdtempSync(join(tmpdir(), "kaiten-compat-"));
   try {
-    let published;
-    if (given) {
-      published = given;
-    } else {
-      const into = join(work, "published-tarball");
-      mkdirSync(into);
-      try {
-        published = fetchPublishedTarball(`${PACKAGE}@${PUBLISHED_VERSION}`, into);
-      } catch (error) {
+    /** The tarball of 1.0.0 of `name`: the one given, or the one npm serves, held to its integrity. */
+    const publishedTarball = ({ name, option, given: path, expected }) => {
+      let tarball = path;
+      if (!tarball) {
+        const into = mkdtempSync(join(work, "published-"));
+        try {
+          tarball = fetchPublishedTarball(`${name}@${PUBLISHED_VERSION}`, into);
+        } catch (error) {
+          throw new Failure(
+            `${name}@${PUBLISHED_VERSION} could not be fetched from npm: ${String(error.stderr ?? error.message).trim()}\n` +
+              `  Check that registry.npmjs.org is reachable, or pass a tarball of that version with ${option}.`,
+          );
+        }
+      }
+      const integrity = integrityOf(tarball);
+      if (integrity !== expected) {
         throw new Failure(
-          `${PACKAGE}@${PUBLISHED_VERSION} could not be fetched from npm: ${String(error.stderr ?? error.message).trim()}\n` +
-            "  Check that registry.npmjs.org is reachable, or pass a tarball of that version with --published.",
+          `The tarball of ${name}@${PUBLISHED_VERSION} is not the one npm published.\n` +
+            `  expected ${expected}\n  found    ${integrity}`,
         );
       }
-    }
-    const integrity = integrityOf(published);
-    if (integrity !== PUBLISHED_INTEGRITY) {
-      throw new Failure(
-        `The tarball of ${PACKAGE}@${PUBLISHED_VERSION} is not the one npm published.\n` +
-          `  expected ${PUBLISHED_INTEGRITY}\n  found    ${integrity}`,
-      );
-    }
+      return tarball;
+    };
+    const published = publishedTarball({
+      name: PACKAGE,
+      option: "--published",
+      given,
+      expected: PUBLISHED_INTEGRITY,
+    });
+    const publishedServer = publishedTarball({
+      name: SERVER_PACKAGE,
+      option: "--published-server",
+      given: givenServer,
+      expected: PUBLISHED_SERVER_INTEGRITY,
+    });
 
     const packed = join(work, "current-tarball");
     mkdirSync(packed);
@@ -197,6 +229,18 @@ function main() {
     const lost = lostExports(
       withoutRemoved(declaredExports(installed(publishedLabel))),
       declaredExports(installed("this tree")),
+    );
+
+    const packedServer = join(work, "current-server-tarball");
+    mkdirSync(packedServer);
+    const serverLabel = `${SERVER_PACKAGE}@${PUBLISHED_VERSION}`;
+    const serverDir = (label, tarball) =>
+      unpackAsDependency(tarball, join(work, `server-${label}`), SERVER_PACKAGE);
+    const lostFromServer = lostExports(
+      declaredExports(serverDir("published", publishedServer)),
+      declaredExports(
+        serverDir("tree", packWorkspacePackage(join(repoRoot, "packages/server"), packedServer)),
+      ),
     );
 
     for (const { label, profile, compiler, ok } of results) {
@@ -221,7 +265,13 @@ function main() {
         console.log(`  (${entry}: ${name} was removed on purpose in ${release})`);
       }
     }
-    if (lost.length > 0) {
+    if (lostFromServer.length > 0) {
+      console.error(`✘ ${serverLabel} exports what this tree does not:`);
+      for (const line of lostFromServer) console.error(`    ${line}`);
+    } else {
+      console.log(`✔ every export of ${serverLabel} is still exported`);
+    }
+    if (lost.length > 0 || lostFromServer.length > 0) {
       throw new Failure(
         "An export of 1.0.0 is gone, or no longer a value: a consumer may have used it. " +
           "See packages/client/STABILITY.md.",
@@ -234,7 +284,7 @@ function main() {
       );
     }
     console.log(
-      `\n1.0 consumers compile against ${PACKAGE}@${PUBLISHED_VERSION} and against this tree.`,
+      `\n1.0 consumers compile against ${PACKAGE}@${PUBLISHED_VERSION} and against this tree, and ${SERVER_PACKAGE} keeps its exports.`,
     );
   } finally {
     rmSync(work, { recursive: true, force: true });

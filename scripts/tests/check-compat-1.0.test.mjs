@@ -27,11 +27,17 @@ import {
 const LONG = 240_000;
 let work;
 let current;
+let currentServer;
 
 beforeAll(() => {
   work = mkdtempSync(join(tmpdir(), "kaiten-compat-test-"));
   mkdirSync(join(work, "tarball"));
   current = packWorkspacePackage(join(repoRoot, "packages/client"), join(work, "tarball"));
+  mkdirSync(join(work, "server-tarball"));
+  currentServer = packWorkspacePackage(
+    join(repoRoot, "packages/server"),
+    join(work, "server-tarball"),
+  );
 });
 
 afterAll(() => {
@@ -45,11 +51,11 @@ function consumerNamed(name, source) {
   return dir;
 }
 
-/** A copy of the current tarball whose declarations `change` has rewritten. */
-function changedTarball(label, change) {
+/** A copy of the current tarball (the client's, or `base`) whose declarations `change` has rewritten. */
+function changedTarball(label, change, base = current) {
   const staging = join(work, `staging-${label}`);
   mkdirSync(staging);
-  execFileSync("tar", ["-xzf", current, "-C", staging]);
+  execFileSync("tar", ["-xzf", base, "-C", staging]);
   const dist = join(staging, "package", "dist");
   for (const file of readdirSync(dist).filter((name) => name.endsWith(".d.mts"))) {
     const path = join(dist, file);
@@ -190,6 +196,44 @@ describe("the list of exports the compile check holds", () => {
       ".: type Customer is no longer exported",
     ]);
     expect(published.get(".").has("MeterType")).toBe(true);
+  });
+});
+
+describe("the list of exports the compile check holds for the server", () => {
+  const exportsOf = (tarball, label) =>
+    declaredExports(
+      unpackAsDependency(tarball, join(work, `unpacked-server-${label}`), "@kaitencloud/server"),
+    );
+
+  test("reads the entry point of a package built for two module systems", () => {
+    const names = exportsOf(currentServer, "same");
+
+    expect(names.get(".").size).toBeGreaterThan(100);
+    expect(names.get(".").get("createKaitenClient")).toBe("value");
+    expect(names.get(".").get("KaitenError")).toBe("value");
+    expect(lostExports(names, names)).toEqual([]);
+  });
+
+  test("names a server export once it is removed or stops being a value", () => {
+    const whole = exportsOf(currentServer, "whole");
+    const thinner = changedTarball(
+      "thinner-server",
+      (declarations) =>
+        declarations
+          .replace(/, User,/, ",")
+          .replace(
+            "export declare function isThresholdExceeded(error: unknown): error is KaitenError;",
+            "export type isThresholdExceeded = (error: unknown) => error is KaitenError;",
+          ),
+      currentServer,
+    );
+
+    const lost = lostExports(whole, exportsOf(thinner, "thinner"));
+
+    expect(lost).toEqual([
+      ".: isThresholdExceeded was a value and is now only a type",
+      ".: type User is no longer exported",
+    ]);
   });
 });
 

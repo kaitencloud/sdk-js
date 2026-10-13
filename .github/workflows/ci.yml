@@ -339,7 +339,8 @@ jobs:
   # registry, and a registry that is down should not hold a merge.
 
   # Code written against 1.0.0 compiles against the tarball npm serves for 1.0.0,
-  # and against the one this tree would publish. See scripts/check-compat-1.0.mjs.
+  # and against the one this tree would publish, and the server keeps every name
+  # it exported. See scripts/check-compat-1.0.mjs.
   compat-1_0:
     name: compat-1.0
     runs-on: ubuntu-latest
@@ -362,7 +363,7 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Build packages
         run: vp run -r build
-      - name: Compile a 1.0.0 consumer against 1.0.0 and against this tree
+      - name: Compile a 1.0.0 consumer against 1.0.0 and against this tree, and compare the exports
         run: node scripts/check-compat-1.0.mjs
 
   # What a release needs: the floor of the client for the React packages, once they

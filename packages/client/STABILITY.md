@@ -3,7 +3,9 @@
   check this document against src/index.ts here and in packages/server.
   tests/compat-1.0.test.ts and tests/compat/consumer-1.0.ts hold code written
   against 1.0 and must keep compiling unchanged: scripts/check-compat-1.0.mjs
-  compiles the second against the 1.0.0 tarball and against this tree.
+  compiles the second against the 1.0.0 tarball and against this tree, and
+  checks that every name of the 1.0.0 client and server is still exported,
+  but for the ones REMOVED_SINCE_1_0 lists.
 -->
 
 # Stability & versioning — `@kaitencloud/client` and `@kaitencloud/server`

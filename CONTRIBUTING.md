@@ -123,9 +123,10 @@ The components have a Storybook playground: `vp run @kaitencloud/react-ui#storyb
   floor.
 - **compat-1.0**: code written against `@kaitencloud/client` 1.0.0 compiles against
   the tarball npm serves for 1.0.0 and against the one this tree would publish, and
-  every name 1.0.0 exports is still exported, a value still a value, except
-  `MeterType`, removed on purpose in 1.1.0 (`REMOVED_SINCE_1_0`). Not required to
-  merge, because it reads the npm registry.
+  every name 1.0.0 exports, from the client and from `@kaitencloud/server`, is still
+  exported, a value still a value, except the client's `MeterType`, removed on
+  purpose in 1.1.0 (`REMOVED_SINCE_1_0`). Not required to merge, because it reads
+  the npm registry.
 - **release-dependencies**: the shape of what a release would publish, with npm's own
   dry run, and, once the React packages are in the tree, that they compile against
   the lowest client their range allows. Advisory: it is meant to fail while the client

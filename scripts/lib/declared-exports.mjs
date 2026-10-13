@@ -31,6 +31,15 @@ function loadTypescript() {
 }
 
 /**
+ * The file an entry of `exports` serves to an `import`: the entry itself when it is
+ * a path, its `import` condition when the package is built for both module systems.
+ */
+function importTarget(target) {
+  if (typeof target === "string") return target;
+  return typeof target?.import === "string" ? target.import : undefined;
+}
+
+/**
  * The declaration file of each entry point of an unpacked package, keyed by the
  * entry's name in `exports` (`.`, `./testing`): its `.mjs` file, read as the
  * `.d.mts` beside it. `./package.json` is not code and has none.
@@ -38,8 +47,9 @@ function loadTypescript() {
 export function declarationEntries(packageDir) {
   const manifest = JSON.parse(readFileSync(join(packageDir, "package.json"), "utf8"));
   const entries = new Map();
-  for (const [name, target] of Object.entries(manifest.exports ?? {})) {
-    if (typeof target !== "string" || !target.endsWith(".mjs")) continue;
+  for (const [name, entry] of Object.entries(manifest.exports ?? {})) {
+    const target = importTarget(entry);
+    if (target === undefined || !target.endsWith(".mjs")) continue;
     const declaration = resolve(packageDir, target.replace(/\.mjs$/, ".d.mts"));
     if (!existsSync(declaration)) {
       throw new Error(`${name} of ${manifest.name} has no declaration file at ${declaration}`);
