@@ -23,7 +23,7 @@ import {
   floorOf,
   publishedPackages,
 } from "../check-release-dependencies.mjs";
-import { repoRoot } from "../lib/npm-package.mjs";
+import { packWorkspacePackage, repoRoot } from "../lib/npm-package.mjs";
 
 const LONG = 240_000;
 const LEGAL = [
@@ -186,6 +186,28 @@ describe("the floor of the client", () => {
       });
 
       expect(asked).toEqual(["@kaitencloud/client@1.2.0"]);
+      expect(result).toMatchObject({ status: "ok" });
+    },
+    LONG,
+  );
+
+  test(
+    "passes when several source files import the same name from the client",
+    async () => {
+      // Two statements that bind `KaitenClient`: compiled together in one file they would
+      // be duplicate declarations, whatever the client exports.
+      const root = treeWithReact({
+        source: 'import { KaitenClient } from "@kaitencloud/client";\nexport { KaitenClient };\n',
+      });
+      write(
+        join(root, "packages/react/src/other.ts"),
+        'import { KaitenClient, type Plan } from "@kaitencloud/client";\nexport { KaitenClient };\nexport type { Plan };\n',
+      );
+
+      const [result] = await checkClientFloor(root, {
+        fetchTarball: (_spec, into) => clientTarball(into, ["KaitenClient"]),
+      });
+
       expect(result).toMatchObject({ status: "ok" });
     },
     LONG,
@@ -509,6 +531,22 @@ describe("this repository", () => {
           .toSorted((a, b) => a.localeCompare(b)),
       ).toEqual(["@kaitencloud/client", "@kaitencloud/server"]);
       expect(results.filter((result) => result.rule.endsWith("tarball"))).toHaveLength(2);
+    },
+    LONG,
+  );
+
+  test(
+    "compiles what react imports against the client this tree packs",
+    async () => {
+      // The floor is the version of the client in this tree, so the tarball the tree packs
+      // for the client is the floor. Whatever react imports has to be in it.
+      const results = await checkClientFloor(repoRoot, {
+        fetchTarball: (_spec, into) =>
+          packWorkspacePackage(join(repoRoot, "packages", "client"), into),
+      });
+
+      const react = results.find(({ rule }) => rule === "@kaitencloud/react client floor");
+      expect(react).toMatchObject({ status: "ok" });
     },
     LONG,
   );

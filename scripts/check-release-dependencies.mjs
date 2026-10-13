@@ -479,7 +479,13 @@ export async function checkClientFloor(root, { fetchTarball = fetchPublishedTarb
         continue;
       }
       unpackAsDependency(tarball, project, CLIENT);
-      writeFileSync(join(project, "probe", "imports.ts"), `${imports.join("\n")}\n`);
+      // One file per statement. The statements come from dozens of source files, and
+      // many of them import the same name; in one file those are duplicate
+      // declarations, and the compiler fails on them whatever the client exports.
+      imports.forEach((statement, index) => {
+        const name = `import-${String(index + 1).padStart(3, "0")}.ts`;
+        writeFileSync(join(project, "probe", name), `${statement}\n`);
+      });
 
       const attempts = [];
       for (const profile of PROFILES) {
