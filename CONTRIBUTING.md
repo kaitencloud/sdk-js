@@ -179,7 +179,9 @@ commands above for the OpenAPI contract, and with `vp run sync-graphql-schema`, 
 Both contracts are required: a drift check that cannot read one fails. Locally, the
 OpenAPI check fetches the published contract from npm, with no token, and the
 GraphQL check reads a checkout of kaiten next to this repository, or the schema file
-`KAITEN_GRAPHQL_SCHEMA` names.
+`KAITEN_GRAPHQL_SCHEMA` names. To sync from an OpenAPI contract you already hold, set
+`KAITEN_OPENAPI` to its path and run `pnpm run sync-openapi`: `vp run` hides the
+variable from the script and would fetch the published contract in its place.
 
 ## Upgrading Vite+
 
