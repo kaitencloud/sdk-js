@@ -547,7 +547,9 @@ export function BillingSummary({
         </>
       ) : null}
 
-      <KaitenBranding />
+      {/* Out to the card's edges, as at the foot of every other card: the margins undo the card's
+          padding, and the corners follow its radius inside its 1px border. */}
+      <KaitenBranding className="-mx-6 -mb-6 rounded-b-[calc(1.5rem-1px)] md:-mx-10 md:-mb-10" />
     </section>
   );
 }
