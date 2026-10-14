@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 import { createClient, createConfig } from "./generated/client/index.ts";
 import type { Client } from "./generated/client/index.ts";
 import { KaitenError, KaitenNetworkError, type KaitenApiError } from "./runtime/errors.ts";

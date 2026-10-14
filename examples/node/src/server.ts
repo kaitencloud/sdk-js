@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 import { createServer } from "node:http";
 
 import { createMockKaitenClient } from "@kaitencloud/client/testing";

@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 import { createHmac, randomBytes } from "node:crypto";
 
 import { describe, expect, test } from "vite-plus/test";

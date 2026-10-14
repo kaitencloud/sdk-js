@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // Checks the published shape of the packages, against the real tarballs.
 //
 // Legal files: every published package must ship its LICENSE, its NOTICE and

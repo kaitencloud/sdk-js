@@ -43,6 +43,10 @@ release. Add a tool name to select part of the graph. For example, run
   invisible until the next build.
 
 - The API contracts live in `contracts/`: `openapi.yaml` feeds the generated REST clients of `@kaitencloud/client` and `@kaitencloud/server` (`vp run generate` in each package), and `schema.graphql` feeds the client GraphQL codegen (`packages/client/codegen.ts`, `vp run generate-graphql`). Both are committed snapshots of what the Kaiten API publishes; never edit them or the generated code by hand. `node scripts/check-graphql-drift.mjs` asserts that the shipped operations in `documents.ts` still validate against the snapshot (always hard-fails), and that the snapshot matches the API's schema, which it must be able to read: `KAITEN_GRAPHQL_SCHEMA`, or `KAITEN_PATH` for a local checkout of kaiten (default `../kaiten`). `--operations-only` runs the first check alone.
+- **Every JavaScript and TypeScript file opens with the license header**, two `//`
+  lines (after a `#!` line, if any). `node scripts/check-license-headers.mjs` fails
+  `lint` on a file without it and `--fix` adds it to hand-written files; the
+  generators write it into generated ones, so regenerate those instead.
 - **Vite+ owns the Vite and Vitest versions.** Never bump `vite`, `vitest` or a
   `@vitest/*` package by itself: upgrade `vite-plus` as CONTRIBUTING.md describes, and
   `node scripts/check-version-invariants.mjs` checks that the pins agree.

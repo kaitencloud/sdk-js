@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { KaitenTransport } from "../../src/core/transport.ts";

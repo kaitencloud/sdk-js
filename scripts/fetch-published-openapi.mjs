@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // Fetches the published API contract (@kaitencloud/openapi@latest) from npm and
 // returns the on-disk path to its openapi.yaml — the single source of truth
 // downstream SDKs consume. No checkout of kaiten is involved; the repos are

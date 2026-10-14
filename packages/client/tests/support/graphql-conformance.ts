@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // Makes a GraphQL test double answerable to the real schema.
 //
 // A double that answers any field it is asked for can keep a broken query

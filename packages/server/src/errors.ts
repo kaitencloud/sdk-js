@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // Thrown values for @kaitencloud/server.
 //
 // These mirror the shape of the classes @kaitencloud/client exposes to browser
