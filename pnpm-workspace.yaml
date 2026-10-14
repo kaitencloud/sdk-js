@@ -8,12 +8,12 @@ catalog:
   esbuild: 0.28.2
   "@changesets/changelog-github": ^1.0.1
   "@changesets/cli": ^3.0.3
-  "@graphql-codegen/cli": ^7.4.3
-  "@graphql-codegen/client-preset": ^6.2.0
+  "@graphql-codegen/cli": ^7.4.6
+  "@graphql-codegen/client-preset": ^6.2.3
   "@graphql-typed-document-node/core": ^3.2.0
   "@openfeature/ofrep-provider": ^0.2.5
   "@openfeature/server-sdk": ^1.23.0
-  "@types/node": ^26.6.3
+  "@types/node": ^26.6.5
   graphql: ^17.0.2
   # TypeScript 7, the Go compiler, checks types and emits declarations. Tilde, not
   # caret: TypeScript ships breaking changes in minor releases. The packages that
@@ -26,7 +26,7 @@ catalog:
   # project shares a single Vitest copy. Dependabot leaves it to `vp migrate`, which
   # re-pins it with vite-plus.
   vitest: 5.0.1
-  publint: ^0.3.24
+  publint: ^0.3.25
   "@arethetypeswrong/core": ^0.18.5
 
 # @hey-api/openapi-ts drives the TypeScript compiler JS API (ts.SyntaxKind ...), which
