@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 import { createMockKaitenClient, demoCatalog } from "@kaitencloud/client/testing";
 import { describe, expect, test } from "vite-plus/test";
 

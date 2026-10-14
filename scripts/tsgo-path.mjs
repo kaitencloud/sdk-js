@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // The tsgo executable of the workspace root's TypeScript 7, for tsdown's declaration
 // step. Left to itself, tsdown resolves `typescript` from the vite-plus instance that
 // runs the build: `vp run -r build` runs every package through the root's, and a

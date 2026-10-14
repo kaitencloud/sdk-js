@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // Shared source resolution + canonical printing for the GraphQL schema snapshot.
 //
 // The REST contract (@kaitencloud/openapi) is one printed file, so it diffs byte

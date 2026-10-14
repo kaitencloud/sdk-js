@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // The client's plumbing: the generated OpenAPI client, the transport, runtime
 // primitives and config types. Re-exported by ../index.ts, the full generated
 // surface under the `KaitenApi` namespace.

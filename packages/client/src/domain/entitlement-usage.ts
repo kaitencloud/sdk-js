@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 /**
  * Scope of a NUMBER entitlement's usage counter: a PERIODIC value counts only
  * within the current reset window, a LIFETIME value counts for all time.

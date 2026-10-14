@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // Fails when packages that must move together have drifted apart.
 //
 // Every rule here encodes a breakage that actually reached CI. A bulk dependency

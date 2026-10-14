@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // Guards the GraphQL contract, which — unlike REST — is the SDK's *primary*
 // read path: `getCatalog` and `getLicensingSnapshot` compose in one round-trip
 // through GraphQL and only fall back to the REST fan-out on failure. That

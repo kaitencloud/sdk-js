@@ -30,6 +30,10 @@ jobs:
           run-install: false
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+      # Every JavaScript and TypeScript file opens with the SPDX license header,
+      # generated ones included. Needs only Node and git: it runs before the build.
+      - name: Check license headers
+        run: node scripts/check-license-headers.mjs
       # Packages resolve each other through their built dist/, so types are
       # checked against a fresh build, never a stale one.
       - name: Build packages

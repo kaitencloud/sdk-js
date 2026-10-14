@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 /**
  * RFC-7807 error **body** returned by the Kaiten API. This is the wire *shape*
  * of a failed response, not a thrown value — {@link KaitenError} wraps it.

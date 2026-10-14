@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 import { defineConfig } from "vite-plus";
 
 // Nothing to configure: this file exists so that the example's tests run on the

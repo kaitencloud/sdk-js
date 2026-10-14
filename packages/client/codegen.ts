@@ -1,4 +1,9 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 import type { CodegenConfig } from "@graphql-codegen/cli";
+
+import { LICENSE_HEADER } from "../../scripts/license-header.mjs";
 
 // Generates from the COMMITTED schema snapshot, exactly the way the REST client
 // is generated from contracts/openapi.yaml. Codegen therefore never needs a
@@ -29,6 +34,14 @@ const config: CodegenConfig = {
         },
       },
     },
+  },
+  hooks: {
+    // Every generated file opens with the license header. The client preset only
+    // passes extra plugins to graphql.ts, so the header is added as each file is
+    // written instead.
+    beforeOneFileWrite: [
+      (_path: string, content: string) => `${LICENSE_HEADER.join("\n")}\n\n${content}`,
+    ],
   },
 };
 

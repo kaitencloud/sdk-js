@@ -1,33 +1,32 @@
 # Security Policy
 
-Security reports should be made privately.
+Please do not report security vulnerabilities through public GitHub issues.
 
-## Reporting a vulnerability
+Report them privately, through either channel:
 
-Please use GitHub's **Private vulnerability reporting** feature: open the
-**Security** tab of this repository and choose **Report a vulnerability**. The
-report stays visible to the maintainers only.
+- GitHub Private Vulnerability Reporting for this repository, from its
+  **Security** tab, when available;
+- email to [security@kaiten.sh](mailto:security@kaiten.sh), which also suits
+  reporters without a GitHub account.
 
 Include, where possible:
 
-- affected package and version or commit;
-- description of the vulnerability;
-- reproducible steps or proof of concept;
-- expected security impact;
-- known mitigations or workarounds.
+- affected version or commit;
+- vulnerability description;
+- reproduction steps or proof of concept;
+- expected impact;
+- known mitigations.
 
-Never include a real credential.
+KAITEN INC asks reporters to allow reasonable time to investigate and address
+a vulnerability before public disclosure.
 
-Please do **not** open a public GitHub issue for an unpatched vulnerability.
+## Reports about these packages
 
-## Coordinated disclosure
+Name the affected package, `@kaitencloud/client` or `@kaitencloud/server`, and its
+version.
 
-KAITEN INC asks security researchers to provide a reasonable opportunity to
-investigate and address a vulnerability before public disclosure.
-
-KAITEN INC will make reasonable efforts to acknowledge valid reports, assess
-their impact, coordinate remediation where appropriate, and publish relevant
-security information when a fix is available.
+Never include a real credential. Replace it with a placeholder: its prefix (`ksh_`,
+`whsec_`, …) is enough to say which kind it was.
 
 ## Supported versions
 
@@ -38,11 +37,3 @@ backports to older versions.
 
 A credential that reached a browser bundle, a repository or a log is compromised
 whatever these packages do. Rotate it from the Kaiten console.
-
-## Scope
-
-Unless a repository states otherwise, this policy covers Kaiten open-source
-projects maintained by KAITEN INC.
-
-Third-party services, integrations, dependencies, and forks may have separate
-security reporting processes.

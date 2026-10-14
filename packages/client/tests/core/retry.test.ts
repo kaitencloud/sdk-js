@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 import { afterEach, describe, expect, test, vi } from "vite-plus/test";
 
 import { retry } from "../../src/core/runtime/retry.ts";

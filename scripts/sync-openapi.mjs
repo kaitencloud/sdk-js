@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // Refreshes the committed OpenAPI snapshot (contracts/openapi.yaml)
 // from the published contract @kaitencloud/openapi@latest — the source of truth
 // on npm, NOT a sibling kaiten checkout. The snapshot is the
