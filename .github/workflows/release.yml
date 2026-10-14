@@ -45,7 +45,7 @@ jobs:
         with:
           persist-credentials: false
       - uses: pnpm/action-setup@v6.1.0
-      - uses: actions/setup-node@v7.0.0
+      - uses: actions/setup-node@v7.1.0
         with:
           node-version-file: .node-version
           package-manager-cache: false
@@ -70,7 +70,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - uses: pnpm/action-setup@v6.1.0
-      - uses: actions/setup-node@v7.0.0
+      - uses: actions/setup-node@v7.1.0
         with:
           node-version-file: .node-version
           package-manager-cache: false
@@ -107,7 +107,7 @@ jobs:
         with:
           persist-credentials: false
       - uses: pnpm/action-setup@v6.1.0
-      - uses: actions/setup-node@v7.0.0
+      - uses: actions/setup-node@v7.1.0
         with:
           node-version-file: .node-version
           package-manager-cache: false
@@ -155,7 +155,7 @@ jobs:
         with:
           persist-credentials: false
       - uses: pnpm/action-setup@v6.1.0
-      - uses: actions/setup-node@v7.0.0
+      - uses: actions/setup-node@v7.1.0
         with:
           node-version-file: .node-version
           package-manager-cache: false
