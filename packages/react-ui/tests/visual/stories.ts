@@ -99,6 +99,16 @@ export const STORIES: Array<{ name: string; storyId: string }> = [
     name: "customer-portal-session--voucher-valid",
     storyId: "flows-customer-portal-session--voucher-valid",
   },
+  // A quota with an allowance, read as the console reads it: inside the allowance (a hatched band
+  // past the tick of the grant) and on its ceiling.
+  {
+    name: "customer-portal-session--usage-in-an-allowance",
+    storyId: "flows-customer-portal-session--usage-in-an-allowance",
+  },
+  {
+    name: "customer-portal-session--usage-on-the-ceiling",
+    storyId: "flows-customer-portal-session--usage-on-the-ceiling",
+  },
   {
     name: "customer-portal-session--voucher-refused",
     storyId: "flows-customer-portal-session--voucher-refused",
