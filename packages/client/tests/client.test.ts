@@ -1359,3 +1359,182 @@ describe("public catalog (publishable key)", () => {
     expect(onDegraded).not.toHaveBeenCalled();
   });
 });
+
+describe("customer session (kst_)", () => {
+  const subscribedWire = {
+    status: "subscribed",
+    subscription: {
+      status: "ACTIVE",
+      providerKind: "STRIPE",
+      collectionMethod: "CHARGE_AUTOMATICALLY",
+      currency: "EUR",
+      billingPeriod: "MONTHLY",
+      basePrice: {
+        id: "p-m",
+        billingModel: "FLAT_FEE",
+        billingTiming: "ADVANCE",
+        billingPeriod: "MONTHLY",
+        currency: "EUR",
+        unitAmount: 2900,
+        unitAmountDecimal: "2900",
+        displayOrder: 0,
+        isDefault: true,
+      },
+      currentPeriodStart: "2026-10-08T10:00:00Z",
+      currentPeriodEnd: "2026-11-08T10:00:00Z",
+      trialEndsAt: null,
+      cancelAtPeriodEnd: false,
+    },
+    activationInvoice: {
+      id: "inv-1",
+      kind: "ACTIVATION",
+      status: "PAID",
+      currency: "EUR",
+      subtotal: 2900,
+      discountTotal: 0,
+      total: 2900,
+      issuedAt: "2026-10-08T10:00:00Z",
+      dueAt: "2026-10-08T10:00:00Z",
+      paidAt: "2026-10-08T10:00:01Z",
+      serviceFrom: "2026-10-08T10:00:00Z",
+      serviceTo: "2026-11-08T10:00:00Z",
+      providerInvoiceNumber: "INV-0001",
+      externalReference: null,
+      hostedInvoiceUrl: "https://pay.example/inv-1",
+      invoicePdfUrl: null,
+      lines: [
+        {
+          seq: 1,
+          type: "BASE",
+          label: "Pro",
+          description: "",
+          quantity: "1",
+          unitAmountDecimal: "2900",
+          amount: 2900,
+          serviceFrom: "2026-10-08T10:00:00Z",
+          serviceTo: "2026-11-08T10:00:00Z",
+        },
+      ],
+    },
+    payment: { status: "paid", hostedInvoiceUrl: "https://pay.example/inv-1" },
+  };
+
+  function sessionClient(fetchMock: typeof fetch) {
+    return new KaitenClient({
+      apiUrl: "https://api.test",
+      authScheme: "bearer",
+      tokenProvider: () => "kst_session",
+      fetch: fetchMock,
+    });
+  }
+
+  test("checks out with the session as a bearer token, and maps the answer", async () => {
+    const fetchMock = vi.fn(async () => json(subscribedWire, 201));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await sessionClient(fetchMock).session.checkout({
+      licensePriceId: "p-m",
+      addOns: [{ addonSlug: "extra-seats-v1", quantity: 2 }],
+    });
+
+    const request = getFetchRequest(fetchMock);
+    expect(new URL(request.url).pathname).toBe("/public/session/checkout");
+    expect(request.method).toBe("POST");
+    expect(request.headers.get("Authorization")).toBe("Bearer kst_session");
+    expect(await request.json()).toEqual({
+      licensePriceId: "p-m",
+      addOns: [{ addonSlug: "extra-seats-v1", quantity: 2 }],
+      dryRun: false,
+    });
+
+    expect(result.status).toBe("subscribed");
+    if (result.status !== "subscribed") return;
+    expect(result.payment).toEqual({
+      status: "paid",
+      hostedInvoiceUrl: "https://pay.example/inv-1",
+    });
+    expect(result.subscription).toMatchObject({ currencyCode: "EUR", status: "ACTIVE" });
+    expect(result.subscription.basePrice).toMatchObject({
+      amount: 2900,
+      interval: "month",
+      isDefault: true,
+    });
+    expect(result.activationInvoice).toMatchObject({
+      currencyCode: "EUR",
+      total: 2900,
+      status: "PAID",
+    });
+    expect(result.activationInvoice?.lines[0]).toMatchObject({ type: "BASE", amount: 2900 });
+  });
+
+  test("previews with dryRun, and passes a setup page through", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const request = new Request(input, init);
+      const body = (await request.json()) as { dryRun: boolean };
+      return body.dryRun
+        ? json({
+            status: "preview",
+            dueToday: { currency: "EUR", subtotal: 2900, discountTotal: 0, total: 2900, lines: [] },
+          })
+        : json({
+            status: "requires_payment_method",
+            setupUrl: "https://checkout.stripe.test/setup",
+            setupSessionId: "cs_1",
+            expiresAt: "2026-10-09T10:00:00Z",
+          });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const client = sessionClient(fetchMock as unknown as typeof fetch);
+
+    const preview = await client.session.previewCheckout({ licensePriceId: "p-m" });
+    expect(preview).toEqual({
+      status: "preview",
+      dueToday: { currencyCode: "EUR", subtotal: 2900, discountTotal: 0, total: 2900, lines: [] },
+      trialEndsAt: null,
+    });
+    const setup = await client.session.checkout({
+      licensePriceId: "p-m",
+      returnUrl: "https://app.test/billing",
+    });
+    expect(setup).toEqual({
+      status: "requires_payment_method",
+      setupUrl: "https://checkout.stripe.test/setup",
+      setupSessionId: "cs_1",
+      expiresAt: "2026-10-09T10:00:00Z",
+    });
+  });
+
+  test("lists the customer's invoices", async () => {
+    const fetchMock = vi.fn(async () =>
+      json({ items: [subscribedWire.activationInvoice], hasMore: false }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const page = await sessionClient(fetchMock).session.invoices({ limit: 10 });
+    const request = getFetchRequest(fetchMock);
+    expect(new URL(request.url).pathname).toBe("/public/session/invoices");
+    expect(new URL(request.url).searchParams.get("limit")).toBe("10");
+    expect(page.items[0]).toMatchObject({
+      id: "inv-1",
+      currencyCode: "EUR",
+      hostedInvoiceUrl: "https://pay.example/inv-1",
+    });
+    expect(page.nextCursor).toBeNull();
+  });
+
+  test("refuses the session routes with a publishable key, before any request", async () => {
+    const fetchMock = vi.fn(async () => json({}));
+    vi.stubGlobal("fetch", fetchMock);
+    const client = new KaitenClient({
+      apiUrl: "https://api.test",
+      authScheme: "publishable",
+      tokenProvider: () => "pk_live",
+      fetch: fetchMock,
+    });
+    await expect(client.session.checkout({ licensePriceId: "p-m" })).rejects.toBeInstanceOf(
+      TypeError,
+    );
+    await expect(client.session.invoices()).rejects.toBeInstanceOf(TypeError);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+});

@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vite-plus/test";
 import {
   Customers,
+  CustomerSessions,
   createKaitenClient,
   Instances,
   KaitenError,
@@ -27,6 +28,36 @@ describe("@kaitencloud/server", () => {
     expect(typeof Customers.listCustomers).toBe("function");
     expect(typeof Customers.createCustomer).toBe("function");
     expect(typeof Instances.createInstance).toBe("function");
+  });
+
+  test("mints a customer session for the browser", async () => {
+    const { seen, fetch } = recordingFetch(
+      async () =>
+        new Response(
+          JSON.stringify({
+            id: "s1",
+            token: "kst_x",
+            expiresAt: "2026-10-08T10:30:00Z",
+            customerSlug: "acme",
+          }),
+          { status: 201, headers: { "content-type": "application/json" } },
+        ),
+    );
+    const client = createKaitenClient({
+      token: "ksh_vendor",
+      baseUrl: "https://example.test",
+      fetch,
+    });
+
+    const { data } = await CustomerSessions.createCustomerSession({
+      client,
+      body: { customerSlug: "acme", instanceSlug: "acme-prod" },
+    });
+
+    expect(data?.token).toBe("kst_x");
+    expect(seen[0]?.method).toBe("POST");
+    expect(new URL(seen[0]!.url).pathname).toBe("/api/customer-sessions");
+    expect(seen[0]?.headers.get("Authorization")).toBe("Bearer ksh_vendor");
   });
 
   test("createKaitenClient injects Bearer auth and the base URL", async () => {

@@ -9,21 +9,57 @@ import type {
   TDataShape,
 } from "./client/index.js";
 import type {
+  AckHandoffData,
+  AckHandoffErrors,
+  AckHandoffResponses,
   ActivateConnectorData,
   ActivateConnectorErrors,
   ActivateConnectorResponses,
   AddEntitlementToGroupData,
   AddEntitlementToGroupErrors,
   AddEntitlementToGroupResponses,
+  ArchiveAddonData,
+  ArchiveAddonErrors,
+  ArchiveAddonResponses,
   ArchiveLicenseData,
   ArchiveLicenseErrors,
   ArchiveLicenseResponses,
   ArchiveMetadataFieldData,
   ArchiveMetadataFieldErrors,
   ArchiveMetadataFieldResponses,
+  ArchiveVoucherData,
+  ArchiveVoucherErrors,
+  ArchiveVoucherResponses,
+  AssignAddonEntitlementData,
+  AssignAddonEntitlementErrors,
+  AssignAddonEntitlementResponses,
   AssociateEntitlementWithLicenseData,
   AssociateEntitlementWithLicenseErrors,
   AssociateEntitlementWithLicenseResponses,
+  AttachInstanceAddonData,
+  AttachInstanceAddonErrors,
+  AttachInstanceAddonResponses,
+  CancelPlanChangeData,
+  CancelPlanChangeErrors,
+  CancelPlanChangeResponses,
+  CancelSubscriptionData,
+  CancelSubscriptionErrors,
+  CancelSubscriptionResponses,
+  ClaimHandoffData,
+  ClaimHandoffErrors,
+  ClaimHandoffResponses,
+  CloseBillingPeriodsData,
+  CloseBillingPeriodsErrors,
+  CloseBillingPeriodsResponses,
+  CompletePaymentMethodSessionData,
+  CompletePaymentMethodSessionErrors,
+  CompletePaymentMethodSessionResponses,
+  CreateAddonData,
+  CreateAddonErrors,
+  CreateAddonPriceData,
+  CreateAddonPriceErrors,
+  CreateAddonPriceResponses,
+  CreateAddonResponses,
   CreateComponentData,
   CreateComponentErrors,
   CreateComponentResponses,
@@ -33,6 +69,9 @@ import type {
   CreateCustomerIntegrationErrors,
   CreateCustomerIntegrationResponses,
   CreateCustomerResponses,
+  CreateCustomerSessionData,
+  CreateCustomerSessionErrors,
+  CreateCustomerSessionResponses,
   CreateDeploymentZoneData,
   CreateDeploymentZoneErrors,
   CreateDeploymentZoneResponses,
@@ -53,10 +92,22 @@ import type {
   CreateInstanceResponses,
   CreateLicenseData,
   CreateLicenseErrors,
+  CreateLicensePriceData,
+  CreateLicensePriceErrors,
+  CreateLicensePriceResponses,
   CreateLicenseResponses,
   CreateMetadataFieldData,
   CreateMetadataFieldErrors,
   CreateMetadataFieldResponses,
+  CreatePaymentMethodSessionData,
+  CreatePaymentMethodSessionErrors,
+  CreatePaymentMethodSessionResponses,
+  CreatePortalSessionData,
+  CreatePortalSessionErrors,
+  CreatePortalSessionResponses,
+  CreatePublishableKeyData,
+  CreatePublishableKeyErrors,
+  CreatePublishableKeyResponses,
   CreateReleaseData,
   CreateReleaseErrors,
   CreateReleaseResponses,
@@ -66,9 +117,18 @@ import type {
   CreateServiceAccountTokenData,
   CreateServiceAccountTokenErrors,
   CreateServiceAccountTokenResponses,
+  CreateSessionCheckoutData,
+  CreateSessionCheckoutErrors,
+  CreateSessionCheckoutResponses,
+  CreateVoucherData,
+  CreateVoucherErrors,
+  CreateVoucherResponses,
   DeactivateConnectorData,
   DeactivateConnectorErrors,
   DeactivateConnectorResponses,
+  DeleteAddonData,
+  DeleteAddonErrors,
+  DeleteAddonResponses,
   DeleteComponentData,
   DeleteComponentErrors,
   DeleteComponentResponses,
@@ -111,6 +171,18 @@ import type {
   DeleteServiceAccountTokenData,
   DeleteServiceAccountTokenErrors,
   DeleteServiceAccountTokenResponses,
+  DeprecateAddonPriceData,
+  DeprecateAddonPriceErrors,
+  DeprecateAddonPriceResponses,
+  DeprecateLicensePriceData,
+  DeprecateLicensePriceErrors,
+  DeprecateLicensePriceResponses,
+  DetachInstanceAddonData,
+  DetachInstanceAddonErrors,
+  DetachInstanceAddonResponses,
+  DetachPaymentMethodData,
+  DetachPaymentMethodErrors,
+  DetachPaymentMethodResponses,
   DryRunMetadataFieldData,
   DryRunMetadataFieldErrors,
   DryRunMetadataFieldResponses,
@@ -120,15 +192,36 @@ import type {
   EvaluateFlagsBulkData,
   EvaluateFlagsBulkErrors,
   EvaluateFlagsBulkResponses,
+  ExportInvoicesData,
+  ExportInvoicesErrors,
+  ExportInvoicesResponses,
   ExportOrganizationUsageReportsData,
   ExportOrganizationUsageReportsErrors,
   ExportOrganizationUsageReportsResponses,
   ExportUsageReportsData,
   ExportUsageReportsErrors,
   ExportUsageReportsResponses,
+  GetAddonData,
+  GetAddonEntitlementData,
+  GetAddonEntitlementErrors,
+  GetAddonEntitlementResponses,
+  GetAddonErrors,
+  GetAddonFamilyData,
+  GetAddonFamilyErrors,
+  GetAddonFamilyResponses,
+  GetAddonResponses,
   GetAuditTrailsData,
   GetAuditTrailsErrors,
   GetAuditTrailsResponses,
+  GetBillingCapabilitiesData,
+  GetBillingCapabilitiesErrors,
+  GetBillingCapabilitiesResponses,
+  GetBillingHealthData,
+  GetBillingHealthErrors,
+  GetBillingHealthResponses,
+  GetBillingSettingsData,
+  GetBillingSettingsErrors,
+  GetBillingSettingsResponses,
   GetComponentData,
   GetComponentErrors,
   GetComponentResponses,
@@ -144,6 +237,9 @@ import type {
   GetConnectorStateData,
   GetConnectorStateErrors,
   GetConnectorStateResponses,
+  GetCustomerBillingData,
+  GetCustomerBillingErrors,
+  GetCustomerBillingResponses,
   GetCustomerData,
   GetCustomerErrors,
   GetCustomerIntegrationByExternalIdData,
@@ -177,6 +273,9 @@ import type {
   GetFeatureFlagsData,
   GetFeatureFlagsErrors,
   GetFeatureFlagsResponses,
+  GetInstanceBillingData,
+  GetInstanceBillingErrors,
+  GetInstanceBillingResponses,
   GetInstanceData,
   GetInstanceErrors,
   GetInstanceIntegrationByExternalIdData,
@@ -189,6 +288,9 @@ import type {
   GetInstancesData,
   GetInstancesErrors,
   GetInstancesResponses,
+  GetInvoiceData,
+  GetInvoiceErrors,
+  GetInvoiceResponses,
   GetLicenseData,
   GetLicenseEntitlementData,
   GetLicenseEntitlementErrors,
@@ -200,6 +302,9 @@ import type {
   GetLicenseFamilyData,
   GetLicenseFamilyErrors,
   GetLicenseFamilyResponses,
+  GetLicensePriceData,
+  GetLicensePriceErrors,
+  GetLicensePriceResponses,
   GetLicenseResponses,
   GetLicensesData,
   GetLicensesErrors,
@@ -210,6 +315,9 @@ import type {
   GetOpenfeatureManifestData,
   GetOpenfeatureManifestErrors,
   GetOpenfeatureManifestResponses,
+  GetPublicCatalogData,
+  GetPublicCatalogErrors,
+  GetPublicCatalogResponses,
   GetReleaseBySlugData,
   GetReleaseBySlugErrors,
   GetReleaseBySlugResponses,
@@ -225,9 +333,30 @@ import type {
   GetTargetingContextData,
   GetTargetingContextErrors,
   GetTargetingContextResponses,
+  GetUpcomingInvoiceData,
+  GetUpcomingInvoiceErrors,
+  GetUpcomingInvoiceResponses,
+  GetVoucherData,
+  GetVoucherErrors,
+  GetVoucherResponses,
   LintTargetingRuleData,
   LintTargetingRuleErrors,
   LintTargetingRuleResponses,
+  ListAddonCompatibilityData,
+  ListAddonCompatibilityErrors,
+  ListAddonCompatibilityResponses,
+  ListAddonEntitlementsData,
+  ListAddonEntitlementsErrors,
+  ListAddonEntitlementsResponses,
+  ListAddonFamiliesData,
+  ListAddonFamiliesErrors,
+  ListAddonFamiliesResponses,
+  ListAddonPricesData,
+  ListAddonPricesErrors,
+  ListAddonPricesResponses,
+  ListAddonsData,
+  ListAddonsErrors,
+  ListAddonsResponses,
   ListComponentsData,
   ListComponentsErrors,
   ListComponentsResponses,
@@ -246,33 +375,96 @@ import type {
   ListEntitlementsData,
   ListEntitlementsErrors,
   ListEntitlementsResponses,
+  ListHandoffData,
+  ListHandoffErrors,
+  ListHandoffResponses,
+  ListInstanceAddonsData,
+  ListInstanceAddonsErrors,
+  ListInstanceAddonsResponses,
+  ListInstanceInvoicesData,
+  ListInstanceInvoicesErrors,
+  ListInstanceInvoicesResponses,
+  ListInstanceVouchersData,
+  ListInstanceVouchersErrors,
+  ListInstanceVouchersResponses,
+  ListInvoiceLineReportsData,
+  ListInvoiceLineReportsErrors,
+  ListInvoiceLineReportsResponses,
+  ListInvoicesData,
+  ListInvoicesErrors,
+  ListInvoicesResponses,
   ListLicenseFamiliesData,
   ListLicenseFamiliesErrors,
   ListLicenseFamiliesResponses,
+  ListLicensePricesData,
+  ListLicensePricesErrors,
+  ListLicensePricesResponses,
   ListMetadataFieldsData,
   ListMetadataFieldsErrors,
   ListMetadataFieldsResponses,
   ListNotificationsData,
   ListNotificationsErrors,
   ListNotificationsResponses,
+  ListPublishableKeysData,
+  ListPublishableKeysErrors,
+  ListPublishableKeysResponses,
   ListReleasesData,
   ListReleasesErrors,
   ListReleasesResponses,
+  ListSessionInvoicesData,
+  ListSessionInvoicesErrors,
+  ListSessionInvoicesResponses,
   ListUsageReportsData,
   ListUsageReportsErrors,
   ListUsageReportsResponses,
+  ListVoucherRedemptionsData,
+  ListVoucherRedemptionsErrors,
+  ListVoucherRedemptionsResponses,
+  ListVouchersData,
+  ListVouchersErrors,
+  ListVouchersResponses,
+  LookupVoucherData,
+  LookupVoucherErrors,
+  LookupVoucherResponses,
+  MarkInvoicePaidData,
+  MarkInvoicePaidErrors,
+  MarkInvoicePaidResponses,
   MarkNotificationsReadData,
   MarkNotificationsReadErrors,
   MarkNotificationsReadResponses,
   PatchInstanceData,
   PatchInstanceErrors,
   PatchInstanceResponses,
+  PreviewLicenseInvoiceData,
+  PreviewLicenseInvoiceErrors,
+  PreviewLicenseInvoiceResponses,
+  PublishAddonData,
+  PublishAddonErrors,
+  PublishAddonResponses,
   PublishLicenseData,
   PublishLicenseErrors,
   PublishLicenseResponses,
+  PublishVoucherData,
+  PublishVoucherErrors,
+  PublishVoucherResponses,
   PutNotificationPreferencesData,
   PutNotificationPreferencesErrors,
   PutNotificationPreferencesResponses,
+  ReactivateSubscriptionData,
+  ReactivateSubscriptionErrors,
+  ReactivateSubscriptionResponses,
+  RecomposeInvoiceData,
+  RecomposeInvoiceErrors,
+  RecomposeInvoiceResponses,
+  RedeemVoucherData,
+  RedeemVoucherErrors,
+  RedeemVoucherResponses,
+  ReleaseInvoiceHoldData,
+  ReleaseInvoiceHoldErrors,
+  ReleaseInvoiceHoldResponses,
+  RemoveAddonCompatibilityData,
+  RemoveAddonCompatibilityErrors,
+  RemoveAddonCompatibilityResponses,
   RemoveEntitlementFromGroupData,
   RemoveEntitlementFromGroupErrors,
   RemoveEntitlementFromGroupResponses,
@@ -282,15 +474,63 @@ import type {
   ReportEntitlementUsageMetricData,
   ReportEntitlementUsageMetricErrors,
   ReportEntitlementUsageMetricResponses,
+  RetryInvoicePushData,
+  RetryInvoicePushErrors,
+  RetryInvoicePushResponses,
+  RevokeCustomerSessionData,
+  RevokeCustomerSessionErrors,
+  RevokeCustomerSessionResponses,
+  RevokeInstanceVoucherData,
+  RevokeInstanceVoucherErrors,
+  RevokeInstanceVoucherResponses,
+  RevokePublishableKeyData,
+  RevokePublishableKeyErrors,
+  RevokePublishableKeyResponses,
+  SchedulePlanChangeData,
+  SchedulePlanChangeErrors,
+  SchedulePlanChangeResponses,
+  SetAddonCompatibilityData,
+  SetAddonCompatibilityErrors,
+  SetAddonCompatibilityResponses,
+  SetInstanceAddonQuantityData,
+  SetInstanceAddonQuantityErrors,
+  SetInstanceAddonQuantityResponses,
+  SubscribeInstanceData,
+  SubscribeInstanceErrors,
+  SubscribeInstanceResponses,
+  SyncBillingProviderData,
+  SyncBillingProviderErrors,
+  SyncBillingProviderResponses,
+  SyncInvoiceData,
+  SyncInvoiceErrors,
+  SyncInvoiceResponses,
   TestTargetingRuleData,
   TestTargetingRuleErrors,
   TestTargetingRuleResponses,
+  UnarchiveAddonData,
+  UnarchiveAddonErrors,
+  UnarchiveAddonResponses,
   UnarchiveLicenseData,
   UnarchiveLicenseErrors,
   UnarchiveLicenseResponses,
   UnarchiveMetadataFieldData,
   UnarchiveMetadataFieldErrors,
   UnarchiveMetadataFieldResponses,
+  UnassignAddonEntitlementData,
+  UnassignAddonEntitlementErrors,
+  UnassignAddonEntitlementResponses,
+  UpdateAddonData,
+  UpdateAddonEntitlementData,
+  UpdateAddonEntitlementErrors,
+  UpdateAddonEntitlementResponses,
+  UpdateAddonErrors,
+  UpdateAddonFamilyData,
+  UpdateAddonFamilyErrors,
+  UpdateAddonFamilyResponses,
+  UpdateAddonResponses,
+  UpdateBillingSettingsData,
+  UpdateBillingSettingsErrors,
+  UpdateBillingSettingsResponses,
   UpdateComponentData,
   UpdateComponentErrors,
   UpdateComponentResponses,
@@ -315,6 +555,9 @@ import type {
   UpdateFeatureFlagData,
   UpdateFeatureFlagErrors,
   UpdateFeatureFlagResponses,
+  UpdateInstanceBillingData,
+  UpdateInstanceBillingErrors,
+  UpdateInstanceBillingResponses,
   UpdateInstanceData,
   UpdateInstanceErrors,
   UpdateInstanceIntegrationData,
@@ -326,19 +569,40 @@ import type {
   UpdateLicenseEntitlementErrors,
   UpdateLicenseEntitlementResponses,
   UpdateLicenseErrors,
+  UpdateLicenseFamilyData,
+  UpdateLicenseFamilyErrors,
+  UpdateLicenseFamilyResponses,
+  UpdateLicensePriceData,
+  UpdateLicensePriceErrors,
+  UpdateLicensePriceResponses,
   UpdateLicenseResponses,
   UpdateMetadataFieldData,
   UpdateMetadataFieldErrors,
   UpdateMetadataFieldResponses,
+  UpdatePublishableKeyData,
+  UpdatePublishableKeyErrors,
+  UpdatePublishableKeyResponses,
   UpdateServiceAccountData,
   UpdateServiceAccountErrors,
   UpdateServiceAccountResponses,
+  UpdateVoucherData,
+  UpdateVoucherErrors,
+  UpdateVoucherResponses,
   UpsertCustomerIntegrationByExternalIdData,
   UpsertCustomerIntegrationByExternalIdErrors,
   UpsertCustomerIntegrationByExternalIdResponses,
   UpsertInstanceIntegrationByExternalIdData,
   UpsertInstanceIntegrationByExternalIdErrors,
   UpsertInstanceIntegrationByExternalIdResponses,
+  ValidateVoucherData,
+  ValidateVoucherErrors,
+  ValidateVoucherResponses,
+  VoidInvoiceData,
+  VoidInvoiceErrors,
+  VoidInvoiceResponses,
+  WriteOffInvoiceData,
+  WriteOffInvoiceErrors,
+  WriteOffInvoiceResponses,
 } from "./types.gen.js";
 
 export type Options<
@@ -359,6 +623,1460 @@ export type Options<
   meta?: keyof ClientMeta extends never ? Record<string, unknown> : ClientMeta;
 };
 
+export class Addons {
+  /**
+   * List add-on families
+   *
+   * Every add-on family of the organization with its versions, newest family first. Requires billing to be enabled for the organization.
+   */
+  public static listAddonFamilies<ThrowOnError extends boolean = false>(
+    options?: Options<ListAddonFamiliesData, ThrowOnError>,
+  ): RequestResult<ListAddonFamiliesResponses, ListAddonFamiliesErrors, ThrowOnError> {
+    return (options?.client ?? client).get<
+      ListAddonFamiliesResponses,
+      ListAddonFamiliesErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/addon-families",
+      ...options,
+    });
+  }
+
+  /**
+   * Get an add-on family
+   *
+   * One add-on family with its versions and its current version. Requires billing to be enabled for the organization.
+   */
+  public static getAddonFamily<ThrowOnError extends boolean = false>(
+    options: Options<GetAddonFamilyData, ThrowOnError>,
+  ): RequestResult<GetAddonFamilyResponses, GetAddonFamilyErrors, ThrowOnError> {
+    return (options.client ?? client).get<
+      GetAddonFamilyResponses,
+      GetAddonFamilyErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/addon-families/{familySlug}",
+      ...options,
+    });
+  }
+
+  /**
+   * Update an add-on family
+   *
+   * Lists the family in the public catalogue, or takes it out. Families are private until made public. Emits ADDON_UPDATED on each of its versions. Requires billing to be enabled for the organization.
+   */
+  public static updateAddonFamily<ThrowOnError extends boolean = false>(
+    options: Options<UpdateAddonFamilyData, ThrowOnError>,
+  ): RequestResult<UpdateAddonFamilyResponses, UpdateAddonFamilyErrors, ThrowOnError> {
+    return (options.client ?? client).patch<
+      UpdateAddonFamilyResponses,
+      UpdateAddonFamilyErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/addon-families/{familySlug}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * List add-on versions
+   *
+   * The organization's add-on versions, newest first. Requires billing to be enabled for the organization.
+   */
+  public static listAddons<ThrowOnError extends boolean = false>(
+    options?: Options<ListAddonsData, ThrowOnError>,
+  ): RequestResult<ListAddonsResponses, ListAddonsErrors, ThrowOnError> {
+    return (options?.client ?? client).get<ListAddonsResponses, ListAddonsErrors, ThrowOnError>({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/addons",
+      ...options,
+    });
+  }
+
+  /**
+   * Create an add-on version
+   *
+   * Creates an add-on version: the first of a new family, or the next version of the family familySlug (or familyId) names. Emits ADDON_CREATED. Requires billing to be enabled for the organization.
+   */
+  public static createAddon<ThrowOnError extends boolean = false>(
+    options: Options<CreateAddonData, ThrowOnError>,
+  ): RequestResult<CreateAddonResponses, CreateAddonErrors, ThrowOnError> {
+    return (options.client ?? client).post<CreateAddonResponses, CreateAddonErrors, ThrowOnError>({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/addons",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Delete an add-on version
+   *
+   * Deletes a version that was never attached and grants nothing (409 DeleteAddon.InUseConflict otherwise); its family goes with its last version. Emits ADDON_DELETED. Requires billing to be enabled for the organization.
+   */
+  public static deleteAddon<ThrowOnError extends boolean = false>(
+    options: Options<DeleteAddonData, ThrowOnError>,
+  ): RequestResult<DeleteAddonResponses, DeleteAddonErrors, ThrowOnError> {
+    return (options.client ?? client).delete<DeleteAddonResponses, DeleteAddonErrors, ThrowOnError>(
+      {
+        security: [
+          {
+            key: "bearerAuth",
+            scheme: "bearer",
+            type: "http",
+          },
+        ],
+        url: "/addons/{addonSlug}",
+        ...options,
+      },
+    );
+  }
+
+  /**
+   * Get an add-on version
+   *
+   * One add-on version. Requires billing to be enabled for the organization.
+   */
+  public static getAddon<ThrowOnError extends boolean = false>(
+    options: Options<GetAddonData, ThrowOnError>,
+  ): RequestResult<GetAddonResponses, GetAddonErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetAddonResponses, GetAddonErrors, ThrowOnError>({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/addons/{addonSlug}",
+      ...options,
+    });
+  }
+
+  /**
+   * Update an add-on version
+   *
+   * Replaces a version's name, description, version name, default flag and maximum quantity. Emits ADDON_UPDATED. Requires billing to be enabled for the organization.
+   */
+  public static updateAddon<ThrowOnError extends boolean = false>(
+    options: Options<UpdateAddonData, ThrowOnError>,
+  ): RequestResult<UpdateAddonResponses, UpdateAddonErrors, ThrowOnError> {
+    return (options.client ?? client).put<UpdateAddonResponses, UpdateAddonErrors, ThrowOnError>({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/addons/{addonSlug}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Archive an add-on version
+   *
+   * Withdraws a PUBLISHED version from sale: instances holding it keep it, none can attach it again (409 ArchiveAddon.NotPublished otherwise). Emits ADDON_ARCHIVED. Requires billing to be enabled for the organization.
+   */
+  public static archiveAddon<ThrowOnError extends boolean = false>(
+    options: Options<ArchiveAddonData, ThrowOnError>,
+  ): RequestResult<ArchiveAddonResponses, ArchiveAddonErrors, ThrowOnError> {
+    return (options.client ?? client).post<ArchiveAddonResponses, ArchiveAddonErrors, ThrowOnError>(
+      {
+        security: [
+          {
+            key: "bearerAuth",
+            scheme: "bearer",
+            type: "http",
+          },
+        ],
+        url: "/addons/{addonSlug}/archive",
+        ...options,
+      },
+    );
+  }
+
+  /**
+   * List the licence families an add-on fits
+   *
+   * The licence families an instance must be on to attach this add-on version. None: it cannot be attached. Requires billing to be enabled for the organization.
+   */
+  public static listAddonCompatibility<ThrowOnError extends boolean = false>(
+    options: Options<ListAddonCompatibilityData, ThrowOnError>,
+  ): RequestResult<ListAddonCompatibilityResponses, ListAddonCompatibilityErrors, ThrowOnError> {
+    return (options.client ?? client).get<
+      ListAddonCompatibilityResponses,
+      ListAddonCompatibilityErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/addons/{addonSlug}/compatible-license-families",
+      ...options,
+    });
+  }
+
+  /**
+   * Stop an add-on fitting a licence family
+   *
+   * Instances already holding the add-on keep it; no new attachment from the family. Idempotent. Emits ADDON_UPDATED. Requires billing to be enabled for the organization.
+   */
+  public static removeAddonCompatibility<ThrowOnError extends boolean = false>(
+    options: Options<RemoveAddonCompatibilityData, ThrowOnError>,
+  ): RequestResult<
+    RemoveAddonCompatibilityResponses,
+    RemoveAddonCompatibilityErrors,
+    ThrowOnError
+  > {
+    return (options.client ?? client).delete<
+      RemoveAddonCompatibilityResponses,
+      RemoveAddonCompatibilityErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/addons/{addonSlug}/compatible-license-families/{familySlug}",
+      ...options,
+    });
+  }
+
+  /**
+   * Make an add-on fit a licence family
+   *
+   * Lets instances on any version of the licence family attach this add-on version. Idempotent. Emits ADDON_UPDATED. Requires billing to be enabled for the organization.
+   */
+  public static setAddonCompatibility<ThrowOnError extends boolean = false>(
+    options: Options<SetAddonCompatibilityData, ThrowOnError>,
+  ): RequestResult<SetAddonCompatibilityResponses, SetAddonCompatibilityErrors, ThrowOnError> {
+    return (options.client ?? client).put<
+      SetAddonCompatibilityResponses,
+      SetAddonCompatibilityErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/addons/{addonSlug}/compatible-license-families/{familySlug}",
+      ...options,
+    });
+  }
+
+  /**
+   * List an add-on version's grants
+   *
+   * What one add-on version grants per unit of quantity. Requires billing to be enabled for the organization.
+   */
+  public static listAddonEntitlements<ThrowOnError extends boolean = false>(
+    options: Options<ListAddonEntitlementsData, ThrowOnError>,
+  ): RequestResult<ListAddonEntitlementsResponses, ListAddonEntitlementsErrors, ThrowOnError> {
+    return (options.client ?? client).get<
+      ListAddonEntitlementsResponses,
+      ListAddonEntitlementsErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/addons/{addonSlug}/entitlements",
+      ...options,
+    });
+  }
+
+  /**
+   * Grant an entitlement through an add-on
+   *
+   * Grants an entitlement per unit of an add-on version. Refused while an instance with a live subscription holds the version (409 AssignAddonEntitlement.BillingActive). Emits ADDON_ENTITLEMENT_ASSIGNED. Requires billing to be enabled for the organization.
+   */
+  public static assignAddonEntitlement<ThrowOnError extends boolean = false>(
+    options: Options<AssignAddonEntitlementData, ThrowOnError>,
+  ): RequestResult<AssignAddonEntitlementResponses, AssignAddonEntitlementErrors, ThrowOnError> {
+    return (options.client ?? client).post<
+      AssignAddonEntitlementResponses,
+      AssignAddonEntitlementErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/addons/{addonSlug}/entitlements",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Remove an add-on grant
+   *
+   * Removes a grant. Refused while an instance with a live subscription holds the version (409 UnassignAddonEntitlement.BillingActive) and while an ACTIVE price of the version meters it (409 UnassignAddonEntitlement.MeteredByPrice). Emits ADDON_ENTITLEMENT_UNASSIGNED. Requires billing to be enabled for the organization.
+   */
+  public static unassignAddonEntitlement<ThrowOnError extends boolean = false>(
+    options: Options<UnassignAddonEntitlementData, ThrowOnError>,
+  ): RequestResult<
+    UnassignAddonEntitlementResponses,
+    UnassignAddonEntitlementErrors,
+    ThrowOnError
+  > {
+    return (options.client ?? client).delete<
+      UnassignAddonEntitlementResponses,
+      UnassignAddonEntitlementErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/addons/{addonSlug}/entitlements/{entitlementSlug}",
+      ...options,
+    });
+  }
+
+  /**
+   * Get an add-on grant
+   *
+   * One grant of an add-on version. Requires billing to be enabled for the organization.
+   */
+  public static getAddonEntitlement<ThrowOnError extends boolean = false>(
+    options: Options<GetAddonEntitlementData, ThrowOnError>,
+  ): RequestResult<GetAddonEntitlementResponses, GetAddonEntitlementErrors, ThrowOnError> {
+    return (options.client ?? client).get<
+      GetAddonEntitlementResponses,
+      GetAddonEntitlementErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/addons/{addonSlug}/entitlements/{entitlementSlug}",
+      ...options,
+    });
+  }
+
+  /**
+   * Update an add-on grant
+   *
+   * Replaces a grant's value, override behaviour and overage. Refused while an instance with a live subscription holds the version (409 UpdateAddonEntitlement.BillingActive). Emits ADDON_ENTITLEMENT_UPDATED. Requires billing to be enabled for the organization.
+   */
+  public static updateAddonEntitlement<ThrowOnError extends boolean = false>(
+    options: Options<UpdateAddonEntitlementData, ThrowOnError>,
+  ): RequestResult<UpdateAddonEntitlementResponses, UpdateAddonEntitlementErrors, ThrowOnError> {
+    return (options.client ?? client).put<
+      UpdateAddonEntitlementResponses,
+      UpdateAddonEntitlementErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/addons/{addonSlug}/entitlements/{entitlementSlug}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * List an add-on version's prices
+   *
+   * The prices of one add-on version, in display order. Requires billing to be enabled for the organization.
+   */
+  public static listAddonPrices<ThrowOnError extends boolean = false>(
+    options: Options<ListAddonPricesData, ThrowOnError>,
+  ): RequestResult<ListAddonPricesResponses, ListAddonPricesErrors, ThrowOnError> {
+    return (options.client ?? client).get<
+      ListAddonPricesResponses,
+      ListAddonPricesErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/addons/{addonSlug}/prices",
+      ...options,
+    });
+  }
+
+  /**
+   * Create an add-on price
+   *
+   * Adds a price to an add-on version, under the rules of a licence price. A price cannot change once created: create another and deprecate this one. Refused while an instance with a live subscription holds the version (409 CreateAddonPrice.BillingActive). Emits ADDON_PRICE_CREATED. Requires billing to be enabled for the organization.
+   */
+  public static createAddonPrice<ThrowOnError extends boolean = false>(
+    options: Options<CreateAddonPriceData, ThrowOnError>,
+  ): RequestResult<CreateAddonPriceResponses, CreateAddonPriceErrors, ThrowOnError> {
+    return (options.client ?? client).post<
+      CreateAddonPriceResponses,
+      CreateAddonPriceErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/addons/{addonSlug}/prices",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Deprecate an add-on price
+   *
+   * Stops offering a price. A default price cannot be deprecated (409 DeprecateAddonPrice.IsDefault): it is what bills every instance holding the version; retire it through a new version. Emits ADDON_PRICE_DEPRECATED. Requires billing to be enabled for the organization.
+   */
+  public static deprecateAddonPrice<ThrowOnError extends boolean = false>(
+    options: Options<DeprecateAddonPriceData, ThrowOnError>,
+  ): RequestResult<DeprecateAddonPriceResponses, DeprecateAddonPriceErrors, ThrowOnError> {
+    return (options.client ?? client).post<
+      DeprecateAddonPriceResponses,
+      DeprecateAddonPriceErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/addons/{addonSlug}/prices/{priceId}/deprecate",
+      ...options,
+    });
+  }
+
+  /**
+   * Publish an add-on version
+   *
+   * Puts a DRAFT version on sale (409 PublishAddon.NotADraft otherwise). Emits ADDON_PUBLISHED. Requires billing to be enabled for the organization.
+   */
+  public static publishAddon<ThrowOnError extends boolean = false>(
+    options: Options<PublishAddonData, ThrowOnError>,
+  ): RequestResult<PublishAddonResponses, PublishAddonErrors, ThrowOnError> {
+    return (options.client ?? client).post<PublishAddonResponses, PublishAddonErrors, ThrowOnError>(
+      {
+        security: [
+          {
+            key: "bearerAuth",
+            scheme: "bearer",
+            type: "http",
+          },
+        ],
+        url: "/addons/{addonSlug}/publish",
+        ...options,
+      },
+    );
+  }
+
+  /**
+   * Unarchive an add-on version
+   *
+   * Puts an ARCHIVED version back on sale (409 UnarchiveAddon.NotArchived otherwise). Emits ADDON_UNARCHIVED. Requires billing to be enabled for the organization.
+   */
+  public static unarchiveAddon<ThrowOnError extends boolean = false>(
+    options: Options<UnarchiveAddonData, ThrowOnError>,
+  ): RequestResult<UnarchiveAddonResponses, UnarchiveAddonErrors, ThrowOnError> {
+    return (options.client ?? client).post<
+      UnarchiveAddonResponses,
+      UnarchiveAddonErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/addons/{addonSlug}/unarchive",
+      ...options,
+    });
+  }
+}
+
+export class Billing {
+  /**
+   * Get billing capabilities
+   *
+   * Whether billing is enabled for the organization, and if not why; who can collect its invoices; and which parts of billing this release ships, so a client shows only what works. Answers even when billing is disabled.
+   */
+  public static getBillingCapabilities<ThrowOnError extends boolean = false>(
+    options?: Options<GetBillingCapabilitiesData, ThrowOnError>,
+  ): RequestResult<GetBillingCapabilitiesResponses, GetBillingCapabilitiesErrors, ThrowOnError> {
+    return (options?.client ?? client).get<
+      GetBillingCapabilitiesResponses,
+      GetBillingCapabilitiesErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/billing/capabilities",
+      ...options,
+    });
+  }
+
+  /**
+   * Close due billing periods
+   *
+   * Closes the subscriptions whose period has ended now, rather than at the period-close job's next pass: each one's RENEWAL invoice is composed and issued (or held, when its usage journal fails a check) and its period advances. A subscription several periods behind closes one period at a time until it is current. Only what is due closes, at most the configured batch size per call. Requires billing to be enabled for the organization.
+   */
+  public static closeBillingPeriods<ThrowOnError extends boolean = false>(
+    options: Options<CloseBillingPeriodsData, ThrowOnError>,
+  ): RequestResult<CloseBillingPeriodsResponses, CloseBillingPeriodsErrors, ThrowOnError> {
+    return (options.client ?? client).post<
+      CloseBillingPeriodsResponses,
+      CloseBillingPeriodsErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/billing/close-periods",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * List the handoff queue
+   *
+   * The invoices waiting for the organization's accounting system (PENDING), or already acknowledged by it, oldest issue first. Reading never leases: claim to take invoices. Requires billing to be enabled for the organization.
+   */
+  public static listHandoff<ThrowOnError extends boolean = false>(
+    options?: Options<ListHandoffData, ThrowOnError>,
+  ): RequestResult<ListHandoffResponses, ListHandoffErrors, ThrowOnError> {
+    return (options?.client ?? client).get<ListHandoffResponses, ListHandoffErrors, ThrowOnError>({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/billing/handoff",
+      ...options,
+    });
+  }
+
+  /**
+   * Claim invoices from the handoff queue
+   *
+   * Leases the oldest invoices waiting for the organization's accounting system, under one lease. Two consumers claiming at once get different invoices. An invoice not acknowledged before its lease expires is claimed again: the queue delivers at least once, so a consumer deduplicates on the invoice id. A claim is not idempotent: a lost response leaves its invoices leased until leasedUntil. Requires billing to be enabled for the organization.
+   */
+  public static claimHandoff<ThrowOnError extends boolean = false>(
+    options: Options<ClaimHandoffData, ThrowOnError>,
+  ): RequestResult<ClaimHandoffResponses, ClaimHandoffErrors, ThrowOnError> {
+    return (options.client ?? client).post<ClaimHandoffResponses, ClaimHandoffErrors, ThrowOnError>(
+      {
+        security: [
+          {
+            key: "bearerAuth",
+            scheme: "bearer",
+            type: "http",
+          },
+        ],
+        url: "/billing/handoff/claim",
+        ...options,
+        headers: {
+          "Content-Type": "application/json",
+          ...options.headers,
+        },
+      },
+    );
+  }
+
+  /**
+   * Acknowledge a handed-off invoice
+   *
+   * Records that the organization's accounting system booked an invoice from the handoff queue. Safe to repeat: the same acknowledgement again, or one that adds a reference the invoice did not have, answers 200. Another reference than the one it was acknowledged under is refused (AckHandoff.ReferenceMismatch), which a consumer can take as already handed off. Requires billing to be enabled for the organization.
+   */
+  public static ackHandoff<ThrowOnError extends boolean = false>(
+    options: Options<AckHandoffData, ThrowOnError>,
+  ): RequestResult<AckHandoffResponses, AckHandoffErrors, ThrowOnError> {
+    return (options.client ?? client).post<AckHandoffResponses, AckHandoffErrors, ThrowOnError>({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/billing/handoff/{invoiceId}/ack",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Get the billing health
+   *
+   * What the organization's billing needs attention for, computed when read: periods waiting for their close, held invoices, invoices a payment provider keeps refusing, reconciliation mismatches, each provider's sync, overdue invoices and the handoff backlog. Requires billing to be enabled for the organization.
+   */
+  public static getBillingHealth<ThrowOnError extends boolean = false>(
+    options?: Options<GetBillingHealthData, ThrowOnError>,
+  ): RequestResult<GetBillingHealthResponses, GetBillingHealthErrors, ThrowOnError> {
+    return (options?.client ?? client).get<
+      GetBillingHealthResponses,
+      GetBillingHealthErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/billing/health",
+      ...options,
+    });
+  }
+
+  /**
+   * Get billing settings
+   *
+   * The organization's billing defaults: the collection method and payment terms a subscription gets when it names none of its own. An organization that never wrote them has the defaults (SEND_INVOICE, 30 days).
+   */
+  public static getBillingSettings<ThrowOnError extends boolean = false>(
+    options?: Options<GetBillingSettingsData, ThrowOnError>,
+  ): RequestResult<GetBillingSettingsResponses, GetBillingSettingsErrors, ThrowOnError> {
+    return (options?.client ?? client).get<
+      GetBillingSettingsResponses,
+      GetBillingSettingsErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/billing/settings",
+      ...options,
+    });
+  }
+
+  /**
+   * Update billing settings
+   *
+   * Replaces the organization's billing defaults. A subscription that names its own terms keeps them; the others take these at their next invoice.
+   */
+  public static updateBillingSettings<ThrowOnError extends boolean = false>(
+    options: Options<UpdateBillingSettingsData, ThrowOnError>,
+  ): RequestResult<UpdateBillingSettingsResponses, UpdateBillingSettingsErrors, ThrowOnError> {
+    return (options.client ?? client).put<
+      UpdateBillingSettingsResponses,
+      UpdateBillingSettingsErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/billing/settings",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Sync with the payment providers now
+   *
+   * Runs one sync pass now for each payment provider the organization has connected: payments, voids and finalizations done in the provider are mirrored, as the periodic pass does. Refused when none is connected (409 SyncProvider.NotConnected). Requires billing to be enabled for the organization.
+   */
+  public static syncBillingProvider<ThrowOnError extends boolean = false>(
+    options?: Options<SyncBillingProviderData, ThrowOnError>,
+  ): RequestResult<SyncBillingProviderResponses, SyncBillingProviderErrors, ThrowOnError> {
+    return (options?.client ?? client).post<
+      SyncBillingProviderResponses,
+      SyncBillingProviderErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/billing/sync",
+      ...options,
+    });
+  }
+
+  /**
+   * Get a customer's billing
+   *
+   * The customer's billing e-mail and its side in each payment provider: its id there and the labels of its default payment method (never card data). 404 GetCustomerBilling.CustomerNotFound. Requires billing to be enabled for the organization.
+   */
+  public static getCustomerBilling<ThrowOnError extends boolean = false>(
+    options: Options<GetCustomerBillingData, ThrowOnError>,
+  ): RequestResult<GetCustomerBillingResponses, GetCustomerBillingErrors, ThrowOnError> {
+    return (options.client ?? client).get<
+      GetCustomerBillingResponses,
+      GetCustomerBillingErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/customers/{customerSlug}/billing",
+      ...options,
+    });
+  }
+
+  /**
+   * Detach a customer's payment method
+   *
+   * Removes the customer's payment method from the payment provider. 409 .InUseByAutomaticCollection while a live subscription of the customer is charged automatically, .NoPaymentMethod; 503 .ProviderUnavailable. Requires billing to be enabled for the organization.
+   */
+  public static detachPaymentMethod<ThrowOnError extends boolean = false>(
+    options: Options<DetachPaymentMethodData, ThrowOnError>,
+  ): RequestResult<DetachPaymentMethodResponses, DetachPaymentMethodErrors, ThrowOnError> {
+    return (options.client ?? client).delete<
+      DetachPaymentMethodResponses,
+      DetachPaymentMethodErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/customers/{customerSlug}/billing/payment-method",
+      ...options,
+    });
+  }
+
+  /**
+   * Open a page saving a customer's payment method
+   *
+   * Ensures the customer in the payment provider, then opens the provider's hosted page where the customer saves a payment method; Kaiten never sees card data. When the customer comes back to returnUrl, complete the session server-side. 404 .CustomerNotFound; 422 .ProviderNotConnected, .InvalidReturnUrl, .CurrencyRequired; 503 .ProviderUnavailable. Requires billing to be enabled for the organization.
+   */
+  public static createPaymentMethodSession<ThrowOnError extends boolean = false>(
+    options: Options<CreatePaymentMethodSessionData, ThrowOnError>,
+  ): RequestResult<
+    CreatePaymentMethodSessionResponses,
+    CreatePaymentMethodSessionErrors,
+    ThrowOnError
+  > {
+    return (options.client ?? client).post<
+      CreatePaymentMethodSessionResponses,
+      CreatePaymentMethodSessionErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/customers/{customerSlug}/billing/payment-method-session",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Complete a payment-method session
+   *
+   * Checks the setup session with the payment provider (the redirect is never trusted) and makes the payment method saved there the one the customer's invoices are charged to. Idempotent. 404 .SessionNotFound (unknown, or another customer's); 409 .SessionNotComplete; 503 .ProviderUnavailable. Requires billing to be enabled for the organization.
+   */
+  public static completePaymentMethodSession<ThrowOnError extends boolean = false>(
+    options: Options<CompletePaymentMethodSessionData, ThrowOnError>,
+  ): RequestResult<
+    CompletePaymentMethodSessionResponses,
+    CompletePaymentMethodSessionErrors,
+    ThrowOnError
+  > {
+    return (options.client ?? client).post<
+      CompletePaymentMethodSessionResponses,
+      CompletePaymentMethodSessionErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/customers/{customerSlug}/billing/payment-method-session/{sessionId}/complete",
+      ...options,
+    });
+  }
+
+  /**
+   * Open a customer's billing portal
+   *
+   * Opens the payment provider's hosted portal for the customer, where it manages payment methods and invoices; changes reach Kaiten through sync. 422 .ProviderNotConnected, .CustomerNotOnProvider, .InvalidReturnUrl; 503 .ProviderUnavailable. Requires billing to be enabled for the organization.
+   */
+  public static createPortalSession<ThrowOnError extends boolean = false>(
+    options: Options<CreatePortalSessionData, ThrowOnError>,
+  ): RequestResult<CreatePortalSessionResponses, CreatePortalSessionErrors, ThrowOnError> {
+    return (options.client ?? client).post<
+      CreatePortalSessionResponses,
+      CreatePortalSessionErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/customers/{customerSlug}/billing/portal-session",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Get an instance's subscription
+   *
+   * The instance's subscription, live or CANCELED; 404 when it was never subscribed. Requires billing to be enabled for the organization.
+   */
+  public static getInstanceBilling<ThrowOnError extends boolean = false>(
+    options: Options<GetInstanceBillingData, ThrowOnError>,
+  ): RequestResult<GetInstanceBillingResponses, GetInstanceBillingErrors, ThrowOnError> {
+    return (options.client ?? client).get<
+      GetInstanceBillingResponses,
+      GetInstanceBillingErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/instances/{instanceSlug}/billing",
+      ...options,
+    });
+  }
+
+  /**
+   * Change a subscription's terms or provider
+   *
+   * Changes the subscription's payment provider, collection method and payment terms from its next invoice on; null restores the organization's default. Invoices already composed keep their own, and keep routing to the provider that issued them. Moving to a provider that pushes invoices registers the customer with it first (503 UpdateInstanceBilling.ProviderUnavailable when it cannot be reached). A provider change emits INSTANCE_BILLING_PROVIDER_CHANGED. Requires billing to be enabled for the organization.
+   */
+  public static updateInstanceBilling<ThrowOnError extends boolean = false>(
+    options: Options<UpdateInstanceBillingData, ThrowOnError>,
+  ): RequestResult<UpdateInstanceBillingResponses, UpdateInstanceBillingErrors, ThrowOnError> {
+    return (options.client ?? client).patch<
+      UpdateInstanceBillingResponses,
+      UpdateInstanceBillingErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/instances/{instanceSlug}/billing",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Subscribe an instance
+   *
+   * Starts billing an instance on a FLAT_FEE price of its licence version. A base price that bills in advance issues the first period's invoice (ACTIVATION) at once; charged automatically, it is pushed and charged before the answer when the provider answers within 20 seconds. Each period then closes into a RENEWAL. Add-ons and a voucher can be started with it, in the same transaction. A CANCELED subscription is subscribed again. While the subscription is live the instance's customer and licence cannot change. Requires billing to be enabled for the organization.
+   */
+  public static subscribeInstance<ThrowOnError extends boolean = false>(
+    options: Options<SubscribeInstanceData, ThrowOnError>,
+  ): RequestResult<SubscribeInstanceResponses, SubscribeInstanceErrors, ThrowOnError> {
+    return (options.client ?? client).post<
+      SubscribeInstanceResponses,
+      SubscribeInstanceErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/instances/{instanceSlug}/billing",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Cancel a subscription
+   *
+   * Cancels an instance's subscription: a trial at once with no invoice; otherwise at the period's end (repeating it changes nothing), or immediately with a FINAL invoice. Cancellation changes billing only: entitlements and licence dates stay the vendor's to change. Requires billing to be enabled for the organization.
+   */
+  public static cancelSubscription<ThrowOnError extends boolean = false>(
+    options: Options<CancelSubscriptionData, ThrowOnError>,
+  ): RequestResult<CancelSubscriptionResponses, CancelSubscriptionErrors, ThrowOnError> {
+    return (options.client ?? client).post<
+      CancelSubscriptionResponses,
+      CancelSubscriptionErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/instances/{instanceSlug}/billing/cancel",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Reactivate a subscription
+   *
+   * Reverts a cancellation scheduled for the period end, before it. A canceled subscription is subscribed again instead. Requires billing to be enabled for the organization.
+   */
+  public static reactivateSubscription<ThrowOnError extends boolean = false>(
+    options: Options<ReactivateSubscriptionData, ThrowOnError>,
+  ): RequestResult<ReactivateSubscriptionResponses, ReactivateSubscriptionErrors, ThrowOnError> {
+    return (options.client ?? client).post<
+      ReactivateSubscriptionResponses,
+      ReactivateSubscriptionErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/instances/{instanceSlug}/billing/reactivate",
+      ...options,
+    });
+  }
+
+  /**
+   * Cancel a scheduled plan change
+   *
+   * Drops the plan change scheduled for the next boundary. Requires billing to be enabled for the organization.
+   */
+  public static cancelPlanChange<ThrowOnError extends boolean = false>(
+    options: Options<CancelPlanChangeData, ThrowOnError>,
+  ): RequestResult<CancelPlanChangeResponses, CancelPlanChangeErrors, ThrowOnError> {
+    return (options.client ?? client).delete<
+      CancelPlanChangeResponses,
+      CancelPlanChangeErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/instances/{instanceSlug}/billing/scheduled-change",
+      ...options,
+    });
+  }
+
+  /**
+   * Schedule a plan change
+   *
+   * Schedules a move to another FLAT_FEE price, of any PUBLISHED licence version in the subscription's currency, for the next boundary. That boundary's RENEWAL bills the old plan's arrears and the new plan's advance, and moves the instance to the new version; there is no proration. Scheduling another target replaces the change, the same one changes nothing. A scheduled target's price cannot be deprecated, nor its version archived. Requires billing to be enabled for the organization.
+   */
+  public static schedulePlanChange<ThrowOnError extends boolean = false>(
+    options: Options<SchedulePlanChangeData, ThrowOnError>,
+  ): RequestResult<SchedulePlanChangeResponses, SchedulePlanChangeErrors, ThrowOnError> {
+    return (options.client ?? client).put<
+      SchedulePlanChangeResponses,
+      SchedulePlanChangeErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/instances/{instanceSlug}/billing/scheduled-change",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Preview an instance's upcoming invoice
+   *
+   * The invoice the subscription's next boundary will issue, composed from its usage so far, without writing anything: lines carry the period they will bill, quantities what was measured until now. wouldHold lists the meters whose usage journal fails a check and would hold the invoice. Requires billing to be enabled for the organization.
+   */
+  public static getUpcomingInvoice<ThrowOnError extends boolean = false>(
+    options: Options<GetUpcomingInvoiceData, ThrowOnError>,
+  ): RequestResult<GetUpcomingInvoiceResponses, GetUpcomingInvoiceErrors, ThrowOnError> {
+    return (options.client ?? client).get<
+      GetUpcomingInvoiceResponses,
+      GetUpcomingInvoiceErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/instances/{instanceSlug}/billing/upcoming-invoice",
+      ...options,
+    });
+  }
+
+  /**
+   * List an instance's invoices
+   *
+   * The invoices of one instance's subscription, across every time it was subscribed, with the filters of listInvoices. Requires billing to be enabled for the organization.
+   */
+  public static listInstanceInvoices<ThrowOnError extends boolean = false>(
+    options: Options<ListInstanceInvoicesData, ThrowOnError>,
+  ): RequestResult<ListInstanceInvoicesResponses, ListInstanceInvoicesErrors, ThrowOnError> {
+    return (options.client ?? client).get<
+      ListInstanceInvoicesResponses,
+      ListInstanceInvoicesErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/instances/{instanceSlug}/invoices",
+      ...options,
+    });
+  }
+
+  /**
+   * List invoices
+   *
+   * The organization's invoices, newest first; with updatedSince, the ones changed since an instant, oldest change first, for incremental sync. Invoices outlive their instance and customer. Requires billing to be enabled for the organization.
+   */
+  public static listInvoices<ThrowOnError extends boolean = false>(
+    options?: Options<ListInvoicesData, ThrowOnError>,
+  ): RequestResult<ListInvoicesResponses, ListInvoicesErrors, ThrowOnError> {
+    return (options?.client ?? client).get<ListInvoicesResponses, ListInvoicesErrors, ThrowOnError>(
+      {
+        security: [
+          {
+            key: "bearerAuth",
+            scheme: "bearer",
+            type: "http",
+          },
+        ],
+        url: "/invoices",
+        ...options,
+      },
+    );
+  }
+
+  /**
+   * Export invoices
+   *
+   * Streams the invoices the filters of listInvoices select, as CSV or NDJSON. Amounts are integer minor units with the currency's exponent beside them, so a spreadsheet never sees a float. The export carries billing e-mails: it is an authenticated read for the organization's accounting. Requires billing to be enabled for the organization.
+   */
+  public static exportInvoices<ThrowOnError extends boolean = false>(
+    options?: Options<ExportInvoicesData, ThrowOnError>,
+  ): RequestResult<ExportInvoicesResponses, ExportInvoicesErrors, ThrowOnError> {
+    return (options?.client ?? client).get<
+      ExportInvoicesResponses,
+      ExportInvoicesErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/invoices/export",
+      ...options,
+    });
+  }
+
+  /**
+   * Get an invoice
+   *
+   * One invoice with its lines, the customer and instance as they were when it was composed, its hold and its handoff. Addressed by id at organization level: an invoice outlives its instance and customer. Requires billing to be enabled for the organization.
+   */
+  public static getInvoice<ThrowOnError extends boolean = false>(
+    options: Options<GetInvoiceData, ThrowOnError>,
+  ): RequestResult<GetInvoiceResponses, GetInvoiceErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetInvoiceResponses, GetInvoiceErrors, ThrowOnError>({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/invoices/{invoiceId}",
+      ...options,
+    });
+  }
+
+  /**
+   * List the usage reports behind an invoice line
+   *
+   * The usage reports a USAGE or OVERAGE line was measured from: its pair's reports dated in its service period, in reportSeq order. Summed by reset window and floored at 0, they give the line's measured quantity. Addressed by invoice, it answers after the instance was deleted. Requires billing to be enabled for the organization.
+   */
+  public static listInvoiceLineReports<ThrowOnError extends boolean = false>(
+    options: Options<ListInvoiceLineReportsData, ThrowOnError>,
+  ): RequestResult<ListInvoiceLineReportsResponses, ListInvoiceLineReportsErrors, ThrowOnError> {
+    return (options.client ?? client).get<
+      ListInvoiceLineReportsResponses,
+      ListInvoiceLineReportsErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/invoices/{invoiceId}/lines/{lineId}/reports",
+      ...options,
+    });
+  }
+
+  /**
+   * Mark an invoice paid
+   *
+   * Records that a MANUAL invoice was paid. An invoice still waiting in the handoff queue is acknowledged by the same write. Marking it paid again with the same external reference answers it unchanged. An invoice a payment provider collects is settled there. Requires billing to be enabled for the organization.
+   */
+  public static markInvoicePaid<ThrowOnError extends boolean = false>(
+    options: Options<MarkInvoicePaidData, ThrowOnError>,
+  ): RequestResult<MarkInvoicePaidResponses, MarkInvoicePaidErrors, ThrowOnError> {
+    return (options.client ?? client).post<
+      MarkInvoicePaidResponses,
+      MarkInvoicePaidErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/invoices/{invoiceId}/mark-paid",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Recompose an invoice
+   *
+   * Composes an invoice again from the usage journal as it is now, keeping its BASE lines as they were sold. A held DRAFT is rewritten in place (200): issued when its journal is now sound, held again otherwise. A VOID invoice gets a replacement for the same boundary (201), under the subscription's current terms and billing e-mail. Any other invoice must be voided first. Requires billing to be enabled for the organization.
+   */
+  public static recomposeInvoice<ThrowOnError extends boolean = false>(
+    options: Options<RecomposeInvoiceData, ThrowOnError>,
+  ): RequestResult<RecomposeInvoiceResponses, RecomposeInvoiceErrors, ThrowOnError> {
+    return (options.client ?? client).post<
+      RecomposeInvoiceResponses,
+      RecomposeInvoiceErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/invoices/{invoiceId}/recompose",
+      ...options,
+    });
+  }
+
+  /**
+   * Release a held invoice
+   *
+   * Accepts a held invoice as composed and issues it: MANUAL and pending in the handoff queue, or PAID when nothing is owed. The release keeps who released it and why. Requires billing to be enabled for the organization.
+   */
+  public static releaseInvoiceHold<ThrowOnError extends boolean = false>(
+    options: Options<ReleaseInvoiceHoldData, ThrowOnError>,
+  ): RequestResult<ReleaseInvoiceHoldResponses, ReleaseInvoiceHoldErrors, ThrowOnError> {
+    return (options.client ?? client).post<
+      ReleaseInvoiceHoldResponses,
+      ReleaseInvoiceHoldErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/invoices/{invoiceId}/release-hold",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Retry pushing an invoice to its provider
+   *
+   * Puts a DRAFT or PUSH_FAILED invoice of a payment provider back in the push queue now, which resumes the push where its last attempt stopped. A draft waiting for finalization in its provider is finalized at once. Refused for a held invoice (409 RetryInvoicePush.Held) and for any other (409 RetryInvoicePush.InvalidStatus). Requires billing to be enabled for the organization.
+   */
+  public static retryInvoicePush<ThrowOnError extends boolean = false>(
+    options: Options<RetryInvoicePushData, ThrowOnError>,
+  ): RequestResult<RetryInvoicePushResponses, RetryInvoicePushErrors, ThrowOnError> {
+    return (options.client ?? client).post<
+      RetryInvoicePushResponses,
+      RetryInvoicePushErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/invoices/{invoiceId}/retry-push",
+      ...options,
+    });
+  }
+
+  /**
+   * Sync an invoice with its provider
+   *
+   * Reads an invoice from its payment provider now and applies what the provider says: its finalization, payment, write-off or void. Refused for an invoice not in a provider (409 SyncInvoice.NotPushed). Requires billing to be enabled for the organization.
+   */
+  public static syncInvoice<ThrowOnError extends boolean = false>(
+    options: Options<SyncInvoiceData, ThrowOnError>,
+  ): RequestResult<SyncInvoiceResponses, SyncInvoiceErrors, ThrowOnError> {
+    return (options.client ?? client).post<SyncInvoiceResponses, SyncInvoiceErrors, ThrowOnError>({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/invoices/{invoiceId}/sync",
+      ...options,
+    });
+  }
+
+  /**
+   * Void an invoice
+   *
+   * Voids an invoice not yet settled -- a DRAFT, held or not, a MANUAL one, or one a payment provider issued -- which frees its boundary for a recompose. A provider's invoice is voided there first, and here only once the provider confirms (503 VoidInvoice.ProviderUnavailable leaves it unchanged); one the provider reports paid is refused. A paid or written-off invoice cannot be voided. A handoff still pending stays so, and its consumer sees the VOID. Voiding a VOID invoice again answers it unchanged. Requires billing to be enabled for the organization.
+   */
+  public static voidInvoice<ThrowOnError extends boolean = false>(
+    options: Options<VoidInvoiceData, ThrowOnError>,
+  ): RequestResult<VoidInvoiceResponses, VoidInvoiceErrors, ThrowOnError> {
+    return (options.client ?? client).post<VoidInvoiceResponses, VoidInvoiceErrors, ThrowOnError>({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/invoices/{invoiceId}/void",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Write off an invoice
+   *
+   * Records that the organization gave up collecting a MANUAL invoice: it becomes UNCOLLECTIBLE. A handoff still pending stays so, and its consumer sees the new status. Writing off an UNCOLLECTIBLE invoice again answers it unchanged. Requires billing to be enabled for the organization.
+   */
+  public static writeOffInvoice<ThrowOnError extends boolean = false>(
+    options: Options<WriteOffInvoiceData, ThrowOnError>,
+  ): RequestResult<WriteOffInvoiceResponses, WriteOffInvoiceErrors, ThrowOnError> {
+    return (options.client ?? client).post<
+      WriteOffInvoiceResponses,
+      WriteOffInvoiceErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/invoices/{invoiceId}/write-off",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+}
+
 export class Components {
   /**
    * List components
@@ -373,7 +2091,13 @@ export class Components {
       ListComponentsErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/components",
       ...options,
     });
@@ -392,7 +2116,13 @@ export class Components {
       CreateComponentErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/components",
       ...options,
       headers: {
@@ -415,7 +2145,13 @@ export class Components {
       DeleteComponentErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/components/{componentSlug}",
       ...options,
     });
@@ -430,7 +2166,13 @@ export class Components {
     options: Options<GetComponentData, ThrowOnError>,
   ): RequestResult<GetComponentResponses, GetComponentErrors, ThrowOnError> {
     return (options.client ?? client).get<GetComponentResponses, GetComponentErrors, ThrowOnError>({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/components/{componentSlug}",
       ...options,
     });
@@ -449,7 +2191,13 @@ export class Components {
       UpdateComponentErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/components/{componentSlug}",
       ...options,
       headers: {
@@ -474,7 +2222,13 @@ export class Connectors {
       ListConnectorsErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/connectors",
       ...options,
     });
@@ -489,7 +2243,13 @@ export class Connectors {
     options: Options<GetConnectorData, ThrowOnError>,
   ): RequestResult<GetConnectorResponses, GetConnectorErrors, ThrowOnError> {
     return (options.client ?? client).get<GetConnectorResponses, GetConnectorErrors, ThrowOnError>({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/connectors/{connectorName}",
       ...options,
     });
@@ -508,7 +2268,13 @@ export class Connectors {
       DeactivateConnectorErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/connectors/{connectorName}/activation",
       ...options,
     });
@@ -527,7 +2293,13 @@ export class Connectors {
       ActivateConnectorErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/connectors/{connectorName}/activation",
       ...options,
     });
@@ -546,7 +2318,13 @@ export class Connectors {
       DeleteConnectorSettingsErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/connectors/{connectorName}/settings",
       ...options,
     });
@@ -565,7 +2343,13 @@ export class Connectors {
       GetConnectorSettingsErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/connectors/{connectorName}/settings",
       ...options,
     });
@@ -584,7 +2368,13 @@ export class Connectors {
       UpdateConnectorSettingsErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/connectors/{connectorName}/settings",
       ...options,
       headers: {
@@ -611,7 +2401,13 @@ export class Connectors {
       GetConnectorSettingsSchemaErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/connectors/{connectorName}/settings/schema",
       ...options,
     });
@@ -630,8 +2426,70 @@ export class Connectors {
       GetConnectorStateErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/connectors/{connectorName}/state",
+      ...options,
+    });
+  }
+}
+
+export class CustomerSessions {
+  /**
+   * Create a customer session
+   *
+   * Mints a kst_ session for one of the organization's customers, optionally bound to one of its instances, for that customer's browser to call the /api/public/session routes: checkout, invoices. Call it from your backend, where the customer is signed in, and hand the token to the page; mint a new one before it expires. What the session writes is attributed to the caller. Limited to 50 sessions a second per organization.
+   */
+  public static createCustomerSession<ThrowOnError extends boolean = false>(
+    options: Options<CreateCustomerSessionData, ThrowOnError>,
+  ): RequestResult<CreateCustomerSessionResponses, CreateCustomerSessionErrors, ThrowOnError> {
+    return (options.client ?? client).post<
+      CreateCustomerSessionResponses,
+      CreateCustomerSessionErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/customer-sessions",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Revoke a customer session
+   *
+   * The session stops authenticating on the next request: on sign-out, or when the customer's access changes. Idempotent.
+   */
+  public static revokeCustomerSession<ThrowOnError extends boolean = false>(
+    options: Options<RevokeCustomerSessionData, ThrowOnError>,
+  ): RequestResult<RevokeCustomerSessionResponses, RevokeCustomerSessionErrors, ThrowOnError> {
+    return (options.client ?? client).post<
+      RevokeCustomerSessionResponses,
+      RevokeCustomerSessionErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/customer-sessions/{sessionId}/revoke",
       ...options,
     });
   }
@@ -651,7 +2509,13 @@ export class Customers {
       ListCustomersErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/customers",
       ...options,
     });
@@ -670,7 +2534,13 @@ export class Customers {
       CreateCustomerErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/customers",
       ...options,
       headers: {
@@ -693,7 +2563,13 @@ export class Customers {
       DeleteCustomerErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/customers/{customerSlug}",
       ...options,
     });
@@ -708,7 +2584,13 @@ export class Customers {
     options: Options<GetCustomerData, ThrowOnError>,
   ): RequestResult<GetCustomerResponses, GetCustomerErrors, ThrowOnError> {
     return (options.client ?? client).get<GetCustomerResponses, GetCustomerErrors, ThrowOnError>({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/customers/{customerSlug}",
       ...options,
     });
@@ -727,7 +2609,13 @@ export class Customers {
       UpdateCustomerErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/customers/{customerSlug}",
       ...options,
       headers: {
@@ -754,7 +2642,13 @@ export class Customers {
       DeleteCustomerIntegrationErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/customers/{customerSlug}/integrations/{integrationName}",
       ...options,
     });
@@ -773,7 +2667,13 @@ export class Customers {
       GetCustomerIntegrationErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/customers/{customerSlug}/integrations/{integrationName}",
       ...options,
     });
@@ -796,7 +2696,13 @@ export class Customers {
       CreateCustomerIntegrationErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/customers/{customerSlug}/integrations/{integrationName}",
       ...options,
       headers: {
@@ -823,7 +2729,13 @@ export class Customers {
       UpdateCustomerIntegrationErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/customers/{customerSlug}/integrations/{integrationName}",
       ...options,
       headers: {
@@ -850,7 +2762,13 @@ export class Customers {
       GetCustomerIntegrationByExternalIdErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/integration/{adapter}/customer/{externalId}",
       ...options,
     });
@@ -873,7 +2791,13 @@ export class Customers {
       UpsertCustomerIntegrationByExternalIdErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/integration/{adapter}/customer/{externalId}",
       ...options,
       headers: {
@@ -898,7 +2822,13 @@ export class DeploymentZones {
       ListDeploymentZonesErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/deployment-zones",
       ...options,
     });
@@ -917,7 +2847,13 @@ export class DeploymentZones {
       CreateDeploymentZoneErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/deployment-zones",
       ...options,
       headers: {
@@ -940,7 +2876,13 @@ export class DeploymentZones {
       DeleteDeploymentZoneErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/deployment-zones/{deploymentZoneSlug}",
       ...options,
     });
@@ -959,7 +2901,13 @@ export class DeploymentZones {
       GetDeploymentZoneBySlugErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/deployment-zones/{deploymentZoneSlug}",
       ...options,
     });
@@ -978,7 +2926,13 @@ export class DeploymentZones {
       UpdateDeploymentZoneErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/deployment-zones/{deploymentZoneSlug}",
       ...options,
       headers: {
@@ -1001,7 +2955,13 @@ export class DeploymentZones {
       GetReleaseBySlugErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/releases/{releaseSlug}",
       ...options,
     });
@@ -1022,7 +2982,13 @@ export class EntitlementGroups {
       ListEntitlementGroupsErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/entitlement-groups",
       ...options,
     });
@@ -1041,7 +3007,13 @@ export class EntitlementGroups {
       CreateEntitlementGroupErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/entitlement-groups",
       ...options,
       headers: {
@@ -1064,7 +3036,13 @@ export class EntitlementGroups {
       DeleteEntitlementGroupErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/entitlement-groups/{entitlementGroupSlug}",
       ...options,
     });
@@ -1083,7 +3061,13 @@ export class EntitlementGroups {
       GetEntitlementGroupErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/entitlement-groups/{entitlementGroupSlug}",
       ...options,
     });
@@ -1102,7 +3086,13 @@ export class EntitlementGroups {
       UpdateEntitlementGroupErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/entitlement-groups/{entitlementGroupSlug}",
       ...options,
       headers: {
@@ -1125,7 +3115,13 @@ export class EntitlementGroups {
       AddEntitlementToGroupErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/entitlement-groups/{entitlementGroupSlug}/entitlements",
       ...options,
       headers: {
@@ -1152,7 +3148,13 @@ export class EntitlementGroups {
       RemoveEntitlementFromGroupErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/entitlement-groups/{entitlementGroupSlug}/entitlements/{entitlementSlug}",
       ...options,
     });
@@ -1175,7 +3177,13 @@ export class EntitlementGroups {
       GetEntitlementGroupUsageErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/entitlement-groups/{entitlementGroupSlug}/usage",
       ...options,
     });
@@ -1196,7 +3204,13 @@ export class Entitlements {
       ListEntitlementsErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/entitlements",
       ...options,
     });
@@ -1215,7 +3229,13 @@ export class Entitlements {
       CreateEntitlementErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/entitlements",
       ...options,
       headers: {
@@ -1238,7 +3258,13 @@ export class Entitlements {
       DeleteEntitlementErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/entitlements/{entitlementSlug}",
       ...options,
     });
@@ -1257,7 +3283,13 @@ export class Entitlements {
       GetEntitlementErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/entitlements/{entitlementSlug}",
       ...options,
     });
@@ -1276,7 +3308,13 @@ export class Entitlements {
       UpdateEntitlementErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/entitlements/{entitlementSlug}",
       ...options,
       headers: {
@@ -1301,7 +3339,13 @@ export class Featureflags {
       GetFeatureFlagsErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/feature-flags",
       ...options,
     });
@@ -1320,7 +3364,13 @@ export class Featureflags {
       CreateFeatureFlagErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/feature-flags",
       ...options,
       headers: {
@@ -1343,7 +3393,13 @@ export class Featureflags {
       GetTargetingContextErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/feature-flags/targeting/context",
       ...options,
     });
@@ -1362,7 +3418,13 @@ export class Featureflags {
       LintTargetingRuleErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/feature-flags/targeting/lint",
       ...options,
       headers: {
@@ -1385,7 +3447,13 @@ export class Featureflags {
       TestTargetingRuleErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/feature-flags/targeting/test",
       ...options,
       headers: {
@@ -1408,7 +3476,13 @@ export class Featureflags {
       DeleteFeatureFlagErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/feature-flags/{featureFlagSlug}",
       ...options,
     });
@@ -1427,7 +3501,13 @@ export class Featureflags {
       GetFeatureFlagErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/feature-flags/{featureFlagSlug}",
       ...options,
     });
@@ -1446,7 +3526,13 @@ export class Featureflags {
       UpdateFeatureFlagErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/feature-flags/{featureFlagSlug}",
       ...options,
       headers: {
@@ -1468,7 +3554,13 @@ export class Instances {
   ): RequestResult<GetInstancesResponses, GetInstancesErrors, ThrowOnError> {
     return (options?.client ?? client).get<GetInstancesResponses, GetInstancesErrors, ThrowOnError>(
       {
-        security: [{ scheme: "bearer", type: "http" }],
+        security: [
+          {
+            key: "bearerAuth",
+            scheme: "bearer",
+            type: "http",
+          },
+        ],
         url: "/instances",
         ...options,
       },
@@ -1488,7 +3580,13 @@ export class Instances {
       CreateInstanceErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/instances",
       ...options,
       headers: {
@@ -1511,7 +3609,13 @@ export class Instances {
       DeleteInstanceErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/instances/{instanceSlug}",
       ...options,
     });
@@ -1526,7 +3630,13 @@ export class Instances {
     options: Options<GetInstanceData, ThrowOnError>,
   ): RequestResult<GetInstanceResponses, GetInstanceErrors, ThrowOnError> {
     return (options.client ?? client).get<GetInstanceResponses, GetInstanceErrors, ThrowOnError>({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/instances/{instanceSlug}",
       ...options,
     });
@@ -1545,7 +3655,13 @@ export class Instances {
       PatchInstanceErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/instances/{instanceSlug}",
       ...options,
       headers: {
@@ -1568,8 +3684,126 @@ export class Instances {
       UpdateInstanceErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/instances/{instanceSlug}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * List an instance's add-ons
+   *
+   * The add-ons an instance holds, in attachment order, each with the prices its subscription bills. Requires billing to be enabled for the organization.
+   */
+  public static listInstanceAddons<ThrowOnError extends boolean = false>(
+    options: Options<ListInstanceAddonsData, ThrowOnError>,
+  ): RequestResult<ListInstanceAddonsResponses, ListInstanceAddonsErrors, ThrowOnError> {
+    return (options.client ?? client).get<
+      ListInstanceAddonsResponses,
+      ListInstanceAddonsErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/instances/{instanceSlug}/addons",
+      ...options,
+    });
+  }
+
+  /**
+   * Attach an add-on to an instance
+   *
+   * Gives an instance an add-on version and a quantity. The entitlements apply at once; a subscription bills the quantity held at each boundary, without proration. One version per family: moving to another version is detach then attach. Emits INSTANCE_ADDON_ADDED. Requires billing to be enabled for the organization.
+   */
+  public static attachInstanceAddon<ThrowOnError extends boolean = false>(
+    options: Options<AttachInstanceAddonData, ThrowOnError>,
+  ): RequestResult<AttachInstanceAddonResponses, AttachInstanceAddonErrors, ThrowOnError> {
+    return (options.client ?? client).post<
+      AttachInstanceAddonResponses,
+      AttachInstanceAddonErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/instances/{instanceSlug}/addons",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Remove an add-on from an instance
+   *
+   * Removes an add-on from an instance. The entitlements drop at once; nothing is refunded. The attachment stays readable with includeRemoved. Emits INSTANCE_ADDON_REMOVED. Requires billing to be enabled for the organization.
+   */
+  public static detachInstanceAddon<ThrowOnError extends boolean = false>(
+    options: Options<DetachInstanceAddonData, ThrowOnError>,
+  ): RequestResult<DetachInstanceAddonResponses, DetachInstanceAddonErrors, ThrowOnError> {
+    return (options.client ?? client).delete<
+      DetachInstanceAddonResponses,
+      DetachInstanceAddonErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/instances/{instanceSlug}/addons/{addonSlug}",
+      ...options,
+    });
+  }
+
+  /**
+   * Change an instance add-on's quantity
+   *
+   * Changes how many units of an add-on an instance holds. The entitlements follow at once; the next invoice bills the new quantity. Emits INSTANCE_ADDON_QUANTITY_CHANGED. Requires billing to be enabled for the organization.
+   */
+  public static setInstanceAddonQuantity<ThrowOnError extends boolean = false>(
+    options: Options<SetInstanceAddonQuantityData, ThrowOnError>,
+  ): RequestResult<
+    SetInstanceAddonQuantityResponses,
+    SetInstanceAddonQuantityErrors,
+    ThrowOnError
+  > {
+    return (options.client ?? client).patch<
+      SetInstanceAddonQuantityResponses,
+      SetInstanceAddonQuantityErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/instances/{instanceSlug}/addons/{addonSlug}",
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -1591,7 +3825,13 @@ export class Instances {
       GetAuditTrailsErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/instances/{instanceSlug}/audit-trails",
       ...options,
     });
@@ -1614,7 +3854,13 @@ export class Instances {
       GetEntitlementsUsageMetricsErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/instances/{instanceSlug}/entitlements/usage",
       ...options,
     });
@@ -1637,7 +3883,13 @@ export class Instances {
       GetEntitlementUsageMetricsErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/instances/{instanceSlug}/entitlements/{entitlementSlug}/usage",
       ...options,
     });
@@ -1660,7 +3912,13 @@ export class Instances {
       ReportEntitlementUsageMetricErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/instances/{instanceSlug}/entitlements/{entitlementSlug}/usage",
       ...options,
       headers: {
@@ -1683,7 +3941,13 @@ export class Instances {
       ListUsageReportsErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/instances/{instanceSlug}/entitlements/{entitlementSlug}/usage/reports",
       ...options,
     });
@@ -1702,7 +3966,13 @@ export class Instances {
       ExportUsageReportsErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/instances/{instanceSlug}/entitlements/{entitlementSlug}/usage/reports/export",
       ...options,
     });
@@ -1725,7 +3995,13 @@ export class Instances {
       DeleteInstanceIntegrationErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/instances/{instanceSlug}/integrations/{integrationName}",
       ...options,
     });
@@ -1744,7 +4020,13 @@ export class Instances {
       GetInstanceIntegrationErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/instances/{instanceSlug}/integrations/{integrationName}",
       ...options,
     });
@@ -1767,7 +4049,13 @@ export class Instances {
       CreateInstanceIntegrationErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/instances/{instanceSlug}/integrations/{integrationName}",
       ...options,
       headers: {
@@ -1794,7 +4082,13 @@ export class Instances {
       UpdateInstanceIntegrationErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/instances/{instanceSlug}/integrations/{integrationName}",
       ...options,
       headers: {
@@ -1821,7 +4115,13 @@ export class Instances {
       GetInstanceIntegrationByExternalIdErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/integration/{adapter}/instance/{externalId}",
       ...options,
     });
@@ -1844,7 +4144,13 @@ export class Instances {
       UpsertInstanceIntegrationByExternalIdErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/integration/{adapter}/instance/{externalId}",
       ...options,
       headers: {
@@ -1871,8 +4177,334 @@ export class Instances {
       ExportOrganizationUsageReportsErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/usage/reports/export",
+      ...options,
+    });
+  }
+}
+
+export class Vouchers {
+  /**
+   * List an instance's vouchers
+   *
+   * The vouchers an instance redeemed, newest first. Requires billing to be enabled for the organization.
+   */
+  public static listInstanceVouchers<ThrowOnError extends boolean = false>(
+    options: Options<ListInstanceVouchersData, ThrowOnError>,
+  ): RequestResult<ListInstanceVouchersResponses, ListInstanceVouchersErrors, ThrowOnError> {
+    return (options.client ?? client).get<
+      ListInstanceVouchersResponses,
+      ListInstanceVouchersErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/instances/{instanceSlug}/vouchers",
+      ...options,
+    });
+  }
+
+  /**
+   * Redeem a voucher
+   *
+   * Redeems a voucher for an instance. A boost applies from the next read or report, for its duration; a PRICE voucher discounts the subscription's next invoices. Emits INSTANCE_VOUCHER_REDEEMED, and VOUCHER_EXHAUSTED with the last redemption. Requires billing to be enabled for the organization.
+   */
+  public static redeemVoucher<ThrowOnError extends boolean = false>(
+    options: Options<RedeemVoucherData, ThrowOnError>,
+  ): RequestResult<RedeemVoucherResponses, RedeemVoucherErrors, ThrowOnError> {
+    return (options.client ?? client).post<
+      RedeemVoucherResponses,
+      RedeemVoucherErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/instances/{instanceSlug}/vouchers/redeem",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Revoke a redemption
+   *
+   * Stops a redemption from applying: a boost ends at once, a discount applies to no further invoice. Invoices already issued are untouched. Emits INSTANCE_VOUCHER_REVOKED. Requires billing to be enabled for the organization.
+   */
+  public static revokeInstanceVoucher<ThrowOnError extends boolean = false>(
+    options: Options<RevokeInstanceVoucherData, ThrowOnError>,
+  ): RequestResult<RevokeInstanceVoucherResponses, RevokeInstanceVoucherErrors, ThrowOnError> {
+    return (options.client ?? client).post<
+      RevokeInstanceVoucherResponses,
+      RevokeInstanceVoucherErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/instances/{instanceSlug}/vouchers/{instanceVoucherId}/revoke",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * List vouchers
+   *
+   * The organization's vouchers, newest first, with their codes. Requires billing to be enabled for the organization.
+   */
+  public static listVouchers<ThrowOnError extends boolean = false>(
+    options?: Options<ListVouchersData, ThrowOnError>,
+  ): RequestResult<ListVouchersResponses, ListVouchersErrors, ThrowOnError> {
+    return (options?.client ?? client).get<ListVouchersResponses, ListVouchersErrors, ThrowOnError>(
+      {
+        security: [
+          {
+            key: "bearerAuth",
+            scheme: "bearer",
+            type: "http",
+          },
+        ],
+        url: "/vouchers",
+        ...options,
+      },
+    );
+  }
+
+  /**
+   * Create a voucher
+   *
+   * Creates a DRAFT voucher: a PRICE discount or an ENTITLEMENT_BOOST. The code is generated when none is given, and returned. Emits VOUCHER_CREATED, without the code. Requires billing to be enabled for the organization.
+   */
+  public static createVoucher<ThrowOnError extends boolean = false>(
+    options: Options<CreateVoucherData, ThrowOnError>,
+  ): RequestResult<CreateVoucherResponses, CreateVoucherErrors, ThrowOnError> {
+    return (options.client ?? client).post<
+      CreateVoucherResponses,
+      CreateVoucherErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/vouchers",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Find a voucher by code
+   *
+   * Finds the voucher a code names, matched without case or separators. The code travels in the body, never in a URL. Requires billing to be enabled for the organization.
+   */
+  public static lookupVoucher<ThrowOnError extends boolean = false>(
+    options: Options<LookupVoucherData, ThrowOnError>,
+  ): RequestResult<LookupVoucherResponses, LookupVoucherErrors, ThrowOnError> {
+    return (options.client ?? client).post<
+      LookupVoucherResponses,
+      LookupVoucherErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/vouchers/lookup",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Validate a voucher code
+   *
+   * Runs the redemption checks without redeeming: the voucher's own, and, with instanceSlug, the instance's. Answers 200 with valid, and the first failing reason (and eligibility rule) otherwise. Requires billing to be enabled for the organization.
+   */
+  public static validateVoucher<ThrowOnError extends boolean = false>(
+    options: Options<ValidateVoucherData, ThrowOnError>,
+  ): RequestResult<ValidateVoucherResponses, ValidateVoucherErrors, ThrowOnError> {
+    return (options.client ?? client).post<
+      ValidateVoucherResponses,
+      ValidateVoucherErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/vouchers/validate",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Get a voucher
+   *
+   * One voucher, with its code. Requires billing to be enabled for the organization.
+   */
+  public static getVoucher<ThrowOnError extends boolean = false>(
+    options: Options<GetVoucherData, ThrowOnError>,
+  ): RequestResult<GetVoucherResponses, GetVoucherErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetVoucherResponses, GetVoucherErrors, ThrowOnError>({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/vouchers/{voucherId}",
+      ...options,
+    });
+  }
+
+  /**
+   * Update a voucher
+   *
+   * Replaces a DRAFT voucher, but its type. An ACTIVE voucher takes a new name, description, expiresAt and maxRedemptions (at least redemptionsCount); its other members must stay as they are (409 UpdateVoucher.NotEditable). Emits VOUCHER_UPDATED. Requires billing to be enabled for the organization.
+   */
+  public static updateVoucher<ThrowOnError extends boolean = false>(
+    options: Options<UpdateVoucherData, ThrowOnError>,
+  ): RequestResult<UpdateVoucherResponses, UpdateVoucherErrors, ThrowOnError> {
+    return (options.client ?? client).put<
+      UpdateVoucherResponses,
+      UpdateVoucherErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/vouchers/{voucherId}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Archive a voucher
+   *
+   * Stops a voucher from being redeemed. Redemptions already made keep applying until revoked. Emits VOUCHER_ARCHIVED. Requires billing to be enabled for the organization.
+   */
+  public static archiveVoucher<ThrowOnError extends boolean = false>(
+    options: Options<ArchiveVoucherData, ThrowOnError>,
+  ): RequestResult<ArchiveVoucherResponses, ArchiveVoucherErrors, ThrowOnError> {
+    return (options.client ?? client).post<
+      ArchiveVoucherResponses,
+      ArchiveVoucherErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/vouchers/{voucherId}/archive",
+      ...options,
+    });
+  }
+
+  /**
+   * Publish a voucher
+   *
+   * Makes a DRAFT voucher redeemable (409 PublishVoucher.NotADraft otherwise). Emits VOUCHER_PUBLISHED. Requires billing to be enabled for the organization.
+   */
+  public static publishVoucher<ThrowOnError extends boolean = false>(
+    options: Options<PublishVoucherData, ThrowOnError>,
+  ): RequestResult<PublishVoucherResponses, PublishVoucherErrors, ThrowOnError> {
+    return (options.client ?? client).post<
+      PublishVoucherResponses,
+      PublishVoucherErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/vouchers/{voucherId}/publish",
+      ...options,
+    });
+  }
+
+  /**
+   * List a voucher's redemptions
+   *
+   * Every redemption of a voucher, newest first. Requires billing to be enabled for the organization.
+   */
+  public static listVoucherRedemptions<ThrowOnError extends boolean = false>(
+    options: Options<ListVoucherRedemptionsData, ThrowOnError>,
+  ): RequestResult<ListVoucherRedemptionsResponses, ListVoucherRedemptionsErrors, ThrowOnError> {
+    return (options.client ?? client).get<
+      ListVoucherRedemptionsResponses,
+      ListVoucherRedemptionsErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/vouchers/{voucherId}/redemptions",
       ...options,
     });
   }
@@ -1896,7 +4528,13 @@ export class Integrations {
       GetCustomerIntegrationByExternalIdErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/integration/{adapter}/customer/{externalId}",
       ...options,
     });
@@ -1919,7 +4557,13 @@ export class Integrations {
       UpsertCustomerIntegrationByExternalIdErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/integration/{adapter}/customer/{externalId}",
       ...options,
       headers: {
@@ -1946,7 +4590,13 @@ export class Integrations {
       GetInstanceIntegrationByExternalIdErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/integration/{adapter}/instance/{externalId}",
       ...options,
     });
@@ -1969,7 +4619,13 @@ export class Integrations {
       UpsertInstanceIntegrationByExternalIdErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/integration/{adapter}/instance/{externalId}",
       ...options,
       headers: {
@@ -1994,7 +4650,13 @@ export class LicenseFamilies {
       ListLicenseFamiliesErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/license-families",
       ...options,
     });
@@ -2018,7 +4680,13 @@ export class LicenseFamilies {
       ThrowOnError
     >({
       querySerializer: { parameters: { include: { array: { explode: false } } } },
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/license-families/{familySlug}",
       ...options,
     });
@@ -2026,6 +4694,35 @@ export class LicenseFamilies {
 }
 
 export class Licenses {
+  /**
+   * Update a license family
+   *
+   * Lists the family in the public catalogue, or takes it out. Families are private until made public.
+   */
+  public static updateLicenseFamily<ThrowOnError extends boolean = false>(
+    options: Options<UpdateLicenseFamilyData, ThrowOnError>,
+  ): RequestResult<UpdateLicenseFamilyResponses, UpdateLicenseFamilyErrors, ThrowOnError> {
+    return (options.client ?? client).patch<
+      UpdateLicenseFamilyResponses,
+      UpdateLicenseFamilyErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/license-families/{familySlug}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
   /**
    * GetUser all licenses
    *
@@ -2035,7 +4732,13 @@ export class Licenses {
     options?: Options<GetLicensesData, ThrowOnError>,
   ): RequestResult<GetLicensesResponses, GetLicensesErrors, ThrowOnError> {
     return (options?.client ?? client).get<GetLicensesResponses, GetLicensesErrors, ThrowOnError>({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/licenses",
       ...options,
     });
@@ -2056,7 +4759,13 @@ export class Licenses {
       CreateLicenseErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/licenses",
       ...options,
       headers: {
@@ -2079,7 +4788,13 @@ export class Licenses {
       DeleteLicenseErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/licenses/{licenseSlug}",
       ...options,
     });
@@ -2094,7 +4809,13 @@ export class Licenses {
     options: Options<GetLicenseData, ThrowOnError>,
   ): RequestResult<GetLicenseResponses, GetLicenseErrors, ThrowOnError> {
     return (options.client ?? client).get<GetLicenseResponses, GetLicenseErrors, ThrowOnError>({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/licenses/{licenseSlug}",
       ...options,
     });
@@ -2113,7 +4834,13 @@ export class Licenses {
       UpdateLicenseErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/licenses/{licenseSlug}",
       ...options,
       headers: {
@@ -2136,7 +4863,13 @@ export class Licenses {
       ArchiveLicenseErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/licenses/{licenseSlug}/archive",
       ...options,
     });
@@ -2155,7 +4888,13 @@ export class Licenses {
       GetLicenseEntitlementsErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/licenses/{licenseSlug}/entitlements",
       ...options,
     });
@@ -2178,7 +4917,13 @@ export class Licenses {
       AssociateEntitlementWithLicenseErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/licenses/{licenseSlug}/entitlements",
       ...options,
       headers: {
@@ -2205,7 +4950,13 @@ export class Licenses {
       DeleteLicenseEntitlementErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/licenses/{licenseSlug}/entitlements/{entitlementSlug}",
       ...options,
     });
@@ -2224,7 +4975,13 @@ export class Licenses {
       GetLicenseEntitlementErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/licenses/{licenseSlug}/entitlements/{entitlementSlug}",
       ...options,
     });
@@ -2247,13 +5004,181 @@ export class Licenses {
       UpdateLicenseEntitlementErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/licenses/{licenseSlug}/entitlements/{entitlementSlug}",
       ...options,
       headers: {
         "Content-Type": "application/json",
         ...options.headers,
       },
+    });
+  }
+
+  /**
+   * Preview a license invoice
+   *
+   * Composes the RENEWAL invoice a subscription to this licence version would be billed at a boundary now, without writing anything: the sample usage rated in arrears over the billing period that ends, and the base price for the period that starts (or the one that ends, for an ARREARS base). Works on DRAFT versions, to check prices before publishing. Requires billing to be enabled for the organization.
+   */
+  public static previewLicenseInvoice<ThrowOnError extends boolean = false>(
+    options: Options<PreviewLicenseInvoiceData, ThrowOnError>,
+  ): RequestResult<PreviewLicenseInvoiceResponses, PreviewLicenseInvoiceErrors, ThrowOnError> {
+    return (options.client ?? client).post<
+      PreviewLicenseInvoiceResponses,
+      PreviewLicenseInvoiceErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/licenses/{licenseSlug}/invoice-preview",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * List a license version's prices
+   *
+   * The prices of one licence version, in display order. Requires billing to be enabled for the organization.
+   */
+  public static listLicensePrices<ThrowOnError extends boolean = false>(
+    options: Options<ListLicensePricesData, ThrowOnError>,
+  ): RequestResult<ListLicensePricesResponses, ListLicensePricesErrors, ThrowOnError> {
+    return (options.client ?? client).get<
+      ListLicensePricesResponses,
+      ListLicensePricesErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/licenses/{licenseSlug}/prices",
+      ...options,
+    });
+  }
+
+  /**
+   * Create a license price
+   *
+   * Adds a price to a licence version. A metered price's sale-unit factor is captured from its entitlement now and never changes. Requires billing to be enabled for the organization.
+   */
+  public static createLicensePrice<ThrowOnError extends boolean = false>(
+    options: Options<CreateLicensePriceData, ThrowOnError>,
+  ): RequestResult<CreateLicensePriceResponses, CreateLicensePriceErrors, ThrowOnError> {
+    return (options.client ?? client).post<
+      CreateLicensePriceResponses,
+      CreateLicensePriceErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/licenses/{licenseSlug}/prices",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Get a license price
+   *
+   * One price of a licence version. Requires billing to be enabled for the organization.
+   */
+  public static getLicensePrice<ThrowOnError extends boolean = false>(
+    options: Options<GetLicensePriceData, ThrowOnError>,
+  ): RequestResult<GetLicensePriceResponses, GetLicensePriceErrors, ThrowOnError> {
+    return (options.client ?? client).get<
+      GetLicensePriceResponses,
+      GetLicensePriceErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/licenses/{licenseSlug}/prices/{priceId}",
+      ...options,
+    });
+  }
+
+  /**
+   * Update a license price
+   *
+   * Edits a price of a DRAFT licence version; the prices of a published version are immutable (UpdateLicensePrice.VersionNotDraft). Currency and billing model cannot change. Requires billing to be enabled for the organization.
+   */
+  public static updateLicensePrice<ThrowOnError extends boolean = false>(
+    options: Options<UpdateLicensePriceData, ThrowOnError>,
+  ): RequestResult<UpdateLicensePriceResponses, UpdateLicensePriceErrors, ThrowOnError> {
+    return (options.client ?? client).patch<
+      UpdateLicensePriceResponses,
+      UpdateLicensePriceErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/licenses/{licenseSlug}/prices/{priceId}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Deprecate a license price
+   *
+   * Retires a price from the catalogue: it keeps billing what is already pinned to it, is no longer offered, and stops being a default. Deprecation cannot be undone. Requires billing to be enabled for the organization.
+   */
+  public static deprecateLicensePrice<ThrowOnError extends boolean = false>(
+    options: Options<DeprecateLicensePriceData, ThrowOnError>,
+  ): RequestResult<DeprecateLicensePriceResponses, DeprecateLicensePriceErrors, ThrowOnError> {
+    return (options.client ?? client).post<
+      DeprecateLicensePriceResponses,
+      DeprecateLicensePriceErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/licenses/{licenseSlug}/prices/{priceId}/deprecate",
+      ...options,
     });
   }
 
@@ -2270,7 +5195,13 @@ export class Licenses {
       PublishLicenseErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/licenses/{licenseSlug}/publish",
       ...options,
     });
@@ -2289,7 +5220,13 @@ export class Licenses {
       UnarchiveLicenseErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/licenses/{licenseSlug}/unarchive",
       ...options,
     });
@@ -2310,7 +5247,13 @@ export class MetadataFields {
       ListMetadataFieldsErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/metadata-fields",
       ...options,
     });
@@ -2329,7 +5272,13 @@ export class MetadataFields {
       CreateMetadataFieldErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/metadata-fields",
       ...options,
       headers: {
@@ -2352,7 +5301,13 @@ export class MetadataFields {
       ReorderMetadataFieldsErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/metadata-fields/reorder",
       ...options,
       headers: {
@@ -2375,7 +5330,13 @@ export class MetadataFields {
       UpdateMetadataFieldErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/metadata-fields/{id}",
       ...options,
       headers: {
@@ -2398,7 +5359,13 @@ export class MetadataFields {
       ArchiveMetadataFieldErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/metadata-fields/{id}/archive",
       ...options,
     });
@@ -2417,7 +5384,13 @@ export class MetadataFields {
       DryRunMetadataFieldErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/metadata-fields/{id}/dry-run",
       ...options,
       headers: {
@@ -2440,7 +5413,13 @@ export class MetadataFields {
       UnarchiveMetadataFieldErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/metadata-fields/{id}/unarchive",
       ...options,
     });
@@ -2462,7 +5441,13 @@ export class OfrepCore {
       EvaluateFlagsBulkErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/ofrep/v1/evaluate/flags",
       ...options,
       headers: {
@@ -2482,7 +5467,13 @@ export class OfrepCore {
   ): RequestResult<EvaluateFlagResponses, EvaluateFlagErrors, ThrowOnError> {
     return (options.client ?? client).post<EvaluateFlagResponses, EvaluateFlagErrors, ThrowOnError>(
       {
-        security: [{ scheme: "bearer", type: "http" }],
+        security: [
+          {
+            key: "bearerAuth",
+            scheme: "bearer",
+            type: "http",
+          },
+        ],
         url: "/ofrep/v1/evaluate/flags/{key}",
         ...options,
         headers: {
@@ -2508,8 +5499,199 @@ export class OpenFeature {
       GetOpenfeatureManifestErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/openfeature/v0/manifest",
+      ...options,
+    });
+  }
+}
+
+export class Public {
+  /**
+   * Get the public catalogue
+   *
+   * What a pricing page shows: for each licence family the organization made public, its default version with its ACTIVE prices and user-facing entitlements, and the same for public add-on families. Read with a publishable key (X-Kaiten-Publishable-Key); the organization is the key's. Amounts are in minor units; never sum metered prices into a headline. Cacheable for 60 seconds.
+   */
+  public static getPublicCatalog<ThrowOnError extends boolean = false>(
+    options?: Options<GetPublicCatalogData, ThrowOnError>,
+  ): RequestResult<GetPublicCatalogResponses, GetPublicCatalogErrors, ThrowOnError> {
+    return (options?.client ?? client).get<
+      GetPublicCatalogResponses,
+      GetPublicCatalogErrors,
+      ThrowOnError
+    >({
+      security: [{ name: "X-Kaiten-Publishable-Key", type: "apiKey" }],
+      url: "/public/catalog",
+      ...options,
+    });
+  }
+
+  /**
+   * Check out
+   *
+   * Subscribes the session's instance to a price of the public catalogue, with add-ons and a voucher, in one call. With dryRun, answers 200 status=preview and what would be billed today, changing nothing. When a payment method has to be saved first, answers 200 status=requires_payment_method with a setup page: send the customer there, then call again with its setupSessionId. Otherwise answers 201 status=subscribed: the invoice of the first period has been pushed and charged, and payment.status says how that went -- poll GET /public/session/invoices on processing or requires_action. Needs a session bound to an instance.
+   */
+  public static createSessionCheckout<ThrowOnError extends boolean = false>(
+    options: Options<CreateSessionCheckoutData, ThrowOnError>,
+  ): RequestResult<CreateSessionCheckoutResponses, CreateSessionCheckoutErrors, ThrowOnError> {
+    return (options.client ?? client).post<
+      CreateSessionCheckoutResponses,
+      CreateSessionCheckoutErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "customerSession",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/public/session/checkout",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * List the customer's invoices
+   *
+   * The session's customer's issued invoices -- its instance's, for a session bound to one -- newest first, with how to pay each. An invoice still awaiting the outcome of its payment is read from the payment provider first, at most every 30 seconds: poll this after a checkout answered processing or requires_action.
+   */
+  public static listSessionInvoices<ThrowOnError extends boolean = false>(
+    options?: Options<ListSessionInvoicesData, ThrowOnError>,
+  ): RequestResult<ListSessionInvoicesResponses, ListSessionInvoicesErrors, ThrowOnError> {
+    return (options?.client ?? client).get<
+      ListSessionInvoicesResponses,
+      ListSessionInvoicesErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "customerSession",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/public/session/invoices",
+      ...options,
+    });
+  }
+}
+
+export class PublishableKeys {
+  /**
+   * List publishable keys
+   *
+   * The organization's publishable keys, newest first. The keys themselves are never returned, only their last four characters.
+   */
+  public static listPublishableKeys<ThrowOnError extends boolean = false>(
+    options?: Options<ListPublishableKeysData, ThrowOnError>,
+  ): RequestResult<ListPublishableKeysResponses, ListPublishableKeysErrors, ThrowOnError> {
+    return (options?.client ?? client).get<
+      ListPublishableKeysResponses,
+      ListPublishableKeysErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/publishable-keys",
+      ...options,
+    });
+  }
+
+  /**
+   * Create a publishable key
+   *
+   * Issues a pk_ key for a web page to read the organization's public catalogue (GET /api/public/catalog) and nothing else. The key is returned once; only its digest is stored.
+   */
+  public static createPublishableKey<ThrowOnError extends boolean = false>(
+    options: Options<CreatePublishableKeyData, ThrowOnError>,
+  ): RequestResult<CreatePublishableKeyResponses, CreatePublishableKeyErrors, ThrowOnError> {
+    return (options.client ?? client).post<
+      CreatePublishableKeyResponses,
+      CreatePublishableKeyErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/publishable-keys",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Update a publishable key
+   *
+   * Changes a live key's label or allowed origins. A revoked key answers 409.
+   */
+  public static updatePublishableKey<ThrowOnError extends boolean = false>(
+    options: Options<UpdatePublishableKeyData, ThrowOnError>,
+  ): RequestResult<UpdatePublishableKeyResponses, UpdatePublishableKeyErrors, ThrowOnError> {
+    return (options.client ?? client).patch<
+      UpdatePublishableKeyResponses,
+      UpdatePublishableKeyErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/publishable-keys/{keyId}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Revoke a publishable key
+   *
+   * The key stops authenticating on the next request. Idempotent; revocation is final.
+   */
+  public static revokePublishableKey<ThrowOnError extends boolean = false>(
+    options: Options<RevokePublishableKeyData, ThrowOnError>,
+  ): RequestResult<RevokePublishableKeyResponses, RevokePublishableKeyErrors, ThrowOnError> {
+    return (options.client ?? client).post<
+      RevokePublishableKeyResponses,
+      RevokePublishableKeyErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/publishable-keys/{keyId}/revoke",
       ...options,
     });
   }
@@ -2526,7 +5708,13 @@ export class Releases {
   ): RequestResult<ListReleasesResponses, ListReleasesErrors, ThrowOnError> {
     return (options?.client ?? client).get<ListReleasesResponses, ListReleasesErrors, ThrowOnError>(
       {
-        security: [{ scheme: "bearer", type: "http" }],
+        security: [
+          {
+            key: "bearerAuth",
+            scheme: "bearer",
+            type: "http",
+          },
+        ],
         url: "/releases",
         ...options,
       },
@@ -2546,7 +5734,13 @@ export class Releases {
       CreateReleaseErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/releases",
       ...options,
       headers: {
@@ -2569,7 +5763,13 @@ export class Releases {
       DeleteReleaseErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/releases/{releaseSlug}",
       ...options,
     });
@@ -2590,7 +5790,13 @@ export class ServiceAccounts {
       GetServiceAccountsErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/service-accounts",
       ...options,
     });
@@ -2609,7 +5815,13 @@ export class ServiceAccounts {
       CreateServiceAccountErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/service-accounts",
       ...options,
       headers: {
@@ -2632,7 +5844,13 @@ export class ServiceAccounts {
       GetServiceAccountErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/service-accounts/{serviceAccountSlug}",
       ...options,
     });
@@ -2651,7 +5869,13 @@ export class ServiceAccounts {
       UpdateServiceAccountErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/service-accounts/{serviceAccountSlug}",
       ...options,
       headers: {
@@ -2674,7 +5898,13 @@ export class ServiceAccounts {
       GetServiceAccountTokensErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/service-accounts/{serviceAccountSlug}/tokens",
       ...options,
     });
@@ -2697,7 +5927,13 @@ export class ServiceAccounts {
       CreateServiceAccountTokenErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/service-accounts/{serviceAccountSlug}/tokens",
       ...options,
       headers: {
@@ -2724,7 +5960,13 @@ export class ServiceAccounts {
       DeleteServiceAccountTokenErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/service-accounts/{serviceAccountSlug}/tokens/{tokenSlug}",
       ...options,
     });
@@ -2749,7 +5991,13 @@ export class Notifications {
       GetNotificationPreferencesErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/v1/notification-preferences",
       ...options,
     });
@@ -2772,7 +6020,13 @@ export class Notifications {
       PutNotificationPreferencesErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/v1/notification-preferences",
       ...options,
       headers: {
@@ -2795,7 +6049,13 @@ export class Notifications {
       ListNotificationsErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/v1/notifications",
       ...options,
     });
@@ -2814,7 +6074,13 @@ export class Notifications {
       MarkNotificationsReadErrors,
       ThrowOnError
     >({
-      security: [{ scheme: "bearer", type: "http" }],
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
       url: "/v1/notifications/mark-read",
       ...options,
       headers: {
