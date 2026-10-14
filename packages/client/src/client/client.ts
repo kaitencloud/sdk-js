@@ -12,8 +12,10 @@ import {
   getLicenseEntitlements,
   getLicenses,
   listCustomers,
+  listUsageReports,
   reportEntitlementUsageMetric,
 } from "../core/index.ts";
+import { KaitenError } from "../core/index.ts";
 import type { KaitenClientConfig } from "../core/index.ts";
 import {
   defaultActions,
@@ -44,8 +46,11 @@ import type {
   LicensingSnapshot,
   Plan,
   ReportUsageInput,
+  ReportUsageResult,
   ResolvedEntitlement,
   ResolvedFeatureFlag,
+  UsageHistoryOptions,
+  UsageReport,
 } from "./types.ts";
 
 interface GraphQLEnvelope<T> {
@@ -117,6 +122,18 @@ export interface KaitenUsageModule {
     entitlementSlug: string,
     input: ReportUsageInput,
   ) => Promise<EntitlementUsage>;
+  /** `report`, with whether the report was a replay and whether its metadata was kept. */
+  reportDetailed: (
+    instanceSlug: string,
+    entitlementSlug: string,
+    input: ReportUsageInput,
+  ) => Promise<ReportUsageResult>;
+  /** The accepted reports of one instance and entitlement, oldest first. */
+  history: (
+    instanceSlug: string,
+    entitlementSlug: string,
+    options?: UsageHistoryOptions,
+  ) => Promise<UsageReport[]>;
   getByGroup: (
     groupSlug: string,
     instanceSlug: string,
@@ -338,6 +355,8 @@ export class KaitenClient implements KaitenClientLike {
   public readonly licenses: KaitenLicensesModule;
   public readonly usage: KaitenUsageModule;
   public readonly flags: KaitenFlagsModule;
+  /** Set once an API refuses usage report keys: later reports go out without them. */
+  private transactionIdsUnsupported = false;
 
   constructor(config: KaitenClientConfig) {
     // No default scheme: publishable keys are not served yet, and a default that
@@ -380,6 +399,10 @@ export class KaitenClient implements KaitenClientLike {
         this.getInstanceEntitlementUsage(instanceSlug, entitlementSlug),
       report: (instanceSlug, entitlementSlug, input) =>
         this.reportUsage(instanceSlug, entitlementSlug, input),
+      reportDetailed: (instanceSlug, entitlementSlug, input) =>
+        this.reportUsageDetailed(instanceSlug, entitlementSlug, input),
+      history: (instanceSlug, entitlementSlug, options) =>
+        this.listUsageReports(instanceSlug, entitlementSlug, options),
       getByGroup: (groupSlug, instanceSlug) =>
         this.getEntitlementGroupUsage(groupSlug, instanceSlug),
     };
@@ -1064,24 +1087,112 @@ export class KaitenClient implements KaitenClientLike {
     );
   }
 
-  reportUsage(
+  /**
+   * Report usage of one entitlement for one instance, and return the resulting
+   * usage.
+   *
+   * Without `transactionId` the report is sent once: a report that timed out may
+   * or may not have been counted, and sending it again could count it twice.
+   * With one, the API applies it at most once, so it is retried on network
+   * errors and 5xx under the same key. A key already used for a different report
+   * throws {@link TransactionIdReusedError}, never retried.
+   */
+  async reportUsage(
     instanceSlug: string,
     entitlementSlug: string,
     input: ReportUsageInput,
   ): Promise<EntitlementUsage> {
-    return this.transport.run(
-      (client) =>
-        reportEntitlementUsageMetric({
-          client,
-          path: { instanceSlug, entitlementSlug },
-          body: input,
-        }),
-      `reportUsage(${instanceSlug}, ${entitlementSlug})`,
-      // Never replayed. The endpoint carries no idempotency key, so a retry
-      // after a timeout that the server had already committed would count the
-      // same consumption twice — and this counter is the billing base.
-      { idempotent: false },
-    );
+    const { usage } = await this.reportUsageDetailed(instanceSlug, entitlementSlug, input);
+    return usage;
+  }
+
+  /**
+   * {@link reportUsage}, also returning what the API said about the report:
+   * whether it replayed an earlier report with the same key, and whether its
+   * metadata was too large to store.
+   *
+   * An API older than `transactionId` refuses the field. The report is then sent
+   * again without it, and this client stops sending keys (and so retrying
+   * reports) for its lifetime, warning once.
+   */
+  async reportUsageDetailed(
+    instanceSlug: string,
+    entitlementSlug: string,
+    input: ReportUsageInput,
+  ): Promise<ReportUsageResult> {
+    const key = input.transactionId;
+    if (key !== undefined && !TRANSACTION_ID.test(key)) {
+      throw new TypeError(
+        `Kaiten transactionId ${JSON.stringify(key)} must be 1 to 128 characters of letters, digits, '.', '_', ':' and '-'.`,
+      );
+    }
+
+    const { transactionId: _omitted, ...withoutKey } = input;
+    const send = (body: ReportUsageInput) =>
+      this.transport.runWithResponse<EntitlementUsage>(
+        (client) =>
+          reportEntitlementUsageMetric({
+            client,
+            path: { instanceSlug, entitlementSlug },
+            body,
+          }),
+        `reportUsage(${instanceSlug}, ${entitlementSlug})`,
+        // Replayed only with a key: without one, a retry after a timeout the
+        // server had already committed would count the same consumption twice
+        // -- and this counter is the billing base.
+        { idempotent: body.transactionId !== undefined },
+      );
+
+    const keyed = key !== undefined && !this.transactionIdsUnsupported;
+    try {
+      return toReportUsageResult(await send(keyed ? input : withoutKey));
+    } catch (error) {
+      if (!keyed || !refusesTransactionId(error)) throw error;
+      this.transactionIdsUnsupported = true;
+      console.warn(
+        "Kaiten: this API does not support usage report transactionId; reports are sent " +
+          "without it and are not retried for the rest of this client's life. Upgrade Kaiten " +
+          "to make retries safe.",
+      );
+      return toReportUsageResult(await send(withoutKey));
+    }
+  }
+
+  /**
+   * The usage history of one entitlement for one instance: every report the API
+   * accepted in the range, oldest first, up to `options.limit`. It follows the
+   * API's pages itself.
+   */
+  async listUsageReports(
+    instanceSlug: string,
+    entitlementSlug: string,
+    options: UsageHistoryOptions = {},
+  ): Promise<UsageReport[]> {
+    const reports: UsageReport[] = [];
+    let afterSeq: number | undefined;
+    for (;;) {
+      const remaining =
+        options.limit === undefined ? USAGE_HISTORY_PAGE : options.limit - reports.length;
+      const page = await this.transport.run(
+        (client) =>
+          listUsageReports({
+            client,
+            path: { instanceSlug, entitlementSlug },
+            query: {
+              from: toTimestamp(options.from),
+              to: toTimestamp(options.to),
+              transactionId: options.transactionId,
+              afterSeq,
+              limit: Math.min(USAGE_HISTORY_PAGE, remaining),
+            },
+          }),
+        `listUsageReports(${instanceSlug}, ${entitlementSlug})`,
+      );
+      reports.push(...page.items);
+      const done = options.limit !== undefined && reports.length >= options.limit;
+      if (page.nextAfterSeq === undefined || page.nextAfterSeq === null || done) return reports;
+      afterSeq = page.nextAfterSeq;
+    }
   }
 
   getEntitlementGroupUsage(
@@ -1125,4 +1236,42 @@ export class KaitenClient implements KaitenClientLike {
       flags: response.flags ?? [],
     };
   }
+}
+
+/** The format the API accepts for a usage report `transactionId`. */
+const TRANSACTION_ID = /^[A-Za-z0-9._:-]{1,128}$/;
+
+/** The largest page the usage history endpoint serves. */
+const USAGE_HISTORY_PAGE = 500;
+
+const INVALID_TRANSACTION_ID = "ReportEntitlementUsageMetric.InvalidTransactionId";
+
+function toReportUsageResult({
+  data,
+  response,
+}: {
+  data: EntitlementUsage;
+  response?: Response;
+}): ReportUsageResult {
+  return {
+    usage: data,
+    replayed: response?.headers.get("Idempotent-Replayed") === "true",
+    metadataDropped: Boolean(response?.headers.get("Kaiten-Metadata-Dropped")),
+  };
+}
+
+/**
+ * Whether `error` is an API without `transactionId` refusing the field: a
+ * validation problem located on it, from an API that does not know the code
+ * newer ones answer a malformed key with. The key was checked before sending.
+ */
+function refusesTransactionId(error: unknown): boolean {
+  if (!(error instanceof KaitenError)) return false;
+  if (error.status !== 422 && error.status !== 400) return false;
+  if (error.code === INVALID_TRANSACTION_ID) return false;
+  return (error.errors ?? []).some((detail) => detail.location === "body.transactionId");
+}
+
+function toTimestamp(value: Date | string | undefined): string | undefined {
+  return value instanceof Date ? value.toISOString() : value;
 }

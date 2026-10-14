@@ -120,6 +120,12 @@ import type {
   EvaluateFlagsBulkData,
   EvaluateFlagsBulkErrors,
   EvaluateFlagsBulkResponses,
+  ExportOrganizationUsageReportsData,
+  ExportOrganizationUsageReportsErrors,
+  ExportOrganizationUsageReportsResponses,
+  ExportUsageReportsData,
+  ExportUsageReportsErrors,
+  ExportUsageReportsResponses,
   GetAuditTrailsData,
   GetAuditTrailsErrors,
   GetAuditTrailsResponses,
@@ -252,6 +258,9 @@ import type {
   ListReleasesData,
   ListReleasesErrors,
   ListReleasesResponses,
+  ListUsageReportsData,
+  ListUsageReportsErrors,
+  ListUsageReportsResponses,
   MarkNotificationsReadData,
   MarkNotificationsReadErrors,
   MarkNotificationsReadResponses,
@@ -1409,7 +1418,7 @@ export const getEntitlementUsageMetrics = <ThrowOnError extends boolean = false>
 /**
  * Report entitlement usage metric for an instance
  *
- * Report a usage metric for a specific entitlement in a given instance. This endpoint allows you to report the usage of an entitlement, including optional metadata and a timestamp.
+ * Report a usage metric for a specific entitlement in a given instance, with optional metadata. The server dates every report on receipt; the request carries no timestamp. Send a transactionId to make retries safe: without one, a report sent twice counts twice.
  */
 export const reportEntitlementUsageMetric = <ThrowOnError extends boolean = false>(
   options: Options<ReportEntitlementUsageMetricData, ThrowOnError>,
@@ -1430,6 +1439,38 @@ export const reportEntitlementUsageMetric = <ThrowOnError extends boolean = fals
       "Content-Type": "application/json",
       ...options.headers,
     },
+  });
+
+/**
+ * List an entitlement's usage reports for an instance
+ *
+ * The usage history of one instance and entitlement: every accepted report in the range, with the counter before and after it and the limit in force, in reportSeq order, paged with afterSeq. Decimals are strings. Reports are kept for the organization's usage history retention.
+ */
+export const listUsageReports = <ThrowOnError extends boolean = false>(
+  options: Options<ListUsageReportsData, ThrowOnError>,
+): RequestResult<ListUsageReportsResponses, ListUsageReportsErrors, ThrowOnError> =>
+  (options.client ?? client).get<ListUsageReportsResponses, ListUsageReportsErrors, ThrowOnError>({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/instances/{instanceSlug}/entitlements/{entitlementSlug}/usage/reports",
+    ...options,
+  });
+
+/**
+ * Export an entitlement's usage reports for an instance
+ *
+ * Streams every report of one instance and entitlement in the range as CSV or NDJSON, in reportSeq order. Decimals are written exactly as the journal stores them.
+ */
+export const exportUsageReports = <ThrowOnError extends boolean = false>(
+  options: Options<ExportUsageReportsData, ThrowOnError>,
+): RequestResult<ExportUsageReportsResponses, ExportUsageReportsErrors, ThrowOnError> =>
+  (options.client ?? client).get<
+    ExportUsageReportsResponses,
+    ExportUsageReportsErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/instances/{instanceSlug}/entitlements/{entitlementSlug}/usage/reports/export",
+    ...options,
   });
 
 /**
@@ -2283,6 +2324,28 @@ export const deleteServiceAccountToken = <ThrowOnError extends boolean = false>(
   >({
     security: [{ scheme: "bearer", type: "http" }],
     url: "/service-accounts/{serviceAccountSlug}/tokens/{tokenSlug}",
+    ...options,
+  });
+
+/**
+ * Export the organization's usage reports
+ *
+ * Streams every usage report of the organization in the range, across instances and entitlements, as CSV or NDJSON, ordered by reportedAt. Filters narrow it to one instance or one entitlement, including deleted ones by ID. Use it to keep the usage history before deleting the organization.
+ */
+export const exportOrganizationUsageReports = <ThrowOnError extends boolean = false>(
+  options?: Options<ExportOrganizationUsageReportsData, ThrowOnError>,
+): RequestResult<
+  ExportOrganizationUsageReportsResponses,
+  ExportOrganizationUsageReportsErrors,
+  ThrowOnError
+> =>
+  (options?.client ?? client).get<
+    ExportOrganizationUsageReportsResponses,
+    ExportOrganizationUsageReportsErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/usage/reports/export",
     ...options,
   });
 

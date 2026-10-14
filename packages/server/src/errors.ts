@@ -139,3 +139,22 @@ const THRESHOLD_EXCEEDED = "ReportEntitlementUsageMetric.ThresholdExceeded";
 export function isThresholdExceeded(error: unknown): error is KaitenError {
   return error instanceof KaitenError && error.status === 409 && error.code === THRESHOLD_EXCEEDED;
 }
+
+/** The code the API returns when a usage report's transactionId was used for another report. */
+const TRANSACTION_ID_REUSED = "ReportEntitlementUsageMetric.TransactionIdReused";
+
+/**
+ * True when the API refused a usage report because its `transactionId` was
+ * already used, within the idempotency window, for a report with another
+ * behavior or value: HTTP 409 with the code
+ * `ReportEntitlementUsageMetric.TransactionIdReused`.
+ *
+ * It is a bug in how keys are made, not a transient failure: retrying the same
+ * report under the same key fails the same way. Send a correction as a new
+ * report under a new key. The original report is in `error.errors[0].value`.
+ */
+export function isTransactionIdReused(error: unknown): error is KaitenError {
+  return (
+    error instanceof KaitenError && error.status === 409 && error.code === TRANSACTION_ID_REUSED
+  );
+}

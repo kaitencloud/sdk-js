@@ -6,6 +6,7 @@ export type {
   EvaluationFailure,
   EvaluationSuccess,
   NumberEntitlementValue,
+  UsageReport,
   User,
 } from "../core/index.ts";
 
@@ -19,6 +20,7 @@ export type { EntitlementGroupUsage as EntitlementGroupUsageItem } from "../core
 import type {
   BooleanEntitlementValue,
   ConfigEntitlementValue,
+  EntitlementUsage,
   EvaluationFailure,
   EvaluationSuccess,
   NumberEntitlementValue,
@@ -212,13 +214,58 @@ export interface LicenseEntitlementRow {
  * and for a `LICENSE_START` anchor, from the instance's own license start date —
  * so a caller-supplied clock has nothing to say about which window a report
  * belongs to. `ReportEntitlementUsageBody` declares `additionalProperties: false`
- * over `value`, `behavior` and `metadata`, so sending one is a rejected request,
- * not an ignored field.
+ * over `value`, `behavior`, `metadata` and `transactionId`, so sending one is a
+ * rejected request, not an ignored field.
  */
 export interface ReportUsageInput {
   value: EntitlementValue;
   behavior: UsageBehavior;
+  /**
+   * Stored with the report in the usage history when its compact JSON encoding
+   * is at most 4 KiB; above that the report still counts and
+   * {@link ReportUsageResult.metadataDropped} is set. It must contain no personal
+   * data.
+   */
   metadata?: Record<string, unknown>;
+  /**
+   * Makes the report idempotent: the API applies a report at most once per key,
+   * instance and entitlement within its idempotency window (35 days by default),
+   * and answers a repeat with the original result. Use a UUID, or a business
+   * event id plus the meter (`llm-call:9f2c:tokens`). A report with a key is
+   * retried on network errors and 5xx; one without is sent once. 1 to 128
+   * characters of letters, digits, `.`, `_`, `:` and `-`.
+   */
+  transactionId?: string;
+}
+
+/** What an accepted usage report answers. */
+export interface ReportUsageResult {
+  /** The entitlement's usage after the report. */
+  usage: EntitlementUsage;
+  /**
+   * The report carried a `transactionId` the API had already accepted: `usage`
+   * is that report's original answer and nothing was counted again. It may
+   * describe a window that has since closed; do not read it as the current gauge.
+   */
+  replayed: boolean;
+  /** The metadata was above 4 KiB and was not stored. The report was counted. */
+  metadataDropped: boolean;
+}
+
+/** Narrows {@link KaitenUsageModule.history}. */
+export interface UsageHistoryOptions {
+  /**
+   * Start of the range, inclusive. Defaults to 30 days before `to`; a `from`
+   * earlier than the start of the organization's usage history is refused with
+   * the code `ListUsageReports.OutsideRetention`.
+   */
+  from?: Date | string;
+  /** End of the range, exclusive. Defaults to now. */
+  to?: Date | string;
+  /** Only the report sent with this key. */
+  transactionId?: string;
+  /** Fetch at most this many reports; every report in the range when absent. */
+  limit?: number;
 }
 
 // ---------------------------------------------------------------------------

@@ -113,6 +113,7 @@ export {
   KaitenError,
   KaitenNetworkError,
   isThresholdExceeded,
+  isTransactionIdReused,
   toKaitenError,
   type KaitenApiError,
   type KaitenThrownError,
