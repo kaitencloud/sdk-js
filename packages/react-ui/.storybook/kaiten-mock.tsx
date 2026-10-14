@@ -192,6 +192,11 @@ export interface KaitenFetchMockScenario {
   addOns?: Addon[];
   credits?: CreditBalance[];
   branding?: { removable: boolean };
+  /**
+   * The usage read failed: numeric entitlements then carry no consumption at all
+   * (`usageUnavailable`), rather than a zero. See `scenarioQuotas`.
+   */
+  usageUnavailable?: boolean;
 }
 
 let originalFetch: typeof fetch | undefined;
@@ -212,7 +217,9 @@ function toSnapshot(scenario: KaitenFetchMockScenario): LicensingSnapshot {
     plans: scenario.plans ?? defaultPlans(),
     addOns: scenario.addOns ?? [],
     credits: scenario.credits ?? [],
-    entitlements: normalizeResolvedEntitlements(scenario.entitlements, scenario.usageRows),
+    entitlements: normalizeResolvedEntitlements(scenario.entitlements, scenario.usageRows, {
+      usageUnavailable: scenario.usageUnavailable,
+    }),
     flags: scenario.flags ?? [],
     actions: [
       {
@@ -900,5 +907,57 @@ export function scenarioPaywallOk(): KaitenFetchMockScenario {
       },
     ],
     plans: defaultPlans(),
+  };
+}
+
+/** One metered quota of a scenario: what it grants, what is consumed, what it tolerates. */
+export interface QuotaFixture {
+  slug: string;
+  name: string;
+  /** The granted value. `-1` is the unlimited sentinel. */
+  limit: number;
+  /** What was consumed. */
+  used: number;
+  /**
+   * How far past `limit` usage is still accepted, as a percentage of it. Leave it out for a hard
+   * limit. An unlimited grant carries `-1` whatever is given here, as the API stores it.
+   */
+  allowancePercent?: number;
+}
+
+/**
+ * A licence of numeric quotas, in the situations the usage rule tells apart. The entitlements reach
+ * the components through the client's own normalizer, so `maximumAllowedUsage`, `percentageUsed`,
+ * `remaining` and `status` are what the client computes for these numbers and cannot drift from them.
+ *
+ * `usageUnavailable` makes the usage read fail for every quota: the grants are known, the
+ * consumption is not.
+ */
+export function scenarioQuotas(
+  quotas: QuotaFixture[],
+  options: { usageUnavailable?: boolean } = {},
+): KaitenFetchMockScenario {
+  const license = baseLicense();
+  return {
+    instance: baseInstance(),
+    license,
+    entitlements: quotas.map((quota) => ({
+      ...baseEntitlement(license, {
+        entitlementName: quota.name,
+        entitlementSlug: quota.slug,
+        entitlementType: "NUMBER",
+        value: { type: "number", value: quota.limit },
+      }),
+      limitCapExceededOveragePercent: quota.limit === -1 ? -1 : (quota.allowancePercent ?? 0),
+    })),
+    usageRows: quotas.map((quota) => ({
+      entitlementId: `e-${quota.slug}`,
+      entitlementSlug: quota.slug,
+      licenseId: license.id,
+      licenseSlug: license.slug,
+      value: { type: "number", value: quota.used },
+    })),
+    plans: defaultPlans(),
+    ...(options.usageUnavailable ? { usageUnavailable: true } : {}),
   };
 }

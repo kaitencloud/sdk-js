@@ -46,6 +46,20 @@ const canceled = changed((portal) => {
   portal.capabilities = { ...portal.capabilities, unsubscribe: false, checkout: true };
 });
 
+/**
+ * The recorded portal with the API calls of Initech at `used`: their 200,000 carry a 20% allowance,
+ * so the API accepts usage up to 240,000.
+ */
+function apiCallsUsed(used: number): Record<string, any> {
+  return changed((portal) => {
+    const apiCalls = portal.entitlements.find(
+      (entitlement: any) => entitlement.slug === "api-calls",
+    );
+    apiCalls.currentValue = used;
+    apiCalls.percentageUsed = (used / apiCalls.limitValue.value) * 100;
+  });
+}
+
 const [paid, failed] = initechSession.invoicesFirstPage.items;
 const [billedOutside] = initechSession.invoicesLastPage.items;
 
@@ -239,6 +253,42 @@ export const Provenance: Story = {
       "(100,000 base) × 2 voucher = 200,000",
       "5 base + 3 × 1 add-on = 8",
     ]);
+  },
+};
+
+export const UsageInAnAllowance: Story = {
+  name: "Usage past the grant, inside its allowance",
+  decorators: [portalDecorator({ portal: apiCallsUsed(210_000) })],
+  render: () => (
+    <div className="flex w-full max-w-md flex-col gap-4">
+      <UsageMeters />
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByText("API calls", {}, SLOW);
+    // The track runs to the ceiling, 240,000; the badge says 105% of what was granted.
+    const bar = canvas.getByRole("progressbar", { name: "Progress: 210,000 of 200,000" });
+    await expect(bar).toHaveAttribute("data-usage-state", "in_allowance");
+    await expect(bar).toHaveAttribute("aria-valuemax", "240000");
+    await expect(canvas.getByText("105%")).toBeInTheDocument();
+  },
+};
+
+export const UsageOnTheCeiling: Story = {
+  name: "Usage on the ceiling of its allowance",
+  decorators: [portalDecorator({ portal: apiCallsUsed(240_000) })],
+  render: () => (
+    <div className="flex w-full max-w-md flex-col gap-4">
+      <UsageMeters />
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByText("API calls", {}, SLOW);
+    const bar = canvas.getByRole("progressbar", { name: "Progress: 240,000 of 200,000" });
+    await expect(bar).toHaveAttribute("data-usage-state", "at_limit");
+    await expect(canvas.getByText("120%")).toBeInTheDocument();
   },
 };
 
