@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // The public catalogue, read with a publishable key: GET /api/public/catalog.
 //
 // The wire shape is written here rather than generated, because the vendored
