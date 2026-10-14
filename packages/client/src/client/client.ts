@@ -25,6 +25,11 @@ import {
   planFromLicense,
   resolveLicenseTerm,
 } from "./normalize.ts";
+import {
+  PUBLIC_CATALOG_PATH,
+  catalogFromPublic,
+  type PublicCatalogResponse,
+} from "./public-catalog.ts";
 import { isEvaluationSuccess } from "./feature-flags.ts";
 import { KaitenTransport } from "../core/index.ts";
 import { LICENSING_CATALOG_QUERY, LICENSING_SNAPSHOT_QUERY } from "../graphql/documents.ts";
@@ -347,6 +352,7 @@ const AUTH_SCHEMES: ReadonlySet<unknown> = new Set(["bearer", "publishable", "no
 
 export class KaitenClient implements KaitenClientLike {
   private readonly transport: KaitenTransport;
+  private readonly authScheme: KaitenClientConfig["authScheme"];
   private readonly onDegraded: KaitenClientConfig["onDegraded"];
 
   public readonly components: KaitenComponentsModule;
@@ -359,8 +365,8 @@ export class KaitenClient implements KaitenClientLike {
   private transactionIdsUnsupported = false;
 
   constructor(config: KaitenClientConfig) {
-    // No default scheme: publishable keys are not served yet, and a default that
-    // sends a header no endpoint reads would fail every call without a word.
+    // No default scheme: a publishable key reads one route and a bearer token
+    // every other, so a default would send the wrong one somewhere silently.
     if (!AUTH_SCHEMES.has(config.authScheme)) {
       throw new TypeError(
         'Kaiten authScheme is required: "bearer", "publishable" or "none". ' +
@@ -368,6 +374,7 @@ export class KaitenClient implements KaitenClientLike {
       );
     }
     this.transport = new KaitenTransport(config);
+    this.authScheme = config.authScheme;
     this.onDegraded = config.onDegraded;
 
     this.components = {
@@ -739,6 +746,14 @@ export class KaitenClient implements KaitenClientLike {
   // Composed client-side from existing licenses endpoints — there is no bespoke
   // catalog endpoint server-side (Option A, see ARCHITECTURE.md).
   async getCatalog(): Promise<KaitenCatalog> {
+    // A publishable key reads the public catalogue and nothing else, so public
+    // mode never falls back to GraphQL or the REST fan-out: both answer 401 to a
+    // pk_, and the key has no business being sent there.
+    if (this.authScheme === "publishable") {
+      const response = await this.transport.get<PublicCatalogResponse>(PUBLIC_CATALOG_PATH);
+      return { ...catalogFromPublic(response), branding: normalizeBrandingCapability(undefined) };
+    }
+
     const { plans } = await this.buildCatalog();
     return {
       plans: normalizePlansResponse(plans),

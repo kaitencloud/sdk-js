@@ -305,7 +305,33 @@ export interface PlanPrice {
   /** ISO-4217 currency code (e.g. `"USD"`). */
   currencyCode?: CurrencyCode;
   interval?: BillingInterval;
+  /**
+   * Number of `interval`s one billing period spans: `3` with `interval:
+   * "month"` is quarterly, `6` semi-annual. Absent means 1.
+   */
+  intervalCount?: number;
   label?: string;
+  /** Identifier of the price, on catalogue reads. */
+  id?: string;
+  /**
+   * The exact amount in minor units, as a decimal string (up to 12 places).
+   * Per-unit prices are often fractions of a minor unit -- half a cent per
+   * token -- and then `amount` is that same fraction as a number, not a whole
+   * number of minor units: format these from this string, per sale unit.
+   */
+  unitAmountDecimal?: string;
+  /**
+   * `FLAT_FEE` is charged per period. `USAGE_BASED` and `OVERAGE` are charged
+   * per sale unit of {@link PlanPrice.meteredEntitlementSlug}'s usage, in
+   * arrears: render them "per sale unit" and never add them to a headline.
+   */
+  billingModel?: "FLAT_FEE" | "USAGE_BASED" | "OVERAGE";
+  /** The entitlement a metered price measures. */
+  meteredEntitlementSlug?: string;
+  /** Measured units in one sale unit of a metered price, e.g. `10000`. */
+  saleUnitFactor?: number;
+  /** The price shown for its billing period when the plan has several. */
+  isDefault?: boolean;
 }
 
 export interface PortalAction {
@@ -380,6 +406,10 @@ export interface PlanEntitlement extends EntitlementPresentation {
 export interface Addon {
   id?: string;
   slug: string;
+  /** The add-on's family: versions sharing it are one product. */
+  familySlug?: string;
+  /** Most units one instance may take; `null` when unbounded. */
+  maxQuantity?: number | null;
   name: string;
   description?: string | null;
   active?: boolean;
@@ -431,6 +461,18 @@ export interface Plan {
   lifecycleState?: LicenseLifecycleState;
   /** Family of the license behind this plan: plans sharing it are versions of one product. */
   familyId?: string;
+  /** How the plan is sold. `CUSTOM` is priced on request: show {@link Plan.selfServeCtaUrl}. */
+  pricingType?: "FREE" | "PAID" | "CUSTOM";
+  /**
+   * Whether a customer can subscribe to this plan alone. When `false`, send them
+   * to {@link Plan.selfServeCtaUrl} ("Contact us") instead of a checkout.
+   */
+  selfServe?: boolean;
+  selfServeCtaUrl?: string | null;
+  /** Length of the plan's free trial in days; absent when it has none. */
+  trialPeriodDays?: number | null;
+  /** A payment method is captured before subscribing, even when nothing is due. */
+  requiresPaymentMethod?: boolean;
 }
 
 export interface ResolvedEntitlement extends EntitlementPresentation {
@@ -517,6 +559,13 @@ export interface KaitenBrandingCapability {
 export interface KaitenCatalog {
   plans: Plan[];
   branding?: KaitenBrandingCapability;
+  /**
+   * The public add-ons, on a publishable-key read. Each plan also lists the ones
+   * that fit it in {@link Plan.addOns}.
+   */
+  addOns?: Addon[];
+  /** What the storefront can offer beyond showing prices, on a publishable-key read. */
+  capabilities?: Pick<BillingCapabilities, "checkout" | "paymentMethods">;
 }
 
 /**

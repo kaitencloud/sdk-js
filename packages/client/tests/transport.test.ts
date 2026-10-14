@@ -55,7 +55,9 @@ describe("KaitenTransport auth headers", () => {
     expect(bearerReq.headers.get("Authorization")).toBe("Bearer tok");
     expect(bearerReq.headers.get("X-Kaiten-Publishable-Key")).toBeNull();
 
-    const pkFetch = vi.fn(async () => json([]));
+    const pkFetch = vi.fn(async () =>
+      json({ plans: [], addOns: [], capabilities: { checkout: false, paymentMethods: false } }),
+    );
     vi.stubGlobal("fetch", pkFetch);
     await new KaitenClient({
       apiUrl: "https://api.test",
