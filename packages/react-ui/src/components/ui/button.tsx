@@ -18,7 +18,10 @@ const buttonVariants = /* @__PURE__ */ cva(
         outline:
           "border-input bg-background shadow-xs hover:bg-secondary dark:border-input dark:bg-input/30 dark:hover:bg-input/50",
         secondary: "bg-secondary text-secondary-foreground hover:bg-secondary-hover",
-        ghost: "hover:bg-accent-hover hover:text-accent-foreground",
+        // Keeps its text colour on hover, as the console's ghost button does: the accent
+        // pair turned the label violet on the hover fill in dark, and inheriting it, like
+        // `outline`, follows the surface the button sits on.
+        ghost: "hover:bg-accent",
         link: "text-primary underline-offset-4 hover:underline",
       },
       size: {
