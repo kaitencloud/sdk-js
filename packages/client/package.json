@@ -1,7 +1,7 @@
 {
   "name": "@kaitencloud/client",
   "version": "1.0.0",
-  "description": "Kaiten browser client — catalogue, licensing snapshot, usage reports and flag evaluation; it never holds a secret",
+  "description": "Kaiten browser client — catalogue, licensing snapshot, usage reports and flag evaluation; in a browser it never holds a secret",
   "homepage": "https://github.com/kaitencloud/sdk-js/tree/main/packages/client#readme",
   "bugs": {
     "url": "https://github.com/kaitencloud/sdk-js/issues"

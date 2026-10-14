@@ -89,7 +89,7 @@ the failure: quote it when you report a problem.
 
 ## Webhooks
 
-The contract declares 49 `com.kaiten.*` events and this package ships a typed payload for
+The contract declares 55 `com.kaiten.*` events and this package ships a typed payload for
 each — but a payload alone says nothing about **who sent it**. Verify the signature before
 acting on one; until you do, the endpoint is unauthenticated and it drives licences and usage.
 
@@ -135,10 +135,10 @@ Deno, Bun and edge runtimes.
 
 ## Resources
 
-Generated and grouped by tag: `Customers`, `Instances`, `Licenses`, `Entitlements`,
-`EntitlementGroups`, `Components`, `DeploymentZones`, `MetadataFields`, `Releases`,
-`ServiceAccounts`, `Connectors`, `Integrations`, `Featureflags`, `OfrepCore`,
-`OpenFeature`.
+Generated and grouped by tag: `Customers`, `Instances`, `Licenses`, `LicenseFamilies`,
+`Entitlements`, `EntitlementGroups`, `Components`, `DeploymentZones`, `MetadataFields`,
+`Releases`, `ServiceAccounts`, `Connectors`, `Integrations`, `Notifications`,
+`Featureflags`, `OfrepCore`, `OpenFeature`.
 
 These cover the Core API. Organization and user administration belongs to a separate API,
 under `/api/platform/**`, with its own credentials; this SDK does not model it (see
@@ -146,7 +146,7 @@ under `/api/platform/**`, with its own credentials; this SDK does not model it (
 
 ### Token lifetime
 
-A token stops being honoured exactly at its `expires_at`, with no grace period: plan the
+A token stops being honoured exactly at its `expiresAt`, with no grace period: plan the
 renewal of a short-lived token before that instant.
 
 ## Development

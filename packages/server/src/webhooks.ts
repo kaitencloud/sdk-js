@@ -1,6 +1,6 @@
 // Webhook signature verification.
 //
-// The contract declares 49 `com.kaiten.*` events and this package already ships
+// The contract declares 55 `com.kaiten.*` events and this package already ships
 // a typed payload for each one — but nothing to establish that a request
 // carrying such a payload actually came from Kaiten. Every handler written
 // against these types was therefore an unauthenticated endpoint driving licences
@@ -13,14 +13,14 @@
 // the test file).
 //
 // Note the contract itself documents none of this — `openapi.yaml` declares the
-// 49 webhooks and not one signature header — so the header names and algorithm
+// 55 webhooks and not one signature header — so the header names and algorithm
 // below are a convention this package pins rather than one the spec carries.
 
 import { KaitenError } from "./errors.ts";
 import type { Webhooks } from "./generated/types.gen.ts";
 
 /**
- * A verified webhook payload: the union of the 49 `On*WebhookPayload` types.
+ * A verified webhook payload: the union of the 55 `On*WebhookPayload` types.
  *
  * Derived from the generated `Webhooks` union rather than listed, so
  * regenerating from the contract propagates on its own. `Webhooks` itself is the

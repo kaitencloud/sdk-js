@@ -45,8 +45,6 @@ export type LicenseType = "DEVELOPMENT" | "TRIAL" | "PAID" | "COMMUNITY";
 
 export type EntitlementType = "BOOLEAN" | "NUMBER" | "CONFIG";
 
-export type MeterType = "CALCULATED_USAGE" | "RAW_EVENT";
-
 export type AggregationMethod = "COUNT" | "SUM" | "AVERAGE" | "MIN" | "MAX" | "LATEST";
 
 export type UsageBehavior = "append" | "set";
@@ -94,7 +92,6 @@ export interface Entitlement {
   name: string;
   description: string | null;
   type: EntitlementType;
-  meterType?: MeterType;
   aggregationMethod?: AggregationMethod;
   entitlementGroups?: EntitlementGroupRef[] | null;
 }

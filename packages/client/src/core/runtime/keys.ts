@@ -3,14 +3,14 @@ const PUBLISHABLE_KEY_PREFIX = "pk_";
 /**
  * Credential prefixes that must never reach a browser.
  *
- * - `ksh_` — an organization-scoped personal access token. It was missing once,
+ * - `ksh_` — an organization-scoped access token. It was missing once,
  *   so a leaked one was reported as an "invalid publishable key format", a
  *   message that tells nobody a full-rights credential is in their bundle.
  * - `ksm_` — the Platform API credential. It
  *   authenticates `system:kaiten` and carries *no* organization, so it is not a
  *   wider `ksh_`: it is a different class, and in a bundle it is strictly worse
- *   than one, because it reaches every tenant rather than one. It fell into the
- *   same wrong message `ksh_` used to.
+ *   than one, because it reaches every organization rather than one. It fell
+ *   into the same wrong message `ksh_` used to.
  * - `sk_` — reserved for the secret key of a future in-app mode, not issued
  *   yet.
  *
