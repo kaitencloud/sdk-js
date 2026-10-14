@@ -204,8 +204,14 @@ function InvoiceListImpl({ appearance, unstyled = false, pageSize }: InvoiceList
                   data-status={invoice.status}
                   className="ktn-own flex flex-wrap items-center justify-between gap-x-4 gap-y-3 rounded-ktn-lg border border-ktn-border p-4"
                 >
+                  {/* The status is said beside the invoice it describes, and the actions stand
+                      apart with the amount: next to "Pay", a filled "Payment failed" read as a
+                      second, shorter button. */}
                   <div className="ktn-own flex min-w-0 flex-col gap-1">
-                    <span className="ktn-own font-medium break-words">{title}</span>
+                    <span className="ktn-own flex flex-wrap items-center gap-2">
+                      <span className="ktn-own min-w-0 font-medium break-words">{title}</span>
+                      <Badge variant={status.variant}>{status.label}</Badge>
+                    </span>
                     <span className="ktn-own text-xs text-ktn-muted-foreground">
                       {reference ? `${kindOf(invoice.kind, words)} · ` : ""}
                       {words.invoicePeriod(invoice.serviceFrom, invoice.serviceTo)}
@@ -213,7 +219,6 @@ function InvoiceListImpl({ appearance, unstyled = false, pageSize }: InvoiceList
                   </div>
                   <div className="ktn-own flex flex-wrap items-center gap-2">
                     <span className="ktn-own text-sm font-medium">{money(invoice)}</span>
-                    <Badge variant={status.variant}>{status.label}</Badge>
                     {isPayable(invoice) ? (
                       <Action
                         unstyled={false}
