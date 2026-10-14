@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // What a customer session (kst_) does from the customer's browser:
 // /api/public/session/*. The vendor's backend mints the session
 // (`@kaitencloud/server`: `CustomerSessions.createCustomerSession`) and hands
