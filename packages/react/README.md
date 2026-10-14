@@ -300,6 +300,9 @@ dependencies to import it. The session goes in `Authorization: Bearer kst_…`, 
   usage and a `provenance` that says how each layer contributed; `addOns` and
   `capabilities` are the portal's too, and `plans` the catalog's.
   `useEntitlementCheck`, `usePaywallTrigger`, `Gate` and `Paywall` gate on them.
+  What they gate on is the core's own reading of usage (`status`, `percentageUsed`);
+  the styled components of `@kaitencloud/react-ui` colour and word a quota by the
+  Kaiten console's rule instead, which counts the allowance of a soft limit.
 - **`useCustomer`, `useInstance` and `useLicense` answer nothing.** The portal
   names the customer, the instance and the licence without the ids, audit fields
   and dates those types carry, so the snapshot leaves them `null` rather than

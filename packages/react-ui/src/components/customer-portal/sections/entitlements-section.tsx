@@ -19,6 +19,8 @@ import { Skeleton } from "../../ui/skeleton.tsx";
 import { KaitenBranding } from "../../shared/kaiten-branding.tsx";
 import { SectionError } from "../../shared/section-error.tsx";
 import { isUnlimited, UnlimitedValue } from "../../shared/unlimited.tsx";
+import { getUsageBadge, type UsageBadgeLook } from "../../shared/usage-badge.ts";
+import { isUsageAtRisk, readQuota, type UsageState } from "../../shared/usage-state.ts";
 import type { KaitenAppearance } from "../../../appearance/types.ts";
 import { ProvenanceNote } from "./provenance-note.tsx";
 
@@ -63,38 +65,70 @@ function renderUsageLabel(
     : localization.includedFeatures.unavailable;
 }
 
-function statusVariant(
-  status: ResolvedEntitlement["status"],
-): "default" | "secondary" | "destructive" | "success" | "outline" {
-  switch (status) {
-    case "over_limit":
-      return "destructive";
-    case "near_limit":
-      return "secondary";
-    case "disabled":
-      return "outline";
-    case "enabled":
-    default:
-      return "success";
+/**
+ * The usage state that speaks for a row, or `null` when the row has none to speak: a boolean or a
+ * config, an unlimited quota, a quota whose usage could not be read, or one that is simply fine.
+ *
+ * Only a quota that calls for a look changes what the row says. The core's own `near_limit` is not
+ * consulted for it: it counts from 80% of the granted value and ignores the allowance, so it reads
+ * a quota as close to its wall that the grant still has plenty of room for.
+ */
+function riskOf(entitlement: ResolvedEntitlement): UsageState | null {
+  if (entitlement.limitValue.type !== "number") {
+    return null;
   }
+  const { state } = readQuota(entitlement);
+  return state !== null && isUsageAtRisk(state) ? state : null;
+}
+
+function statusLook(entitlement: ResolvedEntitlement): UsageBadgeLook {
+  const risk = riskOf(entitlement);
+  if (risk) {
+    return getUsageBadge(risk);
+  }
+  return { variant: entitlement.status === "disabled" ? "outline" : "success" };
 }
 
 function statusLabel(
   entitlement: ResolvedEntitlement,
   localization: ReturnType<typeof useLocalization>,
 ): string {
-  switch (entitlement.status) {
-    case "enabled":
-      return localization.includedFeatures.enabled;
-    case "disabled":
-      return localization.includedFeatures.disabled;
+  switch (riskOf(entitlement)) {
     case "near_limit":
       return localization.includedFeatures.nearLimit;
+    case "in_allowance":
+      return localization.includedFeatures.inAllowance;
+    case "at_limit":
+      return localization.includedFeatures.atLimit;
     case "over_limit":
       return localization.includedFeatures.overLimit;
   }
 
+  switch (entitlement.status) {
+    case "disabled":
+      return localization.includedFeatures.disabled;
+    case "enabled":
+    case "near_limit":
+    case "over_limit":
+      return localization.includedFeatures.enabled;
+  }
+
   return localization.includedFeatures.unavailable;
+}
+
+function StatusBadge({
+  entitlement,
+  localization,
+}: {
+  entitlement: ResolvedEntitlement;
+  localization: ReturnType<typeof useLocalization>;
+}) {
+  const { variant, className } = statusLook(entitlement);
+  return (
+    <Badge variant={variant} className={className}>
+      {statusLabel(entitlement, localization)}
+    </Badge>
+  );
 }
 
 export interface IncludedFeaturesProps {
@@ -208,9 +242,7 @@ function IncludedFeaturesImpl({ appearance, unstyled = false }: IncludedFeatures
         <ProvenanceNote name={entitlement.name} provenance={entitlement.provenance} />
       </TableCell>
       <TableCell className={cn("text-right", merged.elements?.tableCell)}>
-        <Badge variant={statusVariant(entitlement.status)}>
-          {statusLabel(entitlement, localization)}
-        </Badge>
+        <StatusBadge entitlement={entitlement} localization={localization} />
       </TableCell>
     </TableRow>
   );
@@ -240,9 +272,7 @@ function IncludedFeaturesImpl({ appearance, unstyled = false }: IncludedFeatures
         </span>
         <ProvenanceNote name={entitlement.name} provenance={entitlement.provenance} />
       </div>
-      <Badge variant={statusVariant(entitlement.status)}>
-        {statusLabel(entitlement, localization)}
-      </Badge>
+      <StatusBadge entitlement={entitlement} localization={localization} />
     </div>
   );
 

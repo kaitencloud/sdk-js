@@ -16,6 +16,7 @@ import { ProgressBar } from "../shared/progress-bar.tsx";
 import { KaitenLogoIcon } from "../shared/kaiten-logo.tsx";
 import { SectionError } from "../shared/section-error.tsx";
 import { isUnlimited } from "../shared/unlimited.tsx";
+import { getUsageTone, isUsageAtRisk, readQuota, type UsageState } from "../shared/usage-state.ts";
 import { Separator } from "../ui/separator.tsx";
 import { Skeleton } from "../ui/skeleton.tsx";
 
@@ -54,17 +55,17 @@ function compact(value: number): string {
 }
 
 /**
- * Mirrors `ProgressBar`'s own thresholds so the label and the fill never disagree.
+ * The label reads in the colour of the state `ProgressBar` fills with, so the label and the fill
+ * never disagree. Only the states that call for a look change it: a healthy or merely watched
+ * quota keeps the plain foreground, as it always has.
  *
  * The `-subtle-foreground` variants, NOT `--warning` / `--destructive` themselves.
  * Those two are FILL colours, tuned to carry text on top of them; used as text on a
  * page they fail — `--warning` (#d97706) on white is 3.18:1, which the a11y suite
  * caught here. The subtle pair is the one authored to be read against a surface.
  */
-function labelToneFor(percentage: number): string {
-  if (percentage >= 100) return "text-destructive-subtle-foreground";
-  if (percentage >= 80) return "text-warning-subtle-foreground";
-  return "text-ktn-foreground";
+function labelToneFor(state: UsageState | null): string {
+  return state !== null && isUsageAtRisk(state) ? getUsageTone(state).text : "text-ktn-foreground";
 }
 
 export interface EntitlementStatusBarProps {
@@ -193,9 +194,9 @@ function EntitlementStatusBarImpl({
         className="ktn-own flex min-w-0 flex-wrap items-center gap-x-6 gap-y-3"
       >
         {meters.map((entitlement, index) => {
+          const reading = readQuota(entitlement);
           const used = numberOf(entitlement.currentValue);
           const limit = numberOf(entitlement.limitValue);
-          const percentage = limit > 0 ? Math.min((used / limit) * 100, 100) : 0;
 
           return (
             <li key={entitlement.slug} className="ktn-own flex items-center gap-6">
@@ -218,14 +219,14 @@ function EntitlementStatusBarImpl({
                   <span
                     className={cn(
                       "ktn-own truncate text-xs font-semibold",
-                      labelToneFor(percentage),
+                      labelToneFor(reading.state),
                     )}
                     title={entitlement.name}
                   >
                     {entitlement.name}
                   </span>
                   <span className="ktn-own font-ktn-mono text-[11px] text-ktn-muted-foreground">
-                    {Math.round(percentage)}%
+                    {reading.percentOfGrant}%
                   </span>
                 </div>
                 {/*
@@ -236,6 +237,7 @@ function EntitlementStatusBarImpl({
                 <ProgressBar
                   value={used}
                   max={limit}
+                  overagePercent={reading.overagePercent}
                   className="h-1.5"
                   aria-label={`${entitlement.name}: ${used.toLocaleString()} / ${limit.toLocaleString()}`}
                 />

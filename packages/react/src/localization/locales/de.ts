@@ -63,6 +63,11 @@ export const de: KaitenLocalization = {
     viewInvoices: "Rechnungen ansehen",
     upgrade: "Abonnement upgraden",
     quotaWarning: (name, percentage) => `${name} liegt bei ${percentage} % des Limits.`,
+    quotaInAllowance: (name) =>
+      `${name} liegt über der enthaltenen Menge, aber innerhalb der Toleranz.`,
+    quotaAtLimit: (name) => `${name} hat das Limit erreicht.`,
+    quotaOverLimit: (name) => `${name} liegt über dem Limit.`,
+    usageUnavailable: "Nutzung nicht verfügbar",
     noUsage: "Kein gemessenes Kontingent in diesem Tarif.",
   },
   customerPortal: {
@@ -89,6 +94,8 @@ export const de: KaitenLocalization = {
     enabled: "Aktiviert",
     disabled: "Deaktiviert",
     nearLimit: "Nahe am Limit",
+    inAllowance: "Im Toleranzbereich",
+    atLimit: "Limit erreicht",
     overLimit: "Limit überschritten",
     config: "Konfiguration",
     unavailable: "—",

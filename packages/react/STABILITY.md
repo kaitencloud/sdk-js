@@ -66,7 +66,12 @@ integration points:
   The gates decide on the entitlements, as the server does. The end of a licence
   (`LicenseTerm`, `snapshot.licenseTerm`) is information for a screen to show, and
   closes no gate: billing never moves `endLicenseDate`, so a gate that read it would
-  lock out a customer whose subscription renewed.
+  lock out a customer whose subscription renewed. Their reading of usage is the core's
+  own and stays as it is: `status` is `near_limit` from 80% of the entitled value and
+  `over_limit` from the highest usage the API accepts, and `percentageUsed` is a share
+  of the entitled value. The styled components of `@kaitencloud/react-ui` do not read
+  `status` to colour a quota: they classify usage as the Kaiten console does (see its
+  README).
 - **Formatting and presentation utilities** — `formatKaitenMoney`,
   `formatKaitenDate`, `formatKaitenUsageWindowBound`, `pluralize`,
   `isCustomerFacing`, `unitLabel`, `saleUnitLabel`, `toSaleUnits`, `isUnlimited`,

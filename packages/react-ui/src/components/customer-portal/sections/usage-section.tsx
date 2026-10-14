@@ -20,6 +20,8 @@ import { KaitenBranding } from "../../shared/kaiten-branding.tsx";
 import { ProgressBar } from "../../shared/progress-bar.tsx";
 import { SectionError } from "../../shared/section-error.tsx";
 import { isUnlimited } from "../../shared/unlimited.tsx";
+import { getUsageBadge } from "../../shared/usage-badge.ts";
+import { readQuota } from "../../shared/usage-state.ts";
 import type { KaitenAppearance } from "../../../appearance/types.ts";
 import { ProvenanceNote } from "./provenance-note.tsx";
 
@@ -120,10 +122,14 @@ function UsageMetersImpl({ appearance, unstyled = false }: UsageMetersProps) {
       </CardHeader>
       <CardContent className={cn("grid gap-4", merged.elements?.cardContent)}>
         {data.map((entitlement) => {
-          const current =
-            entitlement.currentValue?.type === "number" ? entitlement.currentValue.value : 0;
+          const reading = readQuota(entitlement);
+          const current = reading.used;
           const limit = entitlement.limitValue.type === "number" ? entitlement.limitValue.value : 0;
-          const percentage = limit > 0 ? (current / limit) * 100 : 0;
+          // A quota in its watch band keeps the badge it has always had: green is what "watch"
+          // reads as, and only the states that call for a look change it.
+          const badge = getUsageBadge(
+            reading.state === "watch" ? "healthy" : (reading.state ?? "unbounded"),
+          );
           const windowLabel = usageWindowLabel(entitlement, localization);
 
           return (
@@ -148,21 +154,14 @@ function UsageMetersImpl({ appearance, unstyled = false }: UsageMetersProps) {
                   {/* Where the limit comes from, when add-ons or a voucher moved it. */}
                   <ProvenanceNote name={entitlement.name} provenance={entitlement.provenance} />
                 </div>
-                <Badge
-                  variant={
-                    entitlement.status === "over_limit"
-                      ? "destructive"
-                      : entitlement.status === "near_limit"
-                        ? "secondary"
-                        : "success"
-                  }
-                >
-                  {`${Math.round(percentage)}%`}
+                <Badge variant={badge.variant} className={badge.className}>
+                  {`${reading.percentOfGrant}%`}
                 </Badge>
               </div>
               <ProgressBar
                 value={current}
                 max={limit}
+                overagePercent={reading.overagePercent}
                 className={cn(merged.elements?.usageBar)}
                 fillClassName={cn(merged.elements?.usageBarFill)}
               />

@@ -1,6 +1,11 @@
 import * as React from "react";
 
-import { usePaywallTrigger, useLocalization, type PortalAction } from "@kaitencloud/react";
+import {
+  useEntitlements,
+  usePaywallTrigger,
+  useLocalization,
+  type PortalAction,
+} from "@kaitencloud/react";
 import { useIcons } from "../../appearance/icons.tsx";
 import { useMergedAppearance } from "../../appearance/context.tsx";
 import { cn } from "../../lib/utils.ts";
@@ -142,6 +147,12 @@ function PaywallRoot({
 
   const merged = useMergedAppearance(appearance);
   const trigger = usePaywallTrigger(entitlement, { threshold, min, flagKey, onError });
+  // The trigger gates on its own, older rule and says nothing of the allowance, which the bar needs
+  // to draw the track the grant actually permits.
+  const entitlements = useEntitlements();
+  const overagePercent = entitlements.data?.find(
+    (candidate) => candidate.slug === entitlement,
+  )?.limitCapExceededOveragePercent;
   const icons = useIcons();
   const localization = useLocalization();
   const subscriptionWords = useSubscriptionWords();
@@ -347,6 +358,7 @@ function PaywallRoot({
             description={description}
             badgeVariant={badgeVariant}
             trigger={trigger}
+            overagePercent={overagePercent}
             onUpgrade={onUpgrade}
             appearance={merged}
             LockIcon={LockIconComp}
@@ -397,6 +409,7 @@ function PaywallRoot({
             description={description}
             badgeVariant={badgeVariant}
             trigger={trigger}
+            overagePercent={overagePercent}
             onUpgrade={onUpgrade}
             onDismiss={mode === "soft" ? handleDismiss : undefined}
             appearance={merged}
@@ -417,6 +430,7 @@ function PaywallCard({
   description,
   badgeVariant,
   trigger,
+  overagePercent,
   onUpgrade,
   onDismiss,
   appearance,
@@ -431,6 +445,8 @@ function PaywallCard({
   description: string;
   badgeVariant: "destructive" | "secondary";
   trigger: ReturnType<typeof usePaywallTrigger>;
+  /** The allowance of the quota behind the wall, as a percentage of its limit. */
+  overagePercent?: number | null;
   onUpgrade?: (action?: PortalAction) => void;
   onDismiss?: () => void;
   appearance: KaitenAppearance;
@@ -477,6 +493,7 @@ function PaywallCard({
             <ProgressBar
               value={trigger.current}
               max={trigger.limit}
+              overagePercent={overagePercent}
               className={cn(appearance.elements?.usageBar)}
               fillClassName={cn(appearance.elements?.usageBarFill)}
             />

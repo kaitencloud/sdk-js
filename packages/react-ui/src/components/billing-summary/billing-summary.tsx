@@ -33,9 +33,29 @@ import { KaitenBranding } from "../shared/kaiten-branding.tsx";
 import { ProgressBar } from "../shared/progress-bar.tsx";
 import { SectionError } from "../shared/section-error.tsx";
 import { isUnlimited } from "../shared/unlimited.tsx";
+import {
+  isUsageAtRisk,
+  readQuota,
+  type QuotaReading,
+  type UsageState,
+} from "../shared/usage-state.ts";
 
-/** The share of a quota past which the panel raises its warning. Mirrors `ProgressBar`. */
-const WARNING_THRESHOLD = 80;
+/**
+ * How urgent each at-risk state is, for choosing the one sentence the panel can afford. Past the
+ * ceiling first, then on it, then inside the allowance, then merely close.
+ */
+const SEVERITY: Partial<Record<UsageState, number>> = {
+  over_limit: 4,
+  at_limit: 3,
+  in_allowance: 2,
+  near_limit: 1,
+};
+
+/** A quota the summary shows, with where it stands read once. */
+interface Meter {
+  entitlement: ResolvedEntitlement;
+  reading: QuotaReading;
+}
 
 /**
  * What the host tells the summary about money, where the licensing API does not know it.
@@ -73,8 +93,26 @@ function meteredEntitlements(entitlements: ResolvedEntitlement[]): ResolvedEntit
   );
 }
 
-function numberOf(value: ResolvedEntitlement["currentValue"]): number {
-  return value?.type === "number" ? value.value : 0;
+/**
+ * The sentence for the quota the panel is about. Near the limit it says how near with the figure its
+ * row shows, the share of the granted value, so the panel and the row never quote two numbers for
+ * one quota. On a soft limit the state is decided on the ceiling, and the hatched band past the grant
+ * shows the room still left.
+ */
+function quotaSentence(
+  { entitlement, reading, state }: Meter & { state: UsageState },
+  localization: ReturnType<typeof useLocalization>,
+): string {
+  switch (state) {
+    case "over_limit":
+      return localization.billingSummary.quotaOverLimit(entitlement.name);
+    case "at_limit":
+      return localization.billingSummary.quotaAtLimit(entitlement.name);
+    case "in_allowance":
+      return localization.billingSummary.quotaInAllowance(entitlement.name);
+    default:
+      return localization.billingSummary.quotaWarning(entitlement.name, reading.percentOfGrant);
+  }
 }
 
 export interface BillingSummaryProps {
@@ -141,22 +179,27 @@ export function BillingSummary({
   const planName = license.data?.name ?? snapshot.data?.currentPlan?.name ?? null;
 
   const meters = React.useMemo(
-    () => meteredEntitlements(entitlements.data ?? []).slice(0, maxMeters),
+    (): Meter[] =>
+      meteredEntitlements(entitlements.data ?? [])
+        .slice(0, maxMeters)
+        .map((entitlement) => ({ entitlement, reading: readQuota(entitlement) })),
     [entitlements.data, maxMeters],
   );
 
-  const breached = React.useMemo(
-    () =>
-      meters
-        .map((entitlement) => {
-          const limit = numberOf(entitlement.limitValue);
-          const used = numberOf(entitlement.currentValue);
-          const percentage = limit > 0 ? Math.min((used / limit) * 100, 100) : 0;
-          return { entitlement, percentage };
-        })
-        .find((row) => row.percentage >= WARNING_THRESHOLD),
-    [meters],
-  );
+  // One sentence, about the quota that most needs a look. A meter whose usage could not be read has
+  // no state and never raises it: not knowing is not the same as being at risk. Among equals the
+  // first in display order wins, so the sentence does not jump around between renders.
+  const atRisk = React.useMemo(() => {
+    let worst: (Meter & { state: UsageState }) | null = null;
+    for (const meter of meters) {
+      const state = meter.reading.state;
+      if (state === null || !isUsageAtRisk(state)) continue;
+      if (worst === null || (SEVERITY[state] ?? 0) > (SEVERITY[worst.state] ?? 0)) {
+        worst = { ...meter, state };
+      }
+    }
+    return worst;
+  }, [meters]);
 
   if (snapshot.isLoading || entitlements.isLoading) {
     return (
@@ -258,10 +301,12 @@ export function BillingSummary({
         ) : null}
         {paymentMethodLabel ? <p>{paymentMethodLabel}</p> : null}
         <ul>
-          {meters.map((entitlement) => (
+          {meters.map(({ entitlement, reading }) => (
             <li key={entitlement.slug}>
-              {entitlement.name}: {numberOf(entitlement.currentValue).toLocaleString()} /{" "}
-              {numberOf(entitlement.limitValue).toLocaleString()}
+              {entitlement.name}:{" "}
+              {reading.unavailable
+                ? localization.includedFeatures.unavailable
+                : `${reading.used.toLocaleString()} / ${(reading.limit ?? 0).toLocaleString()}`}
             </li>
           ))}
         </ul>
@@ -403,10 +448,9 @@ export function BillingSummary({
 
           {meters.length ? (
             <ul className="ktn-own flex flex-col gap-6">
-              {meters.map((entitlement) => {
-                const used = numberOf(entitlement.currentValue);
-                const limit = numberOf(entitlement.limitValue);
-                const percentage = limit > 0 ? Math.min((used / limit) * 100, 100) : 0;
+              {meters.map(({ entitlement, reading }) => {
+                const { used, unavailable } = reading;
+                const limit = reading.limit ?? 0;
 
                 return (
                   <li key={entitlement.slug} className="ktn-own flex flex-col gap-2">
@@ -414,21 +458,36 @@ export function BillingSummary({
                       <span className="ktn-own truncate text-sm font-semibold">
                         {entitlement.name}
                       </span>
-                      <span
-                        aria-hidden="true"
-                        className="ktn-own shrink-0 font-ktn-mono text-[13px] text-ktn-muted-foreground"
-                      >
-                        {used.toLocaleString()} / {limit.toLocaleString()} ({Math.round(percentage)}
-                        %)
-                      </span>
+                      {/* A usage read that failed says nothing about how much is used, so the
+                          row says that instead of "0 / limit" and a bar of nothing. */}
+                      {unavailable ? (
+                        <span
+                          data-slot="billing-summary-unavailable"
+                          className="ktn-own shrink-0 font-ktn-mono text-[13px] text-ktn-muted-foreground"
+                        >
+                          {localization.billingSummary.usageUnavailable}
+                        </span>
+                      ) : (
+                        <span
+                          aria-hidden="true"
+                          className="ktn-own shrink-0 font-ktn-mono text-[13px] text-ktn-muted-foreground"
+                        >
+                          {used.toLocaleString()} / {limit.toLocaleString()} (
+                          {reading.percentOfGrant}
+                          %)
+                        </span>
+                      )}
                     </div>
                     {/* The figures above are `aria-hidden` and repeated here as the
                         bar's accessible name, so the row is announced once. */}
-                    <ProgressBar
-                      value={used}
-                      max={limit}
-                      aria-label={`${entitlement.name}: ${used.toLocaleString()} / ${limit.toLocaleString()}`}
-                    />
+                    {unavailable ? null : (
+                      <ProgressBar
+                        value={used}
+                        max={reading.limit ?? -1}
+                        overagePercent={reading.overagePercent}
+                        aria-label={`${entitlement.name}: ${used.toLocaleString()} / ${limit.toLocaleString()}`}
+                      />
+                    )}
                   </li>
                 );
               })}
@@ -450,19 +509,21 @@ export function BillingSummary({
             </div>
           ) : null}
 
-          {breached ? (
+          {atRisk ? (
             <div
               data-slot="billing-summary-warning"
+              data-usage-state={atRisk.state}
               role="status"
-              className="ktn-own flex items-center gap-3 rounded-ktn-lg border border-warning-subtle-foreground/30 bg-warning-subtle p-3 text-xs text-warning-subtle-foreground"
+              className={cn(
+                "ktn-own flex items-center gap-3 rounded-ktn-lg border p-3 text-xs",
+                // Amber while the quota is served, red once it is spent or breached.
+                atRisk.state === "at_limit" || atRisk.state === "over_limit"
+                  ? "border-destructive-subtle-foreground/30 bg-destructive-subtle text-destructive-subtle-foreground"
+                  : "border-warning-subtle-foreground/30 bg-warning-subtle text-warning-subtle-foreground",
+              )}
             >
               <AlertIcon className="ktn-own size-4 shrink-0" aria-hidden="true" />
-              <span className="ktn-own">
-                {localization.billingSummary.quotaWarning(
-                  breached.entitlement.name,
-                  Math.round(breached.percentage),
-                )}
-              </span>
+              <span className="ktn-own">{quotaSentence(atRisk, localization)}</span>
             </div>
           ) : null}
         </div>

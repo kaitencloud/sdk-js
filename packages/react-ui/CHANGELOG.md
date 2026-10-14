@@ -28,6 +28,11 @@ re-exports: an app that draws with Kaiten's components imports everything from h
 - **Summaries.** `BillingSummary`, `CurrentPlan` and `Paywall` say where a subscription stands
   (running, in its trial, canceled and ending, past due, over), as the portal says it. Billing
   status closes no wall.
+- **Usage, as the Kaiten console reads it.** `UsageMeters`, `EntitlementStatusBar`,
+  `BillingSummary`, `IncludedFeatures` and the bar of a `Paywall` measure a quota against the
+  most its grant lets through, allowance included, and say healthy, watch, near limit, in
+  allowance, limit reached or over limit. A bar with an allowance draws it as a hatched band
+  and marks the granted value. The headless core's `status` is unchanged.
 - **Theming.** `KaitenStyleRoot` scopes every style under `.kaiten`, so the host app is not
   touched; `@kaitencloud/react-ui/styles.css` is the precompiled stylesheet, built on the
   `@kaitencloud/theme` tokens, in light and dark. `appearance` and the `themes.*` presets override

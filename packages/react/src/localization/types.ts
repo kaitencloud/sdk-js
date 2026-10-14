@@ -280,6 +280,20 @@ export interface KaitenLocalization {
     upgrade: string;
     /** "AI credits are at 92%." — names the quota that tripped the threshold. */
     quotaWarning: (name: string, percentage: number) => string;
+    /**
+     * "AI credits is past its included amount, within its allowance." — usage is beyond the granted
+     * value but still under the ceiling the grant tolerates, so nothing is refused yet.
+     */
+    quotaInAllowance: (name: string) => string;
+    /** "AI credits has reached its limit." — usage sits on the ceiling: the next report is refused. */
+    quotaAtLimit: (name: string) => string;
+    /** "AI credits is over its limit." — usage is past the ceiling, for instance after a limit was lowered. */
+    quotaOverLimit: (name: string) => string;
+    /**
+     * Said in place of a quota's figures when its usage could not be read: how much is used is
+     * unknown, which is not the same as nothing used.
+     */
+    usageUnavailable: string;
     noUsage: string;
   };
   customerPortal: {
@@ -310,7 +324,13 @@ export interface KaitenLocalization {
     status: string;
     enabled: string;
     disabled: string;
+    /** A quota that is close to what its grant permits, but not past its granted value. */
     nearLimit: string;
+    /** A quota past its granted value, within the allowance the grant tolerates. */
+    inAllowance: string;
+    /** A quota on the ceiling its grant permits: the next report is refused. */
+    atLimit: string;
+    /** A quota past the ceiling its grant permits. */
     overLimit: string;
     config: string;
     unavailable: string;

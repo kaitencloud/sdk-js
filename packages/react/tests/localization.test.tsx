@@ -80,3 +80,45 @@ test("every pack renders window bounds in UTC, not raw ISO", () => {
     expect(pack.usageMeters.lifetime).toBeTruthy();
   }
 });
+
+// The states a quota can be in are said by five words and three sentences. The compiler
+// guarantees the keys exist; this checks that each pack says them in its own language, names the
+// quota in the sentences, and keeps the four labels distinct from one another.
+test("every pack names the quota in the sentences about its usage, and tells the four states apart", () => {
+  for (const code of ["en", "fr", "es", "de"] as const) {
+    const pack = locales[code];
+    const { billingSummary, includedFeatures } = pack;
+
+    for (const sentence of [
+      billingSummary.quotaInAllowance("UNIQUE"),
+      billingSummary.quotaAtLimit("UNIQUE"),
+      billingSummary.quotaOverLimit("UNIQUE"),
+    ]) {
+      expect(sentence, code).toContain("UNIQUE");
+    }
+    expect(
+      new Set([
+        billingSummary.quotaInAllowance("X"),
+        billingSummary.quotaAtLimit("X"),
+        billingSummary.quotaOverLimit("X"),
+        billingSummary.quotaWarning("X", 80),
+      ]).size,
+      code,
+    ).toBe(4);
+
+    const labels = [
+      includedFeatures.nearLimit,
+      includedFeatures.inAllowance,
+      includedFeatures.atLimit,
+      includedFeatures.overLimit,
+    ];
+    expect(new Set(labels).size, code).toBe(4);
+    for (const label of labels) expect(label.trim().length, code).toBeGreaterThan(0);
+  }
+  // The console's own words, in the languages it speaks.
+  expect(locales.fr.includedFeatures.inAllowance).toBe("Dépassement toléré");
+  expect(locales.fr.includedFeatures.atLimit).toBe("Limite atteinte");
+  expect(locales.fr.includedFeatures.overLimit).toBe("Au-delà de la limite");
+  expect(locales.en.includedFeatures.inAllowance).toBe("In allowance");
+  expect(locales.en.includedFeatures.atLimit).toBe("Limit reached");
+});

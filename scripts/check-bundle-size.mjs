@@ -140,9 +140,11 @@ const SCENARIOS = [
     unstyled: true,
   },
   {
+    // Measured at 4 449 bytes, up from under 4 400: the four sentences and the two labels a
+    // quota's usage state is said with, which every language pack carries.
     name: "locales · fr alone",
     code: `import { fr } from "@kaitencloud/react/locales"; console.log(fr);`,
-    budgetGzip: 4_400,
+    budgetGzip: 4_600,
     unstyled: true,
   },
   {
@@ -186,15 +188,19 @@ const SCENARIOS = [
     // What a host that offers a customer portal ships: the sections, the billing hooks they
     // change a subscription with, and the words of their English. A host that offers none does
     // not: the scenarios above are not in it.
+    // Measured at 59 051 bytes, up from under 58 200: the usage rule of the Kaiten console, which the
+    // meters and the status badges of the sections read (the ceiling, the state, its tone and
+    // badge), the meter's allowance band and tick, and the new words of the English.
     name: "react-ui · CustomerPortal + KaitenProvider + KaitenStyleRoot",
     code: `import { CustomerPortal, KaitenProvider, KaitenStyleRoot } from "@kaitencloud/react-ui"; console.log(CustomerPortal, KaitenProvider, KaitenStyleRoot);`,
-    budgetGzip: 58_200,
+    budgetGzip: 59_200,
   },
   {
-    // Measured at 92 043 bytes, up from 79 688: Base UI's radio group, as in the checkout.
+    // Measured at 93 302 bytes, up from 79 688: Base UI's radio group, as in the checkout (12.4 KB),
+    // and the Kaiten console's usage rule, as in the customer portal (1.3 KB).
     name: "react-ui · everything",
     code: `import * as all from "@kaitencloud/react-ui"; console.log(all);`,
-    budgetGzip: 92_200,
+    budgetGzip: 93_450,
   },
   {
     name: "client · KaitenClient alone",
