@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 import { KaitenClient } from "@kaitencloud/client";
 import type { KaitenCatalog, KaitenClientLike } from "@kaitencloud/client";
 

@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // Bundle-size budget for @kaitencloud/client, per import scenario.
 //
 // Why: what the package costs a host is decided by its bundle graph, and the

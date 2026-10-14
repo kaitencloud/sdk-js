@@ -6,8 +6,9 @@
   "type": "module",
   "scripts": {
     "build:packages": "vp run -r build",
-    "ready": "vp run -r build && node scripts/check-version-invariants.mjs && node scripts/check-openapi-drift.mjs && node scripts/check-graphql-drift.mjs && pnpm changeset status --since=origin/main && vp check && vp run -r test && node scripts/check-published-shape.mjs && node scripts/check-bundle-size.mjs",
+    "ready": "vp run -r build && node scripts/check-license-headers.mjs && node scripts/check-version-invariants.mjs && node scripts/check-openapi-drift.mjs && node scripts/check-graphql-drift.mjs && pnpm changeset status --since=origin/main && vp check && vp run -r test && node scripts/check-published-shape.mjs && node scripts/check-bundle-size.mjs",
     "check:invariants": "node scripts/check-version-invariants.mjs",
+    "check:license-headers": "node scripts/check-license-headers.mjs",
     "sync-openapi": "node scripts/sync-openapi.mjs",
     "check:openapi-drift": "node scripts/check-openapi-drift.mjs",
     "check:published-shape": "node scripts/check-published-shape.mjs",

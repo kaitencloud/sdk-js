@@ -1,17 +1,69 @@
-# Contributing
+# Contributing to Kaiten SDK for JavaScript
 
-Thanks for helping improve the Kaiten SDK for JavaScript. This guide covers the
-local setup, the checks CI runs, and how a change gets released.
+Thank you for contributing to the Kaiten JavaScript SDK.
 
-Unless a repository or component explicitly states otherwise, Kaiten's
-open-source code is licensed under the
-[Apache License, Version 2.0](LICENSE).
+This project is licensed under the Apache License, Version 2.0.
 
-By submitting a contribution for inclusion in Kaiten, you agree that the
-contribution is submitted under the terms of the project's Apache-2.0 license,
-consistent with Section 5 of that license, and you certify your contribution
-under the [Developer Certificate of Origin 1.1](#developer-certificate-of-origin)
-("DCO").
+## Developer Certificate of Origin
+
+Kaiten uses the Developer Certificate of Origin 1.1 (DCO) for contributions.
+
+Every commit must include a `Signed-off-by` trailer matching the commit author.
+
+Use:
+
+```bash
+git commit -s -m "Describe your change"
+```
+
+This produces:
+
+```text
+Signed-off-by: Jane Doe <jane@example.com>
+```
+
+`git commit -s` is a **DCO sign-off**: it certifies the contribution under
+[DCO.md](./DCO.md). `git commit -S`, with a capital S, is a **cryptographic
+commit signature** made with a GPG or SSH key. They are not the same thing, and
+the sign-off is what this project requires. There is nothing to install.
+
+### Fixing a missing sign-off
+
+A check named **DCO** verifies every commit of every pull request, and it is the
+final word. If it fails, it names the commits to fix.
+
+For the latest commit:
+
+```bash
+git commit --amend --signoff --no-edit
+git push --force-with-lease
+```
+
+For several commits, sign off every commit of your branch at once:
+
+```bash
+git rebase --signoff origin/main
+git push --force-with-lease
+```
+
+## Contribution rules
+
+Please:
+
+- keep pull requests focused;
+- add or update tests when behavior changes;
+- update documentation when relevant;
+- do not include secrets, customer data, or confidential information;
+- do not submit code or assets that you do not have the right to contribute;
+- preserve required third-party license and attribution notices.
+
+Accepted contributions are contributed under Apache-2.0.
+
+## Security
+
+Do not report unpatched vulnerabilities in public issues.
+
+See [SECURITY.md](./SECURITY.md).
 
 ## Setup
 
@@ -45,11 +97,25 @@ next to this repository, or a schema file named by `KAITEN_GRAPHQL_SCHEMA`.
 
 ## What CI runs
 
-- **lint**: formatting, lint and types (`vp check`), version invariants, and the
-  GraphQL operations against the schema snapshot.
+- **lint**: the license headers, formatting, lint and types (`vp check`), version
+  invariants, and the GraphQL operations against the schema snapshot.
 - **build**: every package, the license and notice files and the manifest of each
   tarball, and the client's bundle-size budget.
 - **test**: the tests of every package and of the Node example.
+
+## License headers
+
+Every JavaScript and TypeScript file opens with the project's license notice, after
+its `#!` line if it has one:
+
+```ts
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+```
+
+`node scripts/check-license-headers.mjs` checks it, generated files included, and
+lists the files that lack it; `--fix` adds it to hand-written ones. The generators
+write it into the code they emit, so a generated file gets it by being regenerated.
 
 ## API contracts
 
@@ -117,8 +183,7 @@ For substantial features, architectural changes, or changes to public APIs,
 please open an issue or discussion first so the approach can be aligned before
 significant implementation work begins.
 
-Keep a pull request to one concern, and make sure `vp check` and the affected
-tests pass. A pull request should explain:
+Make sure `vp check` and the affected tests pass. A pull request should explain:
 
 - what changed;
 - why it changed;
@@ -126,69 +191,7 @@ tests pass. A pull request should explain:
 - any compatibility or migration impact;
 - any new third-party dependency or attribution requirement.
 
-For every contribution:
-
-- add or update tests when behavior changes;
-- update documentation when relevant;
-- do not include secrets, credentials, customer data, or confidential material;
-- do not submit code, documentation, assets, data, or other material that you
-  do not have the right to contribute;
-- identify third-party material and preserve any required license or attribution
-  notices.
-
 All required CI checks, including the DCO check, must pass before merge.
-
-## Developer Certificate of Origin
-
-Kaiten uses the Developer Certificate of Origin 1.1 rather than a Contributor
-License Agreement.
-
-The DCO is a lightweight certification that you wrote the contribution, or
-otherwise have the right to submit it under the project's open-source license.
-
-The complete DCO text is available in [DCO.md](DCO.md).
-
-Each commit in a pull request must contain a `Signed-off-by` trailer matching
-the commit author.
-
-The easiest way to add it is:
-
-```bash
-git commit -s -m "Describe your change"
-```
-
-This creates a trailer such as:
-
-```text
-Signed-off-by: Jane Doe <jane@example.com>
-```
-
-`git commit -s` is a **DCO sign-off**: it certifies the contribution under
-[DCO.md](DCO.md). `git commit -S`, with a capital S, is a **cryptographic
-commit signature** made with a GPG or SSH key. They are not the same thing, and
-the sign-off is what Kaiten requires. There is nothing to install.
-
-### Fixing a missing sign-off
-
-A check named **DCO** verifies every commit of every pull request, and it is the
-final word. If it fails, it names the commits to fix.
-
-For the latest commit:
-
-```bash
-git commit --amend --signoff --no-edit
-git push --force-with-lease
-```
-
-For several commits, sign off every commit of your branch at once:
-
-```bash
-git rebase --signoff origin/main
-git push --force-with-lease
-```
-
-Do not add another person's sign-off unless you are authorized to certify the
-contribution on their behalf under the DCO.
 
 ## Employer or organization-owned contributions
 
@@ -198,19 +201,6 @@ contribute it to Kaiten under Apache-2.0 and to make the DCO certification.
 
 The DCO does not override your employment agreement or another party's
 intellectual-property rights.
-
-## Contribution licensing
-
-Kaiten follows a license-in / license-out model for the open-source project:
-
-- the Kaiten open-source core is distributed under Apache-2.0;
-- accepted contributions to that core are contributed under Apache-2.0;
-- contributors retain any copyright they hold in their original contributions;
-- KAITEN INC and all other recipients receive the rights granted by Apache-2.0.
-
-Kaiten may also offer hosted services, support, integrations, or separate
-commercial software. Those offerings do not change the Apache-2.0 license
-applicable to the open-source Kaiten code.
 
 ## Third-party dependencies and copied material
 
@@ -233,12 +223,6 @@ submit, including material created with AI-assisted development tools.
 
 Do not submit generated code or content when you cannot reasonably establish
 that you have the right to contribute it under the project's terms.
-
-## Security issues
-
-Do not disclose an unpatched vulnerability through a public issue.
-
-Please follow [SECURITY.md](SECURITY.md).
 
 ## Code of Conduct
 

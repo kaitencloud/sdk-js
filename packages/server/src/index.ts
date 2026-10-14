@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // @kaitencloud/server — Kaiten server SDK for external Node/TS backends.
 //
 // Full typed contract surface (Bearer auth), grouped by resource. The resource

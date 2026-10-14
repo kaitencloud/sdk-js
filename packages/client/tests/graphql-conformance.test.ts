@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // The GraphQL contract, checked from inside the test run.
 //
 // `scripts/check-graphql-drift.mjs` already guards this, in two gates:

@@ -1,11 +1,20 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 import { defaultPlugins, defineConfig } from "@hey-api/openapi-ts";
+
+import { LICENSE_HEADER } from "../../scripts/license-header.mjs";
 
 // Generates a grouped (class-per-resource) client from the shared contract
 // snapshot in contracts/openapi.yaml: one class per tag, covering 100% of the
 // contract.
 export default defineConfig({
   input: "../../contracts/openapi.yaml",
-  output: "src/generated",
+  output: {
+    path: "src/generated",
+    // Every generated file opens with the license header, then the generator's own.
+    header: ({ defaultValue }) => [...LICENSE_HEADER, "", ...defaultValue],
+  },
   plugins: [
     ...defaultPlugins,
     {

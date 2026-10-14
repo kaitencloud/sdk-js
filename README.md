@@ -58,12 +58,11 @@ are. Report vulnerabilities privately, as described in [SECURITY.md](SECURITY.md
 
 ## License
 
-The Kaiten SDK for JavaScript is open source and licensed under the
-[Apache License, Version 2.0](LICENSE).
+Kaiten SDK for JavaScript is open source and licensed under the
+[Apache License, Version 2.0](./LICENSE).
 
-By contributing to it, you agree to certify your contribution under the
-[Developer Certificate of Origin 1.1](DCO.md). See
-[CONTRIBUTING.md](CONTRIBUTING.md) for details.
+By contributing, you agree to certify your contribution under the
+[Developer Certificate of Origin 1.1](./DCO.md).
 
-The Kaiten name, logos, and other brand assets are not licensed under
-Apache-2.0. See [TRADEMARKS.md](TRADEMARKS.md).
+The Kaiten name and logos are not licensed under Apache-2.0. See the
+[Kaiten trademark policy](https://github.com/kaitencloud/kaiten/blob/main/TRADEMARKS.md).

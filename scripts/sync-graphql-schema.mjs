@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // Rewrites the committed GraphQL schema snapshot
 // (contracts/schema.graphql) from kaiten's gqlgen schema.
 //
