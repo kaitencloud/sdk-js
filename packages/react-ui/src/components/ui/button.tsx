@@ -15,8 +15,11 @@ const buttonVariants = /* @__PURE__ */ cva(
         // `bg-background` in light but `dark:bg-input/30` in dark, so a pinned page
         // colour drifted away from the surface actually being painted — black on a dark
         // card once a theme moved `colorForeground` without `colorCard` (see `Card`).
+        // The `border` is shadcn's, and the console's copy lost it: without it the
+        // button is only its fill, 1.07:1 against a dark card and the very colour of a
+        // `bg-secondary` panel on hover, so it vanished wherever it was set down.
         outline:
-          "border-input bg-background shadow-xs hover:bg-secondary dark:border-input dark:bg-input/30 dark:hover:bg-input/50",
+          "border border-input bg-background shadow-xs hover:bg-secondary dark:border-input dark:bg-input/30 dark:hover:bg-input/50",
         secondary: "bg-secondary text-secondary-foreground hover:bg-secondary-hover",
         // Keeps its text colour on hover, as the console's ghost button does: the accent
         // pair turned the label violet on the hover fill in dark, and inheriting it, like

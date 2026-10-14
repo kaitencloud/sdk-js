@@ -281,7 +281,7 @@ export function SessionAddOns({
                   <div
                     role="group"
                     aria-label={words.addonRemovePrompt(row.addon.name)}
-                    className="ktn-own flex flex-col gap-3 rounded-lg border bg-secondary p-3"
+                    className="ktn-own flex flex-col gap-3 rounded-lg border bg-card p-3"
                   >
                     <p
                       data-focus={`remove-prompt-${row.addon.slug}`}
