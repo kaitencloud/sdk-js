@@ -28,12 +28,13 @@ describe("the guard against code that draws in a headless bundle", () => {
 
   test("names a UI package that is not installed, instead of stopping on the build", async () => {
     const scenario = headless(
-      'import "@radix-ui/react-slot"; import "tailwind-merge"; import "react-dom/client";',
+      'import "@radix-ui/react-slot"; import "@base-ui/react/radio"; import "tailwind-merge"; import "react-dom/client";',
     );
 
     const leaks = leaksOf(scenario, await measure(scenario));
 
     expect(leaks.toSorted((a, b) => a.localeCompare(b))).toEqual([
+      "@base-ui/react/radio",
       "@radix-ui/react-slot",
       "react-dom/client",
       "tailwind-merge",
@@ -76,12 +77,13 @@ describe("the guard against styled dependencies in an unstyled bundle", () => {
 
   test("names the styled dependencies, installed or not, instead of stopping on the build", async () => {
     const scenario = unstyled(
-      'import "@radix-ui/react-slot"; import "class-variance-authority"; import "tailwind-merge"; import "react-remove-scroll";',
+      'import "@radix-ui/react-slot"; import "@base-ui/react/radio-group"; import "class-variance-authority"; import "tailwind-merge"; import "react-remove-scroll";',
     );
 
     const leaks = leaksOf(scenario, await measure(scenario));
 
     expect(leaks.toSorted((a, b) => a.localeCompare(b))).toEqual([
+      "@base-ui/react/radio-group",
       "@radix-ui/react-slot",
       "class-variance-authority",
       "react-remove-scroll",
@@ -97,10 +99,11 @@ describe("the guard against styled dependencies in an unstyled bundle", () => {
         ["@kaitencloud/react", 80_000],
         ["swr", 9_000],
         ["tailwind-merge", 21_000],
+        ["@base-ui/react", 27_000],
       ],
       imported: ["react"],
     });
 
-    expect(leaks).toEqual(["tailwind-merge"]);
+    expect(leaks).toEqual(["tailwind-merge", "@base-ui/react"]);
   });
 });

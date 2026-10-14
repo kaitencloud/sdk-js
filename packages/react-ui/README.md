@@ -161,7 +161,7 @@ them, so they need no style root.
 
 - `CustomerPortal` accepts `elements` as the current composition API. Under `mode="customer-session"` it is the customer's own portal: the plan with the controls to cancel the subscription at the end of its period and to withdraw that, the limits with a note on where each comes from, the add-ons with a stepper, the invoices and a voucher check. See [Known limitations](#known-limitations).
 - For declarative gating use `<Show entitlement="…" fallback={…}>` (conditional render) or `usePaywallTrigger` for the raw decision; `Paywall` is the overlay/upsell component.
-- `Paywall` renders hard mode as an accessible modal: the native `<dialog>` element opened with `showModal()`, in the top layer above any z-index the host uses, with focus held inside and Escape as the exit. Target it as `dialog[data-slot="dialog-content"]`; its overlay is the `::backdrop`. The SDK ships no Radix and no Base UI.
+- `Paywall` renders hard mode as an accessible modal: the native `<dialog>` element opened with `showModal()`, in the top layer above any z-index the host uses, with focus held inside and Escape as the exit. Target it as `dialog[data-slot="dialog-content"]`; its overlay is the `::backdrop`. The SDK ships no Radix, and Base UI only for the radio group that draws `CheckoutFlow`'s billing periods; unstyled, they are native radios.
 - `hideBranding` (on the provider) only removes branding when the backend returns `branding.removable = true`. `useKaitenBranding()` from the core is the same rule, for a host rendering its own footer.
 
 ## Styling status

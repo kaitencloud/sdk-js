@@ -28,6 +28,7 @@ import { KaitenBranding } from "../shared/kaiten-branding.tsx";
 import { Badge } from "../ui/badge.tsx";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "../ui/card.tsx";
 import { Input } from "../ui/input.tsx";
+import { RadioGroup, RadioGroupItem } from "../ui/radio-group.tsx";
 import { CheckoutSummaryBody, useProblemText } from "./checkout-summary.tsx";
 import { useCheckoutWords } from "./words.ts";
 
@@ -551,33 +552,51 @@ function PeriodChoice({
   label: (price: BillingPrice) => string;
 }) {
   const name = React.useId();
+  const legendId = React.useId();
   return (
     <fieldset
       data-slot="checkout-flow-period"
       className={cn("ktn-own", unstyled ? undefined : "flex flex-col gap-2")}
       disabled={disabled}
     >
-      <legend className={unstyled ? undefined : "mb-2 text-sm font-medium"}>{legend}</legend>
-      <div className={unstyled ? undefined : "flex flex-wrap gap-2"}>
-        {prices.map((price) => (
-          <label
-            key={price.id}
-            className={
-              unstyled
-                ? undefined
-                : "flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm has-[:checked]:border-ktn-primary has-[:checked]:ring-2 has-[:checked]:ring-ktn-primary/20 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ktn-primary/50"
-            }
-          >
-            <input
-              type="radio"
-              name={name}
-              checked={selected === price.id}
-              onChange={() => onSelect(price.id)}
-            />
-            {label(price)}
-          </label>
-        ))}
-      </div>
+      <legend id={legendId} className={unstyled ? undefined : "mb-2 text-sm font-medium"}>
+        {legend}
+      </legend>
+      {/* Unstyled, the choices stay native radios, the markup that rendering promises;
+          styled, they are drawn by the radio group the console's controls are made of. */}
+      {unstyled ? (
+        <div>
+          {prices.map((price) => (
+            <label key={price.id}>
+              <input
+                type="radio"
+                name={name}
+                checked={selected === price.id}
+                onChange={() => onSelect(price.id)}
+              />
+              {label(price)}
+            </label>
+          ))}
+        </div>
+      ) : (
+        <RadioGroup
+          aria-labelledby={legendId}
+          value={selected}
+          onValueChange={(id: string) => onSelect(id)}
+          disabled={disabled}
+          className="flex flex-wrap gap-2"
+        >
+          {prices.map((price) => (
+            <label
+              key={price.id}
+              className="group/field-label flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm has-data-checked:border-ktn-primary has-data-checked:ring-2 has-data-checked:ring-ktn-primary/20 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ktn-primary/50 has-disabled:cursor-not-allowed"
+            >
+              <RadioGroupItem value={price.id} />
+              {label(price)}
+            </label>
+          ))}
+        </RadioGroup>
+      )}
     </fieldset>
   );
 }

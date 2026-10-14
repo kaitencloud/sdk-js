@@ -59,7 +59,8 @@ describe("THIRD_PARTY_NOTICES.md against the source of @kaitencloud/react-ui", (
 
     expect(primitives.length).toBeGreaterThan(0);
     for (const primitive of primitives) {
-      const name = primitive.replace(/^./, (letter) => letter.toUpperCase());
+      // The component's name: `radio-group.tsx` is `RadioGroup`.
+      const name = primitive.replace(/(?:^|-)(.)/g, (_, letter) => letter.toUpperCase());
       expect(NOTICES, `the primitive ${name}`).toContain(`\`${name}\``);
     }
   });

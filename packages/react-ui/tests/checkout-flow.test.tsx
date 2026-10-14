@@ -153,8 +153,9 @@ describe("choosing", () => {
       "$79.00/month",
       "$790.00/year",
     ]);
-    expect((periods[0] as HTMLInputElement).checked).toBe(true);
+    expect(periods.map((radio) => radio.getAttribute("aria-checked"))).toEqual(["true", "false"]);
     expect(root.getByRole("group", { name: "Billing interval" })).toBeTruthy();
+    expect(root.getByRole("radiogroup", { name: "Billing interval" })).toBeTruthy();
     // The add-on, its price, and a quantity of none.
     expect(root.getByText("Extra seats")).toBeTruthy();
     expect(root.getByText("$25.00/month")).toBeTruthy();
@@ -209,6 +210,26 @@ describe("choosing", () => {
     await settle(300);
     expect(previews(client).at(-1)).toEqual({ licensePriceId: GROWTH_ANNUAL, dryRun: true });
     expect(total()).toBe("$790.00");
+  });
+
+  test("the arrow keys move the choice from one period to the next, as in any radio group", async () => {
+    const client = selling();
+    await draw(client);
+
+    const [monthly, annual] = screen.getAllByRole("radio");
+    act(() => monthly!.focus());
+    // Base UI moves the focus in a microtask, which has to find the key's update rendered. A
+    // synchronous act renders it on the way out; React 18's async act would only render it
+    // after the microtask, where a browser renders it before.
+    act(() => {
+      fireEvent.keyDown(monthly!, { key: "ArrowRight" });
+    });
+    await act(async () => {});
+    await settle(300);
+    expect(document.activeElement).toBe(annual);
+    expect(annual!.getAttribute("aria-checked")).toBe("true");
+    expect(monthly!.getAttribute("aria-checked")).toBe("false");
+    expect(previews(client).at(-1)).toEqual({ licensePriceId: GROWTH_ANNUAL, dryRun: true });
   });
 
   test("the price the host asks for is the one chosen, and a plan with one price offers no choice", async () => {
@@ -982,6 +1003,11 @@ describe("the other ways to draw it", () => {
     expect(root.querySelector('[data-slot="card"]')).toBeNull();
     expect(root.querySelector('[class*="bg-"]')).toBeNull();
     expect(root.querySelector("fieldset legend")!.textContent).toBe("Billing interval");
+    // The choices stay the browser's own radios, the markup the unstyled rendering promises.
+    const periods = within(root).getAllByRole("radio");
+    expect(periods.map((radio) => radio.tagName)).toEqual(["INPUT", "INPUT"]);
+    expect((periods[0] as HTMLInputElement).checked).toBe(true);
+    expect(root.querySelector('[data-slot="radio-group"]')).toBeNull();
     expect(total()).toBe("Due today: $79.00");
 
     fireEvent.change(screen.getByLabelText("Voucher code"), { target: { value: "WELCOME20" } });

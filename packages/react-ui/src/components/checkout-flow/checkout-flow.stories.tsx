@@ -62,9 +62,30 @@ async function applyCode(canvas: ReturnType<typeof within>, code: string) {
 export const Default: Story = {
   play: async ({ canvasElement }) => {
     const { canvas } = await priced(canvasElement);
+    // The billing periods are one radio group, named by its legend, the monthly fee taken.
+    await expect(canvas.getByRole("radiogroup", { name: "Billing interval" })).toBeInTheDocument();
+    await expect(canvas.getByRole("radio", { name: "$79.00/month" })).toBeChecked();
+    await expect(canvas.getByRole("radio", { name: "$790.00/year" })).not.toBeChecked();
     // The server's line, and the server's total.
     await expect(canvas.getAllByText("$79.00").length).toBeGreaterThan(0);
     await expect(canvas.getByText("Due today")).toBeInTheDocument();
+  },
+};
+
+export const AnnualPeriod: Story = {
+  name: "The annual period, chosen with the keyboard",
+  play: async ({ canvasElement }) => {
+    const { canvas } = await priced(canvasElement);
+    const monthly = canvas.getByRole("radio", { name: "$79.00/month" });
+    const annual = canvas.getByRole("radio", { name: "$790.00/year" });
+    // The keyboard is on the chosen period, and the arrow takes the next one.
+    monthly.focus();
+    await userEvent.keyboard("{ArrowRight}");
+    await expect(annual).toHaveFocus();
+    await expect(annual).toBeChecked();
+    await expect(monthly).not.toBeChecked();
+    // Another period is another price, priced again by the server.
+    await expect((await canvas.findAllByText("$790.00", {}, SLOW)).length).toBeGreaterThan(0);
   },
 };
 
@@ -265,7 +286,11 @@ export const Unstyled: Story = {
   },
   args: { unstyled: true },
   play: async ({ canvasElement }) => {
-    await priced(canvasElement);
+    const { canvas } = await priced(canvasElement);
+    // The browser's own radios: the unstyled markup carries no radio group of the SDK's.
+    const monthly = canvas.getByRole("radio", { name: "$79.00/month" });
+    await expect(monthly.tagName).toBe("INPUT");
+    await expect(monthly).toBeChecked();
   },
 };
 

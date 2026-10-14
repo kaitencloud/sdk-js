@@ -39,13 +39,14 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const report = process.argv.includes("--report");
 
 /**
- * What the styled components bring and the headless core must not: the Radix
- * primitives, the class helpers, the scroll lock.
+ * What the styled components bring and the headless core must not: the primitives
+ * of Radix and Base UI, the class helpers, the scroll lock.
  */
 const STYLED_ONLY = [
   "tailwind-merge",
   "class-variance-authority",
   "@radix-ui/",
+  "@base-ui/",
   "react-remove-scroll",
   "aria-hidden",
 ];
@@ -168,9 +169,11 @@ const SCENARIOS = [
   {
     // What a host that offers a checkout ships: the flow, the hooks it is made of, and the words
     // of its English. A host that offers none does not: the four scenarios above are not in it.
+    // Measured at 64 634 bytes, up from 52 434: 12.2 KB of it is Base UI's radio group, which
+    // draws the billing periods.
     name: "react-ui · CheckoutFlow + KaitenProvider + KaitenStyleRoot",
     code: `import { CheckoutFlow, KaitenProvider, KaitenStyleRoot } from "@kaitencloud/react-ui"; console.log(CheckoutFlow, KaitenProvider, KaitenStyleRoot);`,
-    budgetGzip: 52_550,
+    budgetGzip: 64_800,
   },
   {
     // What a host that shows a customer how they pay ships: the card, the billing hooks that add or
@@ -188,9 +191,10 @@ const SCENARIOS = [
     budgetGzip: 58_200,
   },
   {
+    // Measured at 92 043 bytes, up from 79 688: Base UI's radio group, as in the checkout.
     name: "react-ui · everything",
     code: `import * as all from "@kaitencloud/react-ui"; console.log(all);`,
-    budgetGzip: 79_850,
+    budgetGzip: 92_200,
   },
   {
     name: "client · KaitenClient alone",
@@ -316,7 +320,7 @@ async function main() {
       console.log(
         scenario.headless
           ? `    UI-only code in a headless bundle: ${leaked.join(", ")} — a module reachable from this entry imports React, a styled component or a primitive that draws`
-          : `    Styled dependencies in an unstyled bundle: ${leaked.join(", ")} — a module reachable from this entry imports a styled component, a Radix primitive or cva/tailwind-merge`,
+          : `    Styled dependencies in an unstyled bundle: ${leaked.join(", ")} — a module reachable from this entry imports a styled component, a Radix or Base UI primitive or cva/tailwind-merge`,
       );
     }
   }
