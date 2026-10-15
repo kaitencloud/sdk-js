@@ -48,7 +48,7 @@ test("a customer with no card subscribes through the provider's page, in a popup
 }) => {
   await startCheckout(page, "Pro");
 
-  // What is due today is the server's, once it has an address to send the invoices to.
+  // What is due today is the server's.
   await expect(checkout(page)).toContainText("Due today");
   await expect(checkout(page)).toContainText("€49.00");
 
@@ -109,6 +109,48 @@ test("a page that cannot open a popup is sent to the provider's, and the checkou
   await expect(checkout(page)).toContainText("Payment received.");
   expect(page.url()).not.toContain("kaiten_");
   expect(await standIn.state()).toMatchObject({ subscribed: true, cardOnFile: true });
+
+  // Once the checkout subscribed the instance, nothing more was previewed: the stand-in would have
+  // refused it with a 409, which the customer would have been told.
+  const checkouts = (await standIn.calls()).filter(
+    (call) => call.method === "POST" && call.path === "/public/session/checkout",
+  );
+  const lastReal = checkouts.findLastIndex(
+    (call) => (call.body as { dryRun?: boolean }).dryRun !== true,
+  );
+  expect(lastReal).toBeGreaterThan(0);
+  expect(checkouts.slice(lastReal + 1)).toEqual([]);
+  expect(checkouts.filter((call) => call.status === 409)).toEqual([]);
+  await expect(checkout(page)).not.toContainText("already have a subscription");
+});
+
+test("a customer with no billing email sees what is due before giving one, and needs it to subscribe", async ({
+  page,
+  standIn,
+}) => {
+  await page.goto("/");
+  await planCard(page, "Pro").getByRole("button", { name: "Select plan" }).click();
+
+  // Kaiten prices a preview without an address: the amounts are there, and no address was sent.
+  await expect(checkout(page)).toContainText("Due today");
+  await expect(checkout(page)).toContainText("€49.00");
+  await expect(checkout(page)).toContainText("Enter your billing email to subscribe.");
+  await expect(page.getByRole("button", { name: "Subscribe" })).toBeDisabled();
+  const previews = (await standIn.calls()).filter(
+    (call) => call.method === "POST" && call.path === "/public/session/checkout",
+  );
+  expect(previews.length).toBeGreaterThan(0);
+  for (const call of previews) {
+    expect(call.body).toMatchObject({ dryRun: true });
+    expect(call.body).not.toHaveProperty("billingEmail");
+    expect(call.status).toBe(200);
+  }
+
+  // The address is only needed to subscribe: typing it keeps the summary and enables the button.
+  await page.getByLabel("Billing email").fill("billing@acme.test");
+  await expect(page.getByRole("button", { name: "Subscribe" })).toBeEnabled();
+  await expect(checkout(page)).toContainText("€49.00");
+  await expect(checkout(page)).not.toContainText("Enter your billing email to subscribe.");
 });
 
 test("a customer with a card subscribes at once, and finds the subscription in the portal", async ({

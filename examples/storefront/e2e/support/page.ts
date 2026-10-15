@@ -35,13 +35,16 @@ export async function startCheckout(page: Page, plan: string, email = "billing@a
 /**
  * Gives the billing email when the checkout asks for one. It asks a customer that has none, and a
  * customer that gave one before is not asked again: a Kaiten that has seen this customer already
- * does not show the field.
+ * does not show the field. What is due is on screen before the field is, since Kaiten prices a
+ * preview without an address: the checkout is ready to be gone on with when the field is there, or
+ * when Subscribe can be pressed without one, or when it says there is nothing to subscribe to.
  */
 export async function giveBillingEmail(page: Page, email = "billing@acme.test") {
   const field = page.getByLabel("Billing email");
-  const answered = checkout(page).getByText(
-    /Due today|can't be bought online|already have a subscription/,
-  );
-  await field.or(answered).first().waitFor();
+  const subscribable = checkout(page)
+    .getByRole("button", { name: /^Subscribe/ })
+    .and(page.locator(":enabled"));
+  const answered = checkout(page).getByText(/can't be bought online|already have a subscription/);
+  await field.or(subscribable).or(answered).first().waitFor();
   if (await field.isVisible()) await field.fill(email);
 }
