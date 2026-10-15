@@ -248,9 +248,13 @@ export function useCheckout(options: UseCheckoutOptions = {}): UseCheckoutResult
   // blind, and refused for it as often as not.
   const waitingForEmail = knownWithoutEmail && !isPlausibleEmail(priced.billingEmail);
   const waitingForPortal = portal.isLoading && portal.data === undefined;
+  // Once a checkout is being made, or is made, there is nothing left to price: the instance is
+  // subscribed and the API would refuse the preview (409 AlreadySubscribed).
+  const choosing = flow.step === "selecting";
   const priceable = useCheckoutPreview(waitingForEmail || waitingForPortal ? null : priced, {
     debounceMs: options.debounceMs,
     refusedVoucherCode,
+    paused: !choosing,
   });
   // A price is chosen and its summary is on its way, as far as a screen can tell.
   const preview: CheckoutPreviewState =
@@ -263,11 +267,13 @@ export function useCheckout(options: UseCheckoutOptions = {}): UseCheckoutResult
     knownWithoutEmail ||
     preview.problem?.kind === "billing_email_required" ||
     flowProblem?.kind === "billing_email_required";
-  // What a customer is told is the last attempt's, or else what pricing the selection found: an
-  // instance that is subscribed already, a plan it is over. A refused voucher is not one of
-  // those: it has its own state.
+  // What a customer is told is the last attempt's, or else, while they are choosing, what pricing
+  // the selection found: an instance that is subscribed already, a plan it is over. A refused
+  // voucher is not one of those: it has its own state. Past the choosing, a refusal of a
+  // preview is no longer the customer's.
   const problem =
-    flowProblem ?? (preview.problem?.kind === "voucher_invalid" ? null : preview.problem);
+    flowProblem ??
+    (!choosing || preview.problem?.kind === "voucher_invalid" ? null : preview.problem);
   const step: CheckoutStep =
     flow.step === "selecting" && problem?.kind === "already_subscribed"
       ? "already_subscribed"

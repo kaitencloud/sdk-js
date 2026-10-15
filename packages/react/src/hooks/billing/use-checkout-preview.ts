@@ -77,6 +77,10 @@ interface Settled {
  * for this selection without the code (the code was in from the start, or the plan changed
  * with it) one request is made without it, so that something true is on screen.
  *
+ * `paused` asks nothing, and drops an answer that is on its way: it is for a checkout that is
+ * being made or is done, after which a preview has no meaning and the server would refuse it
+ * (the instance is subscribed). What was on screen stays.
+ *
  * `null` for `selection` prices nothing, which is how a component that was handed a
  * preview made elsewhere calls it without asking twice. Under any mode but
  * `customer-session` there is no session to ask, and it stays `idle`.
@@ -93,12 +97,15 @@ export function useCheckoutPreview(
      * without it.
      */
     refusedVoucherCode?: string | null;
+    /** Asks the server nothing for as long as it is `true`. Default `false`. */
+    paused?: boolean;
   } = {},
 ): CheckoutPreviewState {
   useTrackHook("useCheckoutPreview");
 
   const { sessionClient } = useKaitenContext();
   const debounceMs = options.debounceMs ?? DEFAULT_PREVIEW_DEBOUNCE_MS;
+  const paused = options.paused === true;
   const [settled, setSettled] = React.useState<Settled>({ answer: null, refusal: null });
   const [attempt, setAttempt] = React.useState(0);
   const settledRef = React.useRef(settled);
@@ -130,7 +137,7 @@ export function useCheckoutPreview(
 
   React.useEffect(() => {
     const target = wantedRef.current;
-    if (!sessionClient || !target || wantedKey === null) return;
+    if (paused || !sessionClient || !target || wantedKey === null) return;
     const { answer, refusal } = settledRef.current;
     if (answer?.key === wantedKey || refusal?.key === wantedKey) return;
 
@@ -175,7 +182,7 @@ export function useCheckoutPreview(
       clearTimeout(timer);
     };
     // `wantedKey` stands for the selection: the effect reads the selection itself from a ref.
-  }, [sessionClient, wantedKey, attempt, debounceMs, refusedVoucher]);
+  }, [sessionClient, wantedKey, attempt, debounceMs, refusedVoucher, paused]);
 
   const retry = React.useCallback(() => {
     setSettled((previous) => ({ ...previous, refusal: null }));

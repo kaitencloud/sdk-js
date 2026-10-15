@@ -269,6 +269,73 @@ test("a popup the browser blocks sends the page itself, and the page that is loa
   expect(window.sessionStorage.length).toBe(0);
 });
 
+/**
+ * A server that refuses every preview once the instance is subscribed, as Kaiten does with a 409,
+ * and subscribes on the checkout that carries the setup session.
+ */
+function refusingPreviewsOnceSubscribed() {
+  let done = false;
+  return unsubscribedSession({
+    checkout: (input) => {
+      if (input.dryRun) {
+        if (done) throw alreadySubscribed();
+        return previewOf(7900, [line(1, "BASE", "Growth", 7900)]);
+      }
+      if (!input.setupSessionId) return REQUIRES_METHOD;
+      done = true;
+      return subscribed("paid", activationInvoice("PAID"));
+    },
+  });
+}
+
+test("a page loaded back from the provider's makes the checkout and previews nothing beside it", async () => {
+  vi.spyOn(window, "open").mockReturnValue(null);
+  const client = refusingPreviewsOnceSubscribed();
+  const first = await mount(client, {
+    initial: { licensePriceId: GROWTH },
+    navigate: vi.fn(),
+  });
+  await settle(300);
+  await act(async () => first.now.submit());
+  first.view.unmount();
+  const previewed = previews(client).length;
+
+  at("/billing?tab=plan&kaiten_setup_session=cs_1#top");
+  const back = await mount(client, { initial: {} });
+  await settle(1_000);
+
+  // What the customer chose is what the checkout goes on with: nothing is asked of the server
+  // about it but that, and above all nothing after the instance was subscribed.
+  expect(commits(client)).toHaveLength(2);
+  expect(previews(client)).toHaveLength(previewed);
+  expect(back.now.step).toBe("subscribed");
+  expect(back.now.problem).toBeNull();
+  expect(back.now.preview.problem).toBeNull();
+  expect(back.now.error).toBeNull();
+});
+
+// What keeps a preview from being asked at the checkout itself is the test above and the `paused`
+// tests of useCheckoutPreview; this one holds the settled state: nothing is priced again afterwards.
+test("a checkout that is done is not priced again when the selection moves after it", async () => {
+  popupOpens();
+  const client = refusingPreviewsOnceSubscribed();
+  const probe = await mount(client);
+  await act(async () => probe.now.submit());
+  await act(async () => {
+    void announceReturn("cs_1");
+  });
+  await settle(300);
+  expect(probe.now.step).toBe("subscribed");
+  const previewed = previews(client).length;
+
+  // A selection that moves, or a portal that is read again, asks the server nothing.
+  act(() => probe.now.setAddOnQuantity("extra-seats-v1", 2));
+  await settle(1_000);
+  expect(previews(client)).toHaveLength(previewed);
+  expect(probe.now.step).toBe("subscribed");
+  expect(probe.now.problem).toBeNull();
+});
+
 test("the popup's own page, once it is told someone waits, does nothing but close", async () => {
   popupOpens();
   const close = vi.spyOn(window, "close").mockImplementation(() => {});
