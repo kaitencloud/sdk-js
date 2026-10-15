@@ -14,6 +14,7 @@ import { createKaitenDouble, DOUBLE_PATH } from "./double/kaiten-double.ts";
 import { readEnvironment, type Environment } from "./environment.ts";
 import { sendResponse, toRequest, type Route } from "./http.ts";
 import { sessionRoute } from "./session-route.ts";
+import { vendorRoute } from "./vendor-route.ts";
 
 /** The path the page reads what it needs to reach Kaiten from. */
 export const CONFIG_PATH = "/storefront-api/config";
@@ -68,6 +69,12 @@ export function storefrontRoutes(environment: Environment): Route[] {
     return response;
   };
 
+  const client = createKaitenClient({
+    baseUrl: "http://kaiten-double.invalid",
+    token: serverToken,
+    fetch: fetchDouble,
+  });
+
   return [
     (request) => {
       const url = new URL(request.url);
@@ -79,15 +86,9 @@ export function storefrontRoutes(environment: Environment): Route[] {
       };
       return json(config);
     },
-    sessionRoute({
-      client: createKaitenClient({
-        baseUrl: "http://kaiten-double.invalid",
-        token: serverToken,
-        fetch: fetchDouble,
-      }),
-      customerSlug: DOUBLE_CUSTOMER,
-      instanceSlug: DOUBLE_INSTANCE,
-    }),
+    sessionRoute({ client, customerSlug: DOUBLE_CUSTOMER, instanceSlug: DOUBLE_INSTANCE }),
+    // The vendor's side of a plan change, for the journey page. Only against the stand-in.
+    vendorRoute({ client, instanceSlug: DOUBLE_INSTANCE }),
     double.route,
   ];
 }
