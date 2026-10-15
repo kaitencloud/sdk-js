@@ -514,6 +514,57 @@ test("an instance that is subscribed already is told so as soon as it is priced,
   expect(window.sessionStorage.length).toBe(0);
 });
 
+// The refusal is the server's, whatever the portal shows: a subscription that is live and paid
+// is refused at the preview and again at the checkout, in every state that is live, and the SDK
+// asks nothing else of it.
+test.each(["TRIAL", "ACTIVE", "PAST_DUE"] as const)(
+  "an instance with a paid %s subscription stays refused as already subscribed, and nothing is committed",
+  async (status) => {
+    const paid = demoPortal();
+    const client = createMockKaitenSessionClient({
+      portal: { ...paid, subscription: { ...paid.subscription!, status } },
+    });
+    const probe = await mount(client);
+
+    expect(probe.now.step).toBe("already_subscribed");
+    expect(probe.now.problem).toEqual({ kind: "already_subscribed" });
+    expect(probe.now.canSubmit).toBe(false);
+
+    await act(async () => probe.now.submit());
+    expect(commits(client)).toEqual([]);
+    expect(probe.now.step).toBe("already_subscribed");
+  },
+);
+
+// A subscription on a free plan is replaced by the checkout of a paid one, which the server
+// decides and the session double does not model: it is scripted here. What is pinned is that the
+// SDK does not take the subscription in the portal for a reason to refuse: it prices the choice,
+// sends the checkout, and the instance is subscribed.
+test("an instance on a free plan can check out a paid one, and is subscribed", async () => {
+  const portal = demoPortal();
+  const free = {
+    ...portal.subscription!,
+    providerKind: "NOOP",
+    basePrice: { ...portal.subscription!.basePrice, amount: 0, unitAmountDecimal: "0" },
+  };
+  const client = createMockKaitenSessionClient({
+    portal: { ...portal, subscription: free },
+    checkout: (input) => (input.dryRun ? previewOf(7900) : subscribed("paid")),
+  });
+  const probe = await mount(client);
+
+  expect(probe.now.step).toBe("selecting");
+  expect(probe.now.problem).toBeNull();
+  expect(probe.now.preview.status).toBe("ready");
+  expect(probe.now.canSubmit).toBe(true);
+
+  await act(async () => probe.now.submit());
+  expect(commits(client)).toHaveLength(1);
+  expect(commits(client)[0]).toMatchObject({ licensePriceId: GROWTH });
+  expect(probe.now.step).toBe("subscribed");
+  expect(probe.now.problem).toBeNull();
+});
+
 test("a plan the instance is over is refused with the entitlements that are, before and at the checkout", async () => {
   const client = unsubscribedSession({
     checkout: (input) => {
