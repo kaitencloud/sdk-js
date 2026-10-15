@@ -91,6 +91,70 @@ test("an add-on that overrides or raises to a floor is not written as a term", (
   ).toBe("400 with add-ons = 400");
 });
 
+// The add-ons that override the licence do not stack: which one wins is the server's to say, and
+// the figure after them is all that is written, however many there are. The figures below are not
+// the sum of the add-ons', on purpose.
+test("several add-ons that override are one figure, the server's, whatever their number", () => {
+  expect(
+    provenanceExpression(
+      provenance({ license: 100, afterAddons: 300, effective: 300 }, [
+        addon(1, 200, "OVERRIDE"),
+        addon(1, 300, "OVERRIDE"),
+      ]),
+      words,
+    ),
+  ).toBe("300 with add-ons = 300");
+
+  expect(
+    provenanceExpression(
+      provenance({ license: 100, afterAddons: 450, effective: 450 }, [
+        addon(2, 150, "OVERRIDE"),
+        addon(1, 100, "OVERRIDE"),
+        addon(3, 50, "OVERRIDE"),
+      ]),
+      words,
+    ),
+  ).toBe("450 with add-ons = 450");
+});
+
+test("add-ons that override and add, or raise to a floor, are one figure too", () => {
+  expect(
+    provenanceExpression(
+      provenance({ license: 100, afterAddons: 260, effective: 260 }, [
+        addon(2, 30, "ADD"),
+        addon(1, 200, "OVERRIDE"),
+        addon(1, 150, "MAX"),
+      ]),
+      words,
+    ),
+  ).toBe("260 with add-ons = 260");
+});
+
+test("an override that is not known yet reads as the figure after the add-ons", () => {
+  expect(
+    provenanceExpression(
+      provenance({ afterAddons: 70, effective: 70 }, [addon(1, 70, "SOMETHING_NEW")]),
+      words,
+    ),
+  ).toBe("70 with add-ons = 70");
+});
+
+test("add-ons that override, then a voucher that multiplies or adds", () => {
+  const overriding = [addon(1, 200, "OVERRIDE"), addon(1, 300, "OVERRIDE")];
+  expect(
+    provenanceExpression(
+      provenance({ afterAddons: 300, boostMultiply: 2, effective: 600 }, overriding),
+      words,
+    ),
+  ).toBe("(300 with add-ons) × 2 voucher = 600");
+  expect(
+    provenanceExpression(
+      provenance({ afterAddons: 300, boostAdd: 50, effective: 350 }, overriding),
+      words,
+    ),
+  ).toBe("300 with add-ons + 50 voucher = 350");
+});
+
 test("add-ons alone grant a limit", () => {
   expect(
     provenanceExpression(
