@@ -304,7 +304,11 @@ describe("what the stand-in does besides", () => {
       expect((await session.listInvoices()).items[0]?.status).toBe("PAYMENT_FAILED");
 
       if (how === "page") {
-        expect(await (await call(`/provider/invoice/${id}`)).text()).toContain("Confirm payment");
+        const page = await (await call(`/provider/invoice/${id}`)).text();
+        expect(page).toContain("Confirm payment");
+        // The status as a person reads it, and the notice every page of the stand-in carries.
+        expect(page).toContain("<strong>Payment failed</strong>");
+        expect(page).toContain("no payment is real");
         expect((await call(`/provider/invoice/${id}/pay`, { method: "POST" })).status).toBe(303);
         expect(await (await call(`/provider/invoice/${id}`)).text()).toContain("Paid.");
       } else {
@@ -645,6 +649,44 @@ describe("checkout from a free plan (V31-68)", () => {
       session.checkout({ licensePriceId: PRO_MONTHLY, setupSessionId: sent.setupSessionId }),
     ).resolves.toMatchObject({ status: "subscribed", payment: { status: "paid" } });
     expect(double.state()).toMatchObject({ plan: "pro-v2", free: false });
+    expect(contractProblems(recorder)).toEqual([]);
+  });
+});
+
+describe("the portal's entitlements", () => {
+  test("follow the plan the customer is on: its limits, never a full meter, and nothing it does not list", async () => {
+    const { double, customer, call, recorder } = world();
+    double.reset({ email: true });
+    const session = await customer();
+
+    // Starter lists one seat in the catalogue: one seat, none used, and no other feature.
+    await session.checkout({ licensePriceId: STARTER_MONTHLY });
+    const starter = (await session.getPortal()).entitlements;
+    expect(starter.map((each) => each.slug)).toEqual(["seats"]);
+    expect(starter[0]).toMatchObject({
+      limitValue: { value: 1 },
+      currentValue: { value: 0 },
+      percentageUsed: 0,
+    });
+
+    // Pro lists its API calls, its seats and single sign-on, at the catalogue's numbers.
+    const sent = await session.checkout({
+      licensePriceId: PRO_MONTHLY,
+      returnUrl: `${ORIGIN}/checkout/pro-v2`,
+    });
+    if (sent.status !== "requires_payment_method") throw new Error("a setup page was expected");
+    await call(`/provider/setup/${sent.setupSessionId}/save`, { method: "POST" });
+    await session.checkout({ licensePriceId: PRO_MONTHLY, setupSessionId: sent.setupSessionId });
+    const pro = (await session.getPortal()).entitlements;
+    expect(pro.map((each) => each.slug).sort()).toEqual(["api-calls", "seats", "sso"]);
+    expect(pro.find((each) => each.slug === "api-calls")).toMatchObject({
+      limitValue: { value: 100000 },
+      currentValue: { value: 15000 },
+      maximumAllowedUsage: 120000,
+    });
+    const seats = pro.find((each) => each.slug === "seats");
+    expect(seats).toMatchObject({ limitValue: { value: 5 }, currentValue: { value: 2 } });
+    expect(pro.every((each) => (each.percentageUsed ?? 0) < 100)).toBe(true);
     expect(contractProblems(recorder)).toEqual([]);
   });
 });

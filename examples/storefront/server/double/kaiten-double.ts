@@ -11,8 +11,9 @@
 // leave the subscription PAST_DUE), a scheduled plan change applies, a cancellation takes effect.
 //
 // It is not a Kaiten. The sums are its own (a plan's price, an add-on's, a voucher's
-// percentage), the entitlements are Initech's whatever the plan, and it accepts every origin
-// and never limits a rate. What it proves is that the storefront asks for the right routes with
+// percentage), the entitlements are the plan's own as the catalogue lists them (limits from the
+// catalogue, usage a fixed share of the limit, nothing metered), and it accepts every origin and
+// never limits a rate. What it proves is that the storefront asks for the right routes with
 // the right credentials, and that the SDK's components draw what comes back, including the
 // refusals a test makes it send. It proves nothing about Kaiten.
 //
@@ -196,8 +197,11 @@ const problem = (status: number, code: string, detail: string, instance = "") =>
 const html = (title: string, body: string) =>
   new Response(
     `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${title}</title>` +
-      `<style>body{font:16px/1.5 system-ui,sans-serif;max-width:28rem;margin:3rem auto;padding:0 1rem}button{font:inherit;padding:.5rem 1rem;margin:.25rem .25rem .25rem 0}</style>` +
-      `</head><body>${body}</body></html>`,
+      `<meta name="color-scheme" content="light dark">` +
+      `<style>:root{color-scheme:light dark}body{font:16px/1.5 system-ui,sans-serif;max-width:28rem;margin:3rem auto;padding:0 1rem}` +
+      `button{font:inherit;padding:.5rem 1rem;margin:.25rem .25rem .25rem 0}` +
+      `footer{margin-top:2.5rem;font-size:.8125rem;opacity:.7}</style>` +
+      `</head><body>${body}<footer>Stand-in for Kaiten: no payment is real.</footer></body></html>`,
     { headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" } },
   );
 
@@ -232,6 +236,13 @@ const OUTCOMES: PaymentOutcome[] = ["paid", "requires_action", "failed", "proces
 
 /** A card brand as a person writes it. */
 const cardBrand = (brand: unknown) => String(brand).replace(/^./, (first) => first.toUpperCase());
+
+/** An invoice's status as the provider's page says it. */
+const INVOICE_STATUS: Record<string, string> = {
+  PAID: "Paid",
+  PUSHED: "Processing",
+  PAYMENT_FAILED: "Payment failed",
+};
 
 /** The one voucher the double knows. */
 const VOUCHER_CODE = "WELCOME20";
@@ -562,6 +573,52 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
 
   // ---- The portal -----------------------------------------------------------
 
+  /**
+   * What the portal lists of the plan the customer is on: the catalogue's entitlements of that plan,
+   * drawn as the fixture draws them (its names, its period), with the plan's limit and a usage that
+   * is a share of it. The fixture is one customer's, on no plan of this catalogue: its limits and
+   * its full seats would show a Starter customer at 8 seats of 8. Nothing here is metered.
+   */
+  const planEntitlements = (slug: string | null, fixtures: Json[]): Json[] => {
+    const plan = (catalog.plans as Json[]).find((each) => each.licenseSlug === slug);
+    if (!plan) return [];
+    const drawn: Json[] = [];
+    for (const wanted of plan.entitlements as Json[]) {
+      const base = fixtures.find((each) => each.slug === wanted.slug);
+      if (!base) continue;
+      const entitlement = structuredClone(base);
+      entitlement.source = "license";
+      entitlement.provenance = null;
+      if (wanted.type === "BOOLEAN") {
+        entitlement.limitValue = { type: "boolean", value: wanted.value };
+      } else if (wanted.unlimited) {
+        Object.assign(entitlement, {
+          limitValue: { type: "number", value: -1 },
+          unlimited: true,
+          maximumAllowedUsage: null,
+          percentageUsed: null,
+        });
+      } else {
+        // The fixture's share of use, unless that is a full meter: a customer who has just bought
+        // is not at the limit.
+        const share = entitlement.percentageUsed >= 100 ? 40 : (entitlement.percentageUsed ?? 0);
+        const used = Math.floor((wanted.value * share) / 100);
+        const overage =
+          wanted.limitCapExceededOveragePercent > 0 ? wanted.limitCapExceededOveragePercent : 0;
+        Object.assign(entitlement, {
+          limitValue: { type: "number", value: wanted.value },
+          unlimited: false,
+          currentValue: used,
+          limitCapExceededOveragePercent: overage,
+          maximumAllowedUsage: Math.floor((wanted.value * (100 + overage)) / 100),
+          percentageUsed: wanted.value > 0 ? Math.floor((used * 100) / wanted.value) : 0,
+        });
+      }
+      drawn.push(entitlement);
+    }
+    return drawn;
+  };
+
   const portalOf = (stored: Stored): Json => {
     const portal = structuredClone(subscription ? session.portal : session.portalNeverSubscribed);
     portal.customer = { slug: stored.customerSlug, name: "Acme storefront customer", billingEmail };
@@ -593,6 +650,7 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
           }
         : null;
       portal.addOns = structuredClone(addOns);
+      portal.entitlements = planEntitlements(planSlug, portal.entitlements);
       portal.upcomingInvoice = null;
       portal.capabilities = {
         paymentMethods: true,
@@ -1435,7 +1493,7 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
       }
       return html(
         "Payment provider",
-        `<h1>Invoice ${found.providerInvoiceNumber}</h1><p>Status: <strong>${found.status}</strong></p>` +
+        `<h1>Invoice ${found.providerInvoiceNumber}</h1><p>Status: <strong>${INVOICE_STATUS[found.status] ?? found.status}</strong></p>` +
           (found.status === "PAID"
             ? "<p>Paid. You can close this window.</p>"
             : `<form method="post" action="${DOUBLE_PATH}/provider/invoice/${found.id}/pay"><button type="submit">Confirm payment</button></form>`),
