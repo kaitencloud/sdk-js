@@ -54,6 +54,7 @@ test("the cell of a card is a column that the card fills; the invoices have a ro
   for (const cell of cellsOf(container).filter((each) => each.childElementCount > 0)) {
     expect(cell.className).toContain("flex-col");
     expect(cell.className).toContain("*:data-[slot=card]:flex-1");
+    expect(cell.className).toContain("[&_[data-slot=kaiten-branding]]:mt-auto");
   }
   const invoices = cellsOf(container).find(
     (cell) => cell.querySelector('[data-slot="card-title"]')?.textContent === "Invoices",

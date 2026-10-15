@@ -180,7 +180,7 @@ export function CustomerPortal({
               // Cards in one row share their height: the cell is a column that its card fills, and
               // the branding strip that closes a card sits at its foot.
               layout === "two-column" &&
-                "flex max-w-full flex-[1_1_max(20rem,calc((100%_-_1rem)/2_-_1px))] flex-col *:data-[slot=card]:flex-1",
+                "flex max-w-full flex-[1_1_max(20rem,calc((100%_-_1rem)/2_-_1px))] flex-col *:data-[slot=card]:flex-1 [&_[data-slot=kaiten-branding]]:mt-auto",
               // The invoices are the widest thing a portal holds: a row to themselves.
               layout === "two-column" && element === "InvoiceList" && "basis-full",
               merged.elements?.portalSection,

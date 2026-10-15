@@ -57,7 +57,7 @@ export function KaitenBranding({
   const containerClass =
     variant === "card"
       ? "flex w-full min-w-0 items-center justify-center rounded-xl border border-ktn-border bg-ktn-card px-6 py-4 shadow-sm"
-      : "mt-auto flex min-w-0 flex-none self-stretch items-center justify-center rounded-b-xl border-t border-ktn-border/80 bg-ktn-secondary/20 px-6 py-4";
+      : "flex min-w-0 flex-none self-stretch items-center justify-center rounded-b-xl border-t border-ktn-border/80 bg-ktn-secondary/20 px-6 py-4";
 
   return (
     <div data-slot="kaiten-branding" className={cn("ktn-own", containerClass, className)}>
