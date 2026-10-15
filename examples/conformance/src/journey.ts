@@ -41,6 +41,32 @@ export interface Io {
   completeSetup: CompleteSetup;
 }
 
+/**
+ * Currencies Kaiten does not sell in through Stripe, whatever a catalogue lists. Its Stripe adapter
+ * takes an allow-list: Stripe's presentment currencies, kept only where the ISO exponent of a
+ * currency is Stripe's own. The list below is not that allow-list. It names the currencies Kaiten is
+ * known to refuse: BHD, JOD, KWD, OMR and TND (three decimals, shown in the catalogue and refused
+ * at the checkout), IQD, LYD, CLF, UYW and STN (not offered by Stripe), MGA (two decimals for ISO,
+ * none for Stripe) and ISK and UGX (Stripe takes them in multiples of 100 only). A plan priced in
+ * another currency outside Stripe's list is still picked, and its checkout fails with the
+ * provider's refusal: name another plan then.
+ */
+const NOT_SOLD_THROUGH_STRIPE: ReadonlySet<string> = new Set([
+  "BHD",
+  "IQD",
+  "JOD",
+  "KWD",
+  "LYD",
+  "OMR",
+  "TND",
+  "CLF",
+  "UYW",
+  "STN",
+  "MGA",
+  "ISK",
+  "UGX",
+]);
+
 /** The one `status` a checkout answered with, or a failed assertion that says which it was. */
 function checkoutIs<S extends CheckoutResult["status"]>(
   result: CheckoutResult,
@@ -148,21 +174,37 @@ export class Journey {
     ).toEqual(["GET /public/catalog"]);
     expect(exchanges[0]!.status).toBe(200);
 
+    const flatFeeOf = (candidate: (typeof catalog.plans)[number]) =>
+      candidate.billingPrices?.find(
+        (price) => price.billingModel === "FLAT_FEE" && price.isDefault,
+      ) ?? candidate.billingPrices?.find((price) => price.billingModel === "FLAT_FEE");
+    const soldInItsCurrency = (candidate: (typeof catalog.plans)[number]) => {
+      const currency = flatFeeOf(candidate)?.currencyCode ?? candidate.currencyCode;
+      return currency === undefined || !NOT_SOLD_THROUGH_STRIPE.has(currency);
+    };
+    // Left to itself the journey buys the first plan it can: a plan whose price is in a currency
+    // Stripe does not take is listed, and refused at the checkout, so it is passed over. A plan the
+    // configuration names is bought as named, or the run says why it cannot be.
     const plan =
       planSlug === undefined
         ? catalog.plans.find(
-            (candidate) => candidate.selfServe === true && candidate.pricingType === "PAID",
+            (candidate) =>
+              candidate.selfServe === true &&
+              candidate.pricingType === "PAID" &&
+              soldInItsCurrency(candidate),
           )
         : catalog.plans.find((candidate) => candidate.slug === planSlug);
     expect(
       plan,
       planSlug === undefined
-        ? "the catalogue offers a plan a customer can buy alone, which is paid"
+        ? "the catalogue offers a plan a customer can buy alone, which is paid, in a currency Stripe takes"
         : `the catalogue has a plan named ${planSlug}`,
     ).toBeDefined();
-    const flatFee =
-      plan!.billingPrices?.find((price) => price.billingModel === "FLAT_FEE" && price.isDefault) ??
-      plan!.billingPrices?.find((price) => price.billingModel === "FLAT_FEE");
+    expect(
+      soldInItsCurrency(plan!),
+      `${plan!.slug} is priced in ${flatFeeOf(plan!)?.currencyCode ?? plan!.currencyCode}, which Stripe does not take: its checkout is refused. Name a plan priced in another currency`,
+    ).toBe(true);
+    const flatFee = flatFeeOf(plan!);
     expect(flatFee, `${plan!.slug} has a flat-fee price to subscribe to`).toBeDefined();
     this.price = { planSlug: plan!.slug, id: flatFee!.id };
   }

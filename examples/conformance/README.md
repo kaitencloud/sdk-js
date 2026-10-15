@@ -29,19 +29,19 @@ and a Stripe account in test mode that the organization is connected to. It subs
 instance it is given, so the instance has to have no subscription, **a new one for each run**.
 Set these, then run it:
 
-| Variable                             | Value                                                                                                                  |
-| ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
-| `KAITEN_CONFORMANCE_API_URL`         | The API's URL, `/api` included: `http://localhost:8080/api`                                                            |
-| `KAITEN_CONFORMANCE_PUBLISHABLE_KEY` | A publishable key (`pk_`) of the organization                                                                          |
-| `KAITEN_CONFORMANCE_SERVER_TOKEN`    | A token (`ksh_`) that holds `write:customer_sessions`                                                                  |
-| `KAITEN_CONFORMANCE_CUSTOMER_SLUG`   | A customer of the organization                                                                                         |
-| `KAITEN_CONFORMANCE_INSTANCE_SLUG`   | One of that customer's instances, with no subscription                                                                 |
-| `KAITEN_CONFORMANCE_RETURN_URL`      | Where the payment page sends the customer back: a URL on an origin the publishable key allows                          |
-| `KAITEN_CONFORMANCE_STRIPE_TEST_KEY` | A Stripe test-mode key of that account (`sk_test_` or `rk_test_`), to complete the payment page. A live key is refused |
-| `KAITEN_CONFORMANCE_SETUP_MODULE`    | Instead of the Stripe key: the path of a module that completes the payment page another way (below)                    |
-| `KAITEN_CONFORMANCE_PLAN_SLUG`       | Optional. The plan to buy. By default, the first plan of the catalogue that is paid and self-serve                     |
-| `KAITEN_CONFORMANCE_BILLING_EMAIL`   | Optional. Where invoices go. Default `conformance@example.test`                                                        |
-| `KAITEN_CONFORMANCE_STRIPE_API_URL`  | Optional. Another Stripe API, such as a mock. Default `https://api.stripe.com`                                         |
+| Variable                             | Value                                                                                                                          |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
+| `KAITEN_CONFORMANCE_API_URL`         | The API's URL, `/api` included: `http://localhost:8080/api`                                                                    |
+| `KAITEN_CONFORMANCE_PUBLISHABLE_KEY` | A publishable key (`pk_`) of the organization                                                                                  |
+| `KAITEN_CONFORMANCE_SERVER_TOKEN`    | A token (`ksh_`) that holds `write:customer_sessions`                                                                          |
+| `KAITEN_CONFORMANCE_CUSTOMER_SLUG`   | A customer of the organization                                                                                                 |
+| `KAITEN_CONFORMANCE_INSTANCE_SLUG`   | One of that customer's instances, with no subscription                                                                         |
+| `KAITEN_CONFORMANCE_RETURN_URL`      | Where the payment page sends the customer back: a URL on an origin the publishable key allows                                  |
+| `KAITEN_CONFORMANCE_STRIPE_TEST_KEY` | A Stripe test-mode key of that account (`sk_test_` or `rk_test_`), to complete the payment page. A live key is refused         |
+| `KAITEN_CONFORMANCE_SETUP_MODULE`    | Instead of the Stripe key: the path of a module that completes the payment page another way (below)                            |
+| `KAITEN_CONFORMANCE_PLAN_SLUG`       | Optional. The plan to buy. By default, the first plan of the catalogue that is paid and self-serve, in a currency Stripe takes |
+| `KAITEN_CONFORMANCE_BILLING_EMAIL`   | Optional. Where invoices go. Default `conformance@example.test`                                                                |
+| `KAITEN_CONFORMANCE_STRIPE_API_URL`  | Optional. Another Stripe API, such as a mock. Default `https://api.stripe.com`                                                 |
 
 ```bash
 vp install

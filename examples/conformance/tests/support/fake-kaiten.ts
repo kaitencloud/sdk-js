@@ -71,6 +71,8 @@ export function fakeKaiten(options: Fake = {}) {
     subscribed: options.alreadySubscribed === true,
     canceling: false,
     requests: [] as string[],
+    /** The bodies of the checkouts that were asked for, previews included. */
+    checkouts: [] as Json[],
   };
 
   const answer = (route: string, body: Json, status = 200): Response =>
@@ -140,6 +142,7 @@ export function fakeKaiten(options: Fake = {}) {
         return answer(route, portal);
       }
       if (route === "POST /public/session/checkout") {
+        state.checkouts.push(body);
         const total = 4900;
         if (body.dryRun) {
           const preview = structuredClone(session.checkoutPreview);

@@ -207,6 +207,67 @@ describe("the journey against an API that breaks the contract or the journey", (
     );
   });
 
+  describe("a catalogue that lists a plan in a currency Stripe does not take", () => {
+    // Kuwaiti dinars have three decimals: Kaiten lists a price in them and refuses its checkout.
+    const kuwaitFirst = (route: string, body: Record<string, any>) => {
+      if (route === "GET /public/catalog") {
+        body.plans.sort(
+          (a: any, b: any) => Number(b.currency === "KWD") - Number(a.currency === "KWD"),
+        );
+      }
+      return body;
+    };
+    const priceOf = (body: Record<string, any>, id: string) =>
+      body.plans.flatMap((plan: any) => plan.prices).find((price: any) => price.id === id);
+
+    test("is not bought from, though its plan comes first", async () => {
+      let catalog: Record<string, any> = {};
+      const { fake, journey } = rehearsal({
+        tamper: (route, body) => {
+          const tampered = kuwaitFirst(route, body);
+          if (route === "GET /public/catalog") catalog = structuredClone(tampered);
+          return tampered;
+        },
+      });
+
+      await journey.catalogue();
+      await journey.session();
+      await journey.dryRun();
+
+      expect(catalog.plans[0].currency).toBe("KWD");
+      const asked = fake.state.checkouts.at(-1)!.licensePriceId as string;
+      expect(priceOf(catalog, asked)?.currency).not.toBe("KWD");
+      expect(priceOf(catalog, asked)?.billingModel).toBe("FLAT_FEE");
+    });
+
+    test("fails, saying why, when it is the only plan a customer could buy", async () => {
+      const { journey } = rehearsal({
+        tamper: (route, body) => {
+          if (route === "GET /public/catalog") {
+            body.plans = body.plans.filter((plan: any) => plan.currency === "KWD");
+          }
+          return body;
+        },
+      });
+
+      await expect(journey.catalogue()).rejects.toThrow(
+        /the catalogue offers a plan a customer can buy alone, which is paid, in a currency Stripe takes/,
+      );
+    });
+
+    test("fails, saying why, when the configuration names it", async () => {
+      const fake = fakeKaiten();
+      const journey = new Journey(
+        { ...configuration, planSlug: "kw-v1" },
+        { fetch: fake.fetch, completeSetup: fake.saveCard },
+      );
+
+      await expect(journey.catalogue()).rejects.toThrow(
+        /kw-v1 is priced in KWD, which Stripe does not take/,
+      );
+    });
+  });
+
   test("fails when the plan the configuration names is not in the catalogue", async () => {
     const fake = fakeKaiten();
     const journey = new Journey(
