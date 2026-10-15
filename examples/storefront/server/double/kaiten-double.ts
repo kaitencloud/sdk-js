@@ -4,9 +4,11 @@
 // session, and the ten routes of `/public/session/*`. The answers are the ones recorded from
 // Kaiten's own code in the client's fixtures, which `fixtures-contract.test.ts` holds to the
 // API contract; what it adds to them is a customer who moves. A checkout subscribes the
-// instance, after a card has been saved on a provider's page if there is none; a cancellation
-// ends the subscription with its period; a payment can be declined, wait for the customer's
-// confirmation, or be unknown for a while.
+// instance, after a card has been saved on a provider's page if there is none (and replaces a free
+// subscription, V31-68); a cancellation ends the subscription with its period; a payment can be
+// declined, wait for the customer's confirmation, or be unknown for a while. A presenter can
+// move it to the next boundary: a trial converts, a period renews (an invoice that can fail and
+// leave the subscription PAST_DUE), a scheduled plan change applies, a cancellation takes effect.
 //
 // It is not a Kaiten. The sums are its own (a plan's price, an add-on's, a voucher's
 // percentage), the entitlements are Initech's whatever the plan, and it accepts every origin
@@ -73,6 +75,26 @@ export interface Call {
   body: unknown;
 }
 
+/** What the double says Kaiten would have told the vendor, in the order it happened. Nothing is delivered. */
+export interface DoubleEvent {
+  /** The event's name, without `com.kaiten.` and the version: `instance.billing.started`. */
+  type: string;
+  at: string;
+  /** One line, for a person: what it was about. */
+  detail: string;
+}
+
+/** What moving to the next boundary did, or why it could not. */
+export type BoundaryResult =
+  | {
+      ok: true;
+      /** `trial_converted`, `renewed`, `plan_changed` (renewed on another plan) or `canceled`. */
+      applied: "trial_converted" | "renewed" | "plan_changed" | "canceled";
+      /** The invoice the boundary issued, when it issued one. */
+      invoiceId: string | null;
+    }
+  | { ok: false; code: string; detail: string };
+
 export interface KaitenDouble {
   /** Routes `/kaiten-double/**` (and `/api/**`, which the storefront's backend calls). */
   route: Route;
@@ -86,17 +108,44 @@ export interface KaitenDouble {
   payInvoice: (id: string) => boolean;
   /** An open payment is declined (`failed`), as the provider would tell a few seconds on. */
   declineInvoice: (id: string) => boolean;
+  /**
+   * Moves the subscription to its next boundary, as Kaiten's close would when the time came: a trial
+   * converts (an ACTIVATION invoice), a period renews (a RENEWAL invoice, on the new plan when one was
+   * scheduled), a cancellation takes effect. The invoice is paid, declined or left unknown as
+   * `payment` says; one that is not paid leaves the subscription PAST_DUE.
+   */
+  advance: (origin?: string) => BoundaryResult;
+  /** Ends a trial now, which is moving a trial to its boundary. Refused for a subscription that is not in one. */
+  endTrial: (origin?: string) => BoundaryResult;
+  /** What Kaiten would have told the vendor so far. */
+  events: () => DoubleEvent[];
   calls: () => Call[];
   /** The state worth asserting on. */
-  state: () => {
-    subscribed: boolean;
-    cancelAtPeriodEnd: boolean;
-    cardOnFile: boolean;
-    billingEmail: string | null;
-    invoices: Array<{ id: string; status: string; total: number }>;
-    minted: number;
-    revoked: number;
-  };
+  state: () => DoubleState;
+}
+
+export interface DoubleState {
+  subscribed: boolean;
+  cancelAtPeriodEnd: boolean;
+  cardOnFile: boolean;
+  billingEmail: string | null;
+  invoices: Array<{ id: string; kind: string; status: string; total: number }>;
+  minted: number;
+  revoked: number;
+  /** The slug of the plan the instance is on, `null` before any subscription. It survives the subscription's end. */
+  plan: string | null;
+  planName: string | null;
+  /** `TRIAL`, `ACTIVE` or `PAST_DUE`; `null` without a live subscription. */
+  status: string | null;
+  /** The live subscription has no PAID price (V31-68): a checkout replaces it. */
+  free: boolean;
+  trialEndsAt: string | null;
+  currentPeriodEnd: string | null;
+  /** A plan change waiting for the boundary. */
+  scheduledChange: { plan: string; priceId: string; effectiveAt: string } | null;
+  addOns: Array<{ slug: string; quantity: number }>;
+  /** The card on file, for a person: `Visa 4242`. */
+  card: string | null;
 }
 
 /** How the customer starts. */
@@ -107,6 +156,11 @@ export interface Scenario {
   email?: boolean;
   /** The instance is already subscribed to Pro, monthly, and paid its first invoice: a customer with a card and an email. */
   subscribed?: boolean;
+  /**
+   * The instance is subscribed to Starter, which is free: a customer with an email and, unless `card`
+   * says so, no card. A checkout of a paid plan replaces that subscription (V31-68).
+   */
+  free?: boolean;
 }
 
 /** `Retry-After` in the answers it is attached to. */
@@ -164,6 +218,12 @@ function money(amount: number, currency: string): string {
 /** A code as the API reads it: case and separators do not matter. */
 const normalizeCode = (code: string) => code.replace(/[^a-z0-9]/gi, "").toUpperCase();
 
+/** What a payment can come to, as `/control/payment` is told. */
+const OUTCOMES: PaymentOutcome[] = ["paid", "requires_action", "failed", "processing"];
+
+/** A card brand as a person writes it. */
+const cardBrand = (brand: unknown) => String(brand).replace(/^./, (first) => first.toUpperCase());
+
 /** The one voucher the double knows. */
 const VOUCHER_CODE = "WELCOME20";
 
@@ -180,32 +240,89 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
     revoked: boolean;
   };
 
+  /** The cards a customer can save on the provider's page, in turn: changing it changes the card. */
+  const CARDS: Array<{ method: Json; number: string }> = [
+    { method: session.portal.paymentMethod, number: "4242 4242 4242 4242" },
+    {
+      method: { status: "ACTIVE", brand: "mastercard", last4: "4444", expMonth: 6, expYear: 2031 },
+      number: "5555 5555 5555 4444",
+    },
+  ];
+
   let subscription: Json | null;
+  /** What the subscription was created with and never changes: the vendor's view of it reads them. */
+  let subscriptionMeta: { id: string; anchorAt: string; createdAt: string };
   let planName: string | null;
   let planSlug: string | null;
   let canceling: boolean;
+  let pastDueSince: string | null;
+  /** A plan change the vendor scheduled: applied at the next boundary. */
+  let scheduled: { plan: Json; price: Json; scheduledAt: string } | null;
   let card: Json | null;
   let billingEmail: string | null;
   let invoices: Json[];
+  /** The invoices whose failure leaves the subscription PAST_DUE: a renewal's and a trial's conversion. */
+  let dunning: Set<string>;
   let addOns: Json[];
-  let setups: Map<string, { returnUrl: string; saved: boolean }>;
+  let setups: Map<string, { returnUrl: string; saved: boolean; card: (typeof CARDS)[number] }>;
   let sessions: Map<string, Stored>;
   let log: Call[];
+  let events: DoubleEvent[];
   let scripts: Map<string, Reply[]>;
   let outcome: PaymentOutcome;
   let minted: number;
   let revoked: number;
 
+  /** The card the next setup page offers: the one that is not on file, so that a change is seen. */
+  const nextCard = () => {
+    const at = CARDS.findIndex((each) => each.method.last4 === card?.last4);
+    return CARDS[(at + 1) % CARDS.length]!;
+  };
+
+  const emit = (type: string, detail: string, at: Date = new Date()) => {
+    events.push({ type, at: iso(at.getTime()), detail });
+  };
+
+  /** A subscription, as the portal reads it, on a price of the catalogue. */
+  const newSubscription = (price: Json, from: Date, trialEndsAt: string | null): Json => {
+    const end = addMonths(from, MONTHS[price.billingPeriod] ?? 1);
+    subscriptionMeta = {
+      id: randomUUID(),
+      anchorAt: iso(from.getTime()),
+      createdAt: iso(Date.now()),
+    };
+    return {
+      ...structuredClone(session.checkoutSubscribed.subscription),
+      status: trialEndsAt ? "TRIAL" : "ACTIVE",
+      providerKind: "STRIPE",
+      collectionMethod: "CHARGE_AUTOMATICALLY",
+      currency: price.currency,
+      billingPeriod: price.billingPeriod,
+      basePrice: structuredClone(price),
+      currentPeriodStart: iso(from.getTime()),
+      currentPeriodEnd: iso(end.getTime()),
+      trialEndsAt,
+      cancelAtPeriodEnd: false,
+      scheduledChange: null,
+    };
+  };
+
   const reset = (scenario: Scenario = {}) => {
     subscription = null;
+    subscriptionMeta = { id: randomUUID(), anchorAt: iso(Date.now()), createdAt: iso(Date.now()) };
     planName = null;
     planSlug = null;
     canceling = false;
+    pastDueSince = null;
+    scheduled = null;
     card =
       scenario.card || scenario.subscribed ? structuredClone(session.portal.paymentMethod) : null;
-    billingEmail = scenario.email || scenario.subscribed ? "billing@storefront.test" : null;
+    billingEmail =
+      scenario.email || scenario.subscribed || scenario.free ? "billing@storefront.test" : null;
     invoices = [];
+    dunning = new Set();
     addOns = [];
+    events = [];
     if (scenario.subscribed) {
       const now = new Date();
       const end = addMonths(now, 1);
@@ -227,6 +344,11 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
           serviceTo: iso(end.getTime()),
         },
       ];
+    } else if (scenario.free) {
+      const starter = (catalog.plans as Json[]).find((each) => each.pricingType === "FREE")!;
+      planName = starter.name;
+      planSlug = starter.licenseSlug;
+      subscription = newSubscription(starter.prices[0], new Date(), null);
     }
     setups = new Map();
     sessions = new Map();
@@ -261,6 +383,38 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
         (each) => each.billingModel === "FLAT_FEE" && each.currency === currency && each.isDefault,
       );
     return addon && price ? { addon, price } : undefined;
+  };
+
+  const planBySlug = (slug: string | null) =>
+    (catalog.plans as Json[]).find((each) => each.licenseSlug === slug);
+
+  /**
+   * The catalogue as a page of `origin` reads it. The recorded one sends a buyer who cannot buy by
+   * themselves to an address of someone else's; the stand-in sends every plan that is not free to
+   * the storefront's own "Talk to sales" page, which is where the portal's "Change plan" goes too.
+   */
+  const catalogFor = (origin: string): Json => {
+    const shown = structuredClone(catalog);
+    for (const plan of shown.plans as Json[]) {
+      plan.selfServeCtaUrl =
+        plan.pricingType === "FREE"
+          ? null
+          : `${origin}/sales?plan=${encodeURIComponent(plan.licenseSlug)}`;
+    }
+    return shown;
+  };
+
+  /**
+   * Whether the live subscription is free (V31-68): its plan is FREE and no add-on it holds has a
+   * price above 0. A subscription that is not is never replaced by a checkout.
+   */
+  const isFree = (): boolean => {
+    if (subscription === null || planBySlug(planSlug)?.pricingType !== "FREE") return false;
+    return addOns.every(
+      (held) =>
+        (findAddOnPrice(held.addonSlug, subscription!.currency, subscription!.billingPeriod)?.price
+          .unitAmount ?? 0) === 0,
+    );
   };
 
   // ---- A checkout, priced ---------------------------------------------------
@@ -413,17 +567,30 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
       portal.instance = {
         slug: stored.instanceSlug,
         name: stored.instanceSlug,
-        licenseSlug: subscription ? planSlug : portal.instance.licenseSlug,
-        licenseName: subscription ? planName : portal.instance.licenseName,
+        // The plan outlives the subscription, as the licence does until a fallback moves it (V31-66).
+        licenseSlug: planSlug ?? portal.instance.licenseSlug,
+        licenseName: planName ?? portal.instance.licenseName,
       };
-      portal.subscription = subscription ? { ...subscription, cancelAtPeriodEnd: canceling } : null;
+      portal.subscription = subscription
+        ? {
+            ...subscription,
+            cancelAtPeriodEnd: canceling,
+            scheduledChange: scheduled
+              ? {
+                  price: structuredClone(scheduled.price),
+                  effectiveAt: subscription.currentPeriodEnd,
+                }
+              : null,
+          }
+        : null;
       portal.addOns = structuredClone(addOns);
       portal.upcomingInvoice = null;
       portal.capabilities = {
         paymentMethods: true,
         invoices: true,
         unsubscribe: subscription !== null && !canceling,
-        checkout: subscription === null,
+        // An instance with no live subscription, or a free one, can check out (V31-68).
+        checkout: subscription === null || isFree(),
       };
     }
     portal.paymentMethod = card ? structuredClone(card) : null;
@@ -465,7 +632,7 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
 
     if (key === "GET /public/catalog") {
       return request.headers.get("x-kaiten-publishable-key") === options.publishableKey
-        ? reply(200, catalog)
+        ? reply(200, catalogFor(origin))
         : problem(
             401,
             "PublicAuth.InvalidCredential",
@@ -514,6 +681,16 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
       return problem(404, "NotFound", "no such route");
     }
 
+    const vendorPlanChange = /^\/instances\/([^/]+)\/billing\/scheduled-change$/.exec(path);
+    if (vendorPlanChange) {
+      if (request.headers.get("authorization") !== `Bearer ${options.serverToken}`) {
+        return problem(401, "Auth.InvalidCredential", "unknown token", `/api${path}`);
+      }
+      if (method === "PUT") return schedulePlanChange(vendorPlanChange[1]!, body, path);
+      if (method === "DELETE") return cancelPlanChange(vendorPlanChange[1]!, path);
+      return problem(404, "NotFound", `no ${key}`);
+    }
+
     if (!path.startsWith("/public/session/")) return problem(404, "NotFound", `no ${key}`);
 
     const bearer = request.headers.get("authorization")?.replace(/^Bearer /, "") ?? "";
@@ -541,6 +718,10 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
         );
       }
       canceling = true;
+      emit(
+        "instance.billing.cancellation_scheduled",
+        `cancels at the end of the period, ${subscription.currentPeriodEnd}`,
+      );
       return reply(200, { ...subscription, cancelAtPeriodEnd: true });
     }
     if (key === "POST /public/session/billing/reactivate") {
@@ -553,6 +734,7 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
         );
       }
       canceling = false;
+      emit("instance.billing.cancellation_reverted", "the cancellation was withdrawn");
       return reply(200, { ...subscription, cancelAtPeriodEnd: false });
     }
 
@@ -563,7 +745,7 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
     if (key === "POST /public/session/billing/payment-method-session") {
       if (!allowedReturn(body.returnUrl, request)) return invalidReturn(path);
       const id = `cs_setup_${randomBytes(6).toString("hex")}`;
-      setups.set(id, { returnUrl: String(body.returnUrl), saved: false });
+      setups.set(id, { returnUrl: String(body.returnUrl), saved: false, card: nextCard() });
       return reply(200, {
         sessionId: id,
         url: `${origin}${DOUBLE_PATH}/provider/setup/${id}`,
@@ -594,10 +776,10 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
     }
 
     if (method === "PUT" && route.startsWith("addons/")) {
-      return problem(
-        422,
-        "SetSessionAddonQuantity.Incompatible",
-        "the storefront does not change add-ons after the checkout",
+      return setAddonQuantity(
+        stored,
+        decodeURIComponent(route.slice("addons/".length)),
+        body,
         path,
       );
     }
@@ -627,6 +809,60 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
       instance,
     );
 
+  /**
+   * Issues an invoice for a period, and says how its payment came out: as `outcome` says, which is
+   * how a test makes it paid, declined, waiting for the customer or unknown. It is the one place that
+   * writes an invoice, for a checkout, a trial's conversion and a renewal alike.
+   */
+  function issueInvoice(
+    origin: string,
+    kind: "ACTIVATION" | "RENEWAL",
+    due: Json,
+    from: Date,
+    to: Date,
+    at: Date,
+  ): Json {
+    const id = randomUUID();
+    const hostedInvoiceUrl = `${origin}${DOUBLE_PATH}/provider/invoice/${id}`;
+    const status =
+      outcome === "paid" ? "PAID" : outcome === "processing" ? "PUSHED" : "PAYMENT_FAILED";
+    const invoice: Json = {
+      id,
+      kind,
+      status,
+      currency: due.currency,
+      subtotal: due.subtotal,
+      discountTotal: due.discountTotal,
+      total: due.total,
+      issuedAt: iso(at.getTime()),
+      dueAt: iso(at.getTime()),
+      paidAt: status === "PAID" ? iso(at.getTime()) : null,
+      serviceFrom: iso(from.getTime()),
+      serviceTo: iso(to.getTime()),
+      providerInvoiceNumber: `INV-${String(invoices.length + 1).padStart(4, "0")}`,
+      externalReference: null,
+      hostedInvoiceUrl,
+      invoicePdfUrl: `${hostedInvoiceUrl}.pdf`,
+      lines: due.lines,
+    };
+    invoices = [invoice, ...invoices];
+    emit(
+      "instance.invoice.issued",
+      `${kind} ${invoice.providerInvoiceNumber}, ${money(due.total, due.currency)}`,
+      at,
+    );
+    if (status === "PAID") {
+      emit("instance.invoice.paid", `${invoice.providerInvoiceNumber} was paid`, at);
+    } else if (status === "PAYMENT_FAILED") {
+      emit(
+        "instance.invoice.payment_failed",
+        `${invoice.providerInvoiceNumber}: ${outcome === "requires_action" ? "the customer has to confirm the payment" : "the card was declined"}`,
+        at,
+      );
+    }
+    return invoice;
+  }
+
   function checkout(stored: Stored, order: Json, origin: string, request: Request): Response {
     const path = "/public/session/checkout";
     if (stored.instanceSlug === null) {
@@ -642,7 +878,9 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
     }
     const priced = price(order);
     if (priced.problem) return priced.problem;
-    if (subscription) {
+    // A free subscription is replaced (V31-68); any other live one is refused.
+    const replacing = subscription !== null && isFree();
+    if (subscription && !replacing) {
       return problem(
         409,
         "CreateSessionCheckout.AlreadySubscribed",
@@ -696,7 +934,7 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
     } else if (needsCard && !card) {
       if (order.returnUrl === undefined) return invalidReturn(path);
       const id = `cs_setup_${randomBytes(6).toString("hex")}`;
-      setups.set(id, { returnUrl: String(order.returnUrl), saved: false });
+      setups.set(id, { returnUrl: String(order.returnUrl), saved: false, card: nextCard() });
       return reply(200, {
         status: "requires_payment_method",
         setupUrl: `${origin}${DOUBLE_PATH}/provider/setup/${id}`,
@@ -711,6 +949,15 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
     const found = findPrice(String(order.licensePriceId))!;
     const base = found.price;
     const periodEnd = addMonths(now, MONTHS[base.billingPeriod] ?? 1);
+    if (replacing) {
+      // In the checkout's one transaction: the free subscription ends at once, with no invoice and
+      // no fallback, and the new one is created (V31-68).
+      emit(
+        "instance.billing.canceled",
+        `${planName} (free) replaced by a checkout: IMMEDIATE, no final invoice`,
+        now,
+      );
+    }
     planName = plan.name;
     planSlug = plan.licenseSlug;
     addOns = ((order.addOns ?? []) as Json[])
@@ -729,22 +976,15 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
         };
       });
     const trialing = priced.trialEndsAt !== undefined;
-    subscription = {
-      ...structuredClone(session.checkoutSubscribed.subscription),
-      status: trialing ? "TRIAL" : "ACTIVE",
-      providerKind: "STRIPE",
-      collectionMethod: "CHARGE_AUTOMATICALLY",
-      currency: base.currency,
-      billingPeriod: base.billingPeriod,
-      basePrice: structuredClone(base),
-      currentPeriodStart: iso(now.getTime()),
-      currentPeriodEnd: iso(periodEnd.getTime()),
-      trialEndsAt: priced.trialEndsAt ?? null,
-      cancelAtPeriodEnd: false,
-      scheduledChange: null,
-    };
+    subscription = newSubscription(base, now, priced.trialEndsAt ?? null);
     canceling = false;
-    if (!card) card = structuredClone(session.portal.paymentMethod);
+    pastDueSince = null;
+    scheduled = null;
+    emit(
+      "instance.billing.started",
+      `${plan.name}${trialing ? `, trial until ${priced.trialEndsAt}` : ""}${replacing ? ", resubscribed" : ""}`,
+      now,
+    );
 
     if (due.total <= 0) {
       return reply(201, {
@@ -754,36 +994,393 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
       });
     }
 
-    const id = randomUUID();
-    const hostedInvoiceUrl = `${origin}${DOUBLE_PATH}/provider/invoice/${id}`;
-    const status =
-      outcome === "paid" ? "PAID" : outcome === "processing" ? "PUSHED" : "PAYMENT_FAILED";
-    const invoice: Json = {
-      id,
-      kind: "ACTIVATION",
-      status,
-      currency: due.currency,
-      subtotal: due.subtotal,
-      discountTotal: due.discountTotal,
-      total: due.total,
-      issuedAt: iso(now.getTime()),
-      dueAt: iso(now.getTime()),
-      paidAt: status === "PAID" ? iso(now.getTime()) : null,
-      serviceFrom: iso(now.getTime()),
-      serviceTo: iso(periodEnd.getTime()),
-      providerInvoiceNumber: `INV-${String(invoices.length + 1).padStart(4, "0")}`,
-      externalReference: null,
-      hostedInvoiceUrl,
-      invoicePdfUrl: `${hostedInvoiceUrl}.pdf`,
-      lines: due.lines,
-    };
-    invoices = [invoice, ...invoices];
+    const invoice = issueInvoice(origin, "ACTIVATION", due, now, periodEnd, now);
     return reply(201, {
       status: "subscribed",
       subscription,
       activationInvoice: structuredClone(invoice),
-      payment: { status: outcome, hostedInvoiceUrl },
+      payment: { status: outcome, hostedInvoiceUrl: invoice.hostedInvoiceUrl },
     });
+  }
+
+  // ---- Add-ons ----------------------------------------------------------------
+
+  /** `PUT /public/session/addons/{slug}`: the quantity takes effect at once, the next renewal bills it. */
+  function setAddonQuantity(stored: Stored, slug: string, body: Json, path: string): Response {
+    if (stored.instanceSlug === null) {
+      return problem(
+        422,
+        "SetSessionAddonQuantity.InstanceRequired",
+        "mint the session with an instanceSlug",
+        path,
+      );
+    }
+    const quantity = body.quantity;
+    const addon = (catalog.addOns as Json[]).find((each) => each.addonSlug === slug);
+    if (!addon) {
+      return problem(
+        422,
+        "SetSessionAddonQuantity.AddonNotPublic",
+        `"${slug}" is not a public add-on`,
+        path,
+      );
+    }
+    if (!Number.isInteger(quantity) || quantity < 0) {
+      return problem(422, "SetSessionAddonQuantity.Incompatible", "quantity is 0 or more", path);
+    }
+    const plan = planBySlug(planSlug);
+    const sold =
+      subscription && plan?.compatibleAddonFamilies.includes(addon.familySlug)
+        ? findAddOnPrice(slug, subscription.currency, subscription.billingPeriod)
+        : undefined;
+    if (!subscription || !sold) {
+      return problem(
+        422,
+        "SetSessionAddonQuantity.Incompatible",
+        subscription
+          ? "this add-on does not fit the plan, or has no price for its period"
+          : "subscribe to a plan first",
+        path,
+      );
+    }
+    if (addon.maxQuantity != null && quantity > addon.maxQuantity) {
+      return problem(
+        422,
+        "SetSessionAddonQuantity.QuantityExceedsMax",
+        `at most ${addon.maxQuantity} of "${slug}"`,
+        path,
+      );
+    }
+
+    const before = addOns.find((each) => each.addonSlug === slug)?.quantity ?? 0;
+    if (quantity !== before) {
+      addOns = addOns.filter((each) => each.addonSlug !== slug);
+      if (quantity > 0) {
+        addOns.push({
+          addonSlug: addon.addonSlug,
+          familySlug: addon.familySlug,
+          name: addon.name,
+          quantity,
+          maxQuantity: addon.maxQuantity ?? null,
+          prices: structuredClone(addon.prices),
+        });
+      }
+      emit(
+        before === 0
+          ? "instance.addon.added"
+          : quantity === 0
+            ? "instance.addon.removed"
+            : "instance.addon.quantity_changed",
+        `${addon.name}: ${before} → ${quantity}, in force now, billed from the next renewal`,
+      );
+    }
+    return reply(200, {
+      addonSlug: addon.addonSlug,
+      familySlug: addon.familySlug,
+      name: addon.name,
+      quantity,
+      maxQuantity: addon.maxQuantity ?? null,
+      prices: structuredClone(addon.prices),
+    });
+  }
+
+  // ---- The vendor's plan change -----------------------------------------------
+
+  /** A price as the vendor's API shows it. */
+  const vendorPrice = (pub: Json): Json => ({
+    metered: null,
+    status: "ACTIVE",
+    deprecatedAt: null,
+    createdAt: subscriptionMeta.createdAt,
+    updatedAt: subscriptionMeta.createdAt,
+    billingPeriod: null,
+    unitAmount: null,
+    displayLabel: null,
+    ...structuredClone(pub),
+  });
+
+  /** The subscription as the vendor's API (`InstanceBilling`) shows it. */
+  function instanceBilling(slug: string): Json {
+    const sub = subscription!;
+    return {
+      id: subscriptionMeta.id,
+      instanceSlug: slug,
+      instanceName: slug,
+      customerSlug: session.portal.customer.slug,
+      customerName: "Acme storefront customer",
+      status: sub.status,
+      providerKind: sub.providerKind,
+      collectionMethod: sub.collectionMethod,
+      collectionMethodOverride: null,
+      daysUntilDue: 0,
+      daysUntilDueOverride: null,
+      basePrice: vendorPrice(sub.basePrice),
+      billingPeriod: sub.billingPeriod,
+      currency: sub.currency,
+      anchorAt: subscriptionMeta.anchorAt,
+      startedAt: subscriptionMeta.anchorAt,
+      currentPeriodStart: sub.currentPeriodStart,
+      currentPeriodEnd: sub.currentPeriodEnd,
+      trialEndsAt: sub.trialEndsAt,
+      scheduledChange: scheduled
+        ? {
+            price: vendorPrice(scheduled.price),
+            scheduledAt: scheduled.scheduledAt,
+            effectiveAt: sub.currentPeriodEnd,
+          }
+        : null,
+      cancelAtPeriodEnd: canceling,
+      cancelRequestedAt: null,
+      canceledAt: null,
+      cancellationReason: null,
+      pastDueSince,
+      createdAt: subscriptionMeta.createdAt,
+      updatedAt: new Date().toISOString(),
+    };
+  }
+
+  /** `PUT /instances/{slug}/billing/scheduled-change` (§9.4): a move to another price at the next boundary. */
+  function schedulePlanChange(slug: string, body: Json, path: string): Response {
+    const code = (name: string) => `SchedulePlanChange.${name}`;
+    if (!subscription) {
+      return planSlug === null
+        ? problem(404, code("NotFound"), "this instance was never subscribed", `/api${path}`)
+        : problem(409, code("NotActive"), "the subscription is canceled", `/api${path}`);
+    }
+    if (subscription.status === "TRIAL") {
+      return problem(
+        409,
+        code("TrialInProgress"),
+        "a trial has no plan change: cancel it and subscribe again",
+        `/api${path}`,
+      );
+    }
+    if (canceling) {
+      return problem(
+        409,
+        code("CancellationScheduled"),
+        "the subscription is canceled at the end of its period",
+        `/api${path}`,
+      );
+    }
+    const target = findPrice(String(body.licensePriceId));
+    if (!target) {
+      return problem(404, code("PriceNotFound"), "licensePriceId is unknown", `/api${path}`);
+    }
+    if (target.price.billingModel !== "FLAT_FEE") {
+      return problem(
+        422,
+        code("PriceNotFlatFee"),
+        "a plan change moves to a flat fee",
+        `/api${path}`,
+      );
+    }
+    if (target.plan.lifecycleState !== "PUBLISHED") {
+      return problem(
+        422,
+        code("LicenseNotPublished"),
+        "the target is not published",
+        `/api${path}`,
+      );
+    }
+    if (target.price.id === subscription.basePrice.id) {
+      return problem(
+        422,
+        code("SamePrice"),
+        "the subscription is on that price already",
+        `/api${path}`,
+      );
+    }
+    if (target.price.currency !== subscription.currency) {
+      return problem(
+        422,
+        code("CurrencyMismatch"),
+        "the target is in another currency",
+        `/api${path}`,
+      );
+    }
+    const unfit = addOns.filter(
+      (held) =>
+        !(target.plan.compatibleAddonFamilies as string[]).includes(held.familySlug) ||
+        !findAddOnPrice(held.addonSlug, target.price.currency, target.price.billingPeriod),
+    );
+    if (unfit.length > 0) {
+      return problem(
+        422,
+        code("AddonIncompatible"),
+        `these add-ons do not fit the target: ${unfit.map((each) => each.addonSlug).join(", ")}`,
+        `/api${path}`,
+      );
+    }
+    if (scheduled?.price.id !== target.price.id) {
+      scheduled = {
+        plan: target.plan,
+        price: structuredClone(target.price),
+        scheduledAt: new Date().toISOString(),
+      };
+      emit(
+        "instance.billing.plan_change_scheduled",
+        `${planName} → ${target.plan.name} at ${subscription.currentPeriodEnd}`,
+      );
+    }
+    return reply(200, instanceBilling(slug));
+  }
+
+  /** `DELETE /instances/{slug}/billing/scheduled-change`. */
+  function cancelPlanChange(slug: string, path: string): Response {
+    if (!subscription) {
+      return problem(
+        404,
+        "CancelPlanChange.NotFound",
+        "this instance was never subscribed",
+        `/api${path}`,
+      );
+    }
+    if (!scheduled) {
+      return problem(
+        409,
+        "CancelPlanChange.NoPlanChangeScheduled",
+        "no plan change is scheduled",
+        `/api${path}`,
+      );
+    }
+    scheduled = null;
+    emit("instance.billing.plan_change_canceled", "the scheduled plan change was dropped");
+    return reply(200, instanceBilling(slug));
+  }
+
+  // ---- The next boundary -------------------------------------------------------
+
+  /** What a period of the subscription bills in advance: the base fee and the add-ons it holds. */
+  function advanceLines(price: Json, currency: string, from: Date, to: Date): Json {
+    const span = { serviceFrom: iso(from.getTime()), serviceTo: iso(to.getTime()) };
+    const lines: Json[] = [];
+    let subtotal = 0;
+    const plan = findPrice(price.id)?.plan;
+    if (price.unitAmount > 0) {
+      lines.push({
+        seq: lines.length + 1,
+        type: "BASE",
+        label: plan?.name ?? "Plan",
+        description: `1 × ${money(price.unitAmount, currency)}`,
+        quantity: "1",
+        unitAmountDecimal: String(price.unitAmount),
+        amount: price.unitAmount,
+        ...span,
+      });
+      subtotal += price.unitAmount;
+    }
+    for (const held of addOns) {
+      const sold = findAddOnPrice(held.addonSlug, currency, price.billingPeriod);
+      if (!sold) continue;
+      const amount = sold.price.unitAmount * held.quantity;
+      lines.push({
+        seq: lines.length + 1,
+        type: "ADDON",
+        label: held.name,
+        description: `${held.quantity} × ${money(sold.price.unitAmount, currency)}`,
+        quantity: String(held.quantity),
+        unitAmountDecimal: String(sold.price.unitAmount),
+        amount,
+        ...span,
+      });
+      subtotal += amount;
+    }
+    return { currency, subtotal, discountTotal: 0, total: subtotal, lines };
+  }
+
+  const refuse = (code: string, detail: string): BoundaryResult => ({ ok: false, code, detail });
+
+  /** The invoice of a boundary is not paid: the subscription is PAST_DUE until it is. */
+  function pastDue(invoice: Json, at: Date) {
+    if (invoice.status === "PAID" || invoice.status === "PUSHED") return;
+    if (subscription!.status !== "PAST_DUE") {
+      subscription = { ...subscription!, status: "PAST_DUE" };
+      pastDueSince = iso(at.getTime());
+      emit("instance.billing.status_changed", "ACTIVE → PAST_DUE, the payment failed", at);
+    }
+  }
+
+  function moveToBoundary(origin: string, only?: "trial"): BoundaryResult {
+    if (!subscription) return refuse("no_subscription", "there is no subscription to move");
+    const trialing = subscription.status === "TRIAL";
+    if (only === "trial" && !trialing) {
+      return refuse("not_in_trial", "the subscription is not in a trial");
+    }
+
+    if (trialing) {
+      const plan = planBySlug(planSlug);
+      const at = new Date(subscription.trialEndsAt);
+      const price = subscription.basePrice;
+      const to = addMonths(at, MONTHS[price.billingPeriod] ?? 1);
+      const due = advanceLines(price, subscription.currency, at, to);
+      // Kaiten's own rule for a trial that ends with no card is the vendor's to choose (CANCEL or
+      // CONVERT, V31-65), and that choice is not in the contract this stand-in follows yet.
+      if (due.total > 0 && !card) {
+        return refuse(
+          "trial_without_payment_method",
+          `the trial of ${plan?.name ?? "the plan"} ends with no payment method on file; what Kaiten does then (CANCEL or CONVERT, V31-65) comes with the v3.1 contract`,
+        );
+      }
+      subscription = {
+        ...subscription,
+        status: "ACTIVE",
+        currentPeriodStart: iso(at.getTime()),
+        currentPeriodEnd: iso(to.getTime()),
+      };
+      emit("instance.billing.status_changed", "TRIAL → ACTIVE, the trial ended", at);
+      if (due.total <= 0) return { ok: true, applied: "trial_converted", invoiceId: null };
+      const invoice = issueInvoice(origin, "ACTIVATION", due, at, to, at);
+      dunning.add(invoice.id);
+      pastDue(invoice, at);
+      return { ok: true, applied: "trial_converted", invoiceId: invoice.id as string };
+    }
+
+    const end = new Date(subscription.currentPeriodEnd);
+    if (canceling) {
+      subscription = null;
+      canceling = false;
+      scheduled = null;
+      pastDueSince = null;
+      emit(
+        "instance.billing.canceled",
+        "the cancellation took effect at the end of the period",
+        end,
+      );
+      return { ok: true, applied: "canceled", invoiceId: null };
+    }
+
+    const changing = scheduled;
+    const price = changing ? changing.price : subscription.basePrice;
+    const to = addMonths(end, MONTHS[price.billingPeriod] ?? 1);
+    if (changing) {
+      planName = changing.plan.name;
+      planSlug = changing.plan.licenseSlug;
+      subscription = {
+        ...subscription,
+        basePrice: structuredClone(price),
+        billingPeriod: price.billingPeriod,
+      };
+      scheduled = null;
+      emit("instance.billing.plan_changed", `now on ${planName}`, end);
+    }
+    subscription = {
+      ...subscription,
+      currentPeriodStart: iso(end.getTime()),
+      currentPeriodEnd: iso(to.getTime()),
+    };
+    const due = advanceLines(price, subscription.currency, end, to);
+    if (due.total <= 0) {
+      return { ok: true, applied: changing ? "plan_changed" : "renewed", invoiceId: null };
+    }
+    const invoice = issueInvoice(origin, "RENEWAL", due, end, to, end);
+    dunning.add(invoice.id);
+    pastDue(invoice, end);
+    return {
+      ok: true,
+      applied: changing ? "plan_changed" : "renewed",
+      invoiceId: invoice.id as string,
+    };
   }
 
   // ---- The provider's pages -------------------------------------------------
@@ -798,7 +1395,11 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
       if (setup[2]) {
         if (request.method !== "POST") return reply(405, {}, { Allow: "POST" });
         pending.saved = true;
-        card = structuredClone(session.portal.paymentMethod);
+        card = structuredClone(pending.card.method);
+        emit(
+          "customer.payment_method.attached",
+          `${pending.card.method.brand} ${pending.card.method.last4}`,
+        );
         const back = new URL(pending.returnUrl);
         back.searchParams.set("kaiten_setup_session", id);
         return new Response(null, { status: 303, headers: { Location: back.toString() } });
@@ -807,7 +1408,7 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
         "Payment provider",
         `<h1>Payment provider</h1><p>Save a card for Acme storefront.</p>` +
           `<form method="post" action="${DOUBLE_PATH}/provider/setup/${id}/save">` +
-          `<button type="submit">Save card 4242 4242 4242 4242</button></form>`,
+          `<button type="submit">Save card ${pending.card.number}</button></form>`,
       );
     }
 
@@ -841,15 +1442,36 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
   function payInvoice(id: string): boolean {
     const found = invoices.find((each) => each.id === id);
     if (!found) return false;
-    found.status = "PAID";
-    found.paidAt = new Date().toISOString();
+    if (found.status !== "PAID") {
+      found.status = "PAID";
+      found.paidAt = new Date().toISOString();
+      emit("instance.invoice.paid", `${found.providerInvoiceNumber} was paid`);
+      // The last overdue invoice paid, the subscription is whole again.
+      if (
+        subscription?.status === "PAST_DUE" &&
+        !invoices.some((each) => dunning.has(each.id) && each.status === "PAYMENT_FAILED")
+      ) {
+        subscription = { ...subscription, status: "ACTIVE" };
+        pastDueSince = null;
+        emit("instance.billing.status_changed", "PAST_DUE → ACTIVE, the overdue invoice was paid");
+      }
+    }
     return true;
   }
 
   function declineInvoice(id: string): boolean {
     const found = invoices.find((each) => each.id === id);
     if (!found) return false;
-    found.status = "PAYMENT_FAILED";
+    if (found.status !== "PAYMENT_FAILED") {
+      found.status = "PAYMENT_FAILED";
+      emit("instance.invoice.payment_failed", `${found.providerInvoiceNumber}: the payment failed`);
+      // A renewal that cannot be collected makes the subscription overdue.
+      if (dunning.has(found.id) && subscription?.status === "ACTIVE") {
+        subscription = { ...subscription, status: "PAST_DUE" };
+        pastDueSince = new Date().toISOString();
+        emit("instance.billing.status_changed", "ACTIVE → PAST_DUE, the payment failed");
+      }
+    }
     return true;
   }
 
@@ -875,8 +1497,19 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
       return reply(200, { ok: true });
     }
     if (request.method === "POST" && path === "/control/payment") {
+      if (!OUTCOMES.includes(body.outcome as PaymentOutcome)) {
+        return reply(400, { error: `outcome is one of ${OUTCOMES.join(", ")}` });
+      }
       outcome = body.outcome as PaymentOutcome;
       return reply(200, { ok: true });
+    }
+    const boundary = /^\/control\/(advance|trial\/end)$/.exec(path);
+    if (request.method === "POST" && boundary) {
+      const result =
+        boundary[1] === "advance"
+          ? moveToBoundary(origin ?? new URL(request.url).origin)
+          : moveToBoundary(origin ?? new URL(request.url).origin, "trial");
+      return reply(result.ok ? 200 : 409, result);
     }
     const act = /^\/control\/invoices\/([^/]+)\/(pay|decline)$/.exec(path);
     if (request.method === "POST" && act) {
@@ -885,6 +1518,7 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
     }
     if (request.method === "GET" && path === "/control/calls") return reply(200, log);
     if (request.method === "GET" && path === "/control/state") return reply(200, state());
+    if (request.method === "GET" && path === "/control/events") return reply(200, events);
     return reply(404, { error: "no such control" });
   }
 
@@ -894,18 +1528,38 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
     scripts.set(key, [...replies]);
   }
 
-  const state = () => ({
+  const state = (): DoubleState => ({
     subscribed: subscription !== null,
     cancelAtPeriodEnd: canceling,
     cardOnFile: card !== null,
     billingEmail,
     invoices: invoices.map((each) => ({
       id: each.id as string,
+      kind: each.kind as string,
       status: each.status as string,
       total: each.total as number,
     })),
     minted,
     revoked,
+    plan: planSlug,
+    planName,
+    status: subscription ? (subscription.status as string) : null,
+    free: isFree(),
+    trialEndsAt: subscription?.status === "TRIAL" ? (subscription.trialEndsAt as string) : null,
+    currentPeriodEnd: subscription ? (subscription.currentPeriodEnd as string) : null,
+    scheduledChange:
+      subscription && scheduled
+        ? {
+            plan: scheduled.plan.licenseSlug as string,
+            priceId: scheduled.price.id as string,
+            effectiveAt: subscription.currentPeriodEnd as string,
+          }
+        : null,
+    addOns: addOns.map((each) => ({
+      slug: each.addonSlug as string,
+      quantity: each.quantity as number,
+    })),
+    card: card ? `${cardBrand(card.brand)} ${card.last4}` : null,
   });
 
   const route: Route = async (request) => {
@@ -954,6 +1608,9 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
     },
     payInvoice,
     declineInvoice,
+    advance: (origin = "http://stand-in.invalid") => moveToBoundary(origin),
+    endTrial: (origin = "http://stand-in.invalid") => moveToBoundary(origin, "trial"),
+    events: () => structuredClone(events),
     calls: () => structuredClone(log),
     state,
   };
