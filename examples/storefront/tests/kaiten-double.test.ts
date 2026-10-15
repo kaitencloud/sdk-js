@@ -99,13 +99,20 @@ describe("what the stand-in does besides", () => {
     const { double, recorder, customer } = world();
     const session = await customer();
 
-    // A customer with no email, then one with: the checkout is priced, sent to the provider, and made.
+    // A customer with no email: a preview is priced without one (Kaiten: Δ2.12), the checkout
+    // itself is refused for want of it.
     await expect(
       session.checkout({ licensePriceId: PRO_MONTHLY, dryRun: true }),
+    ).resolves.toMatchObject({ status: "preview" });
+    await expect(
+      session.checkout({ licensePriceId: PRO_MONTHLY, returnUrl: `${ORIGIN}/checkout/pro-v2` }),
     ).rejects.toMatchObject({
       status: 422,
       code: "CreateSessionCheckout.BillingEmailRequired",
     });
+    await expect(
+      session.checkout({ licensePriceId: PRO_MONTHLY, billingEmail: "nope", dryRun: true }),
+    ).rejects.toMatchObject({ status: 422, code: "CreateSessionCheckout.InvalidBillingEmail" });
     await session.checkout({
       licensePriceId: PRO_MONTHLY,
       billingEmail: "billing@acme.test",
@@ -203,6 +210,10 @@ describe("what the stand-in does besides", () => {
       status: 409,
       code: "CreateSessionCheckout.AlreadySubscribed",
     });
+    // A preview is refused the same way once the instance is subscribed.
+    await expect(
+      session.checkout({ licensePriceId: PRO_MONTHLY, dryRun: true }),
+    ).rejects.toMatchObject({ status: 409, code: "CreateSessionCheckout.AlreadySubscribed" });
 
     // A session bound to the customer alone reads the customer, and buys nothing.
     const wide = await customer(null);

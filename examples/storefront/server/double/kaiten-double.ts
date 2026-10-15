@@ -660,6 +660,18 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
         );
       }
     }
+    const { plan, due } = priced as { plan: Json; due: Json };
+
+    // A preview is priced without an address (Kaiten: Δ2.12): what is due does not depend on it.
+    if (order.dryRun) {
+      return reply(200, {
+        status: "preview",
+        dueToday: due,
+        ...(priced.trialEndsAt ? { trialEndsAt: priced.trialEndsAt } : {}),
+      });
+    }
+
+    // The checkout itself needs one, the customer's own or the one sent with it.
     const email = (order.billingEmail as string | undefined) ?? billingEmail;
     if (!email) {
       return problem(
@@ -668,15 +680,6 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
         "the customer has no billing e-mail: send billingEmail",
         path,
       );
-    }
-    const { plan, due } = priced as { plan: Json; due: Json };
-
-    if (order.dryRun) {
-      return reply(200, {
-        status: "preview",
-        dueToday: due,
-        ...(priced.trialEndsAt ? { trialEndsAt: priced.trialEndsAt } : {}),
-      });
     }
 
     const needsCard = due.total > 0 || plan.requiresPaymentMethod === true;
