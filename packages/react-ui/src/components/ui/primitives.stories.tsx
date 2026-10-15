@@ -1,9 +1,11 @@
 import * as React from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { expect, userEvent, within } from "storybook/test";
 
 import { ProgressBar } from "../shared/progress-bar.tsx";
 import { Badge } from "./badge.tsx";
 import { Button } from "./button.tsx";
+import { Checkbox } from "./checkbox.tsx";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "./card.tsx";
 import { Dialog, DialogDescription, DialogTitle } from "./dialog.tsx";
 import { Input } from "./input.tsx";
@@ -155,6 +157,46 @@ export const Inputs: Story = {
       </label>
     </div>
   ),
+};
+
+export const Checkboxes: Story = {
+  name: "Checkbox",
+  render: () => (
+    <div className="flex w-full max-w-md flex-col gap-3 text-sm">
+      <label className="flex w-fit cursor-pointer items-center gap-2">
+        <Checkbox /> Not ticked
+      </label>
+      <label className="flex w-fit cursor-pointer items-center gap-2">
+        <Checkbox defaultChecked /> Ticked
+      </label>
+      <label className="flex w-fit cursor-not-allowed items-center gap-2">
+        <Checkbox disabled /> Disabled
+      </label>
+      <label className="flex w-fit cursor-not-allowed items-center gap-2">
+        <Checkbox disabled defaultChecked /> Disabled and ticked
+      </label>
+      <label className="flex w-fit cursor-pointer items-center gap-2">
+        <Checkbox aria-invalid /> Invalid
+      </label>
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const first = canvas.getByRole("checkbox", { name: "Not ticked" });
+    await expect(first).not.toBeChecked();
+    // The space bar, with the box focused, as for a button.
+    await userEvent.tab();
+    await expect(first).toHaveFocus();
+    await userEvent.keyboard(" ");
+    await expect(first).toBeChecked();
+    await expect(first).toHaveAttribute("data-checked");
+    await userEvent.keyboard(" ");
+    await expect(first).not.toBeChecked();
+    // A click on the label's words.
+    await userEvent.click(canvas.getByText("Not ticked"));
+    await expect(first).toBeChecked();
+    await expect(canvas.getByRole("checkbox", { name: "Disabled" })).toBeDisabled();
+  },
 };
 
 // The native `<dialog>` the hard paywall opens. The primitive owns no open

@@ -175,7 +175,7 @@ const SCENARIOS = [
     // draws the billing periods.
     name: "react-ui · CheckoutFlow + KaitenProvider + KaitenStyleRoot",
     code: `import { CheckoutFlow, KaitenProvider, KaitenStyleRoot } from "@kaitencloud/react-ui"; console.log(CheckoutFlow, KaitenProvider, KaitenStyleRoot);`,
-    budgetGzip: 64_800,
+    budgetGzip: 66_500,
   },
   {
     // What a host that shows a customer how they pay ships: the card, the billing hooks that add or
@@ -200,7 +200,7 @@ const SCENARIOS = [
     // and the Kaiten console's usage rule, as in the customer portal (1.3 KB).
     name: "react-ui · everything",
     code: `import * as all from "@kaitencloud/react-ui"; console.log(all);`,
-    budgetGzip: 93_450,
+    budgetGzip: 95_250,
   },
   {
     name: "client · KaitenClient alone",

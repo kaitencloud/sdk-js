@@ -28,6 +28,7 @@ import { KaitenBranding } from "../shared/kaiten-branding.tsx";
 import { Badge } from "../ui/badge.tsx";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "../ui/card.tsx";
 import { Input } from "../ui/input.tsx";
+import { Checkbox } from "../ui/checkbox.tsx";
 import { RadioGroup, RadioGroupItem } from "../ui/radio-group.tsx";
 import { CheckoutSummaryBody, useProblemText } from "./checkout-summary.tsx";
 import { useCheckoutWords } from "./words.ts";
@@ -353,13 +354,29 @@ function CheckoutFlowView({
       />
 
       {showTrialToggle ? (
-        <label className={unstyled ? undefined : "flex items-center gap-2 text-sm"}>
-          <input
-            type="checkbox"
-            checked={checkout.selection.skipTrial}
-            disabled={submitting}
-            onChange={(event) => checkout.setSkipTrial(event.target.checked)}
-          />
+        // Unstyled, the choice stays a native checkbox, the markup that rendering promises;
+        // styled, it is the checkbox the console's controls are made of.
+        <label
+          className={
+            unstyled
+              ? undefined
+              : "flex w-fit cursor-pointer items-center gap-2 text-sm has-disabled:cursor-not-allowed"
+          }
+        >
+          {unstyled ? (
+            <input
+              type="checkbox"
+              checked={checkout.selection.skipTrial}
+              disabled={submitting}
+              onChange={(event) => checkout.setSkipTrial(event.target.checked)}
+            />
+          ) : (
+            <Checkbox
+              checked={checkout.selection.skipTrial}
+              disabled={submitting}
+              onCheckedChange={(checked: boolean) => checkout.setSkipTrial(checked)}
+            />
+          )}
           {words.skipTrial}
         </label>
       ) : null}
