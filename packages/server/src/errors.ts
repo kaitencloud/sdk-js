@@ -81,6 +81,25 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 /** The code the API returns when a usage report reuses a `transactionId` for another report. */
 const TRANSACTION_ID_REUSED = "ReportEntitlementUsageMetric.TransactionIdReused";
 
+/** The request header a usage report's key travels in, and the location the API names it by. */
+const IDEMPOTENCY_KEY_HEADER = "Idempotency-Key";
+const IDEMPOTENCY_KEY_LOCATION = `header.${IDEMPOTENCY_KEY_HEADER}`;
+
+/**
+ * Reads one header off the options a request was made with: a plain object, as
+ * the generated operations pass it on, or a `Headers`, as a call made on the
+ * client itself may. Names are matched without regard to case, as HTTP does.
+ */
+function headerValue(headers: unknown, name: string): string | undefined {
+  if (headers instanceof Headers) return headers.get(name) ?? undefined;
+  if (!isRecord(headers)) return undefined;
+  const wanted = name.toLowerCase();
+  for (const [key, value] of Object.entries(headers)) {
+    if (key.toLowerCase() === wanted && typeof value === "string") return value;
+  }
+  return undefined;
+}
+
 /**
  * The report a `transactionId` was first accepted with, as the API names it in
  * the 409 that refuses another report under the same key.
@@ -98,7 +117,7 @@ export interface TransactionIdReusedOriginal {
 
 /** Reads the original report from the problem's `errors[]`, when the body carries it whole. */
 function originalReport(apiError: KaitenApiError): TransactionIdReusedOriginal | undefined {
-  const entry = apiError.errors?.find((error) => error.location === "body.transactionId");
+  const entry = apiError.errors?.find((error) => error.location === IDEMPOTENCY_KEY_LOCATION);
   const value = entry?.value;
   if (!isRecord(value)) return undefined;
   const { reportSeq, reportedAt, behavior } = value;
@@ -129,7 +148,7 @@ function originalReport(apiError: KaitenApiError): TransactionIdReusedOriginal |
  * `status`/`code` keeps working.
  */
 export class TransactionIdReusedError extends KaitenError {
-  /** The key the refused report was sent with, when the request body carried it. */
+  /** The key the refused report was sent with, when the request carried it in its `Idempotency-Key` header. */
   public readonly transactionId?: string;
   /** The report the key was first accepted with, when the API named it. */
   public readonly original?: TransactionIdReusedOriginal;
@@ -155,7 +174,7 @@ export type KaitenThrownError = KaitenError | KaitenNetworkError;
 export function toKaitenError(
   error: unknown,
   response?: Response,
-  options?: { body?: unknown },
+  options?: { headers?: unknown },
 ): KaitenThrownError {
   if (error instanceof KaitenError || error instanceof KaitenNetworkError) return error;
 
@@ -177,8 +196,10 @@ export function toKaitenError(
       status: typeof body.status === "number" ? body.status : response.status,
     };
     if (apiError.status === 409 && apiError.code === TRANSACTION_ID_REUSED) {
-      const sent = isRecord(options?.body) ? options.body["transactionId"] : undefined;
-      return new TransactionIdReusedError(apiError, typeof sent === "string" ? sent : undefined);
+      return new TransactionIdReusedError(
+        apiError,
+        headerValue(options?.headers, IDEMPOTENCY_KEY_HEADER),
+      );
     }
     return new KaitenError(apiError);
   }

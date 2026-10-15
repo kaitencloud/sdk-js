@@ -53,7 +53,7 @@ export type Webhooks =
   | OnInstanceBillingCanceledWebhookRequest
   | OnInstanceBillingCancellationRevertedWebhookRequest
   | OnInstanceBillingCancellationScheduledWebhookRequest
-  | OnInstanceBillingPlanChangeCancelledWebhookRequest
+  | OnInstanceBillingPlanChangeCanceledWebhookRequest
   | OnInstanceBillingPlanChangeScheduledWebhookRequest
   | OnInstanceBillingPlanChangedWebhookRequest
   | OnInstanceBillingProviderChangedWebhookRequest
@@ -989,6 +989,10 @@ export type ConnectorActivation = {
 
 export type ConnectorSettings = {
   /**
+   * Whether settings were ever stored for this connector. A connector never configured reads false, with empty settings, rather than 404.
+   */
+  readonly configured: boolean;
+  /**
    * Stable connector identifier
    */
   readonly connector_name: string;
@@ -1724,6 +1728,26 @@ export type EvaluationSuccess = {
    * string of the evaluated flag value
    */
   variant?: string;
+};
+
+export type EventHeaders = {
+  /**
+   * W3C baggage of that request, when it carried any
+   */
+  baggage?: string;
+  /**
+   * The instance the event concerns, set on the events of one instance. The usage events' payloads do not name it.
+   */
+  instance_id?: string;
+  /**
+   * W3C trace context of the request that produced the event
+   */
+  traceparent?: string;
+  /**
+   * W3C trace state of that request, when it carried one
+   */
+  tracestate?: string;
+  [key: string]: unknown;
 };
 
 export type ExhaustedEvent = {
@@ -3112,7 +3136,7 @@ export type License = {
    */
   slug?: string;
   /**
-   * Trial length, in days, a subscription to this version starts with by default. Absent when there is none. Must be at least 1 on create (CreateLicense.InvalidTrialPeriodDays). On update, omit it to keep the stored value, or send 0 to remove the trial.
+   * Trial length, in days, a subscription to this version starts with by default. Absent when there is none. From 1 to 365 (CreateLicense.InvalidTrialDays, UpdateLicense.InvalidTrialDays). On update, omit it to keep the stored value, or send 0 to remove the trial.
    */
   trialPeriodDays?: number;
   /**
@@ -3516,7 +3540,7 @@ export type MetadataFieldSchemaProposal = {
 export type MinimumAmount = {
   currency: string;
   /**
-   * In minor units
+   * In minor units, above 0
    */
   unitAmountDecimal: string;
 };
@@ -3788,7 +3812,7 @@ export type NewSubscription = {
    */
   startAt?: string;
   /**
-   * Days of trial from the anchor: nothing is billed, and no usage counts, until it ends; the period close then issues the first invoice. 0 is no trial. Omitted: the licence's trialPeriodDays, else no trial.
+   * Days of trial from the anchor, 1 to 365: nothing is billed, and no usage counts, until it ends; the period close then issues the first invoice. 0 is no trial; any other value is refused (SubscribeInstance.InvalidTrialDays). Omitted: the licence's trialPeriodDays, else no trial.
    */
   trialDays?: number;
   /**
@@ -5470,7 +5494,7 @@ export type RedemptionRules = {
    */
   firstTimeOnly?: boolean;
   /**
-   * Only for a live subscription whose base price is at least this
+   * Only for a live subscription whose base price is at least this. Strictly positive; omit it for no minimum (0 is refused with .InvalidRedemptionRules).
    */
   minimumSubscriptionAmount?: MinimumAmount;
 };
@@ -5609,11 +5633,76 @@ export type ReportEntitlementUsageBody = {
     [key: string]: unknown;
   };
   /**
-   * Optional idempotency key, 1 to 128 characters of [A-Za-z0-9._:-], matched exactly and case-sensitively. A report sent again with the same key and the same behavior and value within KAITEN_USAGE_IDEMPOTENCY_WINDOW (35 days by default) is applied once: the retry answers 200 with the original response and the Idempotent-Replayed header, and changes nothing. The same key with another behavior or value answers 409 ReportEntitlementUsageMetric.TransactionIdReused. A rejected report does not consume its key. Scoped to the instance and entitlement: one business event may feed two meters under one key.
-   */
-  transactionId?: string;
-  /**
    * Reported entitlement value, discriminated by the 'type' field. Usage reporting accepts the number variant only.
+   */
+  value:
+    | ({
+        type: "number";
+      } & NumberEntitlementValue)
+    | ({
+        type: "boolean";
+      } & BooleanEntitlementValue)
+    | ({
+        type: "object";
+      } & ConfigEntitlementValue);
+};
+
+export type ReportedEntitlementUsage = {
+  /**
+   * End of the current usage window (exclusive). Null for a lifetime entitlement (no configured reset period).
+   */
+  currentPeriodEnd?: string;
+  /**
+   * Start of the current usage window (inclusive). Null for a lifetime entitlement (no configured reset period).
+   */
+  currentPeriodStart?: string;
+  /**
+   * Unique identifier for the entitlement
+   */
+  entitlementId: string;
+  /**
+   * URL-friendly identifier of the entitlement
+   */
+  entitlementSlug: string;
+  /**
+   * Unique identifier for the license to which this entitlement usage belongs
+   */
+  licenseId: string;
+  /**
+   * URL-friendly identifier of the license
+   */
+  licenseSlug: string;
+  /**
+   * The effective value this usage is measured against (the licence's grant, with the instance's add-ons and boosts applied; source and provenance say which), discriminated by the 'type' field. Absent when nothing grants the entitlement a value; -1 means unlimited for a NUMBER entitlement.
+   */
+  limit?:
+    | ({
+        type: "number";
+      } & NumberEntitlementValue)
+    | ({
+        type: "boolean";
+      } & BooleanEntitlementValue)
+    | ({
+        type: "object";
+      } & ConfigEntitlementValue);
+  /**
+   * How far above limit usage is still accepted, in percent: -1 unlimited, 0 a hard limit. Absent for BOOLEAN and CONFIG.
+   */
+  limitCapExceededOveragePercent?: number;
+  /**
+   * What the licence, the add-ons and the boosts each contribute
+   */
+  provenance?: Provenance;
+  /**
+   * license: the licence grants it (add-ons and boosts may change it); addon: only add-ons do
+   */
+  source: "license" | "addon";
+  /**
+   * The Idempotency-Key this report was accepted under, echoed on the first answer and on every replay; null when the request carried none. A client can tell from it that the server honours the key.
+   */
+  transactionId: string | null;
+  /**
+   * Resolved entitlement value, discriminated by the 'type' field
    */
   value:
     | ({
@@ -5795,7 +5884,7 @@ export type SessionCheckoutOrder = {
    */
   addOns?: Array<SubscriptionAddon> | null;
   /**
-   * Where invoices go. Required when the customer has none; stored on the customer when given.
+   * Where invoices go. Required when the customer has none, except on a dryRun; stored on the customer when given.
    */
   billingEmail?: string;
   /**
@@ -6178,6 +6267,10 @@ export type TargetingContextNode = {
    * What this value means, shown by the editor
    */
   description?: string;
+  /**
+   * Shape of each known key, for a map whose entries differ. Named after the key
+   */
+  entries?: Array<TargetingContextNode>;
   /**
    * Named children, for an object
    */
@@ -8222,7 +8315,7 @@ export type LicenseWritable = {
    */
   slug?: string;
   /**
-   * Trial length, in days, a subscription to this version starts with by default. Absent when there is none. Must be at least 1 on create (CreateLicense.InvalidTrialPeriodDays). On update, omit it to keep the stored value, or send 0 to remove the trial.
+   * Trial length, in days, a subscription to this version starts with by default. Absent when there is none. From 1 to 365 (CreateLicense.InvalidTrialDays, UpdateLicense.InvalidTrialDays). On update, omit it to keep the stored value, or send 0 to remove the trial.
    */
   trialPeriodDays?: number;
   /**
@@ -8900,11 +8993,76 @@ export type ReportEntitlementUsageBodyWritable = {
     [key: string]: unknown;
   };
   /**
-   * Optional idempotency key, 1 to 128 characters of [A-Za-z0-9._:-], matched exactly and case-sensitively. A report sent again with the same key and the same behavior and value within KAITEN_USAGE_IDEMPOTENCY_WINDOW (35 days by default) is applied once: the retry answers 200 with the original response and the Idempotent-Replayed header, and changes nothing. The same key with another behavior or value answers 409 ReportEntitlementUsageMetric.TransactionIdReused. A rejected report does not consume its key. Scoped to the instance and entitlement: one business event may feed two meters under one key.
-   */
-  transactionId?: string;
-  /**
    * Reported entitlement value, discriminated by the 'type' field. Usage reporting accepts the number variant only.
+   */
+  value:
+    | ({
+        type: "number";
+      } & NumberEntitlementValueWritable)
+    | ({
+        type: "boolean";
+      } & BooleanEntitlementValue)
+    | ({
+        type: "object";
+      } & ConfigEntitlementValue);
+};
+
+export type ReportedEntitlementUsageWritable = {
+  /**
+   * End of the current usage window (exclusive). Null for a lifetime entitlement (no configured reset period).
+   */
+  currentPeriodEnd?: string;
+  /**
+   * Start of the current usage window (inclusive). Null for a lifetime entitlement (no configured reset period).
+   */
+  currentPeriodStart?: string;
+  /**
+   * Unique identifier for the entitlement
+   */
+  entitlementId: string;
+  /**
+   * URL-friendly identifier of the entitlement
+   */
+  entitlementSlug: string;
+  /**
+   * Unique identifier for the license to which this entitlement usage belongs
+   */
+  licenseId: string;
+  /**
+   * URL-friendly identifier of the license
+   */
+  licenseSlug: string;
+  /**
+   * The effective value this usage is measured against (the licence's grant, with the instance's add-ons and boosts applied; source and provenance say which), discriminated by the 'type' field. Absent when nothing grants the entitlement a value; -1 means unlimited for a NUMBER entitlement.
+   */
+  limit?:
+    | ({
+        type: "number";
+      } & NumberEntitlementValueWritable)
+    | ({
+        type: "boolean";
+      } & BooleanEntitlementValue)
+    | ({
+        type: "object";
+      } & ConfigEntitlementValue);
+  /**
+   * How far above limit usage is still accepted, in percent: -1 unlimited, 0 a hard limit. Absent for BOOLEAN and CONFIG.
+   */
+  limitCapExceededOveragePercent?: number;
+  /**
+   * What the licence, the add-ons and the boosts each contribute
+   */
+  provenance?: ProvenanceWritable;
+  /**
+   * license: the licence grants it (add-ons and boosts may change it); addon: only add-ons do
+   */
+  source: "license" | "addon";
+  /**
+   * The Idempotency-Key this report was accepted under, echoed on the first answer and on every replay; null when the request carried none. A client can tell from it that the server honours the key.
+   */
+  transactionId: string | null;
+  /**
+   * Resolved entitlement value, discriminated by the 'type' field
    */
   value:
     | ({
@@ -14889,6 +15047,12 @@ export type GetEntitlementUsageMetricsResponse =
 
 export type ReportEntitlementUsageMetricData = {
   body: ReportEntitlementUsageBodyWritable;
+  headers?: {
+    /**
+     * Optional idempotency key: the id of the business event this report counts, 1 to 128 characters of [A-Za-z0-9._:-], matched exactly and case-sensitively. A report sent again with the same key and the same behavior and value within KAITEN_USAGE_IDEMPOTENCY_WINDOW (35 days by default) is applied once: the retry answers 200 with the original response and the Idempotent-Replayed header, and changes nothing. The same key with another behavior or value answers 409 ReportEntitlementUsageMetric.TransactionIdReused. A rejected report does not consume its key. Scoped to the instance and entitlement: one business event may feed two meters under one key. Stored and read back as transactionId.
+     */
+    "Idempotency-Key"?: string;
+  };
   path: {
     /**
      * Instance slug
@@ -14945,7 +15109,7 @@ export type ReportEntitlementUsageMetricResponses = {
   /**
    * OK
    */
-  200: EntitlementUsage;
+  200: ReportedEntitlementUsage;
 };
 
 export type ReportEntitlementUsageMetricResponse =
@@ -20509,6 +20673,7 @@ export type ListVoucherRedemptionsResponse =
 
 export type OnAddonEntitlementAssignedWebhookPayload = {
   data: AddonGrantUpdateWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -20528,6 +20693,7 @@ export type OnAddonEntitlementAssignedWebhookRequest = {
 
 export type OnAddonEntitlementUnassignedWebhookPayload = {
   data: AddonGrantUpdateWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -20547,6 +20713,7 @@ export type OnAddonEntitlementUnassignedWebhookRequest = {
 
 export type OnAddonEntitlementUpdatedWebhookPayload = {
   data: AddonGrantUpdateWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -20566,6 +20733,7 @@ export type OnAddonEntitlementUpdatedWebhookRequest = {
 
 export type OnAddonPriceCreatedWebhookPayload = {
   data: AddonPriceUpdateWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -20585,6 +20753,7 @@ export type OnAddonPriceCreatedWebhookRequest = {
 
 export type OnAddonPriceDeprecatedWebhookPayload = {
   data: AddonPriceUpdateWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -20604,6 +20773,7 @@ export type OnAddonPriceDeprecatedWebhookRequest = {
 
 export type OnAddonArchivedWebhookPayload = {
   data: AddonWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -20623,6 +20793,7 @@ export type OnAddonArchivedWebhookRequest = {
 
 export type OnAddonCreatedWebhookPayload = {
   data: AddonWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -20642,6 +20813,7 @@ export type OnAddonCreatedWebhookRequest = {
 
 export type OnAddonDeletedWebhookPayload = {
   data: DeletedAddon;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -20661,6 +20833,7 @@ export type OnAddonDeletedWebhookRequest = {
 
 export type OnAddonPublishedWebhookPayload = {
   data: AddonWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -20680,6 +20853,7 @@ export type OnAddonPublishedWebhookRequest = {
 
 export type OnAddonUnarchivedWebhookPayload = {
   data: AddonWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -20699,6 +20873,7 @@ export type OnAddonUnarchivedWebhookRequest = {
 
 export type OnAddonUpdatedWebhookPayload = {
   data: AddonUpdateWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -20718,6 +20893,7 @@ export type OnAddonUpdatedWebhookRequest = {
 
 export type OnBillingProviderConnectedWebhookPayload = {
   data: Connection;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -20737,6 +20913,7 @@ export type OnBillingProviderConnectedWebhookRequest = {
 
 export type OnBillingProviderDisconnectedWebhookPayload = {
   data: Connection;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -20756,6 +20933,7 @@ export type OnBillingProviderDisconnectedWebhookRequest = {
 
 export type OnBillingProviderSyncFailedWebhookPayload = {
   data: SyncFailure;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -20775,6 +20953,7 @@ export type OnBillingProviderSyncFailedWebhookRequest = {
 
 export type OnComponentCreatedWebhookPayload = {
   data: ComponentWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -20794,6 +20973,7 @@ export type OnComponentCreatedWebhookRequest = {
 
 export type OnComponentDeletedWebhookPayload = {
   data: ComponentWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -20813,6 +20993,7 @@ export type OnComponentDeletedWebhookRequest = {
 
 export type OnComponentUpdatedWebhookPayload = {
   data: ComponentWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -20832,6 +21013,7 @@ export type OnComponentUpdatedWebhookRequest = {
 
 export type OnCustomerPaymentMethodAttachedWebhookPayload = {
   data: PaymentMethodAttached;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -20851,6 +21033,7 @@ export type OnCustomerPaymentMethodAttachedWebhookRequest = {
 
 export type OnCustomerPaymentMethodDetachedWebhookPayload = {
   data: PaymentMethodDetached;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -20870,6 +21053,7 @@ export type OnCustomerPaymentMethodDetachedWebhookRequest = {
 
 export type OnCustomerPaymentMethodExpiringWebhookPayload = {
   data: PaymentMethodExpiring;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -20889,6 +21073,7 @@ export type OnCustomerPaymentMethodExpiringWebhookRequest = {
 
 export type OnCustomerCreatedWebhookPayload = {
   data: CustomerEventWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -20908,6 +21093,7 @@ export type OnCustomerCreatedWebhookRequest = {
 
 export type OnCustomerCreationRejectedWebhookPayload = {
   data: CustomerCreationRejected;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -20927,6 +21113,7 @@ export type OnCustomerCreationRejectedWebhookRequest = {
 
 export type OnCustomerDeletedWebhookPayload = {
   data: CustomerEventWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -20946,6 +21133,7 @@ export type OnCustomerDeletedWebhookRequest = {
 
 export type OnCustomerUpdatedWebhookPayload = {
   data: CustomerEventWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -20965,6 +21153,7 @@ export type OnCustomerUpdatedWebhookRequest = {
 
 export type OnDeploymentZoneCreatedWebhookPayload = {
   data: DeploymentZoneWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -20984,6 +21173,7 @@ export type OnDeploymentZoneCreatedWebhookRequest = {
 
 export type OnDeploymentZoneDeletedWebhookPayload = {
   data: DeploymentZoneWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -21003,6 +21193,7 @@ export type OnDeploymentZoneDeletedWebhookRequest = {
 
 export type OnReleaseDeployedWebhookPayload = {
   data: Deployment;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -21022,6 +21213,7 @@ export type OnReleaseDeployedWebhookRequest = {
 
 export type OnDeploymentZoneUpdatedWebhookPayload = {
   data: DeploymentZoneWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -21041,6 +21233,7 @@ export type OnDeploymentZoneUpdatedWebhookRequest = {
 
 export type OnEntitlementCreatedWebhookPayload = {
   data: EntitlementWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -21060,6 +21253,7 @@ export type OnEntitlementCreatedWebhookRequest = {
 
 export type OnEntitlementDeletedWebhookPayload = {
   data: EntitlementWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -21079,6 +21273,7 @@ export type OnEntitlementDeletedWebhookRequest = {
 
 export type OnEntitlementUpdatedWebhookPayload = {
   data: EntitlementWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -21098,6 +21293,7 @@ export type OnEntitlementUpdatedWebhookRequest = {
 
 export type OnEntitlementGroupCreatedWebhookPayload = {
   data: EntitlementGroupWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -21117,6 +21313,7 @@ export type OnEntitlementGroupCreatedWebhookRequest = {
 
 export type OnEntitlementGroupDeletedWebhookPayload = {
   data: EntitlementGroupWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -21136,6 +21333,7 @@ export type OnEntitlementGroupDeletedWebhookRequest = {
 
 export type OnEntitlementGroupUpdatedWebhookPayload = {
   data: EntitlementGroupWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -21155,6 +21353,7 @@ export type OnEntitlementGroupUpdatedWebhookRequest = {
 
 export type OnFeatureFlagCreatedWebhookPayload = {
   data: FeatureFlagWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -21174,6 +21373,7 @@ export type OnFeatureFlagCreatedWebhookRequest = {
 
 export type OnFeatureFlagDeletedWebhookPayload = {
   data: FeatureFlagWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -21193,6 +21393,7 @@ export type OnFeatureFlagDeletedWebhookRequest = {
 
 export type OnFeatureFlagEvaluatedWebhookPayload = {
   data: FeatureFlagEvaluated;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -21212,6 +21413,7 @@ export type OnFeatureFlagEvaluatedWebhookRequest = {
 
 export type OnFeatureFlagUpdatedWebhookPayload = {
   data: FeatureFlagWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -21231,6 +21433,7 @@ export type OnFeatureFlagUpdatedWebhookRequest = {
 
 export type OnSystemOrganizationTokenIssuedWebhookPayload = {
   data: SystemTokenIssuance;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -21250,6 +21453,7 @@ export type OnSystemOrganizationTokenIssuedWebhookRequest = {
 
 export type OnInstanceAddonAddedWebhookPayload = {
   data: InstanceAddonUpdateWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -21269,6 +21473,7 @@ export type OnInstanceAddonAddedWebhookRequest = {
 
 export type OnInstanceAddonQuantityChangedWebhookPayload = {
   data: InstanceAddonUpdateWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -21288,6 +21493,7 @@ export type OnInstanceAddonQuantityChangedWebhookRequest = {
 
 export type OnInstanceAddonRemovedWebhookPayload = {
   data: InstanceAddonUpdateWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -21307,6 +21513,7 @@ export type OnInstanceAddonRemovedWebhookRequest = {
 
 export type OnInstanceBillingCanceledWebhookPayload = {
   data: CancellationWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -21326,6 +21533,7 @@ export type OnInstanceBillingCanceledWebhookRequest = {
 
 export type OnInstanceBillingCancellationRevertedWebhookPayload = {
   data: CancellationChangeWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -21345,6 +21553,7 @@ export type OnInstanceBillingCancellationRevertedWebhookRequest = {
 
 export type OnInstanceBillingCancellationScheduledWebhookPayload = {
   data: CancellationChangeWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -21362,27 +21571,29 @@ export type OnInstanceBillingCancellationScheduledWebhookRequest = {
   query?: never;
 };
 
-export type OnInstanceBillingPlanChangeCancelledWebhookPayload = {
+export type OnInstanceBillingPlanChangeCanceledWebhookPayload = {
   data: PlanChangeSchedule;
+  headers?: EventHeaders;
   /**
    * Event name
    */
-  name: "INSTANCE_BILLING_PLAN_CHANGE_CANCELLED";
+  name: "INSTANCE_BILLING_PLAN_CHANGE_CANCELED";
   /**
    * Event type
    */
-  type: "com.kaiten.instance.billing.v1.plan_change_cancelled";
+  type: "com.kaiten.instance.billing.v1.plan_change_canceled";
 };
 
-export type OnInstanceBillingPlanChangeCancelledWebhookRequest = {
-  body: OnInstanceBillingPlanChangeCancelledWebhookPayload;
-  key: "com.kaiten.instance.billing.v1.plan_change_cancelled";
+export type OnInstanceBillingPlanChangeCanceledWebhookRequest = {
+  body: OnInstanceBillingPlanChangeCanceledWebhookPayload;
+  key: "com.kaiten.instance.billing.v1.plan_change_canceled";
   path?: never;
   query?: never;
 };
 
 export type OnInstanceBillingPlanChangeScheduledWebhookPayload = {
   data: PlanChangeSchedule;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -21402,6 +21613,7 @@ export type OnInstanceBillingPlanChangeScheduledWebhookRequest = {
 
 export type OnInstanceBillingPlanChangedWebhookPayload = {
   data: PlanChange;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -21421,6 +21633,7 @@ export type OnInstanceBillingPlanChangedWebhookRequest = {
 
 export type OnInstanceBillingProviderChangedWebhookPayload = {
   data: ProviderChange;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -21440,6 +21653,7 @@ export type OnInstanceBillingProviderChangedWebhookRequest = {
 
 export type OnInstanceBillingStartedWebhookPayload = {
   data: BillingStartedWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -21459,6 +21673,7 @@ export type OnInstanceBillingStartedWebhookRequest = {
 
 export type OnInstanceBillingStatusChangedWebhookPayload = {
   data: StatusChange;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -21478,6 +21693,7 @@ export type OnInstanceBillingStatusChangedWebhookRequest = {
 
 export type OnInstanceEntitlementCapExceededWebhookPayload = {
   data: InstanceEntitlementCapExceeded;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -21497,6 +21713,7 @@ export type OnInstanceEntitlementCapExceededWebhookRequest = {
 
 export type OnInstanceEntitlementUsagePeriodRolledOverWebhookPayload = {
   data: InstanceEntitlementUsagePeriodRolledOver;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -21516,6 +21733,7 @@ export type OnInstanceEntitlementUsagePeriodRolledOverWebhookRequest = {
 
 export type OnInstanceEntitlementUsageReachedWebhookPayload = {
   data: EntitlementUsageWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -21535,6 +21753,7 @@ export type OnInstanceEntitlementUsageReachedWebhookRequest = {
 
 export type OnInstanceEntitlementUsageReportAcceptedWebhookPayload = {
   data: InstanceEntitlementUsageReportAccepted;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -21554,6 +21773,7 @@ export type OnInstanceEntitlementUsageReportAcceptedWebhookRequest = {
 
 export type OnInstanceEntitlementUsageReportRejectedWebhookPayload = {
   data: InstanceEntitlementUsageReportAccepted;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -21573,6 +21793,7 @@ export type OnInstanceEntitlementUsageReportRejectedWebhookRequest = {
 
 export type OnInstanceEntitlementUsageWarningThresholdReachedWebhookPayload = {
   data: InstanceEntitlementUsageWarningThresholdReached;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -21592,6 +21813,7 @@ export type OnInstanceEntitlementUsageWarningThresholdReachedWebhookRequest = {
 
 export type OnInstanceEntitlementValueGetWebhookPayload = {
   data: InstanceEntitlementValueGetWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -21611,6 +21833,7 @@ export type OnInstanceEntitlementValueGetWebhookRequest = {
 
 export type OnInstanceInvoiceHandoffAcknowledgedWebhookPayload = {
   data: HandoffAcknowledgement;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -21630,6 +21853,7 @@ export type OnInstanceInvoiceHandoffAcknowledgedWebhookRequest = {
 
 export type OnInstanceInvoiceHeldWebhookPayload = {
   data: HeldInvoice;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -21649,6 +21873,7 @@ export type OnInstanceInvoiceHeldWebhookRequest = {
 
 export type OnInstanceInvoiceIssuedWebhookPayload = {
   data: IssuedInvoiceWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -21668,6 +21893,7 @@ export type OnInstanceInvoiceIssuedWebhookRequest = {
 
 export type OnInstanceInvoiceMarkedUncollectibleWebhookPayload = {
   data: UncollectibleInvoice;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -21687,6 +21913,7 @@ export type OnInstanceInvoiceMarkedUncollectibleWebhookRequest = {
 
 export type OnInstanceInvoicePaidWebhookPayload = {
   data: PaidInvoice;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -21706,6 +21933,7 @@ export type OnInstanceInvoicePaidWebhookRequest = {
 
 export type OnInstanceInvoicePaymentFailedWebhookPayload = {
   data: PaymentFailedInvoice;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -21725,6 +21953,7 @@ export type OnInstanceInvoicePaymentFailedWebhookRequest = {
 
 export type OnInstanceInvoicePushFailedWebhookPayload = {
   data: PushFailedInvoice;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -21744,6 +21973,7 @@ export type OnInstanceInvoicePushFailedWebhookRequest = {
 
 export type OnInstanceInvoicePushedWebhookPayload = {
   data: PushedInvoice;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -21763,6 +21993,7 @@ export type OnInstanceInvoicePushedWebhookRequest = {
 
 export type OnInstanceInvoiceReconciliationMismatchWebhookPayload = {
   data: MismatchedInvoice;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -21782,6 +22013,7 @@ export type OnInstanceInvoiceReconciliationMismatchWebhookRequest = {
 
 export type OnInstanceInvoiceReleasedWebhookPayload = {
   data: ReleasedInvoice;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -21801,6 +22033,7 @@ export type OnInstanceInvoiceReleasedWebhookRequest = {
 
 export type OnInstanceInvoiceVoidedWebhookPayload = {
   data: VoidedInvoice;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -21820,6 +22053,7 @@ export type OnInstanceInvoiceVoidedWebhookRequest = {
 
 export type OnInstanceCreatedWebhookPayload = {
   data: InstanceWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -21839,6 +22073,7 @@ export type OnInstanceCreatedWebhookRequest = {
 
 export type OnInstanceDeletedWebhookPayload = {
   data: InstanceWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -21858,6 +22093,7 @@ export type OnInstanceDeletedWebhookRequest = {
 
 export type OnInstanceDeployedWebhookPayload = {
   data: InstanceWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -21877,6 +22113,7 @@ export type OnInstanceDeployedWebhookRequest = {
 
 export type OnInstanceLifecycleStageChangedWebhookPayload = {
   data: InstanceLifecycleStageChanged;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -21896,6 +22133,7 @@ export type OnInstanceLifecycleStageChangedWebhookRequest = {
 
 export type OnInstanceMigratedWebhookPayload = {
   data: InstanceWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -21915,6 +22153,7 @@ export type OnInstanceMigratedWebhookRequest = {
 
 export type OnInstanceStatusChangedWebhookPayload = {
   data: InstanceStatusChanged;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -21934,6 +22173,7 @@ export type OnInstanceStatusChangedWebhookRequest = {
 
 export type OnInstanceUpdatedWebhookPayload = {
   data: InstanceWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -21953,6 +22193,7 @@ export type OnInstanceUpdatedWebhookRequest = {
 
 export type OnInstanceVoucherExpiredWebhookPayload = {
   data: RedemptionWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -21972,6 +22213,7 @@ export type OnInstanceVoucherExpiredWebhookRequest = {
 
 export type OnInstanceVoucherRedeemedWebhookPayload = {
   data: RedemptionWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -21991,6 +22233,7 @@ export type OnInstanceVoucherRedeemedWebhookRequest = {
 
 export type OnInstanceVoucherRevokedWebhookPayload = {
   data: RedemptionWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -22010,6 +22253,7 @@ export type OnInstanceVoucherRevokedWebhookRequest = {
 
 export type OnLicenseEntitlementAssignedWebhookPayload = {
   data: LicenseEntitlementWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -22029,6 +22273,7 @@ export type OnLicenseEntitlementAssignedWebhookRequest = {
 
 export type OnLicenseEntitlementUnassignedWebhookPayload = {
   data: LicenseEntitlementWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -22048,6 +22293,7 @@ export type OnLicenseEntitlementUnassignedWebhookRequest = {
 
 export type OnLicenseEntitlementUpdatedWebhookPayload = {
   data: LicenseEntitlementWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -22067,6 +22313,7 @@ export type OnLicenseEntitlementUpdatedWebhookRequest = {
 
 export type OnLicensePriceCreatedWebhookPayload = {
   data: LicensePriceEventWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -22086,6 +22333,7 @@ export type OnLicensePriceCreatedWebhookRequest = {
 
 export type OnLicensePriceDeprecatedWebhookPayload = {
   data: LicensePriceEventWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -22105,6 +22353,7 @@ export type OnLicensePriceDeprecatedWebhookRequest = {
 
 export type OnLicensePriceUpdatedWebhookPayload = {
   data: LicensePriceUpdatedEventWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -22124,6 +22373,7 @@ export type OnLicensePriceUpdatedWebhookRequest = {
 
 export type OnLicenseArchivedWebhookPayload = {
   data: LicenseWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -22143,6 +22393,7 @@ export type OnLicenseArchivedWebhookRequest = {
 
 export type OnLicenseCreatedWebhookPayload = {
   data: LicenseWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -22162,6 +22413,7 @@ export type OnLicenseCreatedWebhookRequest = {
 
 export type OnLicenseDeletedWebhookPayload = {
   data: LicenseWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -22181,6 +22433,7 @@ export type OnLicenseDeletedWebhookRequest = {
 
 export type OnLicensePublishedWebhookPayload = {
   data: LicenseWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -22200,6 +22453,7 @@ export type OnLicensePublishedWebhookRequest = {
 
 export type OnLicenseUnarchivedWebhookPayload = {
   data: LicenseWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -22219,6 +22473,7 @@ export type OnLicenseUnarchivedWebhookRequest = {
 
 export type OnLicenseUpdatedWebhookPayload = {
   data: LicenseWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -22238,6 +22493,7 @@ export type OnLicenseUpdatedWebhookRequest = {
 
 export type OnLicenseFamilyCreatedWebhookPayload = {
   data: LicenseFamilyViewWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -22257,6 +22513,7 @@ export type OnLicenseFamilyCreatedWebhookRequest = {
 
 export type OnLicenseFamilyDeletedWebhookPayload = {
   data: LicenseFamilyViewWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -22276,6 +22533,7 @@ export type OnLicenseFamilyDeletedWebhookRequest = {
 
 export type OnLicenseFamilyUpdatedWebhookPayload = {
   data: LicenseFamilyViewWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -22295,6 +22553,7 @@ export type OnLicenseFamilyUpdatedWebhookRequest = {
 
 export type OnMetadataFieldArchivedWebhookPayload = {
   data: MetadataFieldWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -22314,6 +22573,7 @@ export type OnMetadataFieldArchivedWebhookRequest = {
 
 export type OnMetadataFieldCreatedWebhookPayload = {
   data: MetadataFieldWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -22333,6 +22593,7 @@ export type OnMetadataFieldCreatedWebhookRequest = {
 
 export type OnMetadataFieldReorderedWebhookPayload = {
   data: MetadataFieldReordered;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -22352,6 +22613,7 @@ export type OnMetadataFieldReorderedWebhookRequest = {
 
 export type OnMetadataFieldUnarchivedWebhookPayload = {
   data: MetadataFieldWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -22371,6 +22633,7 @@ export type OnMetadataFieldUnarchivedWebhookRequest = {
 
 export type OnMetadataFieldUpdatedWebhookPayload = {
   data: MetadataFieldWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -22390,6 +22653,7 @@ export type OnMetadataFieldUpdatedWebhookRequest = {
 
 export type OnPublishableKeyCreatedWebhookPayload = {
   data: PublishableKeyEvent;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -22409,6 +22673,7 @@ export type OnPublishableKeyCreatedWebhookRequest = {
 
 export type OnPublishableKeyRevokedWebhookPayload = {
   data: PublishableKeyEvent;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -22428,6 +22693,7 @@ export type OnPublishableKeyRevokedWebhookRequest = {
 
 export type OnReleaseCreatedWebhookPayload = {
   data: ReleaseWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -22447,6 +22713,7 @@ export type OnReleaseCreatedWebhookRequest = {
 
 export type OnReleaseDeletedWebhookPayload = {
   data: ReleaseWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -22466,6 +22733,7 @@ export type OnReleaseDeletedWebhookRequest = {
 
 export type OnVoucherArchivedWebhookPayload = {
   data: VoucherWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -22485,6 +22753,7 @@ export type OnVoucherArchivedWebhookRequest = {
 
 export type OnVoucherCreatedWebhookPayload = {
   data: VoucherWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -22504,6 +22773,7 @@ export type OnVoucherCreatedWebhookRequest = {
 
 export type OnVoucherExhaustedWebhookPayload = {
   data: ExhaustedEvent;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -22523,6 +22793,7 @@ export type OnVoucherExhaustedWebhookRequest = {
 
 export type OnVoucherExpiredWebhookPayload = {
   data: ExpiredEvent;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -22542,6 +22813,7 @@ export type OnVoucherExpiredWebhookRequest = {
 
 export type OnVoucherPublishedWebhookPayload = {
   data: VoucherWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -22561,6 +22833,7 @@ export type OnVoucherPublishedWebhookRequest = {
 
 export type OnVoucherUpdatedWebhookPayload = {
   data: VoucherWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */

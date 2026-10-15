@@ -107,7 +107,7 @@ export function createKaitenClient(config: KaitenServerConfig): Client {
   // The generated transport rejects with the *parsed response body*, which has
   // no stack and is not an Error. Normalize before it reaches the caller.
   // The request options come along so that a refused usage report can name the
-  // key it was sent with.
+  // key it was sent with, which travels in its `Idempotency-Key` header.
   client.interceptors.error.use((error, response, _request, options) =>
     toKaitenError(error, response, options),
   );

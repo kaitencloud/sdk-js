@@ -1637,6 +1637,10 @@ components:
     ConnectorSettings:
       additionalProperties: false
       properties:
+        configured:
+          description: Whether settings were ever stored for this connector. A connector never configured reads false, with empty settings, rather than 404.
+          readOnly: true
+          type: boolean
         connector_name:
           description: Stable connector identifier
           examples:
@@ -1650,6 +1654,7 @@ components:
       required:
         - connector_name
         - settings
+        - configured
       type: object
     ConnectorSettingsSchema:
       additionalProperties: false
@@ -2699,6 +2704,23 @@ components:
           type: string
       required:
         - key
+      type: object
+    EventHeaders:
+      additionalProperties: true
+      properties:
+        baggage:
+          description: W3C baggage of that request, when it carried any
+          type: string
+        instance_id:
+          description: The instance the event concerns, set on the events of one instance. The usage events' payloads do not name it.
+          format: uuid
+          type: string
+        traceparent:
+          description: W3C trace context of the request that produced the event
+          type: string
+        tracestate:
+          description: W3C trace state of that request, when it carried one
+          type: string
       type: object
     ExhaustedEvent:
       additionalProperties: false
@@ -5123,10 +5145,11 @@ components:
           pattern: ^[a-z0-9][a-z0-9-]*[a-z0-9]$
           type: string
         trialPeriodDays:
-          description: Trial length, in days, a subscription to this version starts with by default. Absent when there is none. Must be at least 1 on create (CreateLicense.InvalidTrialPeriodDays). On update, omit it to keep the stored value, or send 0 to remove the trial.
+          description: Trial length, in days, a subscription to this version starts with by default. Absent when there is none. From 1 to 365 (CreateLicense.InvalidTrialDays, UpdateLicense.InvalidTrialDays). On update, omit it to keep the stored value, or send 0 to remove the trial.
           examples:
             - 14
           format: int32
+          maximum: 365
           minimum: 0
           type: integer
         type:
@@ -5812,7 +5835,7 @@ components:
             - EUR
           type: string
         unitAmountDecimal:
-          description: In minor units
+          description: In minor units, above 0
           examples:
             - "2900"
           type: string
@@ -6271,7 +6294,7 @@ components:
           format: date-time
           type: string
         trialDays:
-          description: "Days of trial from the anchor: nothing is billed, and no usage counts, until it ends; the period close then issues the first invoice. 0 is no trial. Omitted: the licence's trialPeriodDays, else no trial."
+          description: "Days of trial from the anchor, 1 to 365: nothing is billed, and no usage counts, until it ends; the period close then issues the first invoice. 0 is no trial; any other value is refused (SubscribeInstance.InvalidTrialDays). Omitted: the licence's trialPeriodDays, else no trial."
           format: int32
           type: integer
         voucherCode:
@@ -9392,7 +9415,7 @@ components:
           type: boolean
         minimumSubscriptionAmount:
           $ref: "#/components/schemas/MinimumAmount"
-          description: Only for a live subscription whose base price is at least this
+          description: Only for a live subscription whose base price is at least this. Strictly positive; omit it for no minimum (0 is refused with .InvalidRedemptionRules).
       type: object
     Release:
       additionalProperties: false
@@ -9641,11 +9664,6 @@ components:
           additionalProperties: {}
           description: "Optional metadata for the usage report, a JSON object stored with it in the usage history when its compact encoding is at most 4 KiB. Above that it is not stored, the report is still counted, and the response carries Kaiten-Metadata-Dropped: too_large. It must contain no personal data: anyone who can read the organization's instances can read it, for as long as the usage history is kept. Numbers are read as 64-bit floats, so send large identifiers as strings."
           type: object
-        transactionId:
-          description: "Optional idempotency key, 1 to 128 characters of [A-Za-z0-9._:-], matched exactly and case-sensitively. A report sent again with the same key and the same behavior and value within KAITEN_USAGE_IDEMPOTENCY_WINDOW (35 days by default) is applied once: the retry answers 200 with the original response and the Idempotent-Replayed header, and changes nothing. The same key with another behavior or value answers 409 ReportEntitlementUsageMetric.TransactionIdReused. A rejected report does not consume its key. Scoped to the instance and entitlement: one business event may feed two meters under one key."
-          examples:
-            - llm-call-9f2c:tokens
-          type: string
         value:
           description: Reported entitlement value, discriminated by the 'type' field. Usage reporting accepts the number variant only.
           discriminator:
@@ -9660,6 +9678,92 @@ components:
             - $ref: "#/components/schemas/ConfigEntitlementValue"
       required:
         - value
+      type: object
+    ReportedEntitlementUsage:
+      additionalProperties: false
+      properties:
+        currentPeriodEnd:
+          description: End of the current usage window (exclusive). Null for a lifetime entitlement (no configured reset period).
+          examples:
+            - "2026-04-01T00:00:00Z"
+          format: date-time
+          type: string
+        currentPeriodStart:
+          description: Start of the current usage window (inclusive). Null for a lifetime entitlement (no configured reset period).
+          examples:
+            - "2026-03-01T00:00:00Z"
+          format: date-time
+          type: string
+        entitlementId:
+          description: Unique identifier for the entitlement
+          examples:
+            - 123e4567-e89b-12d3-a456-426614174000
+          type: string
+        entitlementSlug:
+          description: URL-friendly identifier of the entitlement
+          examples:
+            - premium-support
+          type: string
+        licenseId:
+          description: Unique identifier for the license to which this entitlement usage belongs
+          examples:
+            - 123e4567-e89b-12d3-a456-426614174001
+          type: string
+        licenseSlug:
+          description: URL-friendly identifier of the license
+          examples:
+            - enterprise-license
+          type: string
+        limit:
+          description: The effective value this usage is measured against (the licence's grant, with the instance's add-ons and boosts applied; source and provenance say which), discriminated by the 'type' field. Absent when nothing grants the entitlement a value; -1 means unlimited for a NUMBER entitlement.
+          discriminator:
+            mapping:
+              boolean: "#/components/schemas/BooleanEntitlementValue"
+              number: "#/components/schemas/NumberEntitlementValue"
+              object: "#/components/schemas/ConfigEntitlementValue"
+            propertyName: type
+          oneOf:
+            - $ref: "#/components/schemas/NumberEntitlementValue"
+            - $ref: "#/components/schemas/BooleanEntitlementValue"
+            - $ref: "#/components/schemas/ConfigEntitlementValue"
+        limitCapExceededOveragePercent:
+          description: "How far above limit usage is still accepted, in percent: -1 unlimited, 0 a hard limit. Absent for BOOLEAN and CONFIG."
+          format: int32
+          type: integer
+        provenance:
+          $ref: "#/components/schemas/Provenance"
+          description: What the licence, the add-ons and the boosts each contribute
+        source:
+          description: "license: the licence grants it (add-ons and boosts may change it); addon: only add-ons do"
+          enum:
+            - license
+            - addon
+          type: string
+        transactionId:
+          description: The Idempotency-Key this report was accepted under, echoed on the first answer and on every replay; null when the request carried none. A client can tell from it that the server honours the key.
+          type:
+            - string
+            - "null"
+        value:
+          description: Resolved entitlement value, discriminated by the 'type' field
+          discriminator:
+            mapping:
+              boolean: "#/components/schemas/BooleanEntitlementValue"
+              number: "#/components/schemas/NumberEntitlementValue"
+              object: "#/components/schemas/ConfigEntitlementValue"
+            propertyName: type
+          oneOf:
+            - $ref: "#/components/schemas/NumberEntitlementValue"
+            - $ref: "#/components/schemas/BooleanEntitlementValue"
+            - $ref: "#/components/schemas/ConfigEntitlementValue"
+      required:
+        - transactionId
+        - entitlementId
+        - entitlementSlug
+        - licenseId
+        - licenseSlug
+        - value
+        - source
       type: object
     RevocationReason:
       additionalProperties: false
@@ -9999,7 +10103,7 @@ components:
             - array
             - "null"
         billingEmail:
-          description: Where invoices go. Required when the customer has none; stored on the customer when given.
+          description: Where invoices go. Required when the customer has none, except on a dryRun; stored on the customer when given.
           maxLength: 254
           type: string
         dryRun:
@@ -10756,6 +10860,11 @@ components:
         description:
           description: What this value means, shown by the editor
           type: string
+        entries:
+          description: Shape of each known key, for a map whose entries differ. Named after the key
+          items:
+            $ref: "#/components/schemas/TargetingContextNode"
+          type: array
         fields:
           description: Named children, for an object
           items:
@@ -15049,7 +15158,7 @@ paths:
         - connectors
   /customer-sessions:
     post:
-      description: "Mints a kst_ session for one of the organization's customers, optionally bound to one of its instances, for that customer's browser to call the /api/public/session routes: checkout, invoices. Call it from your backend, where the customer is signed in, and hand the token to the page; mint a new one before it expires. What the session writes is attributed to the caller. Limited to 50 sessions a second per organization."
+      description: "Mints a kst_ session for one of the organization's customers, optionally bound to one of its instances, for that customer's browser to call the /api/public/session routes: checkout, invoices. Call it from your backend, where the customer is signed in, and hand the token to the page; mint a new one before it expires. What the session writes is attributed to the caller. Limited to 50 sessions a second per organization. Requires billing to be enabled for the organization."
       operationId: createCustomerSession
       requestBody:
         content:
@@ -15132,7 +15241,7 @@ paths:
         - customer-sessions
   /customer-sessions/{sessionId}/revoke:
     post:
-      description: "The session stops authenticating on the next request: on sign-out, or when the customer's access changes. Idempotent."
+      description: "The session stops authenticating on the next request: on sign-out, or when the customer's access changes. Idempotent. Requires billing to be enabled for the organization."
       operationId: revokeCustomerSession
       parameters:
         - description: Customer session id
@@ -17169,7 +17278,7 @@ paths:
         - entitlements
   /entitlements/{entitlementSlug}:
     delete:
-      description: Delete an entitlement by its slug
+      description: "Delete an entitlement by its slug. Its usage is deleted with it. An entitlement that a license or an add-on still grants, a license or an add-on price still meters, or a voucher boost still grants is refused with a 409 that counts each: remove the grants first. A price and a voucher boost are never deleted, so the entitlement they hold stays."
       operationId: delete-entitlement
       parameters:
         - in: path
@@ -19484,7 +19593,7 @@ paths:
       tags:
         - instances
     post:
-      description: "Report a usage metric for a specific entitlement in a given instance, with optional metadata. The server dates every report on receipt; the request carries no timestamp. Send a transactionId to make retries safe: without one, a report sent twice counts twice."
+      description: "Report a usage metric for a specific entitlement in a given instance, with optional metadata. The server dates every report on receipt; the request carries no timestamp. Send an Idempotency-Key to make retries safe: without one, a report sent twice counts twice."
       operationId: reportEntitlementUsageMetric
       parameters:
         - description: Instance slug
@@ -19505,6 +19614,14 @@ paths:
             examples:
               - entitlement-slug
             type: string
+        - description: "Optional idempotency key: the id of the business event this report counts, 1 to 128 characters of [A-Za-z0-9._:-], matched exactly and case-sensitively. A report sent again with the same key and the same behavior and value within KAITEN_USAGE_IDEMPOTENCY_WINDOW (35 days by default) is applied once: the retry answers 200 with the original response and the Idempotent-Replayed header, and changes nothing. The same key with another behavior or value answers 409 ReportEntitlementUsageMetric.TransactionIdReused. A rejected report does not consume its key. Scoped to the instance and entitlement: one business event may feed two meters under one key. Stored and read back as transactionId."
+          in: header
+          name: Idempotency-Key
+          schema:
+            description: "Optional idempotency key: the id of the business event this report counts, 1 to 128 characters of [A-Za-z0-9._:-], matched exactly and case-sensitively. A report sent again with the same key and the same behavior and value within KAITEN_USAGE_IDEMPOTENCY_WINDOW (35 days by default) is applied once: the retry answers 200 with the original response and the Idempotent-Replayed header, and changes nothing. The same key with another behavior or value answers 409 ReportEntitlementUsageMetric.TransactionIdReused. A rejected report does not consume its key. Scoped to the instance and entitlement: one business event may feed two meters under one key. Stored and read back as transactionId."
+            examples:
+              - llm-call-9f2c:tokens
+            type: string
       requestBody:
         content:
           application/json:
@@ -19516,12 +19633,12 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/EntitlementUsage"
+                $ref: "#/components/schemas/ReportedEntitlementUsage"
           description: OK
           headers:
             Idempotent-Replayed:
               schema:
-                description: "true when the report replays an earlier one sent with the same transactionId: the body is that report's original response and nothing was counted again"
+                description: "true when the report replays an earlier one sent with the same Idempotency-Key: the body is that report's original response and nothing was counted again"
                 type: string
             Kaiten-Metadata-Dropped:
               schema:
@@ -24965,7 +25082,7 @@ paths:
         - public
   /public/session/checkout:
     post:
-      description: "Subscribes the session's instance to a price of the public catalogue, with add-ons and a voucher, in one call. With dryRun, answers 200 status=preview and what would be billed today, changing nothing. When a payment method has to be saved first, answers 200 status=requires_payment_method with a setup page: send the customer there, then call again with its setupSessionId. Otherwise answers 201 status=subscribed: the invoice of the first period has been pushed and charged, and payment.status says how that went -- poll GET /public/session/invoices on processing or requires_action. Needs a session bound to an instance."
+      description: "Subscribes the session's instance to a price of the public catalogue, with add-ons and a voucher, in one call. With dryRun, answers 200 status=preview and what would be billed today, changing nothing. When a payment method has to be saved first, answers 200 status=requires_payment_method with a setup page: send the customer there, then call again with its setupSessionId. Otherwise answers 201 status=subscribed: the invoice of the first period has been pushed and charged, and payment.status says how that went -- poll GET /public/session/invoices on processing or requires_action. Needs a session bound to an instance. 409 .AlreadySubscribed, .SetupSessionIncomplete (no payment method was saved on the setup page); 422 .InstanceRequired, .NotSelfServe, .PriceNotPublic, .PriceNotFlatFee, .BillingEmailRequired, .InvalidReturnUrl, .ProviderCannotCapturePayment, .VoucherInvalid, .AddonInvalid, .AddonNotPublic, .QuantityExceedsMax, .CurrencyMismatch, .QuotaExceeded (the instance uses more than the plan allows: errors[0].value.entitlementSlugs, location body.licensePriceId); 503 .ProviderUnavailable (Retry-After)."
       operationId: createSessionCheckout
       requestBody:
         content:
@@ -25263,7 +25380,7 @@ paths:
         - public
   /publishable-keys:
     get:
-      description: The organization's publishable keys, newest first. The keys themselves are never returned, only their last four characters.
+      description: The organization's publishable keys, newest first. The keys themselves are never returned, only their last four characters. Requires billing to be enabled for the organization.
       operationId: listPublishableKeys
       parameters:
         - description: Also list revoked keys
@@ -25346,7 +25463,7 @@ paths:
       tags:
         - publishable-keys
     post:
-      description: Issues a pk_ key for a web page to read the organization's public catalogue (GET /api/public/catalog) and nothing else. The key is returned once; only its digest is stored.
+      description: Issues a pk_ key for a web page to read the organization's public catalogue (GET /api/public/catalog) and nothing else. The key is returned once; only its digest is stored. Requires billing to be enabled for the organization.
       operationId: createPublishableKey
       requestBody:
         content:
@@ -25411,7 +25528,7 @@ paths:
         - publishable-keys
   /publishable-keys/{keyId}:
     patch:
-      description: Changes a live key's label or allowed origins. A revoked key answers 409.
+      description: Changes a live key's label or allowed origins. A revoked key answers 409 UpdatePublishableKey.Revoked. Requires billing to be enabled for the organization.
       operationId: updatePublishableKey
       parameters:
         - description: Publishable key id
@@ -25496,7 +25613,7 @@ paths:
         - publishable-keys
   /publishable-keys/{keyId}/revoke:
     post:
-      description: The key stops authenticating on the next request. Idempotent; revocation is final.
+      description: The key stops authenticating on the next request. Idempotent; revocation is final. Requires billing to be enabled for the organization.
       operationId: revokePublishableKey
       parameters:
         - description: Publishable key id
@@ -27456,6 +27573,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/AddonGrantUpdate"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -27495,6 +27614,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/AddonGrantUpdate"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -27534,6 +27655,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/AddonGrantUpdate"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -27573,6 +27696,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/AddonPriceUpdate"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -27612,6 +27737,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/AddonPriceUpdate"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -27651,6 +27778,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/Addon"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -27690,6 +27819,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/Addon"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -27729,6 +27860,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/DeletedAddon"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -27768,6 +27901,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/Addon"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -27807,6 +27942,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/Addon"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -27846,6 +27983,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/AddonUpdate"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -27885,6 +28024,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/Connection"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -27924,6 +28065,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/Connection"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -27963,6 +28106,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/SyncFailure"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -28002,6 +28147,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/Component"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -28041,6 +28188,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/Component"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -28080,6 +28229,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/Component"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -28119,6 +28270,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/PaymentMethodAttached"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -28158,6 +28311,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/PaymentMethodDetached"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -28197,6 +28352,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/PaymentMethodExpiring"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -28236,6 +28393,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/CustomerEvent"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -28275,6 +28434,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/CustomerCreationRejected"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -28314,6 +28475,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/CustomerEvent"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -28353,6 +28516,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/CustomerEvent"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -28392,6 +28557,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/DeploymentZone"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -28431,6 +28598,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/DeploymentZone"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -28470,6 +28639,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/Deployment"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -28509,6 +28680,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/DeploymentZone"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -28548,6 +28721,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/Entitlement"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -28587,6 +28762,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/Entitlement"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -28626,6 +28803,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/Entitlement"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -28665,6 +28844,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/EntitlementGroup"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -28704,6 +28885,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/EntitlementGroup"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -28743,6 +28926,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/EntitlementGroup"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -28782,6 +28967,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/FeatureFlag"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -28821,6 +29008,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/FeatureFlag"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -28860,6 +29049,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/FeatureFlagEvaluated"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -28899,6 +29090,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/FeatureFlag"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -28938,6 +29131,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/SystemTokenIssuance"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -28977,6 +29172,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/InstanceAddonUpdate"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -29016,6 +29213,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/InstanceAddonUpdate"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -29055,6 +29254,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/InstanceAddonUpdate"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -29094,6 +29295,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/Cancellation"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -29133,6 +29336,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/CancellationChange"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -29172,6 +29377,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/CancellationChange"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -29199,10 +29406,10 @@ webhooks:
       tags:
         - webhooks
         - billing
-  com.kaiten.instance.billing.v1.plan_change_cancelled:
+  com.kaiten.instance.billing.v1.plan_change_canceled:
     post:
       description: "Triggered when a scheduled plan change is dropped: by request, or by a cancellation."
-      operationId: onInstanceBillingPlanChangeCancelled
+      operationId: onInstanceBillingPlanChangeCanceled
       requestBody:
         content:
           application/json:
@@ -29211,19 +29418,21 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/PlanChangeSchedule"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
-                    - INSTANCE_BILLING_PLAN_CHANGE_CANCELLED
+                    - INSTANCE_BILLING_PLAN_CHANGE_CANCELED
                   examples:
-                    - INSTANCE_BILLING_PLAN_CHANGE_CANCELLED
+                    - INSTANCE_BILLING_PLAN_CHANGE_CANCELED
                   type: string
                 type:
                   description: Event type
                   enum:
-                    - com.kaiten.instance.billing.v1.plan_change_cancelled
+                    - com.kaiten.instance.billing.v1.plan_change_canceled
                   examples:
-                    - com.kaiten.instance.billing.v1.plan_change_cancelled
+                    - com.kaiten.instance.billing.v1.plan_change_canceled
                   type: string
               required:
                 - name
@@ -29234,7 +29443,7 @@ webhooks:
       responses:
         "200":
           description: Webhook processed successfully
-      summary: Instance Billing Plan Change Cancelled Webhook
+      summary: Instance Billing Plan Change Canceled Webhook
       tags:
         - webhooks
         - billing
@@ -29250,6 +29459,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/PlanChangeSchedule"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -29289,6 +29500,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/PlanChange"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -29328,6 +29541,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/ProviderChange"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -29367,6 +29582,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/BillingStarted"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -29406,6 +29623,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/StatusChange"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -29445,6 +29664,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/InstanceEntitlementCapExceeded"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -29484,6 +29705,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/InstanceEntitlementUsagePeriodRolledOver"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -29523,6 +29746,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/EntitlementUsage"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -29562,6 +29787,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/InstanceEntitlementUsageReportAccepted"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -29601,6 +29828,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/InstanceEntitlementUsageReportAccepted"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -29640,6 +29869,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/InstanceEntitlementUsageWarningThresholdReached"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -29679,6 +29910,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/InstanceEntitlementValueGet"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -29718,6 +29951,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/HandoffAcknowledgement"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -29757,6 +29992,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/HeldInvoice"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -29796,6 +30033,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/IssuedInvoice"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -29835,6 +30074,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/UncollectibleInvoice"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -29874,6 +30115,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/PaidInvoice"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -29913,6 +30156,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/PaymentFailedInvoice"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -29952,6 +30197,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/PushFailedInvoice"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -29991,6 +30238,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/PushedInvoice"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -30030,6 +30279,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/MismatchedInvoice"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -30069,6 +30320,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/ReleasedInvoice"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -30108,6 +30361,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/VoidedInvoice"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -30147,6 +30402,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/Instance"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -30186,6 +30443,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/Instance"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -30225,6 +30484,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/Instance"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -30264,6 +30525,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/InstanceLifecycleStageChanged"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -30303,6 +30566,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/Instance"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -30342,6 +30607,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/InstanceStatusChanged"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -30381,6 +30648,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/Instance"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -30420,6 +30689,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/Redemption"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -30459,6 +30730,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/Redemption"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -30498,6 +30771,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/Redemption"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -30537,6 +30812,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/LicenseEntitlement"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -30576,6 +30853,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/LicenseEntitlement"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -30615,6 +30894,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/LicenseEntitlement"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -30654,6 +30935,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/LicensePriceEvent"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -30693,6 +30976,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/LicensePriceEvent"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -30732,6 +31017,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/LicensePriceUpdatedEvent"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -30771,6 +31058,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/License"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -30810,6 +31099,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/License"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -30849,6 +31140,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/License"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -30888,6 +31181,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/License"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -30927,6 +31222,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/License"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -30966,6 +31263,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/License"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -31005,6 +31304,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/LicenseFamilyView"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -31044,6 +31345,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/LicenseFamilyView"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -31083,6 +31386,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/LicenseFamilyView"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -31122,6 +31427,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/MetadataField"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -31161,6 +31468,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/MetadataField"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -31200,6 +31509,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/MetadataFieldReordered"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -31239,6 +31550,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/MetadataField"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -31278,6 +31591,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/MetadataField"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -31317,6 +31632,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/PublishableKeyEvent"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -31356,6 +31673,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/PublishableKeyEvent"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -31395,6 +31714,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/Release"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -31434,6 +31755,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/Release"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -31473,6 +31796,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/Voucher"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -31512,6 +31837,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/Voucher"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -31551,6 +31878,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/ExhaustedEvent"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -31590,6 +31919,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/ExpiredEvent"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -31629,6 +31960,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/Voucher"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:
@@ -31668,6 +32001,8 @@ webhooks:
               properties:
                 data:
                   $ref: "#/components/schemas/Voucher"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
                 name:
                   description: Event name
                   enum:

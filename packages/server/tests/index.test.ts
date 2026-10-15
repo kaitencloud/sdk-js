@@ -10,9 +10,10 @@ import {
   KaitenNetworkError,
   isThresholdExceeded,
   isTransactionIdReused,
+  toKaitenError,
   TransactionIdReusedError,
 } from "../src/index.ts";
-import type { ReportEntitlementUsageMetricData } from "../src/index.ts";
+import type { ReportedEntitlementUsage, ReportEntitlementUsageMetricData } from "../src/index.ts";
 
 const jsonOk = async () =>
   new Response("[]", { status: 200, headers: { "content-type": "application/json" } });
@@ -180,7 +181,7 @@ describe("@kaitencloud/server", () => {
 
     // A reused key is a client bug: the typed error names the report the key
     // was first accepted with, so the caller can see what it collided with.
-    test("a usage report under a reused transactionId throws a TransactionIdReusedError", async () => {
+    test("a usage report under a reused key throws a TransactionIdReusedError", async () => {
       const client = createKaitenClient({
         token: "t",
         baseUrl: "https://example.test",
@@ -189,12 +190,12 @@ describe("@kaitencloud/server", () => {
             JSON.stringify({
               title: "Conflict",
               status: 409,
-              detail: "transactionId already used",
+              detail: "Idempotency-Key already used",
               code: "ReportEntitlementUsageMetric.TransactionIdReused",
               errors: [
                 {
-                  message: "the report this transactionId was first accepted with",
-                  location: "body.transactionId",
+                  message: "the report this key was first accepted with",
+                  location: "header.Idempotency-Key",
                   value: {
                     reportSeq: 7,
                     reportedAt: "2026-10-05T08:00:00.000Z",
@@ -211,7 +212,8 @@ describe("@kaitencloud/server", () => {
       const error = await Instances.reportEntitlementUsageMetric({
         client,
         path: { instanceSlug: "inst-1", entitlementSlug: "tokens" },
-        body: { value: { type: "number", value: 6 }, behavior: "append", transactionId: "job-42" },
+        headers: { "Idempotency-Key": "job-42" },
+        body: { value: { type: "number", value: 6 }, behavior: "append" },
       }).catch((caught: unknown) => caught);
 
       expect(error).toBeInstanceOf(TransactionIdReusedError);
@@ -262,10 +264,10 @@ describe("usage report keys and the usage history", () => {
       headers: { "content-type": "application/problem+json" },
     });
 
-  test("a usage report sends its transactionId", async () => {
+  test("a usage report sends its key in the Idempotency-Key header and not in the body", async () => {
     const { seen, fetch } = recordingFetch(
       async () =>
-        new Response(JSON.stringify({ entitlementSlug: "seats" }), {
+        new Response(JSON.stringify({ entitlementSlug: "seats", transactionId: "evt-1" }), {
           status: 200,
           headers: { "content-type": "application/json" },
         }),
@@ -275,27 +277,52 @@ describe("usage report keys and the usage history", () => {
     await Instances.reportEntitlementUsageMetric({
       client,
       path: { instanceSlug: "inst-1", entitlementSlug: "seats" },
-      body: { value: { type: "number", value: 1 }, behavior: "append", transactionId: "evt-1" },
+      headers: { "Idempotency-Key": "evt-1" },
+      body: { value: { type: "number", value: 1 }, behavior: "append" },
     });
 
-    expect(await seen[0]?.json()).toMatchObject({ transactionId: "evt-1" });
+    expect(seen[0]?.headers.get("Idempotency-Key")).toBe("evt-1");
+    expect(await seen[0]?.json()).toEqual({
+      value: { type: "number", value: 1 },
+      behavior: "append",
+    });
   });
 
-  test("the body of a usage report is typed with its transactionId", () => {
-    // The key rides in the body of the generated operation, as an optional
-    // string: a report without one still compiles, and one with one is not an
-    // excess property.
-    expectTypeOf<ReportEntitlementUsageMetricData["body"]["transactionId"]>().toEqualTypeOf<
-      string | undefined
+  test("a usage report without a key sends no Idempotency-Key header", async () => {
+    const { seen, fetch } = recordingFetch(
+      async () =>
+        new Response(JSON.stringify({ entitlementSlug: "seats", transactionId: null }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+    );
+    const client = createKaitenClient({ token: "t", baseUrl: "https://example.test", fetch });
+
+    await Instances.reportEntitlementUsageMetric({
+      client,
+      path: { instanceSlug: "inst-1", entitlementSlug: "seats" },
+      body: { value: { type: "number", value: 1 }, behavior: "append" },
+    });
+
+    expect(seen[0]?.headers.has("Idempotency-Key")).toBe(false);
+  });
+
+  test("the key of a usage report is a header of the generated operation, not a member of its body", () => {
+    // The body is closed: a key in it would be refused by the API. The key is an
+    // optional header, so a report without one still compiles.
+    expectTypeOf<keyof ReportEntitlementUsageMetricData["body"]>().toEqualTypeOf<
+      "behavior" | "metadata" | "value"
     >();
-    expectTypeOf<{
-      value: { type: "number"; value: number };
-      behavior: "append";
-      transactionId: string;
-    }>().toExtend<ReportEntitlementUsageMetricData["body"]>();
+    expectTypeOf<NonNullable<ReportEntitlementUsageMetricData["headers"]>>().toEqualTypeOf<{
+      "Idempotency-Key"?: string;
+    }>();
     expectTypeOf<{
       value: { type: "number"; value: number };
     }>().toExtend<ReportEntitlementUsageMetricData["body"]>();
+  });
+
+  test("a usage report answers the key it was accepted under, null without one", () => {
+    expectTypeOf<ReportedEntitlementUsage["transactionId"]>().toEqualTypeOf<string | null>();
   });
 
   test("the reused-key conflict is recognised by its code, with or without the original report", async () => {
@@ -307,7 +334,8 @@ describe("usage report keys and the usage history", () => {
     const error = await Instances.reportEntitlementUsageMetric({
       client,
       path: { instanceSlug: "inst-1", entitlementSlug: "seats" },
-      body: { value: { type: "number", value: 1 }, behavior: "append", transactionId: "evt-1" },
+      headers: { "Idempotency-Key": "evt-1" },
+      body: { value: { type: "number", value: 1 }, behavior: "append" },
     }).catch((caught: unknown) => caught);
 
     expect(isTransactionIdReused(error)).toBe(true);
@@ -319,26 +347,48 @@ describe("usage report keys and the usage history", () => {
     expect(isThresholdExceeded(error)).toBe(false);
   });
 
-  test("a reused-key refusal names the key whichever way the request carried it", async () => {
+  test("a reused-key refusal names the key the request carried in its header, whatever the case of its name", async () => {
     const client = createKaitenClient({
       token: "t",
       baseUrl: "https://example.test",
       fetch: async () => problem(409, "ReportEntitlementUsageMetric.TransactionIdReused"),
     });
+    const refused = async (headers?: { [name: string]: string }) =>
+      (await Instances.reportEntitlementUsageMetric({
+        client,
+        path: { instanceSlug: "inst-1", entitlementSlug: "seats" },
+        ...(headers === undefined ? {} : { headers }),
+        // A `transactionId` in the metadata is the caller's data, never the key.
+        body: {
+          behavior: "set",
+          value: { type: "number", value: 4 },
+          metadata: { transactionId: "not-the-key" },
+        },
+      }).catch((caught: unknown) => caught)) as TransactionIdReusedError;
 
-    const error = await Instances.reportEntitlementUsageMetric({
-      client,
-      path: { instanceSlug: "inst-1", entitlementSlug: "seats" },
-      body: {
-        behavior: "set",
-        transactionId: "A.z_9:x-0",
-        value: { type: "number", value: 4 },
-        metadata: { transactionId: "not-the-key" },
-      },
-    }).catch((caught: unknown) => caught);
+    const key = "A.z_9:x-0";
+    for (const headers of [{ "Idempotency-Key": key }, { "idempotency-key": key }] as {
+      [name: string]: string;
+    }[]) {
+      const error = await refused(headers);
+      expect(error.transactionId, JSON.stringify(headers)).toBe(key);
+      expect(error.status).toBe(409);
+    }
+    // A request that carried no key has nothing to name.
+    expect((await refused()).transactionId).toBeUndefined();
+  });
 
-    expect((error as TransactionIdReusedError).transactionId).toBe("A.z_9:x-0");
-    expect((error as TransactionIdReusedError).status).toBe(409);
+  test("toKaitenError reads the key from a Headers too", () => {
+    const refusal = {
+      title: "Conflict",
+      status: 409,
+      code: "ReportEntitlementUsageMetric.TransactionIdReused",
+    };
+    const error = toKaitenError(refusal, new Response(null, { status: 409 }), {
+      headers: new Headers({ "IDEMPOTENCY-KEY": "evt-9" }),
+    });
+    expect(error).toBeInstanceOf(TransactionIdReusedError);
+    expect((error as TransactionIdReusedError).transactionId).toBe("evt-9");
   });
 
   test("the threshold refusal is not mistaken for a reused key", async () => {
@@ -350,7 +400,8 @@ describe("usage report keys and the usage history", () => {
     const error = await Instances.reportEntitlementUsageMetric({
       client,
       path: { instanceSlug: "inst-1", entitlementSlug: "seats" },
-      body: { value: { type: "number", value: 1 }, behavior: "append", transactionId: "evt-1" },
+      headers: { "Idempotency-Key": "evt-1" },
+      body: { value: { type: "number", value: 1 }, behavior: "append" },
     }).catch((caught: unknown) => caught);
 
     expect(isThresholdExceeded(error)).toBe(true);

@@ -2470,7 +2470,7 @@ export class CustomerSessions {
   /**
    * Create a customer session
    *
-   * Mints a kst_ session for one of the organization's customers, optionally bound to one of its instances, for that customer's browser to call the /api/public/session routes: checkout, invoices. Call it from your backend, where the customer is signed in, and hand the token to the page; mint a new one before it expires. What the session writes is attributed to the caller. Limited to 50 sessions a second per organization.
+   * Mints a kst_ session for one of the organization's customers, optionally bound to one of its instances, for that customer's browser to call the /api/public/session routes: checkout, invoices. Call it from your backend, where the customer is signed in, and hand the token to the page; mint a new one before it expires. What the session writes is attributed to the caller. Limited to 50 sessions a second per organization. Requires billing to be enabled for the organization.
    */
   public static createCustomerSession<ThrowOnError extends boolean = false>(
     options: Options<CreateCustomerSessionData, ThrowOnError>,
@@ -2499,7 +2499,7 @@ export class CustomerSessions {
   /**
    * Revoke a customer session
    *
-   * The session stops authenticating on the next request: on sign-out, or when the customer's access changes. Idempotent.
+   * The session stops authenticating on the next request: on sign-out, or when the customer's access changes. Idempotent. Requires billing to be enabled for the organization.
    */
   public static revokeCustomerSession<ThrowOnError extends boolean = false>(
     options: Options<RevokeCustomerSessionData, ThrowOnError>,
@@ -3275,7 +3275,7 @@ export class Entitlements {
   /**
    * Delete an entitlement
    *
-   * Delete an entitlement by its slug
+   * Delete an entitlement by its slug. Its usage is deleted with it. An entitlement that a license or an add-on still grants, a license or an add-on price still meters, or a voucher boost still grants is refused with a 409 that counts each: remove the grants first. A price and a voucher boost are never deleted, so the entitlement they hold stays.
    */
   public static deleteEntitlement<ThrowOnError extends boolean = false>(
     options: Options<DeleteEntitlementData, ThrowOnError>,
@@ -3925,7 +3925,7 @@ export class Instances {
   /**
    * Report entitlement usage metric for an instance
    *
-   * Report a usage metric for a specific entitlement in a given instance, with optional metadata. The server dates every report on receipt; the request carries no timestamp. Send a transactionId to make retries safe: without one, a report sent twice counts twice.
+   * Report a usage metric for a specific entitlement in a given instance, with optional metadata. The server dates every report on receipt; the request carries no timestamp. Send an Idempotency-Key to make retries safe: without one, a report sent twice counts twice.
    */
   public static reportEntitlementUsageMetric<ThrowOnError extends boolean = false>(
     options: Options<ReportEntitlementUsageMetricData, ThrowOnError>,
@@ -5748,7 +5748,7 @@ export class Public {
   /**
    * Check out
    *
-   * Subscribes the session's instance to a price of the public catalogue, with add-ons and a voucher, in one call. With dryRun, answers 200 status=preview and what would be billed today, changing nothing. When a payment method has to be saved first, answers 200 status=requires_payment_method with a setup page: send the customer there, then call again with its setupSessionId. Otherwise answers 201 status=subscribed: the invoice of the first period has been pushed and charged, and payment.status says how that went -- poll GET /public/session/invoices on processing or requires_action. Needs a session bound to an instance.
+   * Subscribes the session's instance to a price of the public catalogue, with add-ons and a voucher, in one call. With dryRun, answers 200 status=preview and what would be billed today, changing nothing. When a payment method has to be saved first, answers 200 status=requires_payment_method with a setup page: send the customer there, then call again with its setupSessionId. Otherwise answers 201 status=subscribed: the invoice of the first period has been pushed and charged, and payment.status says how that went -- poll GET /public/session/invoices on processing or requires_action. Needs a session bound to an instance. 409 .AlreadySubscribed, .SetupSessionIncomplete (no payment method was saved on the setup page); 422 .InstanceRequired, .NotSelfServe, .PriceNotPublic, .PriceNotFlatFee, .BillingEmailRequired, .InvalidReturnUrl, .ProviderCannotCapturePayment, .VoucherInvalid, .AddonInvalid, .AddonNotPublic, .QuantityExceedsMax, .CurrencyMismatch, .QuotaExceeded (the instance uses more than the plan allows: errors[0].value.entitlementSlugs, location body.licensePriceId); 503 .ProviderUnavailable (Retry-After).
    */
   public static createSessionCheckout<ThrowOnError extends boolean = false>(
     options: Options<CreateSessionCheckoutData, ThrowOnError>,
@@ -5858,7 +5858,7 @@ export class PublishableKeys {
   /**
    * List publishable keys
    *
-   * The organization's publishable keys, newest first. The keys themselves are never returned, only their last four characters.
+   * The organization's publishable keys, newest first. The keys themselves are never returned, only their last four characters. Requires billing to be enabled for the organization.
    */
   public static listPublishableKeys<ThrowOnError extends boolean = false>(
     options?: Options<ListPublishableKeysData, ThrowOnError>,
@@ -5883,7 +5883,7 @@ export class PublishableKeys {
   /**
    * Create a publishable key
    *
-   * Issues a pk_ key for a web page to read the organization's public catalogue (GET /api/public/catalog) and nothing else. The key is returned once; only its digest is stored.
+   * Issues a pk_ key for a web page to read the organization's public catalogue (GET /api/public/catalog) and nothing else. The key is returned once; only its digest is stored. Requires billing to be enabled for the organization.
    */
   public static createPublishableKey<ThrowOnError extends boolean = false>(
     options: Options<CreatePublishableKeyData, ThrowOnError>,
@@ -5912,7 +5912,7 @@ export class PublishableKeys {
   /**
    * Update a publishable key
    *
-   * Changes a live key's label or allowed origins. A revoked key answers 409.
+   * Changes a live key's label or allowed origins. A revoked key answers 409 UpdatePublishableKey.Revoked. Requires billing to be enabled for the organization.
    */
   public static updatePublishableKey<ThrowOnError extends boolean = false>(
     options: Options<UpdatePublishableKeyData, ThrowOnError>,
@@ -5941,7 +5941,7 @@ export class PublishableKeys {
   /**
    * Revoke a publishable key
    *
-   * The key stops authenticating on the next request. Idempotent; revocation is final.
+   * The key stops authenticating on the next request. Idempotent; revocation is final. Requires billing to be enabled for the organization.
    */
   public static revokePublishableKey<ThrowOnError extends boolean = false>(
     options: Options<RevokePublishableKeyData, ThrowOnError>,
