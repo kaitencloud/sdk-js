@@ -190,25 +190,47 @@ describe("KaitenClient waits too, for the calls it already sends again", () => {
     behavior: "append",
   } as const;
 
-  test("a usage report under a key, refused 503, goes again after the wait with the same key", async () => {
+  // A keyed report is sent again only once the server has echoed a key, so the
+  // client starts from a first report the server answered with its key.
+  test("a usage report under a key, refused 503, goes again after the wait with the same key, once the server has echoed a key", async () => {
     const { client, requests } = server(
       { apiUrl: "https://api.test", authScheme: "none" },
-      (index) => (index === 0 ? unavailable({ "Retry-After": "5" }) : json(USAGE)),
+      (index) =>
+        index === 0
+          ? json({ ...USAGE, transactionId: "first:0" })
+          : index === 1
+            ? unavailable({ "Retry-After": "5" })
+            : json({ ...USAGE, transactionId: "llm:9f2c:tokens" }),
     );
+    await client.reportUsage("acme-prod", "tokens", { ...report, transactionId: "first:0" });
 
     const sent = client.reportUsage("acme-prod", "tokens", {
       ...report,
       transactionId: "llm:9f2c:tokens",
     });
 
-    expect(await after(4_999, requests)).toBe(1);
-    expect(await after(1, requests)).toBe(2);
+    expect(await after(4_999, requests)).toBe(2);
+    expect(await after(1, requests)).toBe(3);
     await sent;
-    const bodies = await Promise.all(requests.map((request) => request.clone().json()));
-    expect(bodies.map((body) => (body as { transactionId: string }).transactionId)).toEqual([
+    expect(requests.slice(1).map((request) => request.headers.get("Idempotency-Key"))).toEqual([
       "llm:9f2c:tokens",
       "llm:9f2c:tokens",
     ]);
+  });
+
+  test("a usage report under a key is sent once, whatever the wait, until the server has echoed a key", async () => {
+    const { client, requests } = server({ apiUrl: "https://api.test", authScheme: "none" }, () =>
+      unavailable({ "Retry-After": "0" }),
+    );
+
+    const sent = client
+      .reportUsage("acme-prod", "tokens", { ...report, transactionId: "llm:9f2c:tokens" })
+      .catch((thrown: unknown) => thrown);
+    await vi.advanceTimersByTimeAsync(2 * CAP_MS);
+
+    expect(await sent).toMatchObject({ status: 503, retryAfterSeconds: 0 });
+    expect(requests).toHaveLength(1);
+    expect(requests[0]!.headers.get("Idempotency-Key")).toBe("llm:9f2c:tokens");
   });
 
   test("a usage report without a key is sent once, whatever the wait", async () => {

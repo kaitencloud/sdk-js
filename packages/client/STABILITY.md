@@ -136,10 +136,14 @@ its `code`. A later minor release may give another refusal a class; it will exte
   failure that carries a `Retry-After` is waited out: the next attempt waits that long,
   **never more than 30 seconds**. Without one, or when the header could not be read and
   the 60 above is only a default, the wait is a short backoff. The usage report
-  under a `transactionId` is replayed the same way, but after a 500, 502, 503 or 504
-  and no other 5xx: a 501 or a 505 answers the same every time, and is returned as it
-  came. The cap is part of the behavior: raising or lowering it is a change the
-  changelog names.
+  under a `transactionId`, sent in the `Idempotency-Key` header, is replayed the same
+  way, but after a 500, 502, 503 or 504 and no other 5xx: a 501 or a 505 answers the
+  same every time, and is returned as it came. It is replayed only once the client has
+  read an echoed key, the `transactionId` of a response to a keyed report: a server
+  that ignores the header would count a replay twice, and only the echo says it does
+  not. Until then the failure reaches the host after the first attempt, the key sent
+  all the same, and the first keyed report of a client is never replayed. The cap is
+  part of the behavior: raising or lowering it is a change the changelog names.
 - **Writes are never sent again**, whatever the answer: not after a 409, a 422, a 429 or a
   503, nor after a network failure. The one exception is the usage report under a
   `transactionId`, described above. Nothing is sent again after a 429, read, write or
