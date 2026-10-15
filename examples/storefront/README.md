@@ -152,7 +152,7 @@ is a customer who moves:
   trial bills nothing today;
 - a checkout of an instance whose live subscription has no paid price (a free plan) replaces it:
   cancelled at once, with no invoice, and subscribed in the same step (V31-68). Any other live
-  subscription is still a 409 `already_subscribed`;
+  subscription is still a 409 `CreateSessionCheckout.AlreadySubscribed`;
 - a cancellation ends the subscription with its period, and a reactivation withdraws it;
 - the payment of the activation invoice can be paid, declined, wait for the customer's
   confirmation (3-D Secure) or be unknown for a while;
@@ -169,8 +169,9 @@ is a customer who moves:
   add-on that does not fit);
 - a log of the events Kaiten would have sent the vendor. It is a log: no webhook is delivered.
 
-It is not Kaiten. The sums are its own, the entitlements are those of one recorded customer
-whatever the plan, and it accepts every origin and limits no rate. It proves that the storefront
+It is not Kaiten. The sums are its own, the entitlements are the catalogue's for the plan the
+customer is on (its limits, a usage that is a share of them, nothing metered), and it accepts every
+origin and limits no rate. It proves that the storefront
 asks for the right routes with the right credentials and that the components draw what comes back,
 refusals included. It proves nothing about Kaiten, and `tests/kaiten-double.test.ts` holds it to
 what it stands in for: the conformance suite's whole journey runs against it, and every answer it
