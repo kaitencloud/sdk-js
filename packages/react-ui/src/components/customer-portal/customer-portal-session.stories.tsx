@@ -514,6 +514,32 @@ export const Unstyled: Story = {
   },
 };
 
+/**
+ * A plan that grants nothing to list: no entitlements, so no included features, no usage meters, and
+ * no add-ons. Their cells are not drawn, and the cards that remain share the portal's rows: the
+ * plan next to the payment method, the voucher beside the plan's neighbour, the invoices below.
+ */
+export const NothingToList: Story = {
+  name: "A plan with no entitlements: no hole in the grid",
+  decorators: [
+    portalDecorator({
+      portal: changed((portal) => {
+        portal.entitlements = [];
+        portal.addOns = [];
+      }),
+    }),
+  ],
+  play: async ({ canvasElement }) => {
+    const canvas = await drawn(canvasElement);
+    for (const title of ["Current plan", "Payment method", "Voucher", "Invoices"]) {
+      await expect((await canvas.findAllByText(title, {}, SLOW)).length).toBeGreaterThan(0);
+    }
+    for (const title of ["Included features", "Usage meters", "Add-ons"]) {
+      await expect(canvas.queryByText(title)).toBeNull();
+    }
+  },
+};
+
 /** A plan card of the host's own cancels nothing. */
 export const PlanCardAlone: Story = {
   name: "A plan card on its own: no controls",

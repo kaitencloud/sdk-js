@@ -76,6 +76,11 @@ const STORIES: Array<{ name: string; storyId: string }> = [
   // The portal of a customer session: the controls of the plan, the stepper of the add-ons, the
   // invoices with their links, a voucher check, and the sentences of a refusal.
   { name: "customer portal (session)", storyId: "flows-customer-portal-session--full" },
+  // A plan with no entitlements: three of the portal's cells are empty, and its rows are filled by what remains.
+  {
+    name: "customer portal (session, nothing to list)",
+    storyId: "flows-customer-portal-session--nothing-to-list",
+  },
   {
     name: "customer portal (session, cancelling)",
     storyId: "flows-customer-portal-session--cancel-asked",

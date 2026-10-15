@@ -75,7 +75,9 @@ export interface CustomerPortalProps {
   elements?: CustomerPortalElement[];
   /**
    * `"two-column"` (default) stacks on mobile and splits into two columns on
-   * large screens; `"vertical"` always stacks. (The old `"tabs"` layout was
+   * large screens, with one gap between its cards, which are as tall as their row.
+   * A section that has nothing to show leaves no cell, and a card left alone in its
+   * row takes all of it; `"vertical"` always stacks. (The old `"tabs"` layout was
    * removed — it hid usage/add-ons behind clicks, wrong for a portal.)
    */
   layout?: "vertical" | "two-column";
@@ -154,22 +156,33 @@ export function CustomerPortal({
            * layout suite reported (buttons, prices, add-on descriptions) was downstream
            * of that one class.
            *
-           * Same `auto-fit` shape as the card grids, with a 20rem floor rather than
-           * 17rem: a portal section carries meters and tables, not a plan card, and
-           * needs the extra room before splitting.
+           * A wrapping row, not a grid. A section that has nothing to say renders
+           * nothing, and its cell must leave no trace: in a grid, an empty cell still
+           * holds its place, so the card before it sat alone at half width and the
+           * next row opened a gap the others did not have. Here the empty cell is
+           * `display: none` (see below), the cards that remain flow up, and a card that
+           * ends up alone in its row takes all of it. A card basis of half the row, or
+           * 20rem when that is more (a portal section carries meters and tables, not a
+           * plan card, and needs the room before splitting), is what makes two the most
+           * a row holds; one pixel less than the half keeps two of them from wrapping
+           * on a rounding. The gap is one value, between rows and between columns.
            */
-          layout === "two-column"
-            ? "grid gap-4 grid-cols-[repeat(auto-fit,minmax(min(100%,max(20rem,(100%_-_1rem)/2)),1fr))]"
-            : "flex flex-col gap-4",
+          layout === "two-column" ? "flex flex-wrap gap-4" : "flex flex-col gap-4",
           merged.elements?.portalGrid,
         )}
       >
         {resolvedElements.map((element) => (
           <div
             key={element}
-            // The invoices are the widest thing a portal holds: a row to themselves.
             className={cn(
-              element === "InvoiceList" && "col-span-full",
+              // A section that rendered nothing is an empty cell: not a flex item, so no gap of its own.
+              "min-w-0 empty:hidden",
+              // Cards in one row share their height: the cell is a column that its card fills, and
+              // the branding strip that closes a card sits at its foot.
+              layout === "two-column" &&
+                "flex max-w-full flex-[1_1_max(20rem,calc((100%_-_1rem)/2_-_1px))] flex-col *:data-[slot=card]:flex-1",
+              // The invoices are the widest thing a portal holds: a row to themselves.
+              layout === "two-column" && element === "InvoiceList" && "basis-full",
               merged.elements?.portalSection,
             )}
           >
