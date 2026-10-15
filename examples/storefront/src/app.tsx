@@ -8,6 +8,7 @@ import { ThemeSwitcher } from "./components/theme-switcher.tsx";
 import { CheckoutPage } from "./pages/checkout-page.tsx";
 import { PortalPage } from "./pages/portal-page.tsx";
 import { PricingPage } from "./pages/pricing-page.tsx";
+import { SalesPage } from "./pages/sales-page.tsx";
 import { Link, useLocation } from "./router.tsx";
 import { useThemePreference } from "./theme.ts";
 
@@ -53,6 +54,9 @@ function Storefront({ config }: { config: StorefrontConfig }) {
       // The catalogue is read beside the portal, with the publishable key.
       apiUrl={config.apiUrl}
       publishableKey={config.publishableKey}
+      // The portal's button for a plan change is worded "Upgrade version" by default; in V1 it is a
+      // commercial request (see change-plan.ts), and the specification calls it "Change plan".
+      localization={{ currentPlan: { upgradeVersion: "Change plan" } }}
     >
       {/* The same Light / Dark / System as the page (see theme.ts): react-ui follows the system
           setting by itself while it is "system". */}
@@ -69,7 +73,9 @@ function Shell({ mode, sessionEnded }: { mode: StorefrontConfig["mode"]; session
     ? "checkout"
     : path === "/portal"
       ? "portal"
-      : "pricing";
+      : path === "/sales"
+        ? "sales"
+        : "pricing";
 
   return (
     <div className="site">
@@ -113,6 +119,8 @@ function Shell({ mode, sessionEnded }: { mode: StorefrontConfig["mode"]; session
           <CheckoutPage slug={decodeURIComponent(path.slice("/checkout/".length))} />
         ) : page === "portal" ? (
           <PortalPage />
+        ) : page === "sales" ? (
+          <SalesPage />
         ) : (
           <PricingPage />
         )}
