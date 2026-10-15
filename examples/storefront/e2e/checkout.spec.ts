@@ -201,6 +201,94 @@ test("a customer cancels the subscription at the end of its period, and withdraw
   expect(await standIn.state()).toMatchObject({ subscribed: true, cancelAtPeriodEnd: false });
 });
 
+test("a plan with a trial offers to start without it, with the console's checkbox", async ({
+  page,
+  standIn,
+}) => {
+  await standIn.reset({ email: true });
+  await page.goto("/");
+  await planCard(page, "Growth").getByRole("button", { name: "Select plan" }).click();
+
+  // A button with the role of a checkbox, not the browser's blue square.
+  const skip = page.getByRole("checkbox", { name: "Start without the free trial" });
+  await expect(skip).toHaveAttribute("data-slot", "checkbox");
+  await expect(skip).toHaveAttribute("aria-checked", "false");
+  await expect(checkout(page)).toContainText("Trial ends on");
+
+  // The label's own words tick it, and the checkout is priced again without the trial.
+  await checkout(page).getByText("Start without the free trial").click();
+  await expect(skip).toHaveAttribute("aria-checked", "true");
+  await expect(checkout(page)).not.toContainText("Trial ends on");
+
+  // The space bar takes the trial back.
+  await skip.focus();
+  await page.keyboard.press("Space");
+  await expect(skip).toHaveAttribute("aria-checked", "false");
+  await expect(checkout(page)).toContainText("Trial ends on");
+});
+
+for (const width of [1280, 1150, 768, 380]) {
+  test(`the portal of a customer on the free plan fills its rows, at ${width}px`, async ({
+    page,
+    standIn,
+  }) => {
+    await standIn.reset({ free: true });
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("/portal");
+    await expect(portal(page).currentPlan).toBeVisible();
+    await expect(page.getByText("No invoices yet.")).toBeVisible();
+
+    const grid = await page.evaluate(() => {
+      const root = document.querySelector('[data-slot="customer-portal"] > div') as HTMLElement;
+      const box = root.getBoundingClientRect();
+      return {
+        left: box.left,
+        right: box.right,
+        cells: [...root.children]
+          .filter((cell) => getComputedStyle(cell).display !== "none")
+          .map((cell) => {
+            const rect = cell.getBoundingClientRect();
+            const card = cell.querySelector('[data-slot="card"]')!.getBoundingClientRect();
+            return {
+              left: rect.left,
+              right: rect.right,
+              top: rect.top,
+              bottom: rect.bottom,
+              cardHeight: card.height,
+            };
+          }),
+      };
+    });
+
+    // The cards of a plan with nothing to add on: the plan, its features and meters, the payment
+    // method, a voucher and the invoices. No add-ons card, and no empty cell where it would be.
+    expect(grid.cells).toHaveLength(6);
+    const rows = new Map<number, typeof grid.cells>();
+    for (const cell of grid.cells) {
+      const key = [...rows.keys()].find((top) => Math.abs(top - cell.top) < 1) ?? cell.top;
+      rows.set(key, [...(rows.get(key) ?? []), cell]);
+    }
+    const ordered = [...rows.values()];
+    for (const [index, row] of ordered.entries()) {
+      const left = Math.min(...row.map((cell) => cell.left));
+      const right = Math.max(...row.map((cell) => cell.right));
+      // Edge to edge: a card alone in its row takes all of it.
+      expect(Math.abs(left - grid.left)).toBeLessThan(1);
+      expect(Math.abs(right - grid.right)).toBeLessThan(1);
+      // As tall as the row, so a row ends in a straight line.
+      for (const cell of row) {
+        expect(Math.abs(cell.cardHeight - (cell.bottom - cell.top))).toBeLessThan(1);
+      }
+      // One gap between rows.
+      const next = ordered[index + 1];
+      if (next) {
+        const gap = next[0]!.top - Math.max(...row.map((cell) => cell.bottom));
+        expect(Math.abs(gap - 16)).toBeLessThan(1);
+      }
+    }
+  });
+}
+
 test("each credential stays on its own routes, and the page never holds the server's", async ({
   page,
   standIn,
