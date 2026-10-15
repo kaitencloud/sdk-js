@@ -306,7 +306,10 @@ function CheckoutFlowView({
   const ArrowIcon = icons.arrowRight;
   const showTrialToggle =
     ((plan.trialPeriodDays ?? 0) > 0 && !trialTaken) || checkout.selection.skipTrial;
-  const waitingForEmail = checkout.needsBillingEmail && checkout.preview.status === "idle";
+  // An older Kaiten prices nothing before it has an address, and refuses the preview for want of one:
+  // with no summary to show, the customer is told what comes first.
+  const emailFirst =
+    checkout.preview.problem?.kind === "billing_email_required" && checkout.preview.data === null;
 
   return frame(
     <>
@@ -366,16 +369,24 @@ function CheckoutFlowView({
           unstyled={unstyled}
           value={checkout.selection.billingEmail}
           disabled={submitting}
-          invalid={checkout.problem?.kind === "billing_email_required"}
+          invalid={
+            checkout.problem?.kind === "billing_email_required" ||
+            (checkout.billingEmailMissing && checkout.selection.billingEmail.trim() !== "")
+          }
           onChange={checkout.setBillingEmail}
           words={words}
         />
       ) : null}
 
-      {waitingForEmail ? (
+      {emailFirst ? (
         <Message unstyled={unstyled} tone="muted" text={words.billingEmailFirst} />
       ) : (
-        <CheckoutSummaryBody preview={checkout.preview} unstyled={unstyled} />
+        <>
+          <CheckoutSummaryBody preview={checkout.preview} unstyled={unstyled} />
+          {checkout.billingEmailMissing ? (
+            <Message unstyled={unstyled} tone="muted" text={words.billingEmailToSubscribe} />
+          ) : null}
+        </>
       )}
 
       {checkout.error &&

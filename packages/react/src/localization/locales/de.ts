@@ -169,6 +169,7 @@ export const de: KaitenLocalization = {
     skipTrial: "Ohne kostenlose Testphase starten",
     billingEmail: "E-Mail für die Rechnung",
     billingEmailHint: "Rechnungen werden an diese Adresse gesendet.",
+    billingEmailToSubscribe: "Geben Sie Ihre Rechnungs-E-Mail ein, um zu abonnieren.",
     billingEmailFirst: "Geben Sie Ihre Rechnungs-E-Mail ein, um zu sehen, was heute fällig ist.",
     dueToday: "Heute fällig",
     todayAmount: (amount) => `${amount} heute`,

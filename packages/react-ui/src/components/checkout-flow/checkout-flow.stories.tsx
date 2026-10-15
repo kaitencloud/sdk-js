@@ -141,9 +141,10 @@ export const BillingEmailNeeded: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(await canvas.findByLabelText("Billing email", {}, SLOW)).toBeInTheDocument();
-    await expect(
-      canvas.getByText("Enter your billing email to see what is due today."),
-    ).toBeInTheDocument();
+    // What is due is shown without an address; the address is only needed to subscribe.
+    await expect((await canvas.findAllByText("$79.00", {}, SLOW)).length).toBeGreaterThan(0);
+    await expect(canvas.getByText("Enter your billing email to subscribe.")).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: /^Subscribe/ })).toBeDisabled();
   },
 };
 

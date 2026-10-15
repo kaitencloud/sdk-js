@@ -16,6 +16,7 @@ import {
   FAKE_TIMERS,
   activationInvoice,
   alreadySubscribed,
+  billingEmailRequired,
   callsOf,
   cannotCapture,
   demoPortal,
@@ -360,7 +361,7 @@ describe("choosing", () => {
     expect(within(flow()).getByText("Trial ends on Feb 1, 2026")).toBeTruthy();
   });
 
-  test("a customer with no billing email is asked for one before anything is priced", async () => {
+  test("a customer with no billing email sees what is due at once, and is asked for one to subscribe", async () => {
     const portal = demoUnsubscribedPortal();
     const client = selling(undefined, dryRun, {
       ...portal,
@@ -374,13 +375,52 @@ describe("choosing", () => {
     expect(field.getAttribute("aria-describedby")).toBe(
       screen.getByText("Invoices are sent to this address.").id,
     );
-    expect(screen.getByText("Enter your billing email to see what is due today.")).toBeTruthy();
-    expect(previews(client)).toHaveLength(0);
+    // Priced without an address, which only the subscribing needs.
+    expect(previews(client)).toEqual([{ licensePriceId: GROWTH_MONTHLY, dryRun: true }]);
+    expect(total()).toBe("$79.00");
+    expect(screen.getByText("Enter your billing email to subscribe.")).toBeTruthy();
+    expect(screen.queryByText("Enter your billing email to see what is due today.")).toBeNull();
+    expect(button(/^Subscribe/)).toHaveProperty("disabled", true);
+    expect(field.getAttribute("aria-invalid")).toBeNull();
+
+    // An address that cannot be one is marked, and Subscribe still waits.
+    fireEvent.change(field, { target: { value: "ops@" } });
+    await settle(300);
+    expect(field.getAttribute("aria-invalid")).toBe("true");
+    expect(screen.getByText("Enter your billing email to subscribe.")).toBeTruthy();
     expect(button(/^Subscribe/)).toHaveProperty("disabled", true);
 
     fireEvent.change(field, { target: { value: "ops@acme.example" } });
     await settle(300);
-    expect(previews(client)[0]).toEqual({
+    // The address changes nothing that is due: the summary is not asked for again.
+    expect(previews(client)).toHaveLength(1);
+    expect(field.getAttribute("aria-invalid")).toBeNull();
+    expect(screen.queryByText("Enter your billing email to subscribe.")).toBeNull();
+    expect(total()).toBe("$79.00");
+    expect(button(/^Subscribe/)).toHaveProperty("disabled", false);
+
+    await press(button(/^Subscribe/));
+    expect(commits(client)[0]).toMatchObject({ billingEmail: "ops@acme.example" });
+  });
+
+  test("an older Kaiten that prices nothing without an address is answered with the email field first", async () => {
+    const portal = demoUnsubscribedPortal();
+    const client = selling(
+      undefined,
+      (input) => (input.billingEmail ? dryRun(input) : billingEmailRequired()),
+      { ...portal, customer: { ...portal.customer, billingEmail: null } },
+    );
+    await draw(client);
+
+    expect(screen.getByText("Enter your billing email to see what is due today.")).toBeTruthy();
+    expect(screen.queryByText("Enter your billing email to subscribe.")).toBeNull();
+    expect(button(/^Subscribe/)).toHaveProperty("disabled", true);
+
+    fireEvent.change(screen.getByLabelText("Billing email"), {
+      target: { value: "ops@acme.example" },
+    });
+    await settle(300);
+    expect(previews(client).at(-1)).toEqual({
       licensePriceId: GROWTH_MONTHLY,
       billingEmail: "ops@acme.example",
       dryRun: true,

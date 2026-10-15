@@ -71,14 +71,20 @@ function scripted(answer: (input: CheckoutInput) => CheckoutResult | Error) {
 async function mount(
   client: ReturnType<typeof scripted>["client"],
   first: CheckoutPreviewSelection | null,
+  options: { paused?: boolean } = {},
 ) {
   let current = first;
-  const view = renderHook(() => useCheckoutPreview(current), {
+  const settings = options;
+  const view = renderHook(() => useCheckoutPreview(current, settings), {
     wrapper: sessionProvider(client),
   });
   await settle();
   return {
     view,
+    pause: (paused: boolean) => {
+      settings.paused = paused;
+      view.rerender();
+    },
     change: async (next: CheckoutPreviewSelection | null, wait = 0) => {
       current = next;
       view.rerender();
@@ -334,6 +340,68 @@ test("a customer with no billing email is told so by the API, which asks for one
     dryRun: true,
   });
   expect(probe.state.status).toBe("ready");
+});
+
+test("the billing email is not part of what is priced: it is not sent, and typing it asks nothing", async () => {
+  const { client, requests } = scripted(() => previewOf(4900));
+  const probe = await mount(client, selection({ billingEmail: "ops@acme.example" }));
+  expect(requests).toEqual([{ licensePriceId: PRO, dryRun: true }]);
+
+  await probe.change(selection({ billingEmail: "finance@acme.example" }), 1_000);
+  await probe.change(selection({ billingEmail: "" }), 1_000);
+  expect(requests).toHaveLength(1);
+  expect(probe.state).toMatchObject({ status: "ready", isStale: false });
+});
+
+test("a server that wanted an address once is sent it with every preview after", async () => {
+  const { client, requests } = scripted((input) =>
+    input.billingEmail ? previewOf(4900) : billingEmailRequired(),
+  );
+  const probe = await mount(client, selection({ billingEmail: "ops@acme.example" }));
+  // The first request had none, was refused for it, and is made again with it.
+  await settle(300);
+  expect(requests.map((input) => input.billingEmail)).toEqual([undefined, "ops@acme.example"]);
+  expect(probe.state.status).toBe("ready");
+
+  await probe.change(selection({ billingEmail: "ops@acme.example", skipTrial: true }), 300);
+  expect(requests.at(-1)).toEqual({
+    licensePriceId: PRO,
+    billingEmail: "ops@acme.example",
+    trial: false,
+    dryRun: true,
+  });
+});
+
+test("a paused preview asks nothing, drops an answer on its way, and asks when it is resumed", async () => {
+  let answer!: (result: CheckoutResult) => void;
+  const requests: CheckoutInput[] = [];
+  const client = unsubscribedSession({
+    checkout: (input) => {
+      requests.push(input);
+      return new Promise<CheckoutResult>((resolve) => (answer = resolve));
+    },
+  });
+  const probe = await mount(client, selection());
+  expect(requests).toHaveLength(1);
+
+  // The answer comes after the pause: it is not shown, however late.
+  probe.pause(true);
+  await act(async () => answer(previewOf(4900)));
+  await settle(1_000);
+  expect(probe.state).toMatchObject({ status: "loading", data: null, problem: null });
+  expect(requests).toHaveLength(1);
+
+  probe.pause(false);
+  await settle(300);
+  expect(requests).toHaveLength(2);
+  await act(async () => answer(previewOf(4900)));
+  expect(probe.state.status).toBe("ready");
+
+  // Paused again with a summary up: it stays, and nothing is asked for a selection that moves.
+  probe.pause(true);
+  await probe.change(selection({ addOns: { "extra-seats-v1": 2 } }), 1_000);
+  expect(requests).toHaveLength(2);
+  expect(probe.state.data?.dueToday.total).toBe(4900);
 });
 
 test("an answer that is not a preview is an error, not a summary", async () => {

@@ -681,30 +681,44 @@ test("a provider that is down at the checkout leaves the customer choosing, with
 // A customer with no billing email
 // ---------------------------------------------------------------------------
 
-test("an email is asked for when the customer has none, and nothing is priced until it is one", async () => {
+test("a customer with no email is priced at once, and asked for one to subscribe", async () => {
   const client = unsubscribedSession({ portal: portalWithoutEmail() });
   const probe = await mount(client);
 
+  // Kaiten prices a preview without an address: what is due is on screen, with no email asked for it.
+  expect(previews(client)).toHaveLength(1);
+  expect(previews(client)[0]).toEqual({ licensePriceId: GROWTH, dryRun: true });
+  expect(probe.now.preview.status).toBe("ready");
+  expect(probe.now.preview.data?.dueToday.total).toBe(7900);
+  expect(probe.now.problem).toBeNull();
+  // The address is only needed to subscribe.
   expect(probe.now.needsBillingEmail).toBe(true);
-  expect(probe.now.preview.status).toBe("idle");
+  expect(probe.now.billingEmailMissing).toBe(true);
   expect(probe.now.canSubmit).toBe(false);
-  expect(previews(client)).toHaveLength(0);
+  await act(async () => probe.now.submit());
+  expect(commits(client)).toHaveLength(0);
 
   act(() => probe.now.setBillingEmail("ops@"));
   await settle(300);
-  expect(previews(client)).toHaveLength(0);
+  expect(probe.now.billingEmailMissing).toBe(true);
+  expect(probe.now.canSubmit).toBe(false);
 
+  // An address changes nothing that is due: the summary stays, and is not asked for again.
   act(() => probe.now.setBillingEmail("ops@acme.example"));
   await settle(300);
-  expect(previews(client)[0]).toMatchObject({
+  expect(previews(client)).toHaveLength(1);
+  expect(probe.now.preview).toMatchObject({ status: "ready", isStale: false });
+  expect(probe.now.billingEmailMissing).toBe(false);
+  expect(probe.now.canSubmit).toBe(true);
+
+  await act(async () => probe.now.submit());
+  expect(commits(client)[0]).toMatchObject({
     licensePriceId: GROWTH,
     billingEmail: "ops@acme.example",
   });
-  expect(probe.now.preview.status).toBe("ready");
-  expect(probe.now.canSubmit).toBe(true);
 });
 
-test("nothing is priced before the portal has said whether the customer has an email", async () => {
+test("a customer is priced before the portal has said whether they have an email, and cannot subscribe until it has", async () => {
   const client = unsubscribedSession({ portal: portalWithoutEmail() });
   let release!: () => void;
   const gate = new Promise<void>((resolve) => (release = resolve));
@@ -715,17 +729,17 @@ test("nothing is priced before the portal has said whether the customer has an e
   });
   const probe = await mount(client);
 
-  // The first request would be made blind: refused as often as not, for want of an address.
   await settle(1_000);
-  expect(probe.now.preview.status).toBe("loading");
+  expect(probe.now.preview.status).toBe("ready");
+  expect(previews(client)).toHaveLength(1);
+  // Whether an address is needed is not known yet: Subscribe would be made blind.
   expect(probe.now.canSubmit).toBe(false);
-  expect(previews(client)).toHaveLength(0);
 
   release();
   await settle();
-  // The portal says there is none: still nothing to ask, until one is given.
   expect(probe.now.needsBillingEmail).toBe(true);
-  expect(previews(client)).toHaveLength(0);
+  expect(probe.now.canSubmit).toBe(false);
+  expect(previews(client)).toHaveLength(1);
 });
 
 test("the email goes with the checkout, and again with the setup session, which asks for it as well", async () => {
@@ -749,7 +763,7 @@ test("the email goes with the checkout, and again with the setup session, which 
 });
 
 test("a customer the portal does not say has no email is asked for one when the API says so", async () => {
-  // The portal could not be read, so nothing says; the preview is refused for want of an address.
+  // The portal could not be read, so nothing says; an older Kaiten refuses the preview for want of an address.
   const client = unsubscribedSession({
     checkout: (input) => {
       if (!input.billingEmail) throw billingEmailRequired();
@@ -762,8 +776,13 @@ test("a customer the portal does not say has no email is asked for one when the 
   expect(probe.now.needsBillingEmail).toBe(true);
   expect(probe.now.problem).toEqual({ kind: "billing_email_required" });
 
+  // An address that cannot be one asks nothing more; one that can be goes with the preview.
+  act(() => probe.now.setBillingEmail("ops@"));
+  await settle(300);
+  expect(previews(client)).toHaveLength(1);
   act(() => probe.now.setBillingEmail("ops@acme.example"));
   await settle(300);
+  expect(previews(client).at(-1)).toMatchObject({ billingEmail: "ops@acme.example" });
   expect(probe.now.preview.status).toBe("ready");
   expect(probe.now.problem).toBeNull();
   expect(probe.now.canSubmit).toBe(true);

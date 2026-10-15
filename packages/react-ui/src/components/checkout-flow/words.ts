@@ -24,6 +24,7 @@ export const englishCheckoutWords: KaitenCheckoutWords = {
   skipTrial: "Start without the free trial",
   billingEmail: "Billing email",
   billingEmailHint: "Invoices are sent to this address.",
+  billingEmailToSubscribe: "Enter your billing email to subscribe.",
   billingEmailFirst: "Enter your billing email to see what is due today.",
   dueToday: "Due today",
   todayAmount: (amount) => `${amount} today`,

@@ -114,8 +114,13 @@ export interface UseCheckoutResult {
   setBillingEmail: (email: string) => void;
   /** What is due today for the selection, as the server computed it. See {@link CheckoutPreviewState}. */
   preview: CheckoutPreviewState;
-  /** Whether a billing email has to be given: the customer has none yet. */
+  /** Whether a billing email has to be given to subscribe: the customer has none yet. */
   needsBillingEmail: boolean;
+  /**
+   * Whether the billing email is still to be given: one is needed, and what was typed cannot be
+   * an address yet. It stops {@link canSubmit}, not the pricing: what is due is shown without it.
+   */
+  billingEmailMissing: boolean;
   step: CheckoutStep;
   /** Whether {@link submit} will check out: the server priced this selection, and nothing is missing. */
   canSubmit: boolean;
@@ -242,25 +247,16 @@ export function useCheckout(options: UseCheckoutOptions = {}): UseCheckoutResult
   // the API once they have chosen.
   const priced = flow.step === "selecting" ? selection : (flow.committed ?? selection);
   const knownWithoutEmail = portal.data?.customer.billingEmail === null;
-  // The API asks for the email before it prices anything for a customer that has none:
-  // there is nothing to ask it until one is given. Nor until the portal has said whether the
-  // customer has one, which a read still under way does not: the first request would be made
-  // blind, and refused for it as often as not.
-  const waitingForEmail = knownWithoutEmail && !isPlausibleEmail(priced.billingEmail);
-  const waitingForPortal = portal.isLoading && portal.data === undefined;
-  // Once a checkout is being made, or is made, there is nothing left to price: the instance is
-  // subscribed and the API would refuse the preview (409 AlreadySubscribed).
+  // The API prices a selection without a billing email (a checkout's `dryRun` asks for none),
+  // so the summary is asked for as soon as a price is chosen, and the email is only needed to
+  // subscribe. Once a checkout is being made, or is made, there is nothing left to price: the
+  // instance is subscribed and the API would refuse the preview.
   const choosing = flow.step === "selecting";
-  const priceable = useCheckoutPreview(waitingForEmail || waitingForPortal ? null : priced, {
+  const preview = useCheckoutPreview(priced, {
     debounceMs: options.debounceMs,
     refusedVoucherCode,
     paused: !choosing,
   });
-  // A price is chosen and its summary is on its way, as far as a screen can tell.
-  const preview: CheckoutPreviewState =
-    waitingForPortal && priced.licensePriceId !== null
-      ? { ...priceable, status: "loading" }
-      : priceable;
 
   const flowProblem = checkoutProblem(flow.error);
   const needsBillingEmail =
@@ -355,6 +351,7 @@ export function useCheckout(options: UseCheckoutOptions = {}): UseCheckoutResult
     [sessionClient, mutate, scopeKey],
   );
 
+  const billingEmailMissing = needsBillingEmail && !isPlausibleEmail(selection.billingEmail);
   const canSubmit =
     sessionClient !== null &&
     flow.step === "selecting" &&
@@ -363,7 +360,10 @@ export function useCheckout(options: UseCheckoutOptions = {}): UseCheckoutResult
     !preview.isStale &&
     preview.voucher !== "rejected" &&
     preview.voucher !== "checking" &&
-    (!needsBillingEmail || isPlausibleEmail(selection.billingEmail));
+    // Whether the customer has an email is the portal's to say: until it has, Subscribe would be
+    // made blind, and refused as often as not.
+    !(portal.isLoading && portal.data === undefined) &&
+    !billingEmailMissing;
 
   latest.current = { selection, flow, options, canSubmit };
 
@@ -479,6 +479,7 @@ export function useCheckout(options: UseCheckoutOptions = {}): UseCheckoutResult
     setBillingEmail,
     preview,
     needsBillingEmail,
+    billingEmailMissing,
     step,
     canSubmit,
     submit,

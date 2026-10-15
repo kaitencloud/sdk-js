@@ -27,7 +27,8 @@ export interface CheckoutSelection {
 
 /**
  * The part of a selection a preview depends on. The billing email does not change what is
- * due, but the API asks for it before it prices anything for a customer that has none.
+ * due, and Kaiten prices a `dryRun` without one; an older Kaiten asks for it before it prices
+ * anything for a customer that has none, and a preview then sends it.
  */
 export type CheckoutPreviewSelection = Pick<
   CheckoutSelection,

@@ -155,6 +155,8 @@ const problem = (status: number, code: string) => ({ title: code, status, code, 
 
 export const alreadySubscribed = () =>
   new KaitenError(problem(409, "CreateSessionCheckout.AlreadySubscribed"));
+export const billingEmailRequired = () =>
+  new KaitenError(problem(422, "CreateSessionCheckout.BillingEmailRequired"));
 export const voucherInvalid = () =>
   new KaitenError(problem(422, "CreateSessionCheckout.VoucherInvalid"));
 export const setupIncomplete = () =>

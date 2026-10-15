@@ -168,6 +168,7 @@ export const es: KaitenLocalization = {
     skipTrial: "Empezar sin la prueba gratuita",
     billingEmail: "Correo de facturación",
     billingEmailHint: "Las facturas se envían a esta dirección.",
+    billingEmailToSubscribe: "Introduzca su correo de facturación para suscribirse.",
     billingEmailFirst: "Introduzca su correo de facturación para ver lo que se paga hoy.",
     dueToday: "A pagar hoy",
     todayAmount: (amount) => `${amount} hoy`,

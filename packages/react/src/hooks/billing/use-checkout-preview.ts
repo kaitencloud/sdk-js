@@ -77,6 +77,13 @@ interface Settled {
  * for this selection without the code (the code was in from the start, or the plan changed
  * with it) one request is made without it, so that something true is on screen.
  *
+ * The billing email is not part of what is priced: Kaiten prices a `dryRun` without one, so a
+ * selection is asked for as soon as a price is chosen, and typing an address asks nothing
+ * more. A server that still refuses a preview for want of an address (an older Kaiten) is
+ * remembered for as long as the hook is mounted: from then on the address goes with the
+ * request, once it can be one, and the refusal is a `billing_email_required` problem until
+ * it does.
+ *
  * `paused` asks nothing, and drops an answer that is on its way: it is for a checkout that is
  * being made or is done, after which a preview has no meaning and the server would refuse it
  * (the instance is subscribed). What was on screen stays.
@@ -108,6 +115,8 @@ export function useCheckoutPreview(
   const paused = options.paused === true;
   const [settled, setSettled] = React.useState<Settled>({ answer: null, refusal: null });
   const [attempt, setAttempt] = React.useState(0);
+  // The server refused a preview for want of an address: it wants one with every preview.
+  const [emailWanted, setEmailWanted] = React.useState(false);
   const settledRef = React.useRef(settled);
   settledRef.current = settled;
   const latest = React.useRef(0);
@@ -115,7 +124,9 @@ export function useCheckoutPreview(
   // Something to price: a price was chosen, and there is a session to ask.
   const input =
     selection !== null && selection.licensePriceId !== null && sessionClient !== null
-      ? selection
+      ? emailWanted
+        ? selection
+        : { ...selection, billingEmail: "" }
       : null;
   const fullKey = input ? selectionKey(input) : null;
   const refusedByCheckout =
@@ -167,14 +178,13 @@ export function useCheckoutPreview(
                   },
                 },
           ),
-        (error: unknown) =>
-          outcome((previous) => ({
-            ...previous,
-            refusal: {
-              key: wantedKey,
-              error: error instanceof Error ? error : new Error(String(error)),
-            },
-          })),
+        (error: unknown) => {
+          const failure = error instanceof Error ? error : new Error(String(error));
+          if (checkoutProblem(failure)?.kind === "billing_email_required") {
+            if (!cancelled && request === latest.current) setEmailWanted(true);
+          }
+          outcome((previous) => ({ ...previous, refusal: { key: wantedKey, error: failure } }));
+        },
       );
     }, delay);
     return () => {

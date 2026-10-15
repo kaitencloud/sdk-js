@@ -56,7 +56,9 @@ export interface KaitenCheckoutWords {
   skipTrial: string;
   billingEmail: string;
   billingEmailHint: string;
-  /** Said in place of a summary while the customer has no billing email: the API prices nothing before it. */
+  /** Said under a summary while the customer still has to give a billing email, which subscribing needs. */
+  billingEmailToSubscribe: string;
+  /** Said in place of a summary when the API prices nothing before it has a billing email (an older Kaiten). */
   billingEmailFirst: string;
   /** The label of the total the server computed for what is due today. */
   dueToday: string;
