@@ -28,8 +28,10 @@ export function CheckoutPage({ slug }: { slug: string }) {
   }
 
   return (
-    <section aria-labelledby="checkout-title">
-      <h1 id="checkout-title">Subscribe to {plan.name}</h1>
+    <section aria-labelledby="checkout-title" className="page-narrow">
+      <h1 id="checkout-title" className="page-heading">
+        Subscribe to {plan.name}
+      </h1>
       {/* Mounted on the page the customer comes back to from the provider's: see the README. */}
       <CheckoutFlow
         plan={plan}

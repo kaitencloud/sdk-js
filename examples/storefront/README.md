@@ -21,6 +21,15 @@ cd examples/storefront
 vp dev            # http://localhost:5173
 ```
 
+## The theme
+
+The header has a Light / Dark / System switch, remembered in `localStorage`. One preference has two
+readers, both set up in [`src/theme.ts`](src/theme.ts): the page's own tokens read the `dark` class
+that is put on `<html>` (an inline script in `index.html` does it before the first paint, so a dark
+page never starts light), and the components read the same choice through
+`<KaitenStyleRoot appearance={{ baseTheme }}>`, which follows the operating system by itself while it
+is `"system"`. The stylesheet is plain CSS: tokens on `:root`, redefined under `:root.dark`.
+
 ## How the credentials move
 
 Three credentials are involved, and each one stays on its own routes:
@@ -49,7 +58,7 @@ this example's build for a token, the name of a secret variable and code of `@ka
 
 | Path                                                 | What it is                                                                    |
 | ---------------------------------------------------- | ----------------------------------------------------------------------------- |
-| [`src/`](src)                                        | the page: provider, router, and the three screens                             |
+| [`src/`](src)                                        | the page: provider, router, the three screens and the theme switcher          |
 | [`server/session-route.ts`](server/session-route.ts) | `POST /storefront-api/session`, the route to put behind your own sign-in      |
 | [`server/plugin.ts`](server/plugin.ts)               | mounts the backend on `vp dev` and `vp preview`; nothing in `src/` imports it |
 | [`server/environment.ts`](server/environment.ts)     | which Kaiten to talk to, read from the environment                            |
