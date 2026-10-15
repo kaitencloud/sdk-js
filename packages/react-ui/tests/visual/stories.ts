@@ -51,6 +51,12 @@ export const STORIES: Array<{ name: string; storyId: string }> = [
   // CustomerPortal in a customer session: the plan in each state its subscription is in, what a
   // customer can do to it, the add-ons' stepper, the invoices and a voucher check.
   { name: "customer-portal-session--full", storyId: "flows-customer-portal-session--full" },
+  // A plan that grants nothing to list: its three empty cells are not drawn, and the cards that
+  // remain fill their rows.
+  {
+    name: "customer-portal-session--nothing-to-list",
+    storyId: "flows-customer-portal-session--nothing-to-list",
+  },
   {
     name: "customer-portal-session--cancel-asked",
     storyId: "flows-customer-portal-session--cancel-asked",
@@ -145,6 +151,15 @@ export const STORIES: Array<{ name: string; storyId: string }> = [
   },
   { name: "checkout-flow--voucher-refused", storyId: "flows-checkoutflow--voucher-refused" },
   { name: "checkout-flow--free-trial", storyId: "flows-checkoutflow--free-trial" },
+  // The trial's checkbox ticked, in light and dark: the console's checkbox, a tick on the brand fill.
+  {
+    name: "checkout-flow--free-trial-skipped",
+    storyId: "flows-checkoutflow--free-trial-skipped",
+  },
+  {
+    name: "checkout-flow--free-trial-skipped-dark",
+    storyId: "flows-checkoutflow--free-trial-skipped-dark",
+  },
   {
     name: "checkout-flow--billing-email-needed",
     storyId: "flows-checkoutflow--billing-email-needed",
