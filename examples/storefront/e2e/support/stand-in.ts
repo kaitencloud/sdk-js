@@ -46,22 +46,41 @@ export interface Call {
 
 export interface StandIn {
   /** Starts again from a customer with nothing: no subscription, card or email. */
-  reset: (scenario?: { card?: boolean; email?: boolean; subscribed?: boolean }) => Promise<void>;
+  reset: (scenario?: {
+    card?: boolean;
+    email?: boolean;
+    subscribed?: boolean;
+    free?: boolean;
+  }) => Promise<void>;
   /** The next calls to `METHOD /path` are answered with these, in turn. */
   script: (key: string, ...replies: Reply[]) => Promise<void>;
   /** What the payment of the next activation invoice comes to. */
   payment: (outcome: "paid" | "requires_action" | "failed" | "processing") => Promise<void>;
   payInvoice: (id: string) => Promise<void>;
   declineInvoice: (id: string) => Promise<void>;
+  /** Moves to the next boundary: a trial converts, a period renews, a plan change applies. */
+  advance: () => Promise<void>;
   calls: () => Promise<Call[]>;
+  /** What Kaiten would have told the vendor, in order. */
+  events: () => Promise<Array<{ type: string; at: string; detail: string }>>;
   state: () => Promise<{
     subscribed: boolean;
     cancelAtPeriodEnd: boolean;
     cardOnFile: boolean;
     billingEmail: string | null;
-    invoices: Array<{ id: string; status: string; total: number }>;
+    invoices: Array<{ id: string; kind: string; status: string; total: number }>;
     minted: number;
     revoked: number;
+    payment: "paid" | "requires_action" | "failed" | "processing";
+    plan: string | null;
+    planName: string | null;
+    status: "TRIAL" | "ACTIVE" | "PAST_DUE" | null;
+    free: boolean;
+    trialEndsAt: string | null;
+    currentPeriodEnd: string | null;
+    scheduledChange: { plan: string; priceId: string; effectiveAt: string } | null;
+    addOns: Array<{ slug: string; quantity: number }>;
+    card: string | null;
   }>;
 }
 
@@ -81,7 +100,9 @@ function standIn(request: APIRequestContext): StandIn {
     payment: (outcome) => post("/payment", { outcome }),
     payInvoice: (id) => post(`/invoices/${id}/pay`),
     declineInvoice: (id) => post(`/invoices/${id}/decline`),
+    advance: () => post("/advance"),
     calls: () => get("/calls"),
+    events: () => get("/events"),
     state: () => get("/state"),
   };
 }
