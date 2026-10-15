@@ -173,6 +173,18 @@ function CheckoutFlowView({
     onSubscribed,
   });
 
+  // Whether the server has said that this customer gets no trial on the plan: it priced the selection
+  // with the trial left in, and no trial came back, because one was already taken. Kept from one answer
+  // to the next, so that the choice does not come back while a new selection is priced. Ticking
+  // "without the trial" is no evidence of it: the server then prices no trial at all.
+  const [trialTaken, setTrialTaken] = React.useState(false);
+  const { preview } = checkout;
+  const trialAnswer =
+    preview.status === "ready" && !preview.isStale && preview.data && !checkout.selection.skipTrial
+      ? preview.data.trialEndsAt === null
+      : null;
+  if (trialAnswer !== null && trialAnswer !== trialTaken) setTrialTaken(trialAnswer);
+
   // Each step replaces the last one's controls: the keyboard goes to what the new one says first, and
   // to the refusal of a checkout that sent the customer back to choosing.
   const scope = useFocusScope();
@@ -292,7 +304,8 @@ function CheckoutFlowView({
   const submitting = checkout.step === "submitting";
   const LoaderIcon = icons.loader;
   const ArrowIcon = icons.arrowRight;
-  const showTrialToggle = (plan.trialPeriodDays ?? 0) > 0 || checkout.selection.skipTrial;
+  const showTrialToggle =
+    ((plan.trialPeriodDays ?? 0) > 0 && !trialTaken) || checkout.selection.skipTrial;
   const waitingForEmail = checkout.needsBillingEmail && checkout.preview.status === "idle";
 
   return frame(

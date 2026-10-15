@@ -281,10 +281,16 @@ describe("choosing", () => {
     });
   });
 
+  // What the server prices for a plan with a 14-day trial: the trial, unless it was asked to leave it out.
+  const TRIAL_ENDS = "2026-02-01T00:00:00.000Z";
+  const pricedWithTrial = (input: CheckoutInput) =>
+    input.trial === false ? dryRun(input) : trialPreview(TRIAL_ENDS);
+  const SKIP = "Start without the free trial";
+
   test("the plan's trial can be skipped, and the checkbox is there only for a plan that has one", async () => {
-    const client = selling();
+    const client = selling(undefined, pricedWithTrial);
     await draw(client, { plan: growthPlan({ trialPeriodDays: 14 }) });
-    const skip = screen.getByLabelText("Start without the free trial") as HTMLInputElement;
+    const skip = screen.getByLabelText(SKIP) as HTMLInputElement;
     expect(skip.checked).toBe(false);
 
     await act(async () => fireEvent.click(skip));
@@ -294,10 +300,57 @@ describe("choosing", () => {
       trial: false,
       dryRun: true,
     });
+    // Without the trial the server prices none, which says nothing about whether it would have
+    // granted one: the checkbox stays, so that the customer can take it back.
+    expect(total()).not.toBe("$0.00 today");
+    const kept = screen.getByLabelText(SKIP) as HTMLInputElement;
+    expect(kept.checked).toBe(true);
+
+    await act(async () => fireEvent.click(kept));
+    await settle(300);
+    expect((screen.getByLabelText(SKIP) as HTMLInputElement).checked).toBe(false);
+    expect(total()).toBe("$0.00 today");
     cleanup();
 
     await draw(selling());
-    expect(screen.queryByLabelText("Start without the free trial")).toBeNull();
+    expect(screen.queryByLabelText(SKIP)).toBeNull();
+  });
+
+  test("a customer who already took the plan's trial is not offered to start without it", async () => {
+    // The plan has a trial, and the server prices none for this customer: it was consumed.
+    const client = selling();
+    await draw(client, { plan: growthPlan({ trialPeriodDays: 14 }) });
+
+    expect(previews(client).at(-1)).toEqual({ licensePriceId: GROWTH_MONTHLY, dryRun: true });
+    expect(screen.queryByLabelText(SKIP)).toBeNull();
+    expect(within(flow()).queryByText(/Trial ends on/)).toBeNull();
+  });
+
+  test("the choice stays out while the next selection of such a customer is priced", async () => {
+    const client = selling();
+    await draw(client, { plan: growthPlan({ trialPeriodDays: 14 }) });
+    expect(screen.queryByLabelText(SKIP)).toBeNull();
+
+    // The selection moved, and the summary on screen is the last one's until the server answers.
+    await press(button("Add one Extra seats"));
+    expect(screen.queryByLabelText(SKIP)).toBeNull();
+    await settle(300);
+    expect(previews(client).at(-1)?.addOns).toEqual([{ addonSlug: "extra-seats-v1", quantity: 1 }]);
+    expect(screen.queryByLabelText(SKIP)).toBeNull();
+  });
+
+  test("a trial that comes back for a customer who has not taken it is offered again", async () => {
+    // A customer who took it and a plan whose trial the vendor has since turned back on for them.
+    let taken = true;
+    const client = selling(undefined, (input) =>
+      taken ? dryRun(input) : trialPreview("2026-02-01T00:00:00.000Z"),
+    );
+    await draw(client, { plan: growthPlan({ trialPeriodDays: 14 }) });
+    expect(screen.queryByLabelText(SKIP)).toBeNull();
+
+    taken = false;
+    await press(button("Add one Extra seats"), 300);
+    expect(screen.getByLabelText(SKIP)).toBeTruthy();
   });
 
   test("a trial is nothing due today, and the day it ends", async () => {
