@@ -41,6 +41,11 @@ export function JourneyPage({ mode }: { mode: "double" | "live" }) {
           From a first purchase to a cancellation. Each step has a button that moves the stand-in
           for Kaiten, or a link to the page where a customer would be.
         </p>
+        {double ? (
+          <p className="jump-link">
+            <a href="#stand-in">Jump to what the stand-in holds</a>
+          </p>
+        ) : null}
       </div>
 
       {double ? null : (
@@ -95,8 +100,11 @@ export function JourneyPage({ mode }: { mode: "double" | "live" }) {
         </div>
 
         {double ? (
-          <aside className="journey-aside" aria-label="The stand-in right now">
+          <aside id="stand-in" className="journey-aside" aria-label="The stand-in right now">
             <StandInPanel state={state} events={events} failure={failure} />
+            <p className="jump-link">
+              <a href="#journey-title">Back to the scenarios</a>
+            </p>
           </aside>
         ) : null}
       </div>

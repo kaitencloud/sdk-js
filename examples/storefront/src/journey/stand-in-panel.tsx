@@ -124,12 +124,14 @@ export function StandInPanel({
             const known = INVOICE_STATUS[invoice.status] ?? { label: invoice.status, tone: "warn" };
             return (
               <li key={invoice.id}>
-                <span>
+                <span className="invoice-label">
                   {invoice.providerInvoiceNumber}{" "}
                   <span className="muted">{invoice.kind.toLowerCase()}</span>
                 </span>
-                <span>{money(invoice.total, invoice.currency)}</span>
-                <span className={`badge badge-${known.tone}`}>{known.label}</span>
+                <span className="invoice-end">
+                  {money(invoice.total, invoice.currency)}
+                  <span className={`badge badge-${known.tone}`}>{known.label}</span>
+                </span>
               </li>
             );
           })}

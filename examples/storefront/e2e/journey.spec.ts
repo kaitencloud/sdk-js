@@ -280,3 +280,33 @@ test("journey: a refusal of the stand-in is shown, not hidden", async ({ page })
   await scene.getByRole("button", { name: "End the trial now" }).click();
   await expect(outcomeOf(scene, "End the trial now")).toContainText(/no subscription/i);
 });
+
+test("a link of the journey opens the page from its title, not where the link was", async ({
+  page,
+  standIn,
+}) => {
+  await standIn.reset({ subscribed: true });
+  await page.setViewportSize({ width: 380, height: 700 });
+  await page.goto("/journey");
+  const link = scenario(page, "Change plan: a commercial request").getByRole("link", {
+    name: "Open the account",
+  });
+  await link.scrollIntoViewIfNeeded();
+  expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(500);
+
+  await link.click();
+  await expect(page).toHaveURL(/\/portal$/);
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
+  await expect(page.getByRole("heading", { level: 1 })).toBeFocused();
+});
+
+test("on a phone the journey page links to the stand-in's state, which sits below the scenarios", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 380, height: 700 });
+  await page.goto("/journey");
+  await page.getByRole("link", { name: "Jump to what the stand-in holds" }).click();
+  await expect(stateOf(page)).toBeInViewport();
+  await page.getByRole("link", { name: "Back to the scenarios" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: /payment journey/ })).toBeInViewport();
+});

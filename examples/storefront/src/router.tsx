@@ -11,10 +11,24 @@ export function currentLocation(): { path: string; search: URLSearchParams } {
   return { path: window.location.pathname, search: new URLSearchParams(window.location.search) };
 }
 
-/** Goes to another page of the storefront, without loading it again. */
+/**
+ * Goes to another page of the storefront, without loading it again. A page loaded again opens at
+ * its top and with the focus at its start, so this does the same: the new page is shown from its
+ * title, wherever the link was, and a keyboard or screen-reader user starts at that title. A link
+ * to a place in the page (`#section`) keeps what the browser does with it.
+ */
 export function navigate(to: string): void {
   window.history.pushState(null, "", to);
   window.dispatchEvent(new Event(NAVIGATE));
+  if (new URL(to, window.location.href).hash) return;
+  window.scrollTo(0, 0);
+  // The page draws on the event above, and some pages draw their title once they have loaded.
+  window.requestAnimationFrame(() => {
+    const title = document.querySelector<HTMLElement>("main h1");
+    if (!title) return;
+    title.tabIndex = -1;
+    title.focus({ preventScroll: true });
+  });
 }
 
 /** The page the address names, followed as it changes. */
