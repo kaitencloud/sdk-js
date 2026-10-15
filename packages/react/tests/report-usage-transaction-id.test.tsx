@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 //
 // `useReportUsage` with a `transactionId`, against the real `KaitenClient` and a
-// stubbed `fetch`: what the hook hands back is what the client resolves or rejects
-// with, in the shapes the client ships. The other suites mock the client, which is
+// stubbed `fetch`: the key leaves in the `Idempotency-Key` header, and what the hook
+// hands back is what the client resolves or rejects with, in the shapes the client
+// ships. The other suites mock the client, which is
 // the right tool for the hook's own behavior and a poor one for these shapes.
 
 import type { ReactNode } from "react";
@@ -29,6 +30,7 @@ const USAGE = {
   entitlementSlug: "tokens",
   licenseId: "6f1f9a54-2a4b-4d0e-8c1d-5b0a2f3e4d02",
   licenseSlug: "growth",
+  source: "license",
   value: { type: "number", value: 500, eventCount: 1 },
   limit: { type: "number", value: 1000 },
   currentPeriodStart: "2026-10-01T00:00:00Z",
@@ -41,17 +43,31 @@ interface Reply {
   headers?: Record<string, string>;
 }
 
-/** A `fetch` that answers the usage route with the queued replies, and records its requests. */
+interface Sent {
+  body: Record<string, unknown>;
+  /** The request's `Idempotency-Key` header: `null` when it carried none. */
+  key: string | null;
+}
+
+/**
+ * A `fetch` that answers the usage route with the queued replies, and records its
+ * requests. A success echoes the request's key as `transactionId`, as a server that
+ * honours the header does, and `null` for a report sent without one.
+ */
 function stubUsageApi(...replies: Reply[]) {
-  const requests: { body: Record<string, unknown> }[] = [];
+  const requests: Sent[] = [];
   const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const request = input instanceof Request ? input : new Request(input, init);
     expect(new URL(request.url).pathname).toBe(USAGE_PATH);
-    requests.push({ body: JSON.parse(await request.clone().text()) as Record<string, unknown> });
+    const key = request.headers.get("Idempotency-Key");
+    requests.push({
+      body: JSON.parse(await request.clone().text()) as Record<string, unknown>,
+      key,
+    });
 
     const { status, body, headers } = replies[Math.min(requests.length, replies.length) - 1]!;
     const ok = status < 400;
-    return new Response(JSON.stringify(ok ? (body ?? USAGE) : body), {
+    return new Response(JSON.stringify(ok ? (body ?? { ...USAGE, transactionId: key }) : body), {
       status,
       headers: { "Content-Type": ok ? "application/json" : "application/problem+json", ...headers },
     });
@@ -112,8 +128,14 @@ test("a report the API already applied resolves as a replay, with the dropped me
   const usage = await result.current.mutateAsync(report("llm:9f2c:tokens"));
 
   expect(requests).toHaveLength(1);
-  expect(requests[0]!.body.transactionId).toBe("llm:9f2c:tokens");
-  expect(usage).toMatchObject({ idempotentReplayed: true, metadataDropped: "too_large" });
+  // The key is a header, and the body is the report alone.
+  expect(requests[0]!.key).toBe("llm:9f2c:tokens");
+  expect(requests[0]!.body).toEqual({ behavior: "append", value: { type: "number", value: 500 } });
+  expect(usage).toMatchObject({
+    idempotentReplayed: true,
+    metadataDropped: "too_large",
+    transactionId: "llm:9f2c:tokens",
+  });
   expect(usage.value).toEqual(USAGE.value);
 });
 
@@ -125,6 +147,52 @@ test("a report the API applied for the first time carries no replay mark", async
 
   expect(usage.idempotentReplayed).toBeUndefined();
   expect(usage.metadataDropped).toBeUndefined();
+  expect(usage.transactionId).toBe("llm:9f2c:tokens");
+});
+
+test("a report sent without a key carries no header, and its answer echoes none", async () => {
+  const { fetch, requests } = stubUsageApi({ status: 200 });
+  const { result } = renderHook(() => useReportUsage(), { wrapper: wrapperFor(clientFor(fetch)) });
+
+  const usage = await result.current.mutateAsync({
+    entitlementSlug: "tokens",
+    input: { behavior: "append", value: { type: "number", value: 500 } },
+  });
+
+  expect(requests[0]!.key).toBeNull();
+  expect(usage.transactionId).toBeNull();
+});
+
+test("a keyed report that fails before the API echoed a key is not sent again", async () => {
+  const { fetch, requests } = stubUsageApi({ status: 503 }, { status: 200 });
+  const { result } = renderHook(() => useReportUsage(), { wrapper: wrapperFor(clientFor(fetch)) });
+
+  const refusal = await result.current
+    .mutateAsync(report("llm:9f2c:tokens"))
+    .catch((e: unknown) => e);
+
+  expect(refusal).toBeInstanceOf(KaitenError);
+  expect((refusal as KaitenError).status).toBe(503);
+  expect(requests).toHaveLength(1);
+});
+
+test("a keyed report that fails once the API echoed a key is sent again under the same key", async () => {
+  const { fetch, requests } = stubUsageApi(
+    { status: 200 },
+    { status: 503, headers: { "Retry-After": "0" } },
+    { status: 200 },
+  );
+  const { result } = renderHook(() => useReportUsage(), { wrapper: wrapperFor(clientFor(fetch)) });
+
+  await result.current.mutateAsync(report("first:0"));
+  const usage = await result.current.mutateAsync(report("llm:9f2c:tokens"));
+
+  expect(requests.map((request) => request.key)).toEqual([
+    "first:0",
+    "llm:9f2c:tokens",
+    "llm:9f2c:tokens",
+  ]);
+  expect(usage.transactionId).toBe("llm:9f2c:tokens");
 });
 
 test("a key reused with another value rejects with the report it was first accepted with", async () => {
@@ -138,7 +206,7 @@ test("a key reused with another value rejects with the report it was first accep
       errors: [
         {
           message: "the report this transactionId was first accepted with",
-          location: "body.transactionId",
+          location: "header.Idempotency-Key",
           value: {
             reportSeq: 7,
             reportedAt: "2026-10-05T08:00:00.000Z",

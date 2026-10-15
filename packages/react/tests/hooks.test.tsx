@@ -696,6 +696,7 @@ test("useReportUsage hands the report's transactionId to the client, and its out
       licenseId: "lic-1",
       licenseSlug: "pro",
       value: input.value,
+      transactionId: "llm:9f2c:tokens",
       idempotentReplayed: true,
     }))
     .mockImplementationOnce(async () => {
@@ -704,6 +705,19 @@ test("useReportUsage hands the report's transactionId to the client, and its out
           status: 409,
           title: "Conflict",
           code: "ReportEntitlementUsageMetric.TransactionIdReused",
+          // Located at the header the key travelled in, where the client reads the original.
+          errors: [
+            {
+              message: "the report this key was first accepted with",
+              location: "header.Idempotency-Key",
+              value: {
+                reportSeq: 7,
+                reportedAt: "2026-10-05T08:00:00.000Z",
+                behavior: "append",
+                value: 30,
+              },
+            },
+          ],
         },
         "llm:9f2c:tokens",
       );
@@ -731,6 +745,7 @@ test("useReportUsage hands the report's transactionId to the client, and its out
     transactionId: "llm:9f2c:tokens",
   });
   expect(replayed?.idempotentReplayed).toBe(true);
+  expect(replayed?.transactionId).toBe("llm:9f2c:tokens");
 
   await act(async () => {
     await expect(
@@ -744,6 +759,7 @@ test("useReportUsage hands the report's transactionId to the client, and its out
   expect(onError.mock.calls[0]![0]).toMatchObject({
     transactionId: "llm:9f2c:tokens",
     status: 409,
+    original: { reportSeq: 7, behavior: "append", value: 30 },
   });
 });
 
