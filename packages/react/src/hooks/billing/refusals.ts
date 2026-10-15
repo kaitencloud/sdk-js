@@ -29,7 +29,10 @@ export type CheckoutProblem =
   | { kind: "unavailable"; retryAfterSeconds: number | null }
   /** Too many calls were made: the same call goes through after `retryAfterSeconds`. */
   | { kind: "rate_limited"; retryAfterSeconds: number }
-  /** The plan is paid, and the vendor has no payment provider that takes card payments: it cannot be bought here. */
+  /**
+   * The plan is paid, and the vendor has no payment provider that takes card payments, or none that takes
+   * its currency: it cannot be bought here. The API answers both alike.
+   */
   | { kind: "not_payable_online" }
   /** Anything else: read `error`. */
   | { kind: "other" };
