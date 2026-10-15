@@ -370,6 +370,14 @@ function Checkout({ licensePriceId }: { licensePriceId: string }) {
   `preview.data` are the server's, the lines need not sum to the total, and a trial is
   nothing due and `trialEndsAt`. A request is made once the selection has stood still for
   300 ms, and the first one at once. Answers that arrive after a newer request are dropped.
+  Nothing is asked once the checkout is being made, or is made: the instance is subscribed, and
+  the server would refuse a preview.
+- **The billing email is for subscribing, not for pricing.** Kaiten prices a `dryRun` without
+  one, so `preview` is there as soon as a price is chosen, and an address typed afterwards asks
+  nothing more. `needsBillingEmail` says the customer has none, `billingEmailMissing` that
+  what was typed cannot be an address yet, and `canSubmit` waits for it. A server that still
+  refuses a preview with `billing_email_required` (an older Kaiten) is then sent the address
+  with every preview.
 - **A voucher code** is typed, sent in the body of the call and nowhere else: not in a URL,
   not in a log, not in what telemetry is told. `preview.voucher` says `applied` or `rejected`
   (`checking` while the server is asked, and while it could not be reached to judge the code);
