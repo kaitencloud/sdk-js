@@ -58,7 +58,10 @@ integration points:
   `KaitenNetworkError`, `TransactionIdReusedError`, `InvalidTransactionIdError`,
   `QuotaExceededError`, `RateLimitedError`, `BoundaryPendingError`,
   `ProviderUnavailableError`, `KaitenThrownError`), and the type guards
-  (`isEvaluationSuccess` / `isEvaluationFailure`).
+  (`isEvaluationSuccess` / `isEvaluationFailure`). A usage report's
+  `transactionId` travels in the `Idempotency-Key` header, and the client sends
+  such a report again only once it has seen a key echoed (see the client's
+  `STABILITY.md`).
 - **`unstyled` mode** of every component — you bring the markup/styles, the SDK
   brings the logic. The DOM contract (`data-slot="…"`) is the targeting surface.
 - **Headless control primitives** — `Gate` (render-prop gating; `useEntitlementCheck`

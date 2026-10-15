@@ -635,13 +635,13 @@ function NewProjectButton() {
 Every error a hook hands you, in `error`, in `onError` or by rejection, is the one the
 client threw, with its class and its fields: narrow it with `instanceof`.
 
-| Class                                                   | When                                                                              | What it carries                                    |
-| ------------------------------------------------------- | --------------------------------------------------------------------------------- | -------------------------------------------------- |
-| `QuotaExceededError`                                    | a checkout the plan cannot hold: the instance already uses more than it grants    | `entitlementSlugs`, the entitlements over the plan |
-| `RateLimitedError`                                      | too many calls: 429                                                               | `retryAfterSeconds`                                |
-| `BoundaryPendingError`                                  | a change refused while the billing period that ended is being closed              | `retryAfterSeconds`                                |
-| `ProviderUnavailableError`                              | the payment provider could not be reached: 503                                    | `retryAfterSeconds`                                |
-| `TransactionIdReusedError`, `InvalidTransactionIdError` | a usage report whose `transactionId` was used for another report, or is malformed | `transactionId`, and `original` for the first      |
+| Class                                                   | When                                                                                                      | What it carries                                    |
+| ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
+| `QuotaExceededError`                                    | a checkout the plan cannot hold: the instance already uses more than it grants                            | `entitlementSlugs`, the entitlements over the plan |
+| `RateLimitedError`                                      | too many calls: 429                                                                                       | `retryAfterSeconds`                                |
+| `BoundaryPendingError`                                  | a change refused while the billing period that ended is being closed                                      | `retryAfterSeconds`                                |
+| `ProviderUnavailableError`                              | the payment provider could not be reached: 503                                                            | `retryAfterSeconds`                                |
+| `TransactionIdReusedError`, `InvalidTransactionIdError` | a usage report whose `transactionId` (the `Idempotency-Key`) was used for another report, or is malformed | `transactionId`, and `original` for the first      |
 
 All are a `KaitenError`, so `error.status` and `error.code` keep working. The three refusals
 made to be waited out always carry `retryAfterSeconds`: the API's `Retry-After`, or 60 when the

@@ -17,9 +17,10 @@ Minimum Kaiten version for the billing features: **the first Kaiten release with
 Three things need it. `getCatalog()` with a publishable key reads `GET /public/catalog`, and
 `KaitenSessionClient` calls the `/public/session/*` routes; a server without billing does not
 have them, answers with an error, and the call rejects with a `KaitenError`. A usage report
-with a `transactionId` is refused by such a server and sent again without its key, as
-[Reporting usage](#reporting-usage) describes. Everything else, which 1.0.0 already did (the
-catalogue and the licensing snapshot composed from the licences endpoints, usage reports
+with a `transactionId` carries it in the `Idempotency-Key` header, which such a server ignores:
+the report is counted at every sending, its answer has no `transactionId`, and the client never
+sends it again, as [Reporting usage](#reporting-usage) describes. Everything else, which 1.0.0
+already did (the catalogue and the licensing snapshot composed from the licences endpoints, usage reports
 without a key, flag evaluation), works against the Kaiten releases it worked against. What a
 newer server adds to a usage row (`source`, `provenance`, the effective limit) is read when it
 is there and left out when it is not.

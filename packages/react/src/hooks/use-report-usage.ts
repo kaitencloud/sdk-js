@@ -15,13 +15,17 @@ import type {
 export interface ReportUsageArgs {
   entitlementSlug: string;
   /**
-   * The report, sent as it is. Give it a `transactionId` to make it
-   * idempotent: the client then sends it again, under the same key, after a
-   * network failure or a 500, 502, 503 or 504 (waiting out the `Retry-After` the
-   * API sent, up to 30 seconds), and the API counts it once. Without one it is
-   * sent exactly once. A key reused with another value rejects with
-   * `TransactionIdReusedError`, and a malformed one, before any request, with
-   * `InvalidTransactionIdError`, both through `onError`; see `ReportUsageInput`.
+   * The report. Give it a `transactionId` to make it idempotent: it travels in
+   * the `Idempotency-Key` request header, never in the body, and the API counts
+   * the report once per key. The client sends it again, under the same key,
+   * after a network failure or a 500, 502, 503 or 504 (waiting out the
+   * `Retry-After` the API sent, up to 30 seconds), but only once this client has
+   * seen the API echo a key back as `transactionId`: a server that ignores the
+   * header would count a second sending twice, so until then a failure rejects
+   * after the first attempt. Without a key it is sent exactly once. A key
+   * reused with another value rejects with `TransactionIdReusedError`, and a
+   * malformed or empty one, before any request, with `InvalidTransactionIdError`,
+   * both through `onError`; see `ReportUsageInput`.
    */
   input: ReportUsageInput;
 }
@@ -84,9 +88,12 @@ function bumpEntitlementUsage(
  *
  * The meter is bumped before the answer arrives, then reconciled with the
  * server's snapshot. A report the API recognises as one it already applied
- * under the same `transactionId` resolves with `idempotentReplayed: true` and
- * counts nothing: the reconciliation takes the bump back. When the API kept
- * the report but dropped its metadata, `metadataDropped` says why.
+ * under the same `Idempotency-Key` resolves with `idempotentReplayed: true` and
+ * counts nothing: the reconciliation takes the bump back. The answer's
+ * `transactionId` is the key the report was accepted under (`null` for a report
+ * sent without one), and a replay may carry a `null` `source` or `provenance`.
+ * When the API kept the report but dropped its metadata, `metadataDropped` says
+ * why.
  */
 export function useReportUsage(options?: {
   onSuccess?: (data: ReportUsageResult) => void;
