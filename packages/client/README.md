@@ -230,8 +230,12 @@ usage reads (`usage.getByInstance`, `usage.getDetail`, `reportUsage`) also type 
 current server says of a row: `source`, the layer that grants the entitlement (`license` or
 `addon`, and open: handle a value you do not know), and `provenance`, the licence's grant,
 the add-ons and the voucher boosts the limit is made of, with the identifiers of the rows
-they come from. All three are optional: an older server sends none. The GraphQL read does not
-select them yet, so on that path the percent stays the grant's.
+they come from. All three are optional: an older server sends none. They also accept `null`:
+the answer to a replayed report (`idempotentReplayed: true`) is rebuilt from the report's
+journal entry, which keeps neither the layer nor its arithmetic, so its `source` and
+`provenance` are `null`, and the percent is `null` for a flag or a configuration, which has no
+value to cap. Check `row.source != null` before reading them. The GraphQL read does not select
+them yet, so on that path the percent stays the grant's.
 
 Commerce concepts the backend does not model — add-ons, credits, portal actions,
 billing capabilities, branding — are returned as client-side defaults.

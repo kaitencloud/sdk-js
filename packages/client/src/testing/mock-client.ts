@@ -196,6 +196,11 @@ export function createMockKaitenClient(options: MockKaitenClientOptions = {}): M
       // boundary, and this fake does not simulate it — it has no clock and no
       // reset period to roll against. So: same window in, same window out.
       //
+      // The row carries no `source`, `provenance` or overage percent, which the
+      // type allows: a server that predates them sends none. It does not simulate
+      // a replay either, where a server sends `source` and `provenance` as `null`
+      // and marks the result `idempotentReplayed`; a test of that builds the row.
+      //
       // `entitlementId` is the normalizer's composite `licenseSlug:slug`, not the
       // entitlement UUID the API returns. Anything asserting on that field
       // against this fake is asserting on the fake.

@@ -1,7 +1,12 @@
 import { describe, expect, test, vi } from "vite-plus/test";
 
 import { KaitenClient } from "../src/index.ts";
-import type { EntitlementProvenance, EntitlementUsage, KaitenApi } from "../src/index.ts";
+import type {
+  EntitlementProvenance,
+  EntitlementUsage,
+  KaitenApi,
+  ReportUsageResult,
+} from "../src/index.ts";
 import { ADDON_ONLY_ROW, EFFECTIVE_TOKENS_ROW } from "./support/effective-usage.ts";
 
 // The usage routes of a current server answer the instance's effective
@@ -42,7 +47,7 @@ describe("the usage reads of a current server", () => {
 
     const row = await client.usage.getDetail("acme-prod", "tokens");
 
-    const provenance: EntitlementProvenance | undefined = row.provenance;
+    const provenance: EntitlementProvenance | null | undefined = row.provenance;
     expect(provenance?.license?.licenseEntitlementId).toBe("7c8d0f6e-3b52-4f7a-9d1c-2a6b8e4f1c01");
     expect(provenance?.addons[0]?.addonEntitlementId).toBe("7c8d0f6e-3b52-4f7a-9d1c-2a6b8e4f1c04");
     expect(provenance?.addons[0]?.instanceAddonId).toBe("7c8d0f6e-3b52-4f7a-9d1c-2a6b8e4f1c02");
@@ -72,6 +77,66 @@ describe("the usage reads of a current server", () => {
     expect(result).toEqual(EFFECTIVE_TOKENS_ROW);
     expect(result.source).toBe("license");
     expect(result.limitCapExceededOveragePercent).toBe(50);
+  });
+});
+
+describe("the answer to a replayed report", () => {
+  // What a server rebuilds from its journal: the figures of the first report,
+  // and neither the layer that granted it nor the arithmetic of its limit.
+  const replay = {
+    ...EFFECTIVE_TOKENS_ROW,
+    source: null,
+    provenance: null,
+  };
+
+  test("carries a null source and a null provenance through, with the replay marker", async () => {
+    const fetch = vi.fn(
+      async () =>
+        new Response(JSON.stringify(replay), {
+          status: 200,
+          headers: { "Content-Type": "application/json", "Idempotent-Replayed": "true" },
+        }),
+    );
+    const client = new KaitenClient({
+      apiUrl: "https://api.test",
+      authScheme: "none",
+      fetch,
+      timeoutMs: 0,
+    });
+
+    const result = await client.reportUsage("acme-prod", "tokens", {
+      value: { type: "number", value: 1 },
+      behavior: "append",
+      transactionId: "llm-call:9f2c:tokens",
+    });
+
+    expect(result.idempotentReplayed).toBe(true);
+    expect(result.source).toBeNull();
+    expect(result.provenance).toBeNull();
+    expect(result.limitCapExceededOveragePercent).toBe(50);
+  });
+
+  test("a null source and provenance read as not computed, not as no layer", async () => {
+    const client = clientAnswering(() => replay);
+
+    const row = await client.usage.getDetail("acme-prod", "tokens");
+    const layer: string = row.source ?? "unknown";
+    const addons = row.provenance?.addons ?? [];
+
+    expect(layer).toBe("unknown");
+    expect(addons).toEqual([]);
+  });
+
+  test("a flag has no allowance to report, and says so with null", async () => {
+    const flag: EntitlementUsage = {
+      ...ADDON_ONLY_ROW,
+      limitCapExceededOveragePercent: null,
+    };
+    const client = clientAnswering(() => flag);
+
+    const row = await client.usage.getDetail("acme-prod", "sso");
+
+    expect(row.limitCapExceededOveragePercent).toBeNull();
   });
 });
 
@@ -118,5 +183,23 @@ describe("the row type", () => {
 
     expect(written.source).toBeUndefined();
     expect(later.source).toBe("bundle");
+  });
+
+  test("the three members take null, for a row a replay rebuilds", () => {
+    const rebuilt: EntitlementUsage = {
+      entitlementId: "e",
+      entitlementSlug: "tokens",
+      licenseId: "l",
+      licenseSlug: "growth",
+      value: { type: "number", value: 1 },
+      source: null,
+      provenance: null,
+      limitCapExceededOveragePercent: null,
+    };
+    const result: ReportUsageResult = { ...rebuilt, idempotentReplayed: true };
+
+    expect(result.source).toBeNull();
+    expect(result.provenance).toBeNull();
+    expect(result.limitCapExceededOveragePercent).toBeNull();
   });
 });

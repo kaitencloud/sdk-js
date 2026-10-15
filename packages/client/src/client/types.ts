@@ -43,6 +43,12 @@ import type {
  * mapping, which cannot tell the layers apart) must keep compiling, and a member
  * that becomes required on a type hosts construct would break them. Reading them
  * is unaffected; the raw type is still `KaitenApi.EntitlementUsage`.
+ *
+ * All three also accept `null`. A report the server answers from its journal,
+ * because the same `transactionId` was already applied, carries the figures of
+ * that first report and not a fresh reading of the layers, so it sends `source`
+ * and `provenance` as `null`: read them as "not computed for this answer", never
+ * as "no layer grants this". Narrow with `row.source != null` before using them.
  */
 export type EntitlementUsage = Omit<
   ApiEntitlementUsage,
@@ -51,21 +57,24 @@ export type EntitlementUsage = Omit<
   /**
    * The layer that grants the entitlement: `license` when the licence does, its
    * value possibly changed by add-ons and boosts, `addon` when only add-ons do.
-   * Open: more may come. Absent on a server that predates it.
+   * Open: more may come. Absent on a server that predates it, `null` on the
+   * answer to a replayed report.
    */
-  source?: "license" | "addon" | (string & {});
+  source?: "license" | "addon" | (string & {}) | null;
   /**
    * Why `limit` is what it is: the licence's grant, the add-ons, the voucher
-   * boosts. Absent on a server that predates it.
+   * boosts. Absent on a server that predates it, `null` on the answer to a
+   * replayed report.
    */
-  provenance?: EntitlementProvenance;
+  provenance?: EntitlementProvenance | null;
   /**
    * How far above `limit` usage is still accepted, in percent: `0` for a hard
    * limit, positive for a soft one, `-1` when `limit` is unlimited. The
    * allowance of the instance's effective limit, not of the licence's grant.
-   * Absent for a BOOLEAN or CONFIG entitlement, and on a server that predates it.
+   * Absent on a server that predates it, `null` for a BOOLEAN or CONFIG
+   * entitlement, which has no value to cap.
    */
-  limitCapExceededOveragePercent?: number;
+  limitCapExceededOveragePercent?: number | null;
 };
 
 /** `SET`, `ADD`, `MULTIPLY` or `UNLIMITED`: how a voucher boost changes an entitlement. Open: more may come. */
@@ -356,6 +365,12 @@ export interface ReportUsageInput {
 /**
  * What a usage report resolves with: the counter after it, plus what the API
  * said about the report in its response headers.
+ *
+ * On a replay (`idempotentReplayed: true`) the body is rebuilt from the report's
+ * journal entry, which keeps the figures of the counter but not the layers they
+ * were computed from: `source` and `provenance` are `null`, and the overage
+ * percent is the one recorded with that report. A first answer fills all three
+ * for a number entitlement.
  */
 export type ReportUsageResult = EntitlementUsage & {
   /**
@@ -363,7 +378,7 @@ export type ReportUsageResult = EntitlementUsage & {
    * `transactionId` (`Idempotent-Replayed: true`). The body is then that
    * report's original result, nothing was counted again, and its window,
    * value and limit are the ones of that report: do not read it as the current
-   * gauge. Absent otherwise.
+   * gauge. Its `source` and `provenance` are `null`. Absent otherwise.
    */
   idempotentReplayed?: true;
   /**
