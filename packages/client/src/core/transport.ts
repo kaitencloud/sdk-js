@@ -237,8 +237,9 @@ export class KaitenTransport {
           // and then answered slowly would otherwise be asked to commit it again
           // — on `reportUsage` that is double-counted usage, and usage is the
           // billing base. Without an idempotency key on the wire the only
-          // correct number of attempts is one; a write that carries one (a
-          // `reportUsage` with a `transactionId`) declares itself idempotent.
+          // correct number of attempts is one; a write whose key a server is
+          // known to honour (a `reportUsage` sent under an `Idempotency-Key`,
+          // to a server that has echoed one) declares itself idempotent.
           if (!idempotent) return false;
           if (iteration >= 3) return false;
           if (error instanceof KaitenNetworkError) return true;

@@ -45,10 +45,11 @@ import type {
  * is unaffected; the raw type is still `KaitenApi.EntitlementUsage`.
  *
  * All three also accept `null`. A report the server answers from its journal,
- * because the same `transactionId` was already applied, carries the figures of
- * that first report and not a fresh reading of the layers, so it sends `source`
- * and `provenance` as `null`: read them as "not computed for this answer", never
- * as "no layer grants this". Narrow with `row.source != null` before using them.
+ * because the same key was already applied, carries the figures of
+ * that first report and not a fresh reading of the layers, so a server may send
+ * `source` and `provenance` as `null` (or leave them empty): read them as "not
+ * computed for this answer", never as "no layer grants this". Narrow with
+ * `row.source != null` before using them.
  */
 export type EntitlementUsage = Omit<
   ApiEntitlementUsage,
@@ -57,14 +58,14 @@ export type EntitlementUsage = Omit<
   /**
    * The layer that grants the entitlement: `license` when the licence does, its
    * value possibly changed by add-ons and boosts, `addon` when only add-ons do.
-   * Open: more may come. Absent on a server that predates it, `null` on the
-   * answer to a replayed report.
+   * Open: more may come. Absent on a server that predates it, and possibly `null`
+   * on the answer to a replayed report.
    */
   source?: "license" | "addon" | (string & {}) | null;
   /**
    * Why `limit` is what it is: the licence's grant, the add-ons, the voucher
-   * boosts. Absent on a server that predates it, `null` on the answer to a
-   * replayed report.
+   * boosts. Absent on a server that predates it, and possibly `null` on
+   * the answer to a replayed report.
    */
   provenance?: EntitlementProvenance | null;
   /**
@@ -337,7 +338,8 @@ export interface ReportUsageInput {
   metadata?: Record<string, unknown>;
   /**
    * Idempotency key: 1 to 128 characters of `[A-Za-z0-9._:-]`, matched exactly
-   * and case-sensitively, such as a UUID or `llm-call:9f2c:tokens`.
+   * and case-sensitively, such as a UUID or `llm-call:9f2c:tokens`. It travels
+   * in the `Idempotency-Key` request header, never in the body.
    *
    * The API applies a report once per key, per instance and entitlement, over
    * its idempotency window (35 days by default; a key older than that is
@@ -347,17 +349,17 @@ export interface ReportUsageInput {
    * `TransactionIdReusedError`. A refused report (`ThresholdExceeded`) does not
    * spend its key.
    *
-   * With a key, and only then, the client retries a report that failed on the
-   * network or with a 500, 502, 503 or 504, up to three attempts under the same
-   * key. Without one, a report is sent exactly once: replaying it could count it
-   * twice. The client never makes a key up.
+   * A server that honours the key says so by echoing it as `transactionId` in
+   * the result. The client sends the key regardless, but retries a report that
+   * failed on the network or with a 500, 502, 503 or 504, up to three attempts
+   * under the same key, only once this client has received such an echo. Until
+   * then a failure surfaces after the first attempt: a server that ignored the
+   * header would count a retry twice. The client never makes a key up, and a
+   * report without one is sent exactly once.
    *
    * A key outside that format is refused before anything is sent, with an
-   * `InvalidTransactionIdError`.
-   *
-   * A Kaiten server that predates this member refuses it with a 422. The client
-   * then sends that report again without its key, warns once, and sends every
-   * later report of the same client without a key, and so without retries.
+   * `InvalidTransactionIdError`; so is an empty one, which the API would read as
+   * no key at all.
    */
   transactionId?: string;
 }
@@ -368,14 +370,21 @@ export interface ReportUsageInput {
  *
  * On a replay (`idempotentReplayed: true`) the body is rebuilt from the report's
  * journal entry, which keeps the figures of the counter but not the layers they
- * were computed from: `source` and `provenance` are `null`, and the overage
+ * were computed from: `source` and `provenance` may be `null`, and the overage
  * percent is the one recorded with that report. A first answer fills all three
  * for a number entitlement.
  */
 export type ReportUsageResult = EntitlementUsage & {
   /**
+   * The key the report was accepted under, echoed by the server on the first
+   * answer and on every replay: the `transactionId` you sent, or `null` when you
+   * sent none. A string says the server honours the key. Absent from a server
+   * that predates the header.
+   */
+  transactionId?: string | null;
+  /**
    * `true` when the API answered a report already applied under the same
-   * `transactionId` (`Idempotent-Replayed: true`). The body is then that
+   * `Idempotency-Key` (`Idempotent-Replayed: true`). The body is then that
    * report's original result, nothing was counted again, and its window,
    * value and limit are the ones of that report: do not read it as the current
    * gauge. Its `source` and `provenance` are `null`. Absent otherwise.

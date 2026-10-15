@@ -19,6 +19,7 @@ import {
 } from "../core/index.ts";
 import type { KaitenClientConfig } from "../core/index.ts";
 import {
+  IDEMPOTENCY_KEY_LOCATION,
   INVALID_TRANSACTION_ID_CODE,
   InvalidTransactionIdError,
   KaitenError,
@@ -351,10 +352,13 @@ const AUTH_SCHEMES: ReadonlySet<unknown> = new Set(["bearer", "publishable", "no
  */
 const REPORT_RETRY_STATUSES = [500, 502, 503, 504] as const;
 
-/** The report without its key, for a server that does not know the member. */
-function withoutTransactionId(input: ReportUsageInput): ReportUsageInput {
-  const { transactionId: _dropped, ...rest } = input;
-  return rest;
+/** The header the report's key travels in. The body has no member for it. */
+const IDEMPOTENCY_KEY_HEADER = "Idempotency-Key";
+
+/** The report as the body carries it: the key travels in a header, never here. */
+function reportBody(input: ReportUsageInput): Omit<ReportUsageInput, "transactionId"> {
+  const { transactionId: _key, ...body } = input;
+  return body;
 }
 
 /** What the API accepts as a `transactionId`: 1 to 128 characters of `[A-Za-z0-9._:-]`. */
@@ -363,8 +367,11 @@ const TRANSACTION_ID_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/;
 /**
  * Refuses a key the API would refuse, before the request leaves. A malformed
  * string is the same `InvalidTransactionIdError` the API answers with (422), so
- * a handler written for the API's answer also catches this one. A value that is
- * not a string is a programming error, a `TypeError`.
+ * a handler written for the API's answer also catches this one, and it names the
+ * same location. An empty string is refused too: the API reads an empty header
+ * as no key at all, which would leave a caller who meant to send one believing
+ * it is protected. A value that is not a string is a programming error, a
+ * `TypeError`.
  */
 function assertTransactionId(key: unknown): void {
   if (key === undefined) return;
@@ -382,7 +389,7 @@ function assertTransactionId(key: unknown): void {
       status: 422,
       detail: `${message}. It was refused before the request was sent.`,
       code: INVALID_TRANSACTION_ID_CODE,
-      errors: [{ location: "body.transactionId", message, value: key }],
+      errors: [{ location: IDEMPOTENCY_KEY_LOCATION, message, value: key }],
     },
     key,
   );
@@ -401,23 +408,8 @@ function typedReportError(error: unknown, transactionId: string | undefined): un
   return error;
 }
 
-/**
- * True when the API refused `transactionId` as a member it does not know: a
- * 422 at `body.transactionId` without the code a current API gives a malformed
- * key. A server that predates idempotent reports closes the body
- * (`additionalProperties: false`) and answers that way to any key. A 422 on
- * another member says nothing about keys.
- */
-function refusesTransactionIdAsUnknown(error: KaitenError): boolean {
-  return (
-    error.status === 422 &&
-    error.code !== INVALID_TRANSACTION_ID_CODE &&
-    (error.errors ?? []).some((entry) => entry.location === "body.transactionId")
-  );
-}
-
 /** Adds what the report's response headers said, when they said anything. */
-function withReportHeaders(usage: EntitlementUsage, headers?: Headers): ReportUsageResult {
+function withReportHeaders(usage: ReportUsageResult, headers?: Headers): ReportUsageResult {
   const replayed = headers?.get("Idempotent-Replayed")?.toLowerCase() === "true";
   const metadataDropped = headers?.get("Kaiten-Metadata-Dropped") || undefined;
   if (!replayed && !metadataDropped) return usage;
@@ -431,9 +423,12 @@ function withReportHeaders(usage: EntitlementUsage, headers?: Headers): ReportUs
 export class KaitenClient implements KaitenClientLike {
   private readonly transport: KaitenTransport;
   private readonly onDegraded: KaitenClientConfig["onDegraded"];
-  // Set once the server refused `transactionId` as an unknown member: an API
-  // that predates idempotent reports. It stays set for the life of the client.
-  private transactionIdUnsupported = false;
+  // Set once this client has read a key echoed back by its server: a response
+  // to a keyed report whose `transactionId` is a string. Only a server that
+  // honours the header does that, and until one has, a keyed report is not known
+  // to be applied once, so it is not retried. It stays set for the life of the
+  // client, and is the client's, not the process's.
+  private serverEchoesKeys = false;
 
   public readonly components: KaitenComponentsModule;
   public readonly customers: KaitenCustomersModule;
@@ -1174,72 +1169,55 @@ export class KaitenClient implements KaitenClientLike {
   ): Promise<ReportUsageResult> {
     const { transactionId } = input;
     // Refused here, before any request: a key the API cannot accept is a bug in
-    // the caller, and the generic 422 an older server gives any key must stay the
-    // only 422 at body.transactionId that means "unknown member".
+    // the caller, and it is the same error the API would answer with.
     assertTransactionId(transactionId);
 
-    // A key is sent only when the caller gave one, and never once this client
-    // learned that its server does not know the member. Without a key the body
-    // is the caller's object as it is, so an unkeyed report is byte for byte
-    // what it was before keys existed.
-    const keyed = transactionId !== undefined && !this.transactionIdUnsupported;
     try {
-      return await this.sendUsageReport(
-        instanceSlug,
-        entitlementSlug,
-        transactionId === undefined || keyed ? input : withoutTransactionId(input),
-        keyed,
-      );
+      return await this.sendUsageReport(instanceSlug, entitlementSlug, input);
     } catch (error) {
-      const typed = typedReportError(error, keyed ? transactionId : undefined);
-      if (!keyed || !(typed instanceof KaitenError) || !refusesTransactionIdAsUnknown(typed)) {
-        throw typed;
-      }
+      throw typedReportError(error, transactionId);
     }
-
-    // The server does not know the member. It closes the body and answers 422
-    // before it reads anything else, so the report was not counted and sending
-    // it again counts it once. It goes without its key, so once and without
-    // retries, and so does every later report of this client.
-    if (!this.transactionIdUnsupported) {
-      this.transactionIdUnsupported = true;
-      console.warn(
-        "[@kaitencloud/client] transactionId is not supported by this Kaiten server: it " +
-          "refused the member as unknown. The report was sent again without it, and this " +
-          "client now sends usage reports without a key, so it no longer retries them. " +
-          "Upgrade the server to make reports idempotent.",
-      );
-    }
-    return this.sendUsageReport(instanceSlug, entitlementSlug, withoutTransactionId(input), false);
   }
 
   private async sendUsageReport(
     instanceSlug: string,
     entitlementSlug: string,
-    body: ReportUsageInput,
-    keyed: boolean,
+    input: ReportUsageInput,
   ): Promise<ReportUsageResult> {
+    const { transactionId } = input;
     let headers: Headers | undefined;
-    const usage = await this.transport.run(
+    const usage: ReportUsageResult = await this.transport.run(
       (client) =>
         reportEntitlementUsageMetric({
           client,
           path: { instanceSlug, entitlementSlug },
-          body,
+          body: reportBody(input),
+          // The key is sent whenever the caller gave one, and only then: this
+          // client never makes one up, so an unkeyed report carries no header.
+          ...(transactionId === undefined
+            ? {}
+            : { headers: { [IDEMPOTENCY_KEY_HEADER]: transactionId } }),
         }),
       `reportUsage(${instanceSlug}, ${entitlementSlug})`,
       {
-        // Replayed only under a key. Without one, a retry after a timeout the
-        // server had already committed would count the same consumption twice,
-        // and this counter is the billing base. With one, the server applies
-        // the report once and answers every retry with the original result.
-        idempotent: keyed,
+        // Replayed only when the server is known to apply a key once. Without
+        // a key, a retry after a timeout the server had already committed would
+        // count the same consumption twice, and this counter is the billing
+        // base. With one, a server that honours it applies the report once and
+        // answers every retry with the original result; but a server that
+        // ignores the header would count the retry, and nothing but an echo of a
+        // key says which kind this one is. So the first keyed report of a client
+        // is sent once, and the retries start after the server has echoed a key.
+        idempotent: transactionId !== undefined && this.serverEchoesKeys,
         retryStatuses: REPORT_RETRY_STATUSES,
         onResponse: (response) => {
           headers = response.headers;
         },
       },
     );
+    if (transactionId !== undefined && typeof usage.transactionId === "string") {
+      this.serverEchoesKeys = true;
+    }
     return withReportHeaders(usage, headers);
   }
 

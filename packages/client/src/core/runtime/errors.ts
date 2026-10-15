@@ -73,6 +73,9 @@ export class KaitenNetworkError extends Error {
  */
 export type KaitenThrownError = KaitenError | KaitenNetworkError;
 
+/** Where the API locates the key of a usage report in a problem's `errors[]`: the request header it travels in. */
+export const IDEMPOTENCY_KEY_LOCATION = "header.Idempotency-Key";
+
 /** The problem code of a usage report refused because its `transactionId` was already used. */
 export const TRANSACTION_ID_REUSED_CODE = "ReportEntitlementUsageMetric.TransactionIdReused";
 
@@ -99,7 +102,7 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 
 /** Reads the original report from the problem's `errors[]`, when the body carries it whole. */
 function originalReport(apiError: KaitenApiError): TransactionIdReusedOriginal | undefined {
-  const entry = apiError.errors?.find((error) => error.location === "body.transactionId");
+  const entry = apiError.errors?.find((error) => error.location === IDEMPOTENCY_KEY_LOCATION);
   const value = entry?.value;
   if (!isRecord(value)) return undefined;
   const { reportSeq, reportedAt, behavior } = value;

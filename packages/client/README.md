@@ -85,7 +85,8 @@ report times out, the client cannot know whether the API counted it, so a report
 without a key is sent **exactly once** and never retried.
 
 Give it a `transactionId` and the API applies it once, whatever the number of
-times it arrives:
+times it arrives. The client sends the key in the `Idempotency-Key` request
+header; the body is the report alone.
 
 ```ts
 import { KaitenError, TransactionIdReusedError } from "@kaitencloud/client";
@@ -115,22 +116,35 @@ try {
   report under a new key, with `behavior: "set"` for an absolute value: under the
   original key it is refused with `TransactionIdReusedError` (409), which is
   never retried.
-- **Retries.** With a key, and only then, a report that fails on the network,
-  times out or answers a 500, 502, 503 or 504 is retried, up to three attempts,
-  all under the same key. Any other status, a 501 for one, is returned as it came:
-  asking again gets the same answer. A retry the API already applied resolves with
-  `idempotentReplayed: true` and counts nothing.
+- **The echo.** A server that honours the key answers with it: the result's
+  `transactionId` is the key the report was accepted under, on the first answer
+  and on every replay, and `null` for a report sent without one.
+- **Retries.** With a key, a report that fails on the network, times out or
+  answers a 500, 502, 503 or 504 is retried, up to three attempts, all under the
+  same key, **once this client has received an echoed key**. Until then the
+  failure surfaces after the first attempt, key sent all the same: a server that
+  ignored the header would count the retry a second time, and only an echo says
+  that this one does not. So the first keyed report of a client is never retried,
+  and a client created for each request never retries. Any other status, a 501
+  for one, is returned as it came: asking again gets the same answer. A retry the
+  API already applied resolves with `idempotentReplayed: true` and counts
+  nothing. The memory is the client's, not the process's: another client keeps
+  its own.
+- **Older servers.** A server that predates the header ignores it: the report is
+  counted every time it arrives, its answer carries no `transactionId`, and the
+  client therefore never retries it. Send keys to a server that reads the header
+  to get the protection.
 - **No generated keys.** The client never makes a key up: without one, the body
-  is the one you passed, as it was sent before keys existed.
+  is the one you passed and the request carries no `Idempotency-Key` header.
 - **Malformed keys** are refused before anything is sent, with an
-  `InvalidTransactionIdError`: the same error the API answers a malformed key with (422).
+  `InvalidTransactionIdError`: the same error the API answers a malformed key
+  with (422, located at `header.Idempotency-Key`). An empty string is refused
+  too, because the API reads an empty header as no key at all.
+- **Browsers.** The header is not one a browser sends on its own: a page that
+  reports usage from the browser triggers a preflight, which the API answers by
+  allowing `Idempotency-Key`.
 - **Dropped metadata.** `metadataDropped: "too_large"` says the report's
   `metadata` was above 4 KiB and was not stored. The report itself was counted.
-- **Older servers.** A Kaiten server that predates `transactionId` refuses the
-  member with a 422 before it counts anything. The client sends that report again
-  without its key, warns once, and sends every later report of the same client
-  without a key, and so without retries. The memory is the client's, not the
-  process's: another client, pointed at a current server, keeps its keys.
 
 ## Testing without an API — `@kaitencloud/client/testing`
 
@@ -164,6 +178,10 @@ It is a **fake, not a stub**. `reportUsage` moves the usage it reports —
 `currentValue`, `remaining`, `percentageUsed` and the `near_limit`/`over_limit`
 status change together, as the snapshot normalizer does — so a usage meter that
 looks right against the fixtures behaves the same against the API.
+
+It echoes the key of a report as a current server does: the result's `transactionId` is the
+`transactionId` you passed, `null` without one. It keeps no ledger of keys, so it never answers
+a replay and never refuses a reused key: a test of either builds the result, or the error.
 
 ```ts
 const client = createMockKaitenClient();
@@ -233,7 +251,7 @@ the add-ons and the voucher boosts the limit is made of, with the identifiers of
 they come from. All three are optional: an older server sends none. They also accept `null`:
 the answer to a replayed report (`idempotentReplayed: true`) is rebuilt from the report's
 journal entry, which keeps neither the layer nor its arithmetic, so its `source` and
-`provenance` are `null`, and the percent is `null` for a flag or a configuration, which has no
+`provenance` may be `null`, and the percent is `null` for a flag or a configuration, which has no
 value to cap. Check `row.source != null` before reading them. The GraphQL read does not select
 them yet, so on that path the percent stays the grant's.
 
