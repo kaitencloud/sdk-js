@@ -6,6 +6,7 @@ import { KaitenStyleRoot, KaitenProvider } from "@kaitencloud/react-ui";
 import { fetchCustomerSession, loadConfig, type StorefrontConfig } from "./config.ts";
 import { ThemeSwitcher } from "./components/theme-switcher.tsx";
 import { CheckoutPage } from "./pages/checkout-page.tsx";
+import { JourneyPage } from "./pages/journey-page.tsx";
 import { PortalPage } from "./pages/portal-page.tsx";
 import { PricingPage } from "./pages/pricing-page.tsx";
 import { SalesPage } from "./pages/sales-page.tsx";
@@ -73,9 +74,11 @@ function Shell({ mode, sessionEnded }: { mode: StorefrontConfig["mode"]; session
     ? "checkout"
     : path === "/portal"
       ? "portal"
-      : path === "/sales"
-        ? "sales"
-        : "pricing";
+      : path === "/journey"
+        ? "journey"
+        : path === "/sales"
+          ? "sales"
+          : "pricing";
 
   return (
     <div className="site">
@@ -97,10 +100,9 @@ function Shell({ mode, sessionEnded }: { mode: StorefrontConfig["mode"]; session
             <Link to="/portal" aria-current={page === "portal" ? "page" : undefined}>
               Account
             </Link>
-            {/* The full payment journey is not built yet: a place held, not a link. */}
-            <span className="nav-soon" aria-disabled="true">
-              Journey <small>soon</small>
-            </span>
+            <Link to="/journey" aria-current={page === "journey" ? "page" : undefined}>
+              Journey
+            </Link>
           </nav>
           <ThemeSwitcher />
         </div>
@@ -119,6 +121,8 @@ function Shell({ mode, sessionEnded }: { mode: StorefrontConfig["mode"]; session
           <CheckoutPage slug={decodeURIComponent(path.slice("/checkout/".length))} />
         ) : page === "portal" ? (
           <PortalPage />
+        ) : page === "journey" ? (
+          <JourneyPage mode={mode} />
         ) : page === "sales" ? (
           <SalesPage />
         ) : (

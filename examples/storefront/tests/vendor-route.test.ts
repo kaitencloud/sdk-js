@@ -3,7 +3,7 @@
 // routes the dev server mounts.
 
 import { createKaitenClient } from "@kaitencloud/server";
-import { describe, expect, test } from "vite-plus/test";
+import { describe, expect, test, vi } from "vite-plus/test";
 
 import { storefrontRoutes } from "../server/plugin.ts";
 import { VENDOR_PLAN_CHANGE_PATH, vendorRoute } from "../server/vendor-route.ts";
@@ -107,6 +107,7 @@ describe("PUT and DELETE /storefront-api/vendor/plan-change", () => {
   });
 
   test("answers 502 when Kaiten cannot be reached, without repeating why", async () => {
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
     const route = vendorRoute({
       client: createKaitenClient({
         baseUrl: "https://kaiten.test",
@@ -125,6 +126,9 @@ describe("PUT and DELETE /storefront-api/vendor/plan-change", () => {
     ))!;
     expect(response.status).toBe(502);
     expect(await response.text()).toBe(JSON.stringify({ error: "unavailable" }));
+    // What the server logs does not hold the connection error's address either.
+    expect(JSON.stringify(logged.mock.calls)).not.toContain("10.0.0.1");
+    logged.mockRestore();
   });
 
   test("is not mounted against a Kaiten of yours", async () => {

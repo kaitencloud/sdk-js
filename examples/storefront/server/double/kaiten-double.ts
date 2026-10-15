@@ -129,9 +129,18 @@ export interface DoubleState {
   cancelAtPeriodEnd: boolean;
   cardOnFile: boolean;
   billingEmail: string | null;
-  invoices: Array<{ id: string; kind: string; status: string; total: number }>;
+  invoices: Array<{
+    id: string;
+    kind: string;
+    status: string;
+    total: number;
+    currency: string;
+    providerInvoiceNumber: string;
+  }>;
   minted: number;
   revoked: number;
+  /** What becomes of the next payment, as `payment` last set it. */
+  payment: PaymentOutcome;
   /** The slug of the plan the instance is on, `null` before any subscription. It survives the subscription's end. */
   plan: string | null;
   planName: string | null;
@@ -1538,9 +1547,12 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
       kind: each.kind as string,
       status: each.status as string,
       total: each.total as number,
+      currency: each.currency as string,
+      providerInvoiceNumber: each.providerInvoiceNumber as string,
     })),
     minted,
     revoked,
+    payment: outcome,
     plan: planSlug,
     planName,
     status: subscription ? (subscription.status as string) : null,
