@@ -10,8 +10,12 @@
   --text: #14151a;
   --text-muted: #5b5e6b;
   --border: #e3e4ea;
-  --brand: #7c3fd6;
+  /* Fill and label of a primary control: the Kaiten theme's own primary pair, so the
+     storefront's buttons match the components'. Text in the brand colour uses --brand-text. */
+  --brand: #8f52ea;
+  --brand-hover: #7e48ce;
   --brand-contrast: #ffffff;
+  --brand-text: #7c3fd6;
   --brand-soft: #efe8fb;
   --notice-bg: #eef1fb;
   --error-bg: #fdecec;
@@ -38,8 +42,10 @@
   --text: #f3f4f6;
   --text-muted: #a3a6b2;
   --border: #2d2f36;
-  --brand: #a77cf0;
-  --brand-contrast: #14151a;
+  --brand: #8f52ea;
+  --brand-hover: #7e48ce;
+  --brand-contrast: #ffffff;
+  --brand-text: #b794f4;
   --brand-soft: #2c2147;
   --notice-bg: #1d2234;
   --error-bg: #2b1718;
@@ -67,7 +73,7 @@ body {
 }
 
 a {
-  color: var(--brand);
+  color: var(--brand-text);
   text-underline-offset: 0.2rem;
 }
 
@@ -246,7 +252,7 @@ h1[tabindex="-1"]:focus {
 
 .eyebrow {
   margin: 0 0 0.5rem;
-  color: var(--brand);
+  color: var(--brand-text);
   font-size: 0.8125rem;
   font-weight: 600;
   letter-spacing: 0.08em;
@@ -339,7 +345,8 @@ code {
 }
 
 .btn:hover:not(:disabled) {
-  filter: brightness(1.08);
+  border-color: var(--brand-hover);
+  background: var(--brand-hover);
 }
 
 .btn:disabled {
@@ -353,9 +360,10 @@ code {
   color: var(--text);
 }
 
-.btn-secondary:hover {
+.btn-secondary:hover:not(:disabled) {
   border-color: var(--brand);
-  color: var(--brand);
+  background: var(--surface);
+  color: var(--brand-text);
 }
 
 .pill,
@@ -404,6 +412,8 @@ code {
 .chapter-title {
   margin: 2.25rem 0 0.75rem;
   font-size: 1.25rem;
+  /* A fixed line box, so the state panel beside the first chapter can line up with its first card. */
+  line-height: 1.75rem;
   letter-spacing: -0.01em;
 }
 
@@ -432,7 +442,7 @@ code {
   height: 1.5rem;
   border-radius: 50%;
   background: var(--brand-soft);
-  color: var(--brand);
+  color: var(--brand-text);
   font-size: 0.8125rem;
   font-weight: 700;
 }
@@ -585,6 +595,8 @@ code {
   }
 
   .journey-aside {
+    /* Level with the first scenario card: the first chapter title is 1.75rem high, then 0.75rem. */
+    margin-top: 2.5rem;
     position: sticky;
     top: calc(var(--header-height) + 1rem);
     max-height: calc(100vh - var(--header-height) - 2rem);
