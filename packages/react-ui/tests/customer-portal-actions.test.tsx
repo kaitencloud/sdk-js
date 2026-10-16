@@ -338,8 +338,63 @@ test("a change the API refuses is said, and the quantity is the one the server h
   await screen.findByText("Extra seats");
 
   await press("Add one Extra seats");
-  expect(await screen.findByText("That didn't work. Please try again.")).toBeTruthy();
+  expect(
+    await screen.findByText("This add-on isn't available with your plan or its billing period."),
+  ).toBeTruthy();
   expect(quantityOf("Extra seats")).toBe("3");
+});
+
+/** A refusal of `PUT /public/session/addons/{addonSlug}`, as Kaiten's are: the recorded one, with another code. */
+const addonRefusal = (status: number, code: string) => ({
+  status,
+  body: {
+    ...answers.errors.addonIncompatible.body,
+    title: status === 409 ? "Conflict" : "Unprocessable Entity",
+    status,
+    code: `SetSessionAddonQuantity.${code}`,
+  },
+});
+
+test.each([
+  [422, "CurrencyMismatch", "This add-on isn't sold in the currency of your subscription."],
+  [422, "Incompatible", "This add-on isn't available with your plan or its billing period."],
+  [422, "QuantityExceedsMax", "That's more than this add-on allows."],
+  [409, "OtherVersionAttached", "Your plan already includes another version of this add-on."],
+  [
+    409,
+    "SubscriptionIncomplete",
+    "Your plan starts once your payment is confirmed. You can change add-ons after that.",
+  ],
+  // What the portal has no word for is the generic sentence.
+  [422, "AddonNotPublic", "That didn't work. Please try again."],
+  [422, "InstanceRequired", "That didn't work. Please try again."],
+] as const)("%i .%s is said in its own words", async (status, code, said) => {
+  const server = sessionServer();
+  server.script("PUT addons/extra-seats-v1", addonRefusal(status, code));
+  mount(server, <AddOns />);
+  await screen.findByText("Extra seats");
+
+  await press("Add one Extra seats");
+  const message = await screen.findByText(said);
+  expect(message.closest('[data-slot="addons-feedback"]')).not.toBeNull();
+  expect(quantityOf("Extra seats")).toBe("3");
+  // Said once, and gone with the next change, which goes through.
+  expect(screen.getAllByText(said)).toHaveLength(1);
+  await press("Add one Extra seats");
+  await waitFor(() => expect(quantityOf("Extra seats")).toBe("4"));
+  expect(screen.queryByText(said)).toBeNull();
+});
+
+test("a refusal is said in the customer's language", async () => {
+  const server = sessionServer();
+  server.script("PUT addons/extra-seats-v1", addonRefusal(422, "CurrencyMismatch"));
+  mount(server, <AddOns />, fr);
+  await screen.findByText("Extra seats");
+
+  await press("Ajouter un Extra seats");
+  expect(
+    await screen.findByText("Cette option n'est pas vendue dans la devise de votre abonnement."),
+  ).toBeTruthy();
 });
 
 // ---------------------------------------------------------------------------

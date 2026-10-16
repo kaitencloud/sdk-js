@@ -1,13 +1,12 @@
 import * as React from "react";
 
-import { useSetAddonQuantity } from "@kaitencloud/react/billing";
+import { useSetAddonQuantity, type AddonQuantityProblem } from "@kaitencloud/react/billing";
 import {
-  BoundaryPendingError,
-  ProviderUnavailableError,
   formatKaitenPrice,
   useLocalization,
   usePortal,
   type Addon,
+  type KaitenPortalBillingWords,
 } from "@kaitencloud/react";
 import { useKaitenDataContext } from "@kaitencloud/react/internal";
 
@@ -29,6 +28,28 @@ interface Row {
   max: number | null;
 }
 
+/** What the section says of a refused change: why, when the API said why, and what to do. */
+function refusalText(problem: AddonQuantityProblem, words: KaitenPortalBillingWords): string {
+  switch (problem.kind) {
+    case "currency_mismatch":
+      return words.addonCurrencyMismatch;
+    case "incompatible":
+      return words.addonIncompatible;
+    case "quantity_exceeds_max":
+      return words.addonQuantityExceedsMax;
+    case "other_version_attached":
+      return words.addonOtherVersionAttached;
+    case "subscription_incomplete":
+      return words.addonSubscriptionIncomplete;
+    case "boundary_pending":
+      return words.stillClosing;
+    case "unavailable":
+      return words.unavailable;
+    default:
+      return words.actionFailed;
+  }
+}
+
 /**
  * The add-ons of a customer session, with the controls to change how many it holds: the ones the
  * instance holds, and the public add-ons of the catalogue that fit its plan and that its
@@ -37,9 +58,10 @@ interface Row {
  * added back.
  *
  * Each press is one change: the quantity is the server's to set, `0` detaching it, and a refusal is
- * the answer. A change is billed from the next renewal, with nothing refunded, which is said before
- * the last unit is removed. While a billing period is being closed the API asks to wait, and the
- * hook does: the section says so.
+ * the answer, said with its reason: an add-on in another currency, one that does not fit the plan,
+ * too many units, another version held, a plan that waits for its payment. A change is billed from
+ * the next renewal, with nothing refunded, which is said before the last unit is removed. While a
+ * billing period is being closed the API asks to wait, and the hook does: the section says so.
  */
 export function SessionAddOns({
   appearance,
@@ -57,7 +79,6 @@ export function SessionAddOns({
   const scope = useFocusScope();
 
   const [confirming, setConfirming] = React.useState<string | null>(null);
-  const [failure, setFailure] = React.useState<string | null>(null);
   const seen = React.useRef(new Map<string, Addon>());
 
   const data = portal.data;
@@ -111,21 +132,16 @@ export function SessionAddOns({
   if (!data?.instance || rows.length === 0) return null;
 
   const busy = change.isPending;
+  // The last change's refusal, until the next change is sent.
+  const failure = change.problem ? refusalText(change.problem, words) : null;
 
   const setQuantity = async (row: Row, quantity: number) => {
     // The question stays up while its answer is sent: it is what the keyboard is on.
     if (quantity !== 0) setConfirming(null);
-    setFailure(null);
     try {
       await change.mutateAsync({ addonSlug: row.addon.slug, quantity });
-    } catch (error) {
-      setFailure(
-        error instanceof BoundaryPendingError
-          ? words.stillClosing
-          : error instanceof ProviderUnavailableError
-            ? words.unavailable
-            : words.actionFailed,
-      );
+    } catch {
+      // Refused: the hook's `problem` says with what, and the section says it.
     }
     if (quantity === 0) {
       // The question is over and the row is at none: the keyboard goes to adding one back.

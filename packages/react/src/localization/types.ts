@@ -166,6 +166,16 @@ export interface KaitenPortalBillingWords {
   addonRemoveNote: string;
   addonRemove: string;
   addonKeep: string;
+  /** A change refused because the add-on is priced in another currency than the subscription's. */
+  addonCurrencyMismatch: string;
+  /** A change refused because the add-on does not fit the plan, or has no price for its billing period. */
+  addonIncompatible: string;
+  /** A change refused because it asks for more units than the add-on allows. */
+  addonQuantityExceedsMax: string;
+  /** A change refused because the instance holds another version of the add-on. */
+  addonOtherVersionAttached: string;
+  /** A change refused while the subscription waits for the payment of its checkout. */
+  addonSubscriptionIncomplete: string;
   vouchers: string;
   voucherLabel: string;
   voucherCheck: string;

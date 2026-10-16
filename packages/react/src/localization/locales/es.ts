@@ -263,6 +263,13 @@ export const es: KaitenLocalization = {
       "Los cambios se facturan desde su próxima renovación. No se reembolsa nada del periodo en curso.",
     addonRemove: "Quitar",
     addonKeep: "Mantener",
+    addonCurrencyMismatch: "Este complemento no se vende en la moneda de su suscripción.",
+    addonIncompatible:
+      "Este complemento no está disponible con su plan o su periodo de facturación.",
+    addonQuantityExceedsMax: "Es más de lo que permite este complemento.",
+    addonOtherVersionAttached: "Su plan ya incluye otra versión de este complemento.",
+    addonSubscriptionIncomplete:
+      "Su plan empieza en cuanto se confirme su pago. Podrá cambiar los complementos después.",
     vouchers: "Código promocional",
     voucherLabel: "Código promocional",
     voucherCheck: "Comprobar",

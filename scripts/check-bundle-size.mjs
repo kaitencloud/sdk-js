@@ -142,11 +142,12 @@ const SCENARIOS = [
     unstyled: true,
   },
   {
-    // Measured at 4 449 bytes, up from under 4 400: the four sentences and the two labels a
-    // quota's usage state is said with, which every language pack carries.
+    // Measured at 4 622 bytes, up from 4 463: the five sentences a refused change to an add-on is
+    // said with, which every language pack carries. (At 4 449 before that, up from under 4 400,
+    // for the words of a quota's usage state.)
     name: "locales · fr alone",
     code: `import { fr } from "@kaitencloud/react/locales"; console.log(fr);`,
-    budgetGzip: 4_600,
+    budgetGzip: 4_750,
     unstyled: true,
   },
   {
@@ -193,20 +194,20 @@ const SCENARIOS = [
     // Measured at 59 051 bytes, up from under 58 200: the usage rule of the Kaiten console, which the
     // meters and the status badges of the sections read (the ceiling, the state, its tone and
     // badge), the meter's allowance band and tick, and the new words of the English.
-    // Measured at 59 268 bytes, up from 59 010: the kinds the hook names a refused change to an
-    // add-on with.
+    // Measured at 59 498 bytes, up from 58 943: the refusals of a change to an add-on, named by
+    // the hook and said in their own words, and the fee an add-on is offered at.
     name: "react-ui · CustomerPortal + KaitenProvider + KaitenStyleRoot",
     code: `import { CustomerPortal, KaitenProvider, KaitenStyleRoot } from "@kaitencloud/react-ui"; console.log(CustomerPortal, KaitenProvider, KaitenStyleRoot);`,
-    budgetGzip: 59_400,
+    budgetGzip: 59_650,
   },
   {
     // Measured at 93 302 bytes, up from 79 688: Base UI's radio group, as in the checkout (12.4 KB),
     // and the Kaiten console's usage rule, as in the customer portal (1.3 KB).
-    // Measured at 95 304 bytes, up from 95 171, with the checkout's checkbox: the kinds a refused
-    // change to an add-on is named with, as in the customer portal.
+    // Measured at 95 561 bytes, up from 95 171, with the checkout's checkbox: the refusals of a
+    // change to an add-on, named and said in their own words, as in the customer portal.
     name: "react-ui · everything",
     code: `import * as all from "@kaitencloud/react-ui"; console.log(all);`,
-    budgetGzip: 95_450,
+    budgetGzip: 95_700,
   },
   {
     name: "client · KaitenClient alone",

@@ -367,8 +367,13 @@ export const AddOnRefused: Story = {
     const canvas = within(canvasElement);
     await canvas.findByText("Extra seats", {}, SLOW);
     await userEvent.click(canvas.getByRole("button", { name: "Add one Extra seats" }));
+    // The API said why, and the section says it: the add-on does not fit the plan.
     await expect(
-      await canvas.findByText("That didn't work. Please try again.", {}, SLOW),
+      await canvas.findByText(
+        "This add-on isn't available with your plan or its billing period.",
+        {},
+        SLOW,
+      ),
     ).toBeInTheDocument();
   },
 };

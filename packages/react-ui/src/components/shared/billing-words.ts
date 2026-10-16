@@ -65,6 +65,12 @@ export const englishPortalBillingWords: KaitenPortalBillingWords = {
     "Changes are billed from your next renewal. Nothing is refunded for the current period.",
   addonRemove: "Remove",
   addonKeep: "Keep",
+  addonCurrencyMismatch: "This add-on isn't sold in the currency of your subscription.",
+  addonIncompatible: "This add-on isn't available with your plan or its billing period.",
+  addonQuantityExceedsMax: "That's more than this add-on allows.",
+  addonOtherVersionAttached: "Your plan already includes another version of this add-on.",
+  addonSubscriptionIncomplete:
+    "Your plan starts once your payment is confirmed. You can change add-ons after that.",
   vouchers: "Voucher",
   voucherLabel: "Voucher code",
   voucherCheck: "Check",
