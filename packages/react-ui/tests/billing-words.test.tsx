@@ -65,15 +65,20 @@ test("a sentence around a name, a date or an amount carries it", () => {
     de.portalBilling!,
     es.portalBilling!,
   ]) {
-    for (const key of [
-      "addonQuantity",
-      "addonLess",
-      "addonMore",
-      "addonUpTo",
-      "addonRemovePrompt",
-    ] as const) {
+    for (const key of ["addonQuantity", "addonLess", "addonMore", "addonUpTo"] as const) {
       expect(portal[key]("UNIQUE"), key).toContain("UNIQUE");
     }
+    // The add-ons panel says when a change is billed: on the day the subscription renews, or ends.
+    for (const key of [
+      "addonBilledFrom",
+      "addonLowerFrom",
+      "addonRemovedFrom",
+      "addonEnding",
+    ] as const) {
+      expect(portal[key](day), key).toMatch(/2026/);
+    }
+    // A refusal names the add-on it stopped at, and says why.
+    expect(portal.addonRefusedFor("NAME", "REASON")).toMatch(/NAME[\s\S]*REASON/);
     expect(portal.cancelPrompt(day)).toMatch(/2026|01|1/);
     expect(portal.invoicePeriod(day, day)).toMatch(/2026|01|1/);
     // Seconds are said as seconds, and minutes as minutes.

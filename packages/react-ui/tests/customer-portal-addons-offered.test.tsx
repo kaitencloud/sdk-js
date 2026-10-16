@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 //
-// The add-ons a customer session's portal offers beside the ones its instance holds: the public
-// add-ons of the catalogue that fit the plan, and of those only the ones Kaiten attaches to its
-// subscription. Kaiten attaches no add-on priced in another currency than the subscription's, nor
+// The add-ons a customer session's portal offers beside the ones its instance holds, in the panel
+// where they are changed: the public add-ons of the catalogue that fit the plan, and of those only
+// the ones Kaiten attaches to its subscription. Kaiten attaches no add-on priced in another currency than the subscription's, nor
 // a paid one whose flat fees have no default for the subscription's billing period, so a + on
 // either could only be refused. An add-on billed no flat fee, metered only, free or custom, has no
 // period to be checked for. What the instance holds is listed whatever its prices.
@@ -10,7 +10,7 @@
 // The catalogue is Acme's, as Kaiten serves it, read by the real client: Extra seats in euros,
 // monthly and annual, and a GPU pack priced in dollars only. Initech's portal is on Pro, in euros.
 
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vite-plus/test";
 
 import { AddOns, usePlans } from "../src/index.ts";
@@ -64,8 +64,25 @@ async function drawAddOns(portal: RawPortal, catalog: unknown = acmeCatalog) {
   await waitFor(() => expect(server.to("GET", "portal")).toHaveLength(1));
 }
 
-/** The names of the add-ons listed, in their order. */
-const listed = () =>
+/**
+ * The names of the add-ons the panel lists, in their order: what the instance holds, then what is
+ * offered beside it. The panel is opened to read them; with nothing to list, there is no panel.
+ */
+async function listed(): Promise<string[]> {
+  if (!screen.queryByRole("dialog")) {
+    const [button] = screen.queryAllByRole("button", { name: "Manage add-ons" });
+    if (!button) return [];
+    await act(async () => {
+      fireEvent.click(button);
+    });
+  }
+  return [...document.querySelectorAll('[data-slot="addon-option"]')].map(
+    (row) => row.querySelector("span")!.textContent!,
+  );
+}
+
+/** The names of the add-ons the card says the instance holds. */
+const onCard = () =>
   [...document.querySelectorAll('[data-slot="addon"]')].map(
     (row) => row.querySelector("span")!.textContent,
   );
@@ -74,9 +91,18 @@ test("an add-on priced only in another currency than the subscription's is not o
   // A subscription in euros, holding nothing: the seats are sold in euros, the GPU pack in dollars.
   await drawAddOns(portalOf({ addOns: [] }));
 
-  await waitFor(() => expect(listed()).toEqual(["Extra seats"]));
+  await waitFor(async () => expect(await listed()).toEqual(["Extra seats"]));
   expect(screen.queryByText("GPU pack")).toBeNull();
   expect(screen.queryByRole("button", { name: "Add one GPU pack" })).toBeNull();
+});
+
+test("an instance that holds none says so on the card, and the panel offers what it can add", async () => {
+  await drawAddOns(portalOf({ addOns: [] }));
+
+  expect(await screen.findByText("You have no add-ons yet.")).toBeTruthy();
+  expect(onCard()).toEqual([]);
+  await waitFor(async () => expect(await listed()).toEqual(["Extra seats"]));
+  expect(screen.getByRole("status", { name: "Quantity of Extra seats" }).textContent).toBe("0");
 });
 
 test("an add-on the instance holds is listed whatever its prices, with its controls", async () => {
@@ -84,7 +110,9 @@ test("an add-on the instance holds is listed whatever its prices, with its contr
   // the way to remove it. The seats, which it does not hold, are offered beside it.
   await drawAddOns(portalOf({ addOns: [held("gpu-pack-v1")] }));
 
-  await waitFor(() => expect(listed()).toEqual(["GPU pack", "Extra seats"]));
+  await waitFor(async () => expect(await listed()).toEqual(["GPU pack", "Extra seats"]));
+  // The card lists what is held, the panel adds what is offered.
+  expect(onCard()).toEqual(["GPU pack"]);
   expect(screen.getByRole("status", { name: "Quantity of GPU pack" }).textContent).toBe("1");
   expect(screen.getByRole("button", { name: "Remove one GPU pack" })).toBeTruthy();
 });
@@ -98,7 +126,7 @@ test("the catalogue's version of a family the instance holds at another one is n
   seats.addonId = "00000000-0000-4000-8000-0000000000c1";
   await drawAddOns(portalOf({ addOns: [held("extra-seats-v1")] }), catalog);
 
-  await waitFor(() => expect(listed()).toEqual(["Extra seats"]));
+  await waitFor(async () => expect(await listed()).toEqual(["Extra seats"]));
   expect(screen.getAllByRole("button", { name: "Add one Extra seats" })).toHaveLength(1);
   expect(screen.getByRole("status", { name: "Quantity of Extra seats" }).textContent).toBe("3");
 });
@@ -107,20 +135,21 @@ test("an add-on with no fee for the subscription's billing period is not offered
   // Pro is sold every quarter, and the seats only by the month and by the year.
   await drawAddOns(portalOf({ subscription: billedEvery("QUARTERLY"), addOns: [] }));
   expect(screen.getByTestId("catalog-read").textContent).toBe("8");
-  // Nothing held and nothing to offer: no section at all.
-  expect(listed()).toEqual([]);
+  // Nothing held and nothing to offer: no section at all, and no panel.
+  expect(await listed()).toEqual([]);
+  expect(document.querySelector('[data-slot="addons"]')).toBeNull();
   expect(screen.queryByText("Extra seats")).toBeNull();
   cleanup();
 
   // By the year, they are.
   await drawAddOns(portalOf({ subscription: billedEvery("ANNUAL"), addOns: [] }));
-  await waitFor(() => expect(listed()).toEqual(["Extra seats"]));
+  await waitFor(async () => expect(await listed()).toEqual(["Extra seats"]));
 });
 
 test("without a subscription, every public add-on that fits the plan is offered, as before", async () => {
   await drawAddOns(portalOf({ subscription: null, addOns: [], upcomingInvoice: null }));
 
-  await waitFor(() => expect(listed()).toEqual(["Extra seats", "GPU pack"]));
+  await waitFor(async () => expect(await listed()).toEqual(["Extra seats", "GPU pack"]));
 });
 
 test("a canceled subscription is not checked either: every public add-on that fits the plan is offered", async () => {
@@ -133,7 +162,7 @@ test("a canceled subscription is not checked either: every public add-on that fi
     }),
   );
 
-  await waitFor(() => expect(listed()).toEqual(["Extra seats", "GPU pack"]));
+  await waitFor(async () => expect(await listed()).toEqual(["Extra seats", "GPU pack"]));
 });
 
 /** A public add-on that fits Pro, as the catalogue serves one, numbered `n`, with `prices`. */
@@ -203,8 +232,13 @@ test("an add-on billed no flat fee for the period is offered: metered only, free
   // of a paid add-on with flat fees only: the GPU pack alone, priced in dollars, is not offered.
   await drawAddOns(portalOf({ addOns: [] }), catalogWithUnflatAddOns());
 
-  await waitFor(() =>
-    expect(listed()).toEqual(["Extra seats", "GPU hours", "Priority support", "Dedicated region"]),
+  await waitFor(async () =>
+    expect(await listed()).toEqual([
+      "Extra seats",
+      "GPU hours",
+      "Priority support",
+      "Dedicated region",
+    ]),
   );
   expect(screen.getByRole("button", { name: "Add one GPU hours" })).toBeTruthy();
   expect(screen.queryByText("GPU pack")).toBeNull();
@@ -219,5 +253,5 @@ test("an add-on billed no flat fee is still not offered in another currency than
   }
   await drawAddOns(portalOf({ addOns: [] }), catalog);
 
-  await waitFor(() => expect(listed()).toEqual(["Dedicated region"]));
+  await waitFor(async () => expect(await listed()).toEqual(["Dedicated region"]));
 });

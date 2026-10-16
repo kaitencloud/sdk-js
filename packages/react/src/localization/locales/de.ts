@@ -258,11 +258,27 @@ export const de: KaitenLocalization = {
     addonLess: (name) => `Eine Einheit ${name} entfernen`,
     addonMore: (name) => `Eine Einheit ${name} hinzufügen`,
     addonUpTo: (max) => `Bis zu ${max}`,
-    addonRemovePrompt: (name) => `${name} aus Ihrem Tarif entfernen?`,
-    addonRemoveNote:
-      "Änderungen werden ab Ihrer nächsten Verlängerung berechnet. Für den laufenden Zeitraum wird nichts erstattet.",
-    addonRemove: "Entfernen",
-    addonKeep: "Behalten",
+    addonsManage: "Zusatzoptionen verwalten",
+    addonsManageNote:
+      "Wählen Sie, wie viele Einheiten jeder Zusatzoption Sie möchten. Nichts ändert sich, bevor Sie bestätigen.",
+    addonsNone: "Sie haben noch keine Zusatzoptionen.",
+    addonsSummary: "Ihre Änderungen",
+    addonsNoChange: "Noch keine Änderungen.",
+    addonsConfirm: "Änderungen bestätigen",
+    addonsCancel: "Abbrechen",
+    addonsUpdated: "Ihre Zusatzoptionen wurden aktualisiert.",
+    addonBilledFrom: (isoDate) =>
+      `Gilt sofort und wird ab Ihrer Verlängerung am ${formatKaitenDate(isoDate, { locale: "de-DE" })} berechnet.`,
+    addonLowerFrom: (isoDate) =>
+      `Gilt sofort. Ihre Verlängerung am ${formatKaitenDate(isoDate, { locale: "de-DE" })} berechnet die neue Menge, und für den laufenden Zeitraum wird nichts erstattet.`,
+    addonRemovedFrom: (isoDate) =>
+      `Sofort entfernt. Ihre Verlängerung am ${formatKaitenDate(isoDate, { locale: "de-DE" })} berechnet sie nicht mehr, und für den laufenden Zeitraum wird nichts erstattet.`,
+    addonEnding: (isoDate) =>
+      `Gilt sofort. Ihr Abonnement endet am ${formatKaitenDate(isoDate, { locale: "de-DE" })} und wird nicht verlängert.`,
+    addonUnbilled: "Gilt sofort. Ohne Abonnement wird nichts berechnet.",
+    addonTrueUpNote:
+      "Eine höhere Menge kann auf Ihrer nächsten Rechnung auch für den laufenden Zeitraum berechnet werden, zur höchsten darin gehaltenen Menge.",
+    addonRefusedFor: (name, reason) => `${name}: ${reason}`,
     addonNotPublic: "Diese Zusatzoption ist nicht mehr verfügbar.",
     addonCurrencyMismatch:
       "Diese Zusatzoption wird nicht in der Währung Ihres Abonnements angeboten.",

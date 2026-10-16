@@ -52,6 +52,12 @@ export interface DialogProps extends Omit<
   showCloseButton?: boolean;
   /** Accessible name of the close button. */
   closeLabel?: string;
+  /**
+   * The native element with none of the SDK's chrome: no panel, border, padding or shadow, and the
+   * close button, when shown, a plain one. It keeps its place in the top layer, centred over its
+   * backdrop, as every modal of the SDK's; what it looks like beyond that is the host's.
+   */
+  unstyled?: boolean;
 }
 
 export function Dialog({
@@ -60,6 +66,7 @@ export function Dialog({
   onDismiss,
   showCloseButton = true,
   closeLabel = "Close",
+  unstyled = false,
   onKeyDown,
   ...props
 }: DialogProps) {
@@ -138,7 +145,8 @@ export function Dialog({
         // the element itself, over the UA sheet's white box with a black border.
         // Position and centring are the UA's: a modal dialog sits in the top
         // layer with `inset: 0; margin: auto` (see `.ktn-dialog` in kaiten.css).
-        "bg-background text-foreground grid w-[calc(100vw-2rem)] max-w-md gap-4 rounded-lg border p-6 shadow-lg outline-none",
+        !unstyled &&
+          "bg-background text-foreground grid w-[calc(100vw-2rem)] max-w-md gap-4 rounded-lg border p-6 shadow-lg outline-none",
         className,
       )}
       onCancel={(event) => {
@@ -160,7 +168,11 @@ export function Dialog({
     >
       <DialogContext.Provider value={context}>
         {children}
-        {showCloseButton && (
+        {showCloseButton && unstyled ? (
+          <button type="button" data-slot="dialog-close" className="ktn-own" onClick={requestClose}>
+            {closeLabel}
+          </button>
+        ) : showCloseButton ? (
           <button
             type="button"
             data-slot="dialog-close"
@@ -170,33 +182,41 @@ export function Dialog({
             <XIcon />
             <span className="sr-only">{closeLabel}</span>
           </button>
-        )}
+        ) : null}
       </DialogContext.Provider>
     </dialog>
   );
 }
 
 /** The dialog's accessible name. Inline, so it composes inside a card's title row. */
-export function DialogTitle({ className, ...props }: React.ComponentProps<"span">) {
+export function DialogTitle({
+  className,
+  unstyled = false,
+  ...props
+}: React.ComponentProps<"span"> & { unstyled?: boolean }) {
   const { titleId } = useDialogContext("DialogTitle");
   return (
     <span
       id={titleId}
       data-slot="dialog-title"
-      className={cn("ktn-own", "text-lg leading-none font-semibold", className)}
+      className={cn("ktn-own", !unstyled && "text-lg leading-none font-semibold", className)}
       {...props}
     />
   );
 }
 
 /** The dialog's accessible description. */
-export function DialogDescription({ className, ...props }: React.ComponentProps<"p">) {
+export function DialogDescription({
+  className,
+  unstyled = false,
+  ...props
+}: React.ComponentProps<"p"> & { unstyled?: boolean }) {
   const { descriptionId } = useDialogContext("DialogDescription");
   return (
     <p
       id={descriptionId}
       data-slot="dialog-description"
-      className={cn("ktn-own", "text-muted-foreground text-sm", className)}
+      className={cn("ktn-own", !unstyled && "text-muted-foreground text-sm", className)}
       {...props}
     />
   );

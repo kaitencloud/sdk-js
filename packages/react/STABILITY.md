@@ -142,7 +142,8 @@ and they may change, in a minor release, as billing ships:
 - **The billing sections of `CustomerPortal`** (`@kaitencloud/react-ui`), under `mode="customer-session"`:
   `InvoiceList` (the customer's invoices, newest first as the API serves them, a link to pay an
   open one and to the PDF of those that have one), `VoucherEntry` (a field that only checks a code,
-  which a checkout redeems), the add-on stepper of `AddOns`, the cancel and reactivate controls
+  which a checkout redeems), the add-ons panel that `AddOns` and `CurrentPlan` open (quantities
+  set there and confirmed together, one change per add-on), the cancel and reactivate controls
   of `CurrentPlan` (its `manage` prop, which `CustomerPortal` sets) and the note on a limit that
   says where it comes from. Their amounts are the server's and nothing in them is added up; a
   voucher code is sent in the body of the check and kept nowhere. `InvoiceList` and `VoucherEntry`

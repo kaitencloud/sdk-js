@@ -168,28 +168,37 @@ test("the portal offers no add-on the subscription cannot be billed, and says wh
   await standIn.reset({ subscribed: true });
   await page.goto("/portal");
 
-  // Pro, in euros: the seats are sold in euros and offered, the GPU pack in dollars only and not.
-  const addOns = page.locator('[data-slot="addon"]');
-  await expect(addOns).toHaveCount(1);
-  await expect(addOns).toContainText("Extra seats");
-  await expect(page.getByRole("button", { name: "Add one GPU pack" })).toHaveCount(0);
+  // The add-ons are changed in a panel, opened from the plan.
+  await portal(page).currentPlan.getByRole("button", { name: "Manage add-ons" }).click();
+  const panel = page.getByRole("dialog", { name: "Manage add-ons" });
 
-  // A refusal is said with its reason, not as a failure to try again.
+  // Pro, in euros: the seats are sold in euros and offered, the GPU pack in dollars only and not.
+  const offered = panel.locator('[data-slot="addon-option"]');
+  await expect(offered).toHaveCount(1);
+  await expect(offered).toContainText("Extra seats");
+  await expect(panel.getByRole("button", { name: "Add one GPU pack" })).toHaveCount(0);
+
+  // A quantity set in the panel is sent on Confirm only, with what it does to the subscription.
+  await panel.getByRole("button", { name: "Add one Extra seats" }).click();
+  await expect(panel.locator('[data-slot="addon-change"]')).toContainText("+1 × €10.00/month");
+  expect((await standIn.state()).addOns).toEqual([]);
+
+  // A refusal is said with its reason, of the add-on it stopped at, not as a failure to try again.
   await standIn.script(
     "PUT /public/session/addons/extra-seats-v1",
     refusal(409, "SetSessionAddonQuantity.OtherVersionAttached", "another version is attached"),
   );
-  await page.getByRole("button", { name: "Add one Extra seats" }).click();
+  await panel.getByRole("button", { name: "Confirm changes" }).click();
   await expect(
-    page.getByText("Your plan already includes another version of this add-on."),
+    panel.getByText("Extra seats: Your plan already includes another version of this add-on."),
   ).toBeVisible();
-  await expect(page.getByText("That didn't work. Please try again.")).toHaveCount(0);
+  await expect(panel.getByText(/That didn't work/)).toHaveCount(0);
   expect((await standIn.state()).addOns).toEqual([]);
 
-  // The next one goes through, and the sentence goes with it.
-  await page.getByRole("button", { name: "Add one Extra seats" }).click();
-  await expect(page.getByRole("status", { name: "Quantity of Extra seats" })).toHaveText("1");
-  await expect(
-    page.getByText("Your plan already includes another version of this add-on."),
-  ).toHaveCount(0);
+  // The next one goes through: the panel closes, and the card lists what the instance holds.
+  await panel.getByRole("button", { name: "Confirm changes" }).click();
+  await expect(panel).toHaveCount(0);
+  await expect(page.locator('[data-slot="addon"]')).toContainText(["Extra seats"]);
+  await expect(page.locator('[data-slot="addon-quantity"]')).toHaveText(["× 1"]);
+  expect((await standIn.state()).addOns).toEqual([{ slug: "extra-seats-v1", quantity: 1 }]);
 });

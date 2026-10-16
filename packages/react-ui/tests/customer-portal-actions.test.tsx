@@ -1,16 +1,16 @@
 // @vitest-environment jsdom
 //
 // What a customer does in the customer portal, against the real session client and the answers
-// Kaiten recorded for Initech: cancel the subscription and take it back, change how many units of
-// an add-on they hold, check a voucher code, and read where a limit comes from. Each is held to
-// what the customer sees afterwards, which is the portal as the server now says it.
+// Kaiten recorded for Initech: cancel the subscription and take it back, check a voucher code, and
+// read where a limit comes from. Each is held to what the customer sees afterwards, which is the
+// portal as the server now says it. Changing the add-ons has a suite of its own
+// (customer-portal-manage-addons.test.tsx).
 
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, expect, test, vi } from "vite-plus/test";
 import { fr } from "@kaitencloud/react/locales";
 
 import {
-  AddOns,
   CurrentPlan,
   CustomerPortal,
   IncludedFeatures,
@@ -215,188 +215,6 @@ test("a cancellation the API refuses is said, and changes nothing on screen", as
   await press("Cancel at period end");
   expect(await screen.findByText("That didn't work. Please try again.")).toBeTruthy();
   expect(screen.getByText(renewsOn)).toBeTruthy();
-});
-
-// ---------------------------------------------------------------------------
-// The quantity of an add-on
-// ---------------------------------------------------------------------------
-
-const quantityOf = (name: string) => screen.getByLabelText(`Quantity of ${name}`).textContent;
-
-test("shows what the instance holds, with the stepper's limit", async () => {
-  mount(sessionServer(), <AddOns />);
-  expect(await screen.findByText("Extra seats")).toBeTruthy();
-  expect(quantityOf("Extra seats")).toBe("3");
-  expect(quantityOf("GPU pack")).toBe("1");
-  expect(screen.getByText(/Up to 50/)).toBeTruthy();
-  // The price of one unit, at the subscription's period.
-  expect(screen.getByText(/€10\.00\/month/)).toBeTruthy();
-});
-
-test("a press is one change, sent as the quantity the instance will hold", async () => {
-  const server = sessionServer();
-  mount(server, <AddOns />);
-  await screen.findByText("Extra seats");
-
-  await press("Add one Extra seats");
-
-  expect(server.to("PUT", "addons/extra-seats-v1").map((call) => call.body)).toEqual([
-    { quantity: 4 },
-  ]);
-  expect(quantityOf("Extra seats")).toBe("4");
-
-  await press("Remove one Extra seats");
-  expect(server.to("PUT", "addons/extra-seats-v1").map((call) => call.body)).toEqual([
-    { quantity: 4 },
-    { quantity: 3 },
-  ]);
-  expect(quantityOf("Extra seats")).toBe("3");
-});
-
-test("the stepper stops at the most an instance may hold", async () => {
-  const portal = structuredClone(answers.portal);
-  portal.addOns[0]!.quantity = 50;
-  mount(sessionServer({ portal }), <AddOns />);
-  await screen.findByText("Extra seats");
-  expect(off(screen.getByRole("button", { name: "Add one Extra seats" }))).toBe(true);
-  expect(off(screen.getByRole("button", { name: "Remove one Extra seats" }))).toBe(false);
-  // An add-on with no limit has no ceiling.
-  expect(off(screen.getByRole("button", { name: "Add one GPU pack" }))).toBe(false);
-});
-
-test("removing the last unit asks first, and says what happens to the bill", async () => {
-  const server = sessionServer();
-  mount(server, <AddOns />);
-  await screen.findByText("GPU pack");
-
-  await press("Remove one GPU pack");
-  expect(screen.getByText("Remove GPU pack from your plan?")).toBeTruthy();
-  expect(
-    screen.getByText(
-      "Changes are billed from your next renewal. Nothing is refunded for the current period.",
-    ),
-  ).toBeTruthy();
-  expect(server.to("PUT", "addons/gpu-pack-v1")).toHaveLength(0);
-
-  await press("Keep");
-  expect(screen.queryByText("Remove GPU pack from your plan?")).toBeNull();
-  expect(server.to("PUT", "addons/gpu-pack-v1")).toHaveLength(0);
-
-  await press("Remove one GPU pack");
-  await press("Remove");
-  expect(server.to("PUT", "addons/gpu-pack-v1").map((call) => call.body)).toEqual([
-    { quantity: 0 },
-  ]);
-  // It left the portal, and stays here at none, so that it can be added back.
-  expect(quantityOf("GPU pack")).toBe("0");
-  await press("Add one GPU pack");
-  expect(quantityOf("GPU pack")).toBe("1");
-});
-
-test("the keyboard stays on the stepper through a change, and follows the removal of the last unit", async () => {
-  const server = sessionServer();
-  mount(server, <AddOns />);
-  await screen.findByText("GPU pack");
-
-  await pressFocused("Add one Extra seats");
-  await waitFor(() => expect(quantityOf("Extra seats")).toBe("4"));
-  await focused(() => screen.getByRole("button", { name: "Add one Extra seats" }));
-
-  await pressFocused("Remove one GPU pack");
-  await focusedText(/^Remove GPU pack from your plan\?$/);
-  await pressFocused("Keep");
-  await focused(() => screen.getByRole("button", { name: "Remove one GPU pack" }));
-
-  await pressFocused("Remove one GPU pack");
-  await pressFocused("Remove");
-  await waitFor(() => expect(quantityOf("GPU pack")).toBe("0"));
-  await focused(() => screen.getByRole("button", { name: "Add one GPU pack" }));
-});
-
-test("a change refused while a billing period is closed goes through after the wait, once", async () => {
-  vi.useFakeTimers(FAKE_TIMERS);
-  const server = sessionServer();
-  server.script("PUT addons/extra-seats-v1", refusal("cancelBoundaryPending"));
-  mount(server, <AddOns />);
-  await settle();
-
-  fireEvent.click(screen.getByRole("button", { name: "Add one Extra seats" }));
-  await settle();
-  expect(screen.getByText(/We're closing your billing period/)).toBeTruthy();
-  expect(off(screen.getByRole("button", { name: "Add one Extra seats" }))).toBe(true);
-  expect(server.to("PUT", "addons/extra-seats-v1")).toHaveLength(1);
-
-  await settle(60_000);
-  expect(server.to("PUT", "addons/extra-seats-v1")).toHaveLength(2);
-  expect(quantityOf("Extra seats")).toBe("4");
-});
-
-test("a change the API refuses is said, and the quantity is the one the server holds", async () => {
-  const server = sessionServer();
-  server.script("PUT addons/extra-seats-v1", refusal("addonIncompatible"));
-  mount(server, <AddOns />);
-  await screen.findByText("Extra seats");
-
-  await press("Add one Extra seats");
-  expect(
-    await screen.findByText("This add-on isn't available with your plan or its billing period."),
-  ).toBeTruthy();
-  expect(quantityOf("Extra seats")).toBe("3");
-});
-
-/** A refusal of `PUT /public/session/addons/{addonSlug}`, as Kaiten's are: the recorded one, with another code. */
-const addonRefusal = (status: number, code: string) => ({
-  status,
-  body: {
-    ...answers.errors.addonIncompatible.body,
-    title: status === 409 ? "Conflict" : "Unprocessable Entity",
-    status,
-    code: `SetSessionAddonQuantity.${code}`,
-  },
-});
-
-test.each([
-  [422, "AddonNotPublic", "This add-on is no longer available."],
-  [422, "CurrencyMismatch", "This add-on isn't sold in the currency of your subscription."],
-  [422, "Incompatible", "This add-on isn't available with your plan or its billing period."],
-  [422, "QuantityExceedsMax", "That's more than this add-on allows."],
-  [409, "OtherVersionAttached", "Your plan already includes another version of this add-on."],
-  [
-    409,
-    "SubscriptionIncomplete",
-    "Your plan starts once your payment is confirmed. You can change add-ons after that.",
-  ],
-  [422, "InstanceRequired", "Add-ons can't be changed from this page."],
-  // What the portal has no word for is the generic sentence.
-  [422, "SomethingNew", "That didn't work. Please try again."],
-] as const)("%i .%s is said in its own words", async (status, code, said) => {
-  const server = sessionServer();
-  server.script("PUT addons/extra-seats-v1", addonRefusal(status, code));
-  mount(server, <AddOns />);
-  await screen.findByText("Extra seats");
-
-  await press("Add one Extra seats");
-  const message = await screen.findByText(said);
-  expect(message.closest('[data-slot="addons-feedback"]')).not.toBeNull();
-  expect(quantityOf("Extra seats")).toBe("3");
-  // Said once, and gone with the next change, which goes through.
-  expect(screen.getAllByText(said)).toHaveLength(1);
-  await press("Add one Extra seats");
-  await waitFor(() => expect(quantityOf("Extra seats")).toBe("4"));
-  expect(screen.queryByText(said)).toBeNull();
-});
-
-test.each([
-  ["CurrencyMismatch", "Cette option n'est pas vendue dans la devise de votre abonnement."],
-  ["AddonNotPublic", "Cette option n'est plus disponible."],
-] as const)("a refusal is said in the customer's language: .%s", async (code, said) => {
-  const server = sessionServer();
-  server.script("PUT addons/extra-seats-v1", addonRefusal(422, code));
-  mount(server, <AddOns />, fr);
-  await screen.findByText("Extra seats");
-
-  await press("Ajouter un Extra seats");
-  expect(await screen.findByText(said)).toBeTruthy();
 });
 
 // ---------------------------------------------------------------------------

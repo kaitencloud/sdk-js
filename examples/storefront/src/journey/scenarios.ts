@@ -121,7 +121,7 @@ export function chapters(catalogue: JourneyCatalogue): Chapter[] {
               actions: [start("Start over", { subscribed: true })],
             },
             {
-              text: "In Add-ons, press + on Extra seats. The quantity changes now, and the portal says it is billed from the next renewal.",
+              text: "Press Manage add-ons, then + on Extra seats: before anything is sent, the panel says +1 × €10.00/month, billed from the next renewal. Confirm, and the quantity changes now.",
               actions: [go("Open the account", "/portal")],
             },
             {

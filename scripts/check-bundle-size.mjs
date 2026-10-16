@@ -145,9 +145,11 @@ const SCENARIOS = [
     // Measured at 4 600 bytes, up from 4 463: the five sentences a refused change to an add-on is
     // said with, less the label of the checkout's trial choice, which every language pack
     // carries. (At 4 449 before that, up from under 4 400, for the words of a quota's usage state.)
+    // Measured at 4 930 bytes, up from 4 648: the words of the add-ons panel, which say when each
+    // change is billed, less the four of the question the portal asked before removing an add-on.
     name: "locales · fr alone",
     code: `import { fr } from "@kaitencloud/react/locales"; console.log(fr);`,
-    budgetGzip: 4_750,
+    budgetGzip: 5_050,
     unstyled: true,
   },
   {
@@ -200,18 +202,23 @@ const SCENARIOS = [
     // the hook and said in their own words, and the fee an add-on is offered at.
     // Measured at 59 702 bytes, up from 59 498: the rule an add-on is offered to a subscription by,
     // and the two refusals of a change that had no words of their own.
+    // Measured at 61 543 bytes, up from 59 730: the add-ons panel, where quantities are set and
+    // confirmed together, with the summary of what each change does; the native dialog it opens
+    // in, which only the paywall carried; and the words of its English.
     name: "react-ui · CustomerPortal + KaitenProvider + KaitenStyleRoot",
     code: `import { CustomerPortal, KaitenProvider, KaitenStyleRoot } from "@kaitencloud/react-ui"; console.log(CustomerPortal, KaitenProvider, KaitenStyleRoot);`,
-    budgetGzip: 59_850,
+    budgetGzip: 61_700,
   },
   {
     // Measured at 93 302 bytes, up from 79 688: Base UI's radio group, as in the checkout (12.4 KB),
     // and the Kaiten console's usage rule, as in the customer portal (1.3 KB).
     // Measured at 93 901 bytes, up from 93 705: what the customer portal grew by, as above.
     // Measured at 94 081 bytes, up from 93 933: what the checkout grew by, as above.
+    // Measured at 95 126 bytes, up from 94 081: the customer portal's add-ons panel, as above, less
+    // the dialog, which the paywall already brought.
     name: "react-ui · everything",
     code: `import * as all from "@kaitencloud/react-ui"; console.log(all);`,
-    budgetGzip: 94_200,
+    budgetGzip: 95_300,
   },
   {
     name: "client · KaitenClient alone",

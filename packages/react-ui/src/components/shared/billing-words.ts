@@ -60,11 +60,26 @@ export const englishPortalBillingWords: KaitenPortalBillingWords = {
   addonLess: (name) => `Remove one ${name}`,
   addonMore: (name) => `Add one ${name}`,
   addonUpTo: (max) => `Up to ${max}`,
-  addonRemovePrompt: (name) => `Remove ${name} from your plan?`,
-  addonRemoveNote:
-    "Changes are billed from your next renewal. Nothing is refunded for the current period.",
-  addonRemove: "Remove",
-  addonKeep: "Keep",
+  addonsManage: "Manage add-ons",
+  addonsManageNote: "Choose how many of each add-on you want. Nothing changes until you confirm.",
+  addonsNone: "You have no add-ons yet.",
+  addonsSummary: "Your changes",
+  addonsNoChange: "No changes yet.",
+  addonsConfirm: "Confirm changes",
+  addonsCancel: "Cancel",
+  addonsUpdated: "Your add-ons have been updated.",
+  addonBilledFrom: (isoDate) =>
+    `Takes effect now, and is billed from your renewal on ${formatKaitenDate(isoDate)}.`,
+  addonLowerFrom: (isoDate) =>
+    `Takes effect now. Your renewal on ${formatKaitenDate(isoDate)} bills the new quantity, and nothing is refunded for the current period.`,
+  addonRemovedFrom: (isoDate) =>
+    `Removed now. Your renewal on ${formatKaitenDate(isoDate)} no longer bills it, and nothing is refunded for the current period.`,
+  addonEnding: (isoDate) =>
+    `Takes effect now. Your subscription ends on ${formatKaitenDate(isoDate)} and isn't renewed.`,
+  addonUnbilled: "Takes effect now. Nothing is billed without a subscription.",
+  addonTrueUpNote:
+    "A higher quantity can also be billed for the current period, at the most you hold during it, on your next invoice.",
+  addonRefusedFor: (name, reason) => `${name}: ${reason}`,
   addonNotPublic: "This add-on is no longer available.",
   addonCurrencyMismatch: "This add-on isn't sold in the currency of your subscription.",
   addonIncompatible: "This add-on isn't available with your plan or its billing period.",

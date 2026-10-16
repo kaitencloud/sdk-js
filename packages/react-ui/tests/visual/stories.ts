@@ -49,7 +49,7 @@ export const STORIES: Array<{ name: string; storyId: string }> = [
   { name: "customer-portal--full", storyId: "flows-customerportal--full" },
   { name: "customer-portal--vertical", storyId: "flows-customerportal--vertical" },
   // CustomerPortal in a customer session: the plan in each state its subscription is in, what a
-  // customer can do to it, the add-ons' stepper, the invoices and a voucher check.
+  // customer can do to it, the add-ons and their panel, the invoices and a voucher check.
   { name: "customer-portal-session--full", storyId: "flows-customer-portal-session--full" },
   // A plan that grants nothing to list: its three empty cells are not drawn, and the cards that
   // remain fill their rows.
@@ -80,21 +80,35 @@ export const STORIES: Array<{ name: string; storyId: string }> = [
     name: "customer-portal-session--provenance",
     storyId: "flows-customer-portal-session--provenance",
   },
+  // The add-ons: the card that lists what is held, and the panel where they are changed, with the
+  // changes to confirm, a refusal, a period being closed, the changes made, in dark and unstyled.
   {
-    name: "customer-portal-session--add-on-steppers",
-    storyId: "flows-customer-portal-session--add-on-steppers",
+    name: "customer-portal-session--add-ons-held",
+    storyId: "flows-customer-portal-session--add-ons-held",
   },
   {
-    name: "customer-portal-session--add-on-remove-asked",
-    storyId: "flows-customer-portal-session--add-on-remove-asked",
+    name: "customer-portal-session--manage-add-ons",
+    storyId: "flows-customer-portal-session--manage-add-ons",
   },
   {
-    name: "customer-portal-session--add-on-closing-period",
-    storyId: "flows-customer-portal-session--add-on-closing-period",
+    name: "customer-portal-session--manage-add-ons-refused",
+    storyId: "flows-customer-portal-session--manage-add-ons-refused",
   },
   {
-    name: "customer-portal-session--add-on-refused",
-    storyId: "flows-customer-portal-session--add-on-refused",
+    name: "customer-portal-session--manage-add-ons-closing-period",
+    storyId: "flows-customer-portal-session--manage-add-ons-closing-period",
+  },
+  {
+    name: "customer-portal-session--manage-add-ons-done",
+    storyId: "flows-customer-portal-session--manage-add-ons-done",
+  },
+  {
+    name: "customer-portal-session--manage-add-ons-dark",
+    storyId: "flows-customer-portal-session--manage-add-ons-dark",
+  },
+  {
+    name: "customer-portal-session--manage-add-ons-unstyled",
+    storyId: "flows-customer-portal-session--manage-add-ons-unstyled",
   },
   { name: "customer-portal-session--invoices", storyId: "flows-customer-portal-session--invoices" },
   {

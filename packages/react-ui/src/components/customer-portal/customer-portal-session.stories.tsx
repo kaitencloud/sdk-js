@@ -292,89 +292,165 @@ export const UsageOnTheCeiling: Story = {
   },
 };
 
-export const AddOnSteppers: Story = {
-  name: "Add-ons: the stepper",
-  render: () => (
+/** The add-ons card in a column of its own, as a host might lay it out. */
+function AddOnsColumn({ unstyled = false }: { unstyled?: boolean }) {
+  return (
     <div className="w-full max-w-md">
-      <AddOns />
+      <AddOns unstyled={unstyled} />
     </div>
-  ),
+  );
+}
+
+/** Opens the add-ons panel from the card, and waits for it: the dialog, and queries within it. */
+async function openPanel(canvasElement: HTMLElement) {
+  const canvas = within(canvasElement);
+  await userEvent.click(await canvas.findByRole("button", { name: "Manage add-ons" }, SLOW));
+  const dialog = await canvas.findByRole("dialog", { name: "Manage add-ons" }, SLOW);
+  return { dialog, panel: within(dialog) };
+}
+
+/** In the panel: two more seats, and the GPU pack removed. Nothing is sent. */
+async function changeTwo(panel: ReturnType<typeof within>) {
+  await userEvent.click(panel.getByRole("button", { name: "Add one Extra seats" }));
+  await userEvent.click(panel.getByRole("button", { name: "Add one Extra seats" }));
+  await userEvent.click(panel.getByRole("button", { name: "Remove one GPU pack" }));
+}
+
+export const AddOnsHeld: Story = {
+  name: "Add-ons: what the instance holds",
+  render: () => <AddOnsColumn />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await canvas.findByText("Extra seats", {}, SLOW);
-    await userEvent.click(canvas.getByRole("button", { name: "Add one Extra seats" }));
-    await waitFor(
-      () => expect(canvas.getByLabelText("Quantity of Extra seats")).toHaveTextContent("4"),
-      SLOW,
-    );
+    // A list to read: the quantities change in the panel, not here.
+    await expect(canvas.getByText("× 3")).toBeInTheDocument();
+    await expect(canvas.queryByRole("button", { name: "Add one Extra seats" })).toBeNull();
+    await expect(canvas.getByRole("button", { name: "Manage add-ons" })).toBeInTheDocument();
   },
 };
 
-export const AddOnRemoveAsked: Story = {
-  name: "Add-ons: removing the last unit asks first",
-  render: () => (
-    <div className="w-full max-w-md">
-      <AddOns />
-    </div>
-  ),
+export const ManageAddOns: Story = {
+  name: "Add-ons: the panel, with changes to confirm",
+  render: () => <AddOnsColumn />,
   play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    await canvas.findByText("GPU pack", {}, SLOW);
-    await userEvent.click(canvas.getByRole("button", { name: "Remove one GPU pack" }));
-    await expect(canvas.getByText("Remove GPU pack from your plan?")).toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: "Remove" })).toBeInTheDocument();
+    const { dialog, panel } = await openPanel(canvasElement);
+    // The keyboard is in the panel, which the browser holds it in.
     await waitFor(() =>
-      expect(canvasElement.ownerDocument.activeElement).toBe(
-        canvas.getByText("Remove GPU pack from your plan?"),
-      ),
+      expect(dialog.contains(canvasElement.ownerDocument.activeElement)).toBe(true),
+    );
+    await changeTwo(panel);
+    await expect(panel.getByLabelText("Quantity of Extra seats")).toHaveTextContent("5");
+    // Each change, at the add-on's own price, and when it is billed.
+    await expect(panel.getByText("+2 × €10.00/month")).toBeInTheDocument();
+    await expect(
+      panel.getByText(/^Takes effect now, and is billed from your renewal on/),
+    ).toBeInTheDocument();
+    await expect(panel.getByText(/^Removed now\./)).toBeInTheDocument();
+    await expect(panel.getByRole("button", { name: "Confirm changes" })).not.toHaveAttribute(
+      "aria-disabled",
     );
   },
 };
 
-export const AddOnClosingPeriod: Story = {
+export const ManageAddOnsRefused: Story = {
+  name: "Add-ons: a change the API refuses",
+  render: () => <AddOnsColumn />,
+  decorators: [
+    portalDecorator({ scripts: { "PUT addons/extra-seats-v1": [refusal("addonIncompatible")] } }),
+  ],
+  play: async ({ canvasElement }) => {
+    const { panel } = await openPanel(canvasElement);
+    await changeTwo(panel);
+    await userEvent.click(panel.getByRole("button", { name: "Confirm changes" }));
+    // The first change was refused: the panel says why, of that add-on, and sent nothing after it.
+    await expect(
+      await panel.findByText(
+        "Extra seats: This add-on isn't available with your plan or its billing period.",
+        {},
+        SLOW,
+      ),
+    ).toBeInTheDocument();
+    await expect(panel.getByLabelText("Quantity of GPU pack")).toHaveTextContent("0");
+  },
+};
+
+export const ManageAddOnsClosingPeriod: Story = {
   name: "Add-ons: a billing period is being closed",
-  render: () => (
-    <div className="w-full max-w-md">
-      <AddOns />
-    </div>
-  ),
+  render: () => <AddOnsColumn />,
   decorators: [
     portalDecorator({
       scripts: { "PUT addons/extra-seats-v1": [refusal("cancelBoundaryPending")] },
     }),
   ],
   play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    await canvas.findByText("Extra seats", {}, SLOW);
-    await userEvent.click(canvas.getByRole("button", { name: "Add one Extra seats" }));
+    const { panel } = await openPanel(canvasElement);
+    await userEvent.click(panel.getByRole("button", { name: "Add one Extra seats" }));
+    await userEvent.click(panel.getByRole("button", { name: "Confirm changes" }));
     await expect(
-      await canvas.findByText(/We're closing your billing period/, {}, SLOW),
+      await panel.findByText(/We're closing your billing period/, {}, SLOW),
     ).toBeInTheDocument();
   },
 };
 
-export const AddOnRefused: Story = {
-  name: "Add-ons: a change the API refuses",
-  render: () => (
-    <div className="w-full max-w-md">
-      <AddOns />
-    </div>
-  ),
-  decorators: [
-    portalDecorator({ scripts: { "PUT addons/extra-seats-v1": [refusal("addonIncompatible")] } }),
-  ],
+export const ManageAddOnsDone: Story = {
+  name: "Add-ons: the changes went through",
+  render: () => <AddOnsColumn />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await canvas.findByText("Extra seats", {}, SLOW);
-    await userEvent.click(canvas.getByRole("button", { name: "Add one Extra seats" }));
-    // The API said why, and the section says it: the add-on does not fit the plan.
-    await expect(
-      await canvas.findByText(
-        "This add-on isn't available with your plan or its billing period.",
-        {},
-        SLOW,
+    const { panel } = await openPanel(canvasElement);
+    await changeTwo(panel);
+    await userEvent.click(panel.getByRole("button", { name: "Confirm changes" }));
+    await waitFor(() => expect(canvas.queryByRole("dialog")).toBeNull(), SLOW);
+    // The card is what the server now holds, and says the changes were made.
+    await expect(await canvas.findByText("× 5", {}, SLOW)).toBeInTheDocument();
+    await expect(canvas.queryByText("GPU pack")).toBeNull();
+    await expect(canvas.getByText("Your add-ons have been updated.")).toBeInTheDocument();
+    // The keyboard is back on the button that opened the panel.
+    await waitFor(() =>
+      expect(canvasElement.ownerDocument.activeElement).toBe(
+        canvas.getByRole("button", { name: "Manage add-ons" }),
       ),
-    ).toBeInTheDocument();
+    );
+  },
+};
+
+export const ManageAddOnsDark: Story = {
+  name: "Add-ons: the panel, in dark",
+  render: () => <AddOnsColumn />,
+  parameters: { themes: { themeOverride: "dark" } },
+  play: async ({ canvasElement }) => {
+    const { panel } = await openPanel(canvasElement);
+    await changeTwo(panel);
+    await expect(panel.getByText("+2 × €10.00/month")).toBeInTheDocument();
+  },
+};
+
+export const ManageAddOnsUnstyled: Story = {
+  name: "Add-ons: the panel, unstyled",
+  render: () => <AddOnsColumn unstyled />,
+  play: async ({ canvasElement }) => {
+    const { dialog, panel } = await openPanel(canvasElement);
+    // The native dialog and plain buttons, for the host to style.
+    await expect(dialog.tagName).toBe("DIALOG");
+    await changeTwo(panel);
+    await expect(panel.getByRole("heading", { name: "Your changes" })).toBeInTheDocument();
+  },
+};
+
+export const ManageAddOnsFromThePlan: Story = {
+  name: "Add-ons: the panel, opened from the plan",
+  args: { elements: ["CurrentPlan", "AddOns"] },
+  play: async ({ canvasElement }) => {
+    const canvas = await drawn(canvasElement);
+    const [fromThePlan] = await canvas.findAllByRole("button", { name: "Manage add-ons" }, SLOW);
+    await userEvent.click(fromThePlan!);
+    const panel = within(await canvas.findByRole("dialog", { name: "Manage add-ons" }, SLOW));
+    await userEvent.click(panel.getByRole("button", { name: "Remove one Extra seats" }));
+    await expect(panel.getByText(/^Takes effect now\. Your renewal on/)).toBeInTheDocument();
+    // Escape drops what was set, and the keyboard is back where it was.
+    await userEvent.keyboard("{Escape}");
+    await waitFor(() => expect(canvas.queryByRole("dialog")).toBeNull());
+    await waitFor(() => expect(canvasElement.ownerDocument.activeElement).toBe(fromThePlan));
   },
 };
 

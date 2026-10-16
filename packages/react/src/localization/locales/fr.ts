@@ -255,11 +255,27 @@ export const fr: KaitenLocalization = {
     addonLess: (name) => `Retirer un ${name}`,
     addonMore: (name) => `Ajouter un ${name}`,
     addonUpTo: (max) => `Jusqu'à ${max}`,
-    addonRemovePrompt: (name) => `Retirer ${name} de votre offre ?`,
-    addonRemoveNote:
-      "Les changements sont facturés à partir de votre prochain renouvellement. Rien n'est remboursé pour la période en cours.",
-    addonRemove: "Retirer",
-    addonKeep: "Garder",
+    addonsManage: "Gérer les options",
+    addonsManageNote:
+      "Choisissez combien vous voulez de chaque option. Rien ne change avant votre confirmation.",
+    addonsNone: "Vous n'avez pas encore d'option.",
+    addonsSummary: "Vos modifications",
+    addonsNoChange: "Aucune modification pour l'instant.",
+    addonsConfirm: "Confirmer les modifications",
+    addonsCancel: "Annuler",
+    addonsUpdated: "Vos options ont été mises à jour.",
+    addonBilledFrom: (isoDate) =>
+      `Effectif tout de suite, et facturé à partir de votre renouvellement du ${formatKaitenDate(isoDate, { locale: "fr-FR" })}.`,
+    addonLowerFrom: (isoDate) =>
+      `Effectif tout de suite. Votre renouvellement du ${formatKaitenDate(isoDate, { locale: "fr-FR" })} facture la nouvelle quantité, et rien n'est remboursé pour la période en cours.`,
+    addonRemovedFrom: (isoDate) =>
+      `Retirée tout de suite. Votre renouvellement du ${formatKaitenDate(isoDate, { locale: "fr-FR" })} ne la facture plus, et rien n'est remboursé pour la période en cours.`,
+    addonEnding: (isoDate) =>
+      `Effectif tout de suite. Votre abonnement se termine le ${formatKaitenDate(isoDate, { locale: "fr-FR" })} et n'est pas renouvelé.`,
+    addonUnbilled: "Effectif tout de suite. Rien n'est facturé sans abonnement.",
+    addonTrueUpNote:
+      "Une quantité plus élevée peut aussi être facturée pour la période en cours, au maximum détenu pendant celle-ci, sur votre prochaine facture.",
+    addonRefusedFor: (name, reason) => `${name}\u00a0: ${reason}`,
     addonNotPublic: "Cette option n'est plus disponible.",
     addonCurrencyMismatch: "Cette option n'est pas vendue dans la devise de votre abonnement.",
     addonIncompatible:

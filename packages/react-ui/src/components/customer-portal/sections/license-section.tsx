@@ -29,6 +29,8 @@ import {
   type StatusTone,
 } from "../../shared/subscription-state.ts";
 import type { KaitenAppearance } from "../../../appearance/types.ts";
+import { ManageAddOns } from "./manage-addons.tsx";
+import { useSessionAddOns } from "./session-addon-rows.ts";
 import { SubscriptionControls } from "./subscription-controls.tsx";
 
 function licenseTypeBadgeVariant(
@@ -62,8 +64,9 @@ export interface CurrentPlanProps {
   unstyled?: boolean;
   /**
    * Under `mode="customer-session"`, adds the controls to cancel the subscription at the end of its
-   * period and to withdraw that cancellation, as the portal allows them. Off unless asked for:
-   * `CustomerPortal` asks. A plan card on a page of the host's own does not cancel anything.
+   * period and to withdraw that cancellation, as the portal allows them, and the button that opens
+   * the add-ons panel when the instance holds an add-on or is offered one. Off unless asked for:
+   * `CustomerPortal` asks. A plan card on a page of the host's own does not change anything.
    */
   manage?: boolean;
   onUpgradeVersion?: () => void | Promise<void>;
@@ -108,6 +111,9 @@ function CurrentPlanImpl({
   const localization = useLocalization();
   const subscriptionWords = useSubscriptionWords();
   const subscriptionState = useSubscriptionState();
+  const sessionAddOns = useSessionAddOns();
+  // The add-ons panel opens from the plan's actions, beside the host's, when there is something in it.
+  const managesAddOns = manage && sessionAddOns.rows.length > 0;
   const [pendingAction, setPendingAction] = React.useState<"upgrade" | "quota" | "addon" | null>(
     null,
   );
@@ -245,7 +251,7 @@ function CurrentPlanImpl({
         {/* Same rule as the styled rendering below: an action with no handler is
             not rendered. The two branches are one component to a consumer, so a
             guard that holds in only one of them is not a guard. */}
-        {(onUpgradeVersion || onAddQuota || onAddAddOn) && (
+        {(onUpgradeVersion || onAddQuota || onAddAddOn || managesAddOns) && (
           <div>
             {onUpgradeVersion && (
               <button
@@ -276,6 +282,7 @@ function CurrentPlanImpl({
                 {localization.currentPlan.addAddOns}
               </button>
             )}
+            {managesAddOns ? <ManageAddOns addOns={sessionAddOns} unstyled inRow /> : null}
           </div>
         )}
         {manage && subscriptionState ? (
@@ -360,9 +367,11 @@ function CurrentPlanImpl({
           them unconditionally meant a host that passed no callbacks (the common
           case while billing is still being built) shipped three buttons that
           flicker `aria-busy` and do nothing. A component sold to third parties
-          must not be able to display a dead CTA.
+          must not be able to display a dead CTA. The button of the add-ons panel
+          is the SDK's own, offered by the portal of a customer session, and sits
+          in the same row.
         */}
-        {(onUpgradeVersion || onAddQuota || onAddAddOn) && (
+        {(onUpgradeVersion || onAddQuota || onAddAddOn || managesAddOns) && (
           <div className={cn("flex flex-wrap gap-2", merged.elements?.actionRow)}>
             {onUpgradeVersion && (
               <Button
@@ -396,6 +405,7 @@ function CurrentPlanImpl({
                 {localization.currentPlan.addAddOns}
               </Button>
             )}
+            {managesAddOns ? <ManageAddOns addOns={sessionAddOns} unstyled={false} inRow /> : null}
           </div>
         )}
 

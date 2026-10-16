@@ -161,10 +161,38 @@ export interface KaitenPortalBillingWords {
   addonLess: (name: string) => string;
   addonMore: (name: string) => string;
   addonUpTo: (max: string) => string;
-  addonRemovePrompt: (name: string) => string;
-  addonRemoveNote: string;
-  addonRemove: string;
-  addonKeep: string;
+  /** The button that opens the add-ons panel, and the panel's title. */
+  addonsManage: string;
+  /** Under the panel's title: nothing is sent until the customer confirms. */
+  addonsManageNote: string;
+  /** The add-ons card of an instance that holds none, when some are offered. */
+  addonsNone: string;
+  /** The heading of what the panel will change. */
+  addonsSummary: string;
+  /** In place of the changes, while there is none. */
+  addonsNoChange: string;
+  addonsConfirm: string;
+  addonsCancel: string;
+  /** Said once the panel's changes all went through. */
+  addonsUpdated: string;
+  /** An increase, with a live subscription that renews. Receives the RAW date of the renewal. */
+  addonBilledFrom: (isoDate: string) => string;
+  /** A lower quantity, with a live subscription that renews. Receives the RAW date of the renewal. */
+  addonLowerFrom: (isoDate: string) => string;
+  /** A removal, with a live subscription that renews. Receives the RAW date of the renewal. */
+  addonRemovedFrom: (isoDate: string) => string;
+  /** Any change to a subscription that ends at the end of its period. Receives the RAW date it ends on. */
+  addonEnding: (isoDate: string) => string;
+  /** Any change while no subscription is live: nothing is billed. */
+  addonUnbilled: string;
+  /**
+   * Said under the changes when one raises a quantity: the renewal may also bill the current period
+   * at the highest quantity held in it. Said of every add-on, since the portal does not say which
+   * are billed that way.
+   */
+  addonTrueUpNote: string;
+  /** A refusal of the panel, said of the add-on it stopped at. Receives its name and the reason. */
+  addonRefusedFor: (name: string, reason: string) => string;
   /** A change refused because the add-on is no longer for sale, which trying again does not change. */
   addonNotPublic: string;
   /** A change refused because the add-on is priced in another currency than the subscription's. */

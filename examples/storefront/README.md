@@ -197,7 +197,7 @@ your Kaiten the buttons are off and the links remain.
 | ---------------------------------- | ------------------------------------------------------------------------------------------ |
 | Buy a plan with a trial            | a new customer, Growth's checkout, then **End the trial now**: the conversion invoice      |
 | A voucher: WELCOME20               | a customer with a card, Pro's checkout, the voucher typed in the field                     |
-| Add-on increase                    | the portal's + on Extra seats (in force at once), then the renewal that bills it           |
+| Add-on increase                    | the portal's add-ons panel, + on Extra seats, confirmed, then the renewal that bills it    |
 | Card declined, then retried        | the next payment set to fail, Pro's checkout, then the invoice paid                        |
 | 3-D Secure                         | the next payment set to need a confirmation, answered on the provider's page               |
 | An outcome that is not known yet   | the next payment left undecided, then answered paid or declined                            |
@@ -293,9 +293,10 @@ is a customer who moves:
 - a cancellation ends the subscription with its period, and a reactivation withdraws it;
 - the payment of the activation invoice can be paid, declined, wait for the customer's
   confirmation (3-D Secure) or be unknown for a while;
-- an add-on quantity is set from the portal, in force at once and billed from the next renewal, and
-  refused as the contract refuses it: `SetSessionAddonQuantity.CurrencyMismatch` for an add-on priced
-  in another currency than the subscription's (the GPU pack, in dollars beside the plans in euros),
+- an add-on quantity is set from the portal's add-ons panel, one request per add-on confirmed, in
+  force at once and billed from the next renewal, and refused as the contract refuses it:
+  `SetSessionAddonQuantity.CurrencyMismatch` for an add-on priced in another currency than the
+  subscription's (the GPU pack, in dollars beside the plans in euros),
   `.Incompatible` for one that does not fit the plan, or for a paid one whose flat fees have none
   for its billing period (an add-on that is metered only, free or custom is not checked for one),
   `.QuantityExceedsMax` for more units than it allows or fewer than none. Without a live

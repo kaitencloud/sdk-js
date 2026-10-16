@@ -257,11 +257,27 @@ export const es: KaitenLocalization = {
     addonLess: (name) => `Quitar uno de ${name}`,
     addonMore: (name) => `Añadir uno de ${name}`,
     addonUpTo: (max) => `Hasta ${max}`,
-    addonRemovePrompt: (name) => `¿Quitar ${name} de su plan?`,
-    addonRemoveNote:
-      "Los cambios se facturan desde su próxima renovación. No se reembolsa nada del periodo en curso.",
-    addonRemove: "Quitar",
-    addonKeep: "Mantener",
+    addonsManage: "Gestionar complementos",
+    addonsManageNote:
+      "Elija cuántas unidades quiere de cada complemento. Nada cambia hasta que confirme.",
+    addonsNone: "Todavía no tiene complementos.",
+    addonsSummary: "Sus cambios",
+    addonsNoChange: "Todavía no hay cambios.",
+    addonsConfirm: "Confirmar cambios",
+    addonsCancel: "Cancelar",
+    addonsUpdated: "Sus complementos se han actualizado.",
+    addonBilledFrom: (isoDate) =>
+      `Se aplica ahora y se factura desde su renovación del ${formatKaitenDate(isoDate, { locale: "es-ES" })}.`,
+    addonLowerFrom: (isoDate) =>
+      `Se aplica ahora. Su renovación del ${formatKaitenDate(isoDate, { locale: "es-ES" })} factura la nueva cantidad, y no se reembolsa nada del periodo en curso.`,
+    addonRemovedFrom: (isoDate) =>
+      `Se quita ahora. Su renovación del ${formatKaitenDate(isoDate, { locale: "es-ES" })} ya no lo factura, y no se reembolsa nada del periodo en curso.`,
+    addonEnding: (isoDate) =>
+      `Se aplica ahora. Su suscripción termina el ${formatKaitenDate(isoDate, { locale: "es-ES" })} y no se renueva.`,
+    addonUnbilled: "Se aplica ahora. No se factura nada sin suscripción.",
+    addonTrueUpNote:
+      "Una cantidad mayor también puede facturarse por el periodo en curso, por la cantidad más alta que tenga en él, en su próxima factura.",
+    addonRefusedFor: (name, reason) => `${name}: ${reason}`,
     addonNotPublic: "Este complemento ya no está disponible.",
     addonCurrencyMismatch: "Este complemento no se vende en la moneda de su suscripción.",
     addonIncompatible:
