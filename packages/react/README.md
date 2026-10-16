@@ -364,7 +364,7 @@ function Checkout({ licensePriceId }: { licensePriceId: string }) {
   if (checkout.step === "subscribed") return <p>Subscribed.</p>;
   return (
     <>
-      <button onClick={() => checkout.setAddOnQuantity("extra-seats", 2)}>2 extra seats</button>
+      <button onClick={() => checkout.setAddonQuantity("extra-seats", 2)}>2 extra seats</button>
       {/* The server's lines and the server's total: nothing is added up here. */}
       {due && <p>{formatKaitenMoney(due.total, due.currencyCode)} today</p>}
       <button disabled={!checkout.canSubmit} onClick={() => void checkout.submit()}>

@@ -106,7 +106,7 @@ export interface UseCheckoutResult {
   /** Chooses the price (the plan, at a billing period) by its `BillingPrice.id`. */
   selectPrice: (licensePriceId: string | null) => void;
   /** Sets how many units of an add-on are wanted; `0` is none. */
-  setAddOnQuantity: (addonSlug: string, quantity: number) => void;
+  setAddonQuantity: (addonSlug: string, quantity: number) => void;
   /** Sets the voucher code, `""` for none. It is sent in the body of the checkout and kept nowhere else. */
   setVoucherCode: (code: string) => void;
   /**
@@ -232,7 +232,7 @@ export function useCheckout(options: UseCheckoutOptions = {}): UseCheckoutResult
     (licensePriceId: string | null) => select({ licensePriceId }),
     [select],
   );
-  const setAddOnQuantity = React.useCallback(
+  const setAddonQuantity = React.useCallback(
     (addonSlug: string, quantity: number) =>
       setSelection((previous) => ({
         ...previous,
@@ -489,7 +489,7 @@ export function useCheckout(options: UseCheckoutOptions = {}): UseCheckoutResult
     selection,
     select,
     selectPrice,
-    setAddOnQuantity,
+    setAddonQuantity,
     setVoucherCode,
     setSkipTrial,
     setBillingEmail,

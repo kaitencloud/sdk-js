@@ -315,7 +315,7 @@ function CheckoutFlowView({
 
   // Another billing period is chosen together with what it keeps of the add-ons, in one change, so
   // that no selection with an add-on Kaiten would refuse is ever priced.
-  const { select, setAddOnQuantity } = checkout;
+  const { select, setAddonQuantity } = checkout;
   const selectedAddOns = checkout.selection.addOns;
   const selectPrice = (id: string) =>
     select({
@@ -332,10 +332,10 @@ function CheckoutFlowView({
   React.useEffect(() => {
     for (const addon of offerable) {
       if ((selectedAddOns[addon.slug] ?? 0) > 0 && !orderableAt(addon, chosen, heldFamilies)) {
-        setAddOnQuantity(addon.slug, 0);
+        setAddonQuantity(addon.slug, 0);
       }
     }
-  }, [offerable, chosen, heldFamilies, selectedAddOns, setAddOnQuantity]);
+  }, [offerable, chosen, heldFamilies, selectedAddOns, setAddonQuantity]);
 
   // Each step replaces the last one's controls: the keyboard goes to what the new one says first, and
   // to the refusal of a checkout that sent the customer back to choosing.
@@ -491,7 +491,7 @@ function CheckoutFlowView({
           chosen={chosen}
           quantities={checkout.selection.addOns}
           disabled={submitting}
-          onChange={checkout.setAddOnQuantity}
+          onChange={checkout.setAddonQuantity}
           priceLabel={(price) => formatKaitenPrice(price, localization) ?? ""}
           words={words}
         />

@@ -119,7 +119,7 @@ test("what is chosen is the selection, and the server prices it", async () => {
   expect(probe.now.preview.data?.dueToday).toMatchObject({ currencyCode: "USD", total: 7900 });
 
   act(() => probe.now.selectPrice(STARTER));
-  act(() => probe.now.setAddOnQuantity("extra-seats-v1", 2));
+  act(() => probe.now.setAddonQuantity("extra-seats-v1", 2));
   act(() => probe.now.setSkipTrial(true));
   expect(probe.now.selection).toMatchObject({
     licensePriceId: STARTER,
@@ -137,7 +137,7 @@ test("it can be submitted once the server priced the selection, and not before o
   expect(probe.now.canSubmit).toBe(true);
 
   // A selection that moved is not the one that was priced, until it is.
-  act(() => probe.now.setAddOnQuantity("extra-seats-v1", 2));
+  act(() => probe.now.setAddonQuantity("extra-seats-v1", 2));
   expect(probe.now.canSubmit).toBe(false);
   await settle(300);
 });
@@ -329,7 +329,7 @@ test("a checkout that is done is not priced again when the selection moves after
   const previewed = previews(client).length;
 
   // A selection that moves, or a portal that is read again, asks the server nothing.
-  act(() => probe.now.setAddOnQuantity("extra-seats-v1", 2));
+  act(() => probe.now.setAddonQuantity("extra-seats-v1", 2));
   await settle(1_000);
   expect(previews(client)).toHaveLength(previewed);
   expect(probe.now.step).toBe("subscribed");
