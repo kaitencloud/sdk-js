@@ -1,13 +1,14 @@
 import * as React from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { expect, userEvent, within } from "storybook/test";
 
 import {
   installKaitenFetchMock,
   restoreKaitenFetchMock,
   scenarioPortalDefault,
   STORYBOOK_API_BASE,
-  STORY_IDS,
 } from "../../../.storybook/kaiten-mock.tsx";
+import { API, sessionServer } from "../../../.storybook/session-server.ts";
 import { KaitenScopeProvider } from "@kaitencloud/react";
 import { KaitenStyleRoot } from "../../style-root/kaiten-style-root.tsx";
 import { CustomerPortal } from "../customer-portal/customer-portal.tsx";
@@ -21,7 +22,7 @@ const meta: Meta = {
     docs: {
       description: {
         component:
-          "Public pricing and authenticated customer portal share one top-level Kaiten scope provider. Toggle the state to verify the SDK scope switches without nesting providers.",
+          'What a vendor mounts for its own customers: the public pricing a visitor sees, then, once they sign in, their own portal under a customer session, both under one top-level `KaitenScopeProvider`. Toggle the state to verify the SDK scope switches without nesting providers. An application whose users are members of the organization switches to `mode: "authenticated"` instead; its token carries rights over the whole organization, so it never goes to a customer\'s browser.',
       },
     },
   },
@@ -39,7 +40,10 @@ function useProviderSwitchingMock() {
 
 function ProviderSwitchingDemo() {
   useProviderSwitchingMock();
-  const [authenticated, setAuthenticated] = React.useState(false);
+  const [signedIn, setSignedIn] = React.useState(false);
+  // One session per sign-in, as a host's backend mints one for each signed-in customer: the
+  // real session client, answering what Kaiten answered for Initech. A new client is a new scope.
+  const session = React.useMemo(() => (signedIn ? sessionServer() : null), [signedIn]);
 
   return (
     <KaitenScopeProvider
@@ -50,13 +54,11 @@ function ProviderSwitchingDemo() {
         polling: { enabled: false },
       }}
       authenticatedConfig={
-        authenticated
+        session
           ? {
-              mode: "authenticated",
-              apiUrl: STORYBOOK_API_BASE,
-              accessToken: "storybook-token",
-              customerId: STORY_IDS.customer,
-              instanceId: STORY_IDS.instance,
+              mode: "customer-session",
+              sessionClient: session.client,
+              apiUrl: API,
               polling: { enabled: false },
             }
           : null
@@ -65,8 +67,8 @@ function ProviderSwitchingDemo() {
       <KaitenStyleRoot
         appearance={{
           variables: {
-            colorPrimary: authenticated ? "#2563eb" : "#0f766e",
-            colorRing: authenticated ? "#93c5fd" : "#5eead4",
+            colorPrimary: signedIn ? "#2563eb" : "#0f766e",
+            colorRing: signedIn ? "#93c5fd" : "#5eead4",
             borderRadius: "0.75rem",
           },
         }}
@@ -75,28 +77,39 @@ function ProviderSwitchingDemo() {
           <div className="flex flex-col gap-3 rounded-ktn-lg border border-ktn-border bg-ktn-card p-4 text-ktn-card-foreground shadow-ktn-sm md:flex-row md:items-center md:justify-between">
             <div>
               <p className="text-sm font-medium text-ktn-muted-foreground">
-                {authenticated ? "Authenticated mode" : "Public mode"}
+                {signedIn ? "Customer session" : "Public mode"}
               </p>
               <h2 className="text-xl font-semibold">
-                {authenticated ? "Customer licensing workspace" : "Visitor pricing page"}
+                {signedIn ? "The customer's own portal" : "Visitor pricing page"}
               </h2>
             </div>
             <button
               type="button"
-              aria-pressed={authenticated}
+              aria-pressed={signedIn}
               className="inline-flex h-10 items-center justify-center rounded-ktn-md bg-ktn-primary px-4 text-sm font-medium text-ktn-primary-foreground transition-colors hover:bg-ktn-primary/90 focus-visible:ring-2 focus-visible:ring-ktn-ring focus-visible:outline-none"
-              onClick={() => setAuthenticated((value) => !value)}
+              onClick={() => setSignedIn((value) => !value)}
             >
-              {authenticated ? "Return to pricing" : "Sign in"}
+              {signedIn ? "Sign out" : "Sign in"}
             </button>
           </div>
-          {authenticated ? <CustomerPortal /> : <PricingTable showFeatureComparison={false} />}
+          {signedIn ? <CustomerPortal /> : <PricingTable showFeatureComparison={false} />}
         </div>
       </KaitenStyleRoot>
     </KaitenScopeProvider>
   );
 }
 
-export const PublicToAuthenticated: Story = {
+const SLOW = { timeout: 5_000 };
+
+export const PublicToCustomerSession: Story = {
   render: () => <ProviderSwitchingDemo />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole("button", { name: "Sign in" }));
+    // The customer's own portal, read through the session: their plan and their invoices.
+    await canvas.findByText("Pro", {}, SLOW);
+    await expect((await canvas.findAllByText("Invoices", {}, SLOW)).length).toBeGreaterThan(0);
+    await userEvent.click(canvas.getByRole("button", { name: "Sign out" }));
+    await expect(await canvas.findByText("Visitor pricing page")).toBeInTheDocument();
+  },
 };
