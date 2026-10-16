@@ -362,13 +362,15 @@ export type KaitenScopeProviderProps = Pick<
   "locale" | "localization" | "telemetry" | "hideBranding" | "children"
 > & {
   /**
-   * Configuration used before the host app has an authenticated Kaiten session:
-   * a public catalog read, or a static catalog the host already holds.
+   * Configuration used before the host application's user signs in: a public
+   * catalog read, or a static catalog the host already holds.
    */
   publicConfig: PublicKaitenProviderConfig | StaticKaitenProviderConfig;
   /**
-   * Authenticated configuration used after login: the host's own credential, or
-   * a customer session.
+   * Configuration used once the host application's user has signed in: a
+   * customer session, for a vendor's own customers, or the host's own
+   * credential (`authenticated`), for an application whose users are members
+   * of the organization.
    *
    * Pass `null` or `undefined` to keep rendering the public scope. When it becomes defined,
    * the SDK scope is remounted so SWR data, clients, and portals switch together.

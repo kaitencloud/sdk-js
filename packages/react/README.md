@@ -505,37 +505,53 @@ style is scoped to.
 
 ### Switching from public to signed in
 
-Use one top-level SDK scope whose config follows your application's own sign-in. Do not render an authenticated
-`KaitenProvider` inside a public one after login: nested providers are intentionally pass-through, so
-the inner scope will keep using the outer provider data.
+Use one top-level SDK scope whose config follows your application's own sign-in. Do not render a
+signed-in `KaitenProvider` inside a public one after login: a provider with another config is a
+scope of its own, so the inner one would read beside the outer one, with a second client and a
+second cache, while everything outside it kept reading the public catalog.
 
-For the common visitor-pricing to signed-in-app flow, use `KaitenScopeProvider`:
+The _scope_ is the data a provider reads and caches — its mode, its `apiUrl`, its key or its
+client — not a permission: `KaitenScopeProvider` chooses which scope the SDK reads, and grants
+nothing.
+
+For the common visitor-pricing to signed-in-app flow, use `KaitenScopeProvider`. A vendor's
+storefront reads the public catalog until its user signs in, then that customer's portal through a
+customer session, which is the credential made for a customer's browser
+([Customer session](#customer-session)):
 
 ```tsx
+import * as React from "react";
+import { KaitenSessionClient } from "@kaitencloud/client";
 import { KaitenScopeProvider } from "@kaitencloud/react";
 
-function BillingShell({
-  session,
-  children,
-}: {
-  session: AppSession | null;
-  children: React.ReactNode;
-}) {
+const apiUrl = "https://kaiten.example.com/api";
+
+function BillingShell({ userId, children }: { userId: string | null; children: React.ReactNode }) {
+  // One session client per signed-in user: a new client is a new scope, with its own cache.
+  const sessionClient = React.useMemo(
+    () =>
+      userId === null
+        ? null
+        : new KaitenSessionClient({
+            apiUrl,
+            // Your endpoint, which mints the customer session of the user signed in to your app.
+            getCustomerSession: () =>
+              fetch("/billing/session", { method: "POST" }).then((r) => r.json()),
+          }),
+    [userId],
+  );
+
   return (
     <KaitenScopeProvider
-      publicConfig={{
-        mode: "public",
-        publishableKey: KAITEN_PUBLISHABLE_KEY,
-        polling: { enabled: false },
-      }}
+      publicConfig={{ mode: "public", apiUrl, publishableKey: KAITEN_PUBLISHABLE_KEY }}
       authenticatedConfig={
-        session
+        sessionClient
           ? {
-              mode: "authenticated",
-              accessToken: session.kaitenAccessToken,
-              customerId: session.customerId,
-              instanceId: session.instanceId,
-              polling: { enabled: false },
+              mode: "customer-session",
+              sessionClient,
+              // The catalog beside the portal, for a pricing table and `useUpgradeOptions`.
+              apiUrl,
+              publishableKey: KAITEN_PUBLISHABLE_KEY,
             }
           : null
       }
@@ -546,15 +562,17 @@ function BillingShell({
 }
 ```
 
-`KaitenScopeProvider` renders public catalog data while `authenticatedConfig` is empty, then switches
-to authenticated snapshot data when it becomes available. The SDK scope is remounted across that
-boundary so the client and the SWR cache move together; state above the provider is preserved.
+`KaitenScopeProvider` renders the catalog while `authenticatedConfig` is empty, then switches to the
+customer's portal when it is set. The SDK scope is remounted across that boundary so the client and
+the SWR cache move together; state above the provider is preserved.
 
 `publicConfig` also takes a static catalog — `{ mode: "static", catalog }` — which is the
 signed-out half to use until your Kaiten server serves publishable keys: the pricing page renders from
-data the host holds, and the same shell switches to the customer's live snapshot after login.
-`authenticatedConfig` also takes a customer session — `{ mode: "customer-session", sessionClient }`
-— for a storefront whose signed-in half is the customer's portal and checkout.
+data the host holds, and the same shell switches to the customer's portal after login.
+An application whose users are members of your Kaiten organization, such as an internal tool, can
+pass an `authenticated` config as `authenticatedConfig` instead; its token carries rights over the
+whole organization ([Which credential](#authenticated-mode)), so it never goes to a customer's
+browser.
 
 ## Headless hooks
 
