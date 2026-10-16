@@ -40,7 +40,10 @@ import { useSetupReturn } from "./use-setup-return.ts";
  * - `submitting`: a checkout is being made;
  * - `awaiting_payment_method`: the customer was sent to the provider's page to save a
  *   payment method, and the checkout goes on when they are back;
- * - `subscribed`: the instance is subscribed, whatever became of the payment;
+ * - `subscribed`: the instance is subscribed, whatever became of the payment. A current Kaiten
+ *   leaves a subscription whose first payment is not confirmed `INCOMPLETE`
+ *   (`result.subscription.status`): what it bought starts once the payment is, and `payment`
+ *   says where that stands;
  * - `already_subscribed`: it already was, and a plan change is not a self-serve action.
  */
 export type CheckoutStep =

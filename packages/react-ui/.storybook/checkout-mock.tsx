@@ -176,6 +176,11 @@ export interface StoryCheckoutOptions {
   delayMs?: number;
   /** The total the server says, whatever its lines add up to: a screen shows this one. */
   totalOverride?: number;
+  /**
+   * A payment that is not paid leaves the subscription waiting for it (`INCOMPLETE`), as a current
+   * Kaiten makes it, instead of `ACTIVE`.
+   */
+  incomplete?: boolean;
 }
 
 /** A session double that sells Growth the way `options` say. */
@@ -244,7 +249,12 @@ export function createStoryCheckoutClient(
       return {
         status: "subscribed",
         subscription: {
-          status: payment === "not_required" ? "TRIAL" : "ACTIVE",
+          status:
+            payment === "not_required"
+              ? "TRIAL"
+              : options.incomplete && payment !== "paid"
+                ? "INCOMPLETE"
+                : "ACTIVE",
           providerKind: "STRIPE",
           collectionMethod: "CHARGE_AUTOMATICALLY",
           currencyCode: "USD",

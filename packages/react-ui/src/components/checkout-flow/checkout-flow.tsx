@@ -598,6 +598,18 @@ function Outcome({ checkout, unstyled }: { checkout: UseCheckoutResult; unstyled
   const paid = payment.isPaid || failedSettlement.status === "paid";
   const url = payment.hostedInvoiceUrl;
   const trialEndsAt = result.subscription.trialEndsAt;
+  // A subscription that waits for its first payment has started nothing it bought: the customer
+  // is told that the plan starts once the payment is confirmed, not that they are subscribed.
+  // An older Kaiten starts the subscription whatever became of the payment, and says ACTIVE.
+  const notStarted = result.subscription.status === "INCOMPLETE";
+  const headline = (
+    <Message
+      unstyled={unstyled}
+      tone={notStarted ? "info" : "success"}
+      text={notStarted ? words.startsOncePaid : words.subscribed}
+      focusKey="step"
+    />
+  );
 
   if (paid) {
     return (
@@ -629,8 +641,12 @@ function Outcome({ checkout, unstyled }: { checkout: UseCheckoutResult; unstyled
   if (payment.status === "failed") {
     return (
       <>
-        <Message unstyled={unstyled} tone="success" text={words.subscribed} focusKey="step" />
-        <Message unstyled={unstyled} tone="error" text={words.paymentFailed} />
+        {headline}
+        <Message
+          unstyled={unstyled}
+          tone="error"
+          text={notStarted ? words.cardDeclined : words.paymentFailed}
+        />
         {method.status === "saved" ? (
           <Message unstyled={unstyled} tone="success" text={words.paymentMethodUpdated} />
         ) : method.error ? (
@@ -674,7 +690,7 @@ function Outcome({ checkout, unstyled }: { checkout: UseCheckoutResult; unstyled
 
   return (
     <>
-      <Message unstyled={unstyled} tone="success" text={words.subscribed} focusKey="step" />
+      {headline}
       {payment.status === "requires_action" ? (
         <Message unstyled={unstyled} tone="info" text={words.confirmPayment} />
       ) : null}

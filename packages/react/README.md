@@ -405,7 +405,10 @@ function Checkout({ licensePriceId }: { licensePriceId: string }) {
 - **What became of the payment.** The instance is subscribed whatever it was: `payment`
   says `paid`, `not_required`, `requires_action` (the customer confirms it on
   `hostedInvoiceUrl`), `failed` (the card was refused: save another with
-  `usePaymentMethodSession`, or pay on `hostedInvoiceUrl`) or `processing`. While a payment
+  `usePaymentMethodSession`, or pay on `hostedInvoiceUrl`) or `processing`. Until a payment
+  is confirmed, a current Kaiten leaves the subscription `INCOMPLETE`
+  (`result.subscription.status`): what it bought, the plan and its add-ons, starts then, so
+  say that rather than that the customer is subscribed. While a payment
   is open, the invoices are read every 5 seconds until the invoice is `PAID`, for 10 minutes,
   and then once each time the window takes focus; the portal is read again when it is paid.
   An invoice that is not on the newest page is looked for a few pages down. A `processing`

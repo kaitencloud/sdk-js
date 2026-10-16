@@ -202,6 +202,8 @@ export const de: KaitenLocalization = {
     paymentStillOpen:
       "Wir haben Ihre Zahlung noch nicht gesehen. Wir prüfen erneut, wenn Sie zu diesem Fenster zurückkehren.",
     paymentFailed: "Sie sind abonniert, aber Ihre Karte wurde abgelehnt.",
+    startsOncePaid: "Ihr Tarif beginnt, sobald Ihre Zahlung bestätigt ist.",
+    cardDeclined: "Ihre Karte wurde abgelehnt.",
     updatePaymentMethod: "Zahlungsmethode aktualisieren",
     paymentMethodUpdated: "Zahlungsmethode aktualisiert.",
     payInvoice: "Rechnung bezahlen",

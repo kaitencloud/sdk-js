@@ -269,6 +269,34 @@ export const CardDeclined: Story = {
   },
 };
 
+export const PaymentToConfirmBeforeThePlanStarts: Story = {
+  name: "A payment to confirm, before the plan starts",
+  decorators: [checkoutDecorator({ outcome: "requires_action", incomplete: true })],
+  play: async ({ canvasElement }) => {
+    const canvas = await subscribe(canvasElement);
+    await expect(
+      await canvas.findByText("Your plan starts once your payment is confirmed.", {}, SLOW),
+    ).toBeInTheDocument();
+    await expect(canvas.queryByText("You're subscribed")).toBeNull();
+    await expect(canvas.getByText("Confirm your payment to finish.")).toBeInTheDocument();
+    await expect(canvas.getByRole("link", { name: "Complete payment" })).toBeInTheDocument();
+  },
+};
+
+export const CardDeclinedBeforeThePlanStarts: Story = {
+  name: "A card that was declined, before the plan starts",
+  decorators: [checkoutDecorator({ outcome: "failed", incomplete: true })],
+  play: async ({ canvasElement }) => {
+    const canvas = await subscribe(canvasElement);
+    await expect(
+      await canvas.findByText("Your plan starts once your payment is confirmed.", {}, SLOW),
+    ).toBeInTheDocument();
+    await expect(canvas.getByText("Your card was declined.")).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Update payment method" })).toBeEnabled();
+    await expect(canvas.getByRole("link", { name: "Pay invoice" })).toBeInTheDocument();
+  },
+};
+
 export const AlreadySubscribed: Story = {
   name: "Already subscribed",
   decorators: [checkoutDecorator({ previewRefusal: "already_subscribed" })],

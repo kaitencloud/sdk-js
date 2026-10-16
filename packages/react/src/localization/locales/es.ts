@@ -201,6 +201,8 @@ export const es: KaitenLocalization = {
     paymentStillOpen:
       "Todavía no hemos visto su pago. Lo comprobaremos de nuevo cuando vuelva a esta ventana.",
     paymentFailed: "Está suscrito, pero su tarjeta fue rechazada.",
+    startsOncePaid: "Su plan empieza en cuanto se confirme su pago.",
+    cardDeclined: "Su tarjeta fue rechazada.",
     updatePaymentMethod: "Actualizar el método de pago",
     paymentMethodUpdated: "Método de pago actualizado.",
     payInvoice: "Pagar la factura",

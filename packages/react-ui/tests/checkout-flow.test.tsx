@@ -1107,6 +1107,61 @@ describe("the payment", () => {
     expect(callsOf(client, "listInvoices")).toHaveLength(1);
   });
 
+  test("a payment to confirm before the plan starts says it starts once the payment is confirmed", async () => {
+    const client = selling(() =>
+      subscribed("requires_action", undefined, { status: "INCOMPLETE" }),
+    );
+    await draw(client);
+    await press(button(/^Subscribe/));
+
+    const root = within(flow());
+    expect(root.getByText("Your plan starts once your payment is confirmed.")).toBeTruthy();
+    expect(root.queryByText("You're subscribed")).toBeNull();
+    expect(root.getByText("Confirm your payment to finish.")).toBeTruthy();
+    expect(root.getByRole("link", { name: "Complete payment" })).toBeTruthy();
+    // The keyboard is on what the customer is told first.
+    expect(document.activeElement).toBe(
+      root.getByText("Your plan starts once your payment is confirmed."),
+    );
+
+    // Once paid, the plan has started.
+    client.setInvoices([activationInvoice("PAID")]);
+    await settle(5_000);
+    expect(root.getByText("You're subscribed")).toBeTruthy();
+    expect(root.getByText("Payment received.")).toBeTruthy();
+    expect(root.queryByText("Your plan starts once your payment is confirmed.")).toBeNull();
+  });
+
+  test("a card declined before the plan starts is said as such, with the same ways out", async () => {
+    const client = selling(
+      () => subscribed("failed", undefined, { status: "INCOMPLETE" }),
+      dryRun,
+      demoPortal(),
+    );
+    await draw(client);
+    await press(button(/^Subscribe/));
+
+    const root = within(flow());
+    expect(root.getByText("Your plan starts once your payment is confirmed.")).toBeTruthy();
+    expect(root.getByRole("alert").textContent).toBe("Your card was declined.");
+    expect(root.queryByText(/^You're subscribed/)).toBeNull();
+    expect(root.getByRole("button", { name: "Update payment method" })).toBeTruthy();
+    expect(root.getByRole("link", { name: "Pay invoice" }).getAttribute("href")).toBe(
+      "https://pay.example.test/i/inv_activation",
+    );
+  });
+
+  test("a payment not known yet, before the plan starts, waits with the same sentence", async () => {
+    const client = selling(() => subscribed("processing", undefined, { status: "INCOMPLETE" }));
+    await draw(client);
+    await press(button(/^Subscribe/));
+
+    const root = within(flow());
+    expect(root.getByText("Your plan starts once your payment is confirmed.")).toBeTruthy();
+    expect(root.getByText("Waiting for your payment...")).toBeTruthy();
+    expect(root.queryByText("You're subscribed")).toBeNull();
+  });
+
   test("paying the declined invoice on the provider's page is waited on until it is paid", async () => {
     const client = selling(() => subscribed("failed"));
     await draw(client);

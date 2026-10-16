@@ -90,6 +90,13 @@ export interface KaitenCheckoutWords {
   waitingForPayment: string;
   paymentStillOpen: string;
   paymentFailed: string;
+  /**
+   * The headline of a checkout whose subscription waits for its first payment (`INCOMPLETE`), in
+   * place of `subscribed`: what it bought starts once the payment is confirmed.
+   */
+  startsOncePaid: string;
+  /** A card declined on such a checkout, in place of `paymentFailed`: nothing has started yet. */
+  cardDeclined: string;
   updatePaymentMethod: string;
   paymentMethodUpdated: string;
   payInvoice: string;
