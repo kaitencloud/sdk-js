@@ -142,9 +142,9 @@ const SCENARIOS = [
     unstyled: true,
   },
   {
-    // Measured at 4 622 bytes, up from 4 463: the five sentences a refused change to an add-on is
-    // said with, which every language pack carries. (At 4 449 before that, up from under 4 400,
-    // for the words of a quota's usage state.)
+    // Measured at 4 600 bytes, up from 4 463: the five sentences a refused change to an add-on is
+    // said with, less the label of the checkout's trial choice, which every language pack
+    // carries. (At 4 449 before that, up from under 4 400, for the words of a quota's usage state.)
     name: "locales · fr alone",
     code: `import { fr } from "@kaitencloud/react/locales"; console.log(fr);`,
     budgetGzip: 4_750,
@@ -178,7 +178,7 @@ const SCENARIOS = [
     // draws the billing periods.
     name: "react-ui · CheckoutFlow + KaitenProvider + KaitenStyleRoot",
     code: `import { CheckoutFlow, KaitenProvider, KaitenStyleRoot } from "@kaitencloud/react-ui"; console.log(CheckoutFlow, KaitenProvider, KaitenStyleRoot);`,
-    budgetGzip: 66_500,
+    budgetGzip: 64_750,
   },
   {
     // What a host that shows a customer how they pay ships: the card, the billing hooks that add or
@@ -203,11 +203,9 @@ const SCENARIOS = [
   {
     // Measured at 93 302 bytes, up from 79 688: Base UI's radio group, as in the checkout (12.4 KB),
     // and the Kaiten console's usage rule, as in the customer portal (1.3 KB).
-    // Measured at 95 561 bytes, up from 95 171, with the checkout's checkbox: the refusals of a
-    // change to an add-on, named and said in their own words, as in the customer portal.
     name: "react-ui · everything",
     code: `import * as all from "@kaitencloud/react-ui"; console.log(all);`,
-    budgetGzip: 95_700,
+    budgetGzip: 93_850,
   },
   {
     name: "client · KaitenClient alone",

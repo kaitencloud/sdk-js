@@ -97,9 +97,9 @@ SOFTWARE.
 ### shadcn/ui components
 
 - **Material:** the component templates that `packages/react-ui/src/components/ui/`
-  (`Badge`, `Button`, `Card`, `Checkbox`, `Dialog`, `Input`, `RadioGroup`,
-  `Separator`, `Skeleton`, `Table`) is derived from, with changes. `Checkbox` and
-  `RadioGroup` are derived from the `base-vega` template, the one built on Base UI.
+  (`Badge`, `Button`, `Card`, `Dialog`, `Input`, `RadioGroup`, `Separator`,
+  `Skeleton`, `Table`) is derived from, with changes. `RadioGroup` is derived from
+  the `base-vega` template, the one built on Base UI.
 - **Distributed in:** `@kaitencloud/react-ui`, bundled into its `dist/`.
 - **Source:** https://github.com/shadcn-ui/ui
 - **Copyright:** Copyright (c) 2023 shadcn
