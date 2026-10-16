@@ -253,7 +253,9 @@ export const fr: KaitenLocalization = {
     cancelPrompt: (isoDate) =>
       `Votre abonnement prendra fin le ${formatKaitenDate(isoDate, { locale: "fr-FR" })}. Vous gardez tout jusque-là, et vous pouvez revenir dessus avant.`,
     cancelTrialPrompt: "Votre essai prendra fin immédiatement et rien ne vous sera facturé.",
+    cancelIncompletePrompt: "Votre offre ne démarrera pas et rien ne vous sera facturé.",
     cancelConfirm: "Résilier à la fin de la période",
+    cancelNowConfirm: "Résilier maintenant",
     cancelKeep: "Garder mon abonnement",
     reactivate: "Réactiver l'abonnement",
     closingPeriod:

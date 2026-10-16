@@ -172,7 +172,16 @@ export interface KaitenPortalBillingWords {
   cancelPrompt: (isoDate: string) => string;
   /** Said in place of {@link cancelPrompt} to a customer in their trial, whose cancellation is at once. */
   cancelTrialPrompt: string;
+  /**
+   * Said in place of {@link cancelPrompt} of a subscription whose checkout waits for its first
+   * payment (`INCOMPLETE`): cancelling it ends it at once, the plan it bought never starts, and its
+   * invoice is not charged.
+   */
+  cancelIncompletePrompt: string;
+  /** Confirms a cancellation at the end of the period. */
   cancelConfirm: string;
+  /** Confirms a cancellation that ends the subscription at once: a trial, or a checkout that waits for its payment. */
+  cancelNowConfirm: string;
   cancelKeep: string;
   reactivate: string;
   /** A change the API refused while a billing period is being closed, waited out. */

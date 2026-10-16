@@ -15,7 +15,8 @@ re-exports: an app that draws with Kaiten's components imports everything from h
 - **The customer portal.** `CustomerPortal`, composed of `CurrentPlan`, `IncludedFeatures`,
   `UsageMeters`, `AddOns`, `FlagsSummary`, `InvoiceList`, `VoucherEntry` and `PaymentMethodCard`,
   each usable alone. Under a customer session it is the customer's own portal: cancel at the end
-  of the period and withdraw it, an add-on stepper, the invoices to pay and to download, a
+  of the period and withdraw it (a trial, or a checkout that waits for its first payment, is
+  cancelled at once, with nothing charged, and says so), an add-on stepper, the invoices to pay and to download, a
   voucher check, the payment method, and a note on each limit that says where it comes from.
 - **Checkout.** `CheckoutFlow` takes a customer from a plan to a subscription: period, add-ons,
   voucher, trial and billing email; the card, on the provider's page in a popup or, when popups

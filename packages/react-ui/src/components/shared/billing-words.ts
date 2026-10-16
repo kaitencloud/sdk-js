@@ -51,7 +51,9 @@ export const englishPortalBillingWords: KaitenPortalBillingWords = {
   cancelPrompt: (isoDate) =>
     `Your subscription will end on ${formatKaitenDate(isoDate)}. You keep everything until then, and you can undo this before it ends.`,
   cancelTrialPrompt: "Your trial will end now, and you won't be charged.",
+  cancelIncompletePrompt: "Your plan won't start, and you won't be charged.",
   cancelConfirm: "Cancel at period end",
+  cancelNowConfirm: "Cancel now",
   cancelKeep: "Keep my subscription",
   reactivate: "Reactivate subscription",
   closingPeriod: "We're closing your billing period. Your change will go through in a moment.",

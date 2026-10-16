@@ -124,10 +124,25 @@ export function sessionServer(
           };
     }
     if (method === "POST" && route === "billing/cancel") {
-      change({
-        subscription: { ...portal.subscription, cancelAtPeriodEnd: true },
-        capabilities: { ...portal.capabilities, unsubscribe: false },
-      });
+      // A trial, and a checkout that waits for its payment, end at once with nothing charged;
+      // any other subscription runs to the end of its period.
+      const atOnce = ["TRIAL", "INCOMPLETE"].includes(portal.subscription?.status);
+      change(
+        atOnce
+          ? {
+              subscription: {
+                ...portal.subscription,
+                status: "CANCELED",
+                cancelAtPeriodEnd: false,
+              },
+              upcomingInvoice: null,
+              capabilities: { ...portal.capabilities, unsubscribe: false, checkout: true },
+            }
+          : {
+              subscription: { ...portal.subscription, cancelAtPeriodEnd: true },
+              capabilities: { ...portal.capabilities, unsubscribe: false },
+            },
+      );
       return { status: 200, body: portal.subscription };
     }
     if (method === "POST" && route === "billing/reactivate") {

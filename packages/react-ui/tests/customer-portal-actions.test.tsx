@@ -164,6 +164,45 @@ test("a customer in their trial is told it ends now, not on a date", async () =>
   mount(sessionServer({ portal }), <CurrentPlan manage />);
   await press("Cancel subscription");
   expect(screen.getByText("Your trial will end now, and you won't be charged.")).toBeTruthy();
+  // Nothing runs to the end of a period: the confirmation says it is now.
+  expect(screen.getByRole("button", { name: "Cancel now" })).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Cancel at period end" })).toBeNull();
+});
+
+/** A checkout that waits for its first payment: live and not ending, so the customer may cancel it. */
+const incomplete = () => {
+  const portal: Record<string, any> = structuredClone(answers.portal);
+  portal.subscription.status = "INCOMPLETE";
+  portal.capabilities = { ...portal.capabilities, unsubscribe: true };
+  return portal;
+};
+
+test("a checkout that waits for its payment is cancelled at once: its plan never starts, and nothing is charged", async () => {
+  const server = sessionServer({ portal: incomplete() });
+  mount(server, <CurrentPlan manage />);
+  await press("Cancel subscription");
+
+  expect(screen.getByText("Your plan won't start, and you won't be charged.")).toBeTruthy();
+  // Not a date a period away, nor something kept until then, nor anything to undo.
+  expect(screen.queryByText(/Your subscription will end on/)).toBeNull();
+  expect(screen.queryByRole("button", { name: "Cancel at period end" })).toBeNull();
+
+  await press("Cancel now");
+  const [call] = server.to("POST", "billing/cancel");
+  expect(call).toBeTruthy();
+  expect(call!.body ?? {}).not.toHaveProperty("mode");
+  // The server ends it at once: there is nothing to reactivate.
+  expect(await screen.findByText("Canceled")).toBeTruthy();
+  expect(screen.queryByRole("button", { name: /subscription$/ })).toBeNull();
+});
+
+test("a checkout that waits for its payment is cancelled in French as well", async () => {
+  mount(sessionServer({ portal: incomplete() }), <CurrentPlan manage />, fr);
+  await press("Résilier l'abonnement");
+  expect(
+    screen.getByText("Votre offre ne démarrera pas et rien ne vous sera facturé."),
+  ).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Résilier maintenant" })).toBeTruthy();
 });
 
 test("a refusal while a billing period is being closed is waited out, once, and the screen says so", async () => {

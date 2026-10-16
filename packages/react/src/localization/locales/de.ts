@@ -256,7 +256,9 @@ export const de: KaitenLocalization = {
     cancelPrompt: (isoDate) =>
       `Ihr Abonnement endet am ${formatKaitenDate(isoDate, { locale: "de-DE" })}. Bis dahin behalten Sie alles, und Sie können die Kündigung vorher zurücknehmen.`,
     cancelTrialPrompt: "Ihre Testphase endet sofort, und es wird nichts berechnet.",
+    cancelIncompletePrompt: "Ihr Tarif beginnt nicht, und es wird nichts berechnet.",
     cancelConfirm: "Zum Ende des Zeitraums kündigen",
+    cancelNowConfirm: "Jetzt kündigen",
     cancelKeep: "Abonnement behalten",
     reactivate: "Abonnement reaktivieren",
     closingPeriod:

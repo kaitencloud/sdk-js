@@ -49,11 +49,12 @@ const canceled = changed((portal) => {
 
 /**
  * A checkout that waits for its first payment: the instance still has its plan and its limits, and
- * the activation invoice is open, to pay on the provider's page.
+ * the activation invoice is open, to pay on the provider's page. It is live and not ending, so the
+ * customer may cancel it, which ends it at once.
  */
 const incomplete = changed((portal) => {
   portal.subscription.status = "INCOMPLETE";
-  portal.capabilities = { ...portal.capabilities, unsubscribe: false };
+  portal.capabilities = { ...portal.capabilities, unsubscribe: true };
 });
 
 /**
@@ -234,14 +235,32 @@ export const Incomplete: Story = {
     await expect(
       canvas.getByText("Your plan starts once your payment is confirmed."),
     ).toBeInTheDocument();
-    // It neither renews nor can be cancelled yet, and its add-ons wait for the payment too.
+    // It does not renew, and its add-ons wait for the payment too. It can be cancelled, which
+    // ends it at once (IncompleteCancelAsked).
     await expect(canvas.queryByText(/^Renews on/)).toBeNull();
-    await expect(canvas.queryByRole("button", { name: "Cancel subscription" })).toBeNull();
     await expect(canvas.queryByRole("button", { name: "Manage add-ons" })).toBeNull();
+    await expect(canvas.getByRole("button", { name: "Cancel subscription" })).toBeInTheDocument();
     await expect(await canvas.findByRole("link", { name: /^Pay / }, SLOW)).toHaveAttribute(
       "rel",
       "noopener noreferrer",
     );
+  },
+};
+
+export const IncompleteCancelAsked: Story = {
+  name: "Cancelling a checkout that waits for its payment",
+  args: { elements: ["CurrentPlan"] },
+  decorators: [portalDecorator({ portal: incomplete })],
+  play: async ({ canvasElement }) => {
+    const canvas = await drawn(canvasElement);
+    await userEvent.click(await canvas.findByRole("button", { name: "Cancel subscription" }));
+    // It ends at once: the plan it bought never starts, and its invoice is not charged.
+    await expect(
+      canvas.getByText("Your plan won't start, and you won't be charged."),
+    ).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Cancel now" })).toBeInTheDocument();
+    await expect(canvas.queryByRole("button", { name: "Cancel at period end" })).toBeNull();
+    await expect(canvas.queryByText(/Your subscription will end on/)).toBeNull();
   },
 };
 

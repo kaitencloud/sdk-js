@@ -255,7 +255,9 @@ export const es: KaitenLocalization = {
     cancelPrompt: (isoDate) =>
       `Su suscripción terminará el ${formatKaitenDate(isoDate, { locale: "es-ES" })}. Mantiene todo hasta entonces y puede deshacerlo antes.`,
     cancelTrialPrompt: "Su prueba terminará de inmediato y no se le cobrará nada.",
+    cancelIncompletePrompt: "Su plan no empezará y no se le cobrará nada.",
     cancelConfirm: "Cancelar al final del periodo",
+    cancelNowConfirm: "Cancelar ahora",
     cancelKeep: "Mantener mi suscripción",
     reactivate: "Reactivar la suscripción",
     closingPeriod:

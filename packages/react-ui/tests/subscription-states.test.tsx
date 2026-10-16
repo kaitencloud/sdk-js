@@ -43,11 +43,14 @@ const canceled = (() => {
   return portal;
 })();
 
-/** A checkout that waits for its first payment: the instance still has its plan, Pro, and its limits. */
+/**
+ * A checkout that waits for its first payment: the instance still has its plan, Pro, and its limits.
+ * It is live and not ending, so the customer may cancel it, which ends it at once.
+ */
 const incomplete = (() => {
   const portal: Record<string, any> = structuredClone(answers.portal);
   portal.subscription.status = "INCOMPLETE";
-  portal.capabilities = { ...portal.capabilities, unsubscribe: false };
+  portal.capabilities = { ...portal.capabilities, unsubscribe: true };
   return portal;
 })();
 
@@ -106,7 +109,6 @@ test("CurrentPlan: a checkout that waits for its payment says the plan starts on
   // shown beside the plan the instance still has.
   expect(screen.queryByText(/^Renews on|^Ends on/)).toBeNull();
   expect(container.querySelector('[data-slot="current-plan-price"]')).toBeNull();
-  expect(screen.queryByRole("button", { name: "Cancel subscription" })).toBeNull();
 });
 
 test("CurrentPlan: a plan change that is scheduled is said once, with its price and its day", async () => {

@@ -14,9 +14,10 @@ import type { SubscriptionState } from "../../shared/subscription-state.ts";
  * the portal is read again before either is said to be done.
  *
  * Cancelling asks first, and says what happens: the date it ends on and that nothing is lost until
- * then; a customer in their trial is told it ends now, since a trial has no period to run out.
- * Which of the two is offered is the portal's say (`capabilities.unsubscribe`, and a cancellation
- * that is scheduled): nothing here guesses it from the status.
+ * then. Two subscriptions end at once instead, with nothing charged, and are told so: a trial, which
+ * has no period to run out, and a checkout that waits for its first payment, whose plan never
+ * starts. Which of cancel and reactivate is offered is the portal's say (`capabilities.unsubscribe`,
+ * and a cancellation that is scheduled): nothing here guesses it from the status.
  */
 export function SubscriptionControls({
   state,
@@ -59,10 +60,14 @@ export function SubscriptionControls({
     }
   };
 
+  // A trial and a checkout that waits for its payment end at once: they are not said to run to a date.
   const prompt =
     state.kind === "trial"
       ? words.cancelTrialPrompt
-      : words.cancelPrompt(subscription.currentPeriodEnd);
+      : state.kind === "incomplete"
+        ? words.cancelIncompletePrompt
+        : words.cancelPrompt(subscription.currentPeriodEnd);
+  const atOnce = state.kind === "trial" || state.kind === "incomplete";
 
   return (
     <div
@@ -94,7 +99,7 @@ export function SubscriptionControls({
               busy={busy}
               onClick={() => void run(() => cancel.mutateAsync(), ["reactivate", "cancel-trigger"])}
             >
-              {words.cancelConfirm}
+              {atOnce ? words.cancelNowConfirm : words.cancelConfirm}
             </Action>
             <Action
               unstyled={unstyled}
