@@ -141,7 +141,7 @@ function useSessionMutation<TInput, TOutput>(
  * makes while the period that ended is being closed (`BoundaryPendingError`) is waited out
  * and the call made once more, `retryAt` saying when; any other refusal is the error.
  *
- * @experimental Until Kaiten billing ships (see STABILITY.md).
+ * Needs the first Kaiten release with billing (see STABILITY.md).
  */
 export function useCancelSubscription(
   options: PortalActionOptions<PortalSubscription> = {},
@@ -158,7 +158,7 @@ export function useCancelSubscription(
  * Withdraws a cancellation scheduled for the end of the period. Waits out a billing period
  * that is being closed like {@link useCancelSubscription}.
  *
- * @experimental Until Kaiten billing ships (see STABILITY.md).
+ * Needs the first Kaiten release with billing (see STABILITY.md).
  */
 export function useReactivateSubscription(
   options: PortalActionOptions<PortalSubscription> = {},
@@ -191,7 +191,7 @@ export interface UseSetAddonQuantityResult extends UsePortalActionResult<
  * that is being closed like {@link useCancelSubscription}, and names what any other refusal is
  * in `problem`.
  *
- * @experimental Until Kaiten billing ships (see STABILITY.md).
+ * Needs the first Kaiten release with billing (see STABILITY.md).
  */
 export function useSetAddonQuantity(
   options: PortalActionOptions<SessionAddon> = {},
@@ -229,7 +229,7 @@ export interface UseBillingPortalResult extends UsePortalActionResult<
  * a moment, and sends the customer to it. They come back to the page they were on, minus
  * any `kaiten_*` parameter, unless `mutate({ returnUrl })` says elsewhere.
  *
- * @experimental Until Kaiten billing ships (see STABILITY.md).
+ * Needs the first Kaiten release with billing (see STABILITY.md).
  */
 export function useBillingPortal(options: UseBillingPortalOptions = {}): UseBillingPortalResult {
   const { navigate, ...rest } = options;
@@ -256,7 +256,7 @@ export function useBillingPortal(options: UseBillingPortalOptions = {}): UseBill
  *
  * The code travels in the body of the call and is not kept by the hook.
  *
- * @experimental Until Kaiten billing ships (see STABILITY.md).
+ * Needs the first Kaiten release with billing (see STABILITY.md).
  */
 export function useValidateVoucher(
   options: PortalActionOptions<VoucherValidation> = {},
@@ -349,7 +349,7 @@ export function completePaymentMethodSessionOnce(
  * says it is done) completes the session and reads the portal again, which then holds the
  * new labels. Mount it on the page the customer is sent back to.
  *
- * @experimental Until Kaiten billing ships (see STABILITY.md).
+ * Needs the first Kaiten release with billing (see STABILITY.md).
  */
 export function usePaymentMethodSession(
   options: UsePaymentMethodSessionOptions = {},

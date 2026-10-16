@@ -13,7 +13,7 @@
  * checkout bundles none of it: `scripts/check-bundle-size.mjs` holds the root to that.
  * `@kaitencloud/react-ui`'s `CheckoutFlow` is these hooks, drawn.
  *
- * @experimental Until Kaiten billing ships (see STABILITY.md).
+ * Needs the first Kaiten release with billing (see STABILITY.md).
  */
 
 export { isPlausibleEmail } from "./hooks/billing/checkout-selection.ts";

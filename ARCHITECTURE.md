@@ -39,7 +39,10 @@ The two version independently. The core is the stable surface; the components ar
 `@experimental`, as [`packages/react/STABILITY.md`](packages/react/STABILITY.md)
 records. A change to a component never forces a release on an application that
 only uses the hooks, and a headless application never pays for the components'
-dependencies or stylesheet.
+dependencies or stylesheet. The UI package depends on the core with a caret range, so
+that an app holds one provider; in return, within a major, the core removes and retypes
+nothing that a published UI package imports, from any of its entries,
+`@kaitencloud/react/internal` included.
 
 ## Contracts, not sources
 

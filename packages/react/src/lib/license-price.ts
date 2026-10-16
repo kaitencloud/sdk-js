@@ -193,7 +193,7 @@ export function kaitenPriceParts(
  * );
  * ```
  *
- * @experimental Until Kaiten billing ships (see STABILITY.md).
+ * @experimental Its wording may change in a minor release (see STABILITY.md).
  */
 export function formatKaitenPrice(
   price: AnyPrice,

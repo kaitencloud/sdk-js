@@ -12,7 +12,7 @@ import type { UseKaitenQueryResult } from "./use-kaiten-query.ts";
  * read is neither loading nor failed. `refetch` re-reads it, after a change
  * made through the session client for instance.
  *
- * @experimental Until Kaiten billing ships (see STABILITY.md).
+ * Needs the first Kaiten release with billing (see STABILITY.md).
  */
 export function usePortal(): UseKaitenQueryResult<KaitenPortal> {
   useTrackHook("usePortal");
@@ -27,7 +27,7 @@ export function usePortal(): UseKaitenQueryResult<KaitenPortal> {
  * Its writes do not refresh the provider's reads on their own: call
  * `usePortal().refetch()` once one succeeds.
  *
- * @experimental Until Kaiten billing ships (see STABILITY.md).
+ * Needs the first Kaiten release with billing (see STABILITY.md).
  */
 export function useKaitenSessionClient(): KaitenSessionClientLike | null {
   useTrackHook("useKaitenSessionClient");

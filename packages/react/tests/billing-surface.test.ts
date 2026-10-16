@@ -44,8 +44,17 @@ const STABILITY = ["packages/react/STABILITY.md", "STABILITY.md"]
   })
   .find((text) => text !== undefined)!;
 
-test("STABILITY.md names every export of the billing entry, and says it is experimental", () => {
+test("STABILITY.md names every export of the billing entry, and says it is stable", () => {
   const unnamed = BILLING_SURFACE.filter((name) => !new RegExp(`\\b${name}\\b`).test(STABILITY));
   expect(unnamed).toEqual([]);
-  expect(STABILITY).toContain("@kaitencloud/react/billing");
+  expect(STABILITY).toContain("`@kaitencloud/react/billing` is stable");
+  // The unions a minor release may add a member to are named, with the rules they grow by.
+  const growing = [
+    "CheckoutProblem",
+    "AddonQuantityProblem",
+    "CheckoutStep",
+    "CheckoutVoucherState",
+  ];
+  const section = STABILITY.slice(STABILITY.indexOf("### Unions that grow"));
+  expect(growing.filter((name) => !section.includes(`\`${name}\``))).toEqual([]);
 });

@@ -84,7 +84,9 @@ export const InvoiceList = /* @__PURE__ */ React.memo(InvoiceListImpl);
  * pay it while it is open and one to its PDF. Nothing under any other mode, and nothing when the
  * portal says the customer's invoices are not theirs to see (`capabilities.invoices`).
  *
- * @experimental Until Kaiten billing ships (see STABILITY.md).
+ * Needs the first Kaiten release with billing.
+ *
+ * @experimental Styled component — shape may change in a minor release (see STABILITY.md); prefer `unstyled` mode or the headless hooks for the stable path.
  */
 function InvoiceListImpl({ appearance, unstyled = false, pageSize }: InvoiceListProps) {
   useAssertWrappedByKaitenProvider("InvoiceList");

@@ -38,7 +38,9 @@ export const VoucherEntry = /* @__PURE__ */ React.memo(VoucherEntryImpl);
  * The code is typed once. It is sent in the body of the check and emptied from the field at once:
  * it is not kept in the page, in an address, or anywhere a log could read it.
  *
- * @experimental Until Kaiten billing ships (see STABILITY.md).
+ * Needs the first Kaiten release with billing.
+ *
+ * @experimental Styled component — shape may change in a minor release (see STABILITY.md); prefer `unstyled` mode or the headless hooks for the stable path.
  */
 function VoucherEntryImpl({ appearance, unstyled = false }: VoucherEntryProps) {
   useAssertWrappedByKaitenProvider("VoucherEntry");

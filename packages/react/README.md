@@ -36,18 +36,23 @@ the server is in [its README](../client/README.md#kaiten-version).
 ## Package status
 
 - Import public APIs from `@kaitencloud/react`.
-- Subpath exports: `@kaitencloud/react/locales` (one pack per language) and
-  `@kaitencloud/react/types`. `@kaitencloud/react/internal` exists for
-  `@kaitencloud/react-ui` and carries no stability promise.
+- Subpath exports: `@kaitencloud/react/billing` (the [billing hooks](#billing-hooks)),
+  `@kaitencloud/react/locales` (one pack per language) and `@kaitencloud/react/types`.
+  `@kaitencloud/react/internal` exists for `@kaitencloud/react-ui`, not for a host: it is not
+  documented here, and only grows within a major so that a published `@kaitencloud/react-ui`
+  keeps working.
 - The package is a client module (`"use client"`), except `./locales`, which is
   plain data a Server Component can import.
 
 ### Stability
 
-What this package exports follows semantic versioning, except the parts marked
-`@experimental`: the telemetry types, which may change in a minor release.
-[`STABILITY.md`](STABILITY.md) lists both sides, for this package and for
-`@kaitencloud/react-ui`. The raw generated API (`KaitenApi`) is not exported here:
+What this package exports follows semantic versioning, the billing surface included:
+`mode="public"`, `mode="customer-session"` and the hooks of `@kaitencloud/react/billing` are
+stable from 1.0.0, and need the first Kaiten release with billing. The exceptions may change in
+a minor release: the telemetry types, `formatKaitenPrice`, the words of the styled components,
+and a few small exports not yet classified. [`STABILITY.md`](STABILITY.md) lists both sides,
+for this package and for `@kaitencloud/react-ui`, and the rules by which the refusals, the steps
+and the voucher states of the billing hooks gain a member. The raw generated API (`KaitenApi`) is not exported here:
 import it from `@kaitencloud/client`.
 
 ### Hook naming
@@ -206,7 +211,7 @@ fetched, and the page arrives as finished HTML — no round-trip, no skeleton.
 
 ### Public mode
 
-> **Experimental, and served by Kaiten billing.** Public mode reads
+> **Served by Kaiten billing.** Public mode reads
 > `GET {apiUrl}/public/catalog`, a route of the Kaiten release that ships billing; a
 > server without it answers 404. Until then use `mode="static"` above; switching
 > is a change of config block, not of components. For fixture data in tests and
@@ -247,8 +252,8 @@ The catalog lists the default version of each plan family the organization made 
 
 ### Customer session
 
-> **Experimental, and served by Kaiten billing.** Like public mode, this mode needs
-> the Kaiten release that ships billing, and may change before billing ships.
+> **Served by Kaiten billing.** Like public mode, this mode needs the first Kaiten
+> release with billing.
 
 `mode="customer-session"` is one customer, signed in to your application, seen
 through a customer session (`kst_`): their subscription, their effective
@@ -325,8 +330,10 @@ dependencies to import it. The session goes in `Authorization: Bearer kst_…`, 
 
 #### Billing hooks
 
-> **Experimental, and served by Kaiten billing.** Like the mode they need, they may
-> change before billing ships.
+> **Served by Kaiten billing.** Like the mode they need, they need the first Kaiten
+> release with billing. Their refusals, a checkout's steps and the states of a voucher code
+> may gain a member in a minor release: keep a `default` branch
+> ([STABILITY.md](STABILITY.md#unions-that-grow)).
 
 `@kaitencloud/react/billing` holds what a checkout and a customer portal do, with no
 markup of its own: the selection and what it costs, the provider's page for a payment
@@ -727,7 +734,7 @@ billing adds instead, and nothing else: `/public/catalog` with a publishable key
 
 ## Known limitations
 
-- `mode="public"` and `mode="customer-session"` need a Kaiten server that ships billing ([Kaiten version](#kaiten-version)), and are experimental until it ships. `mode="static"` covers the marketing-site case today.
+- `mode="public"` and `mode="customer-session"` need a Kaiten server that ships billing ([Kaiten version](#kaiten-version)). `mode="static"` covers the marketing-site case today.
 - Branding removal depends on backend capabilities exposed on `catalog` or `snapshot`.
 - `useUpgradeOptions` offers every published plan but the current one. Several versions of one license family can be published at once, so a customer on one version is offered the others too; `familyId` on each plan tells them apart.
 - Telemetry is opt-in and transport-injected; the SDK does not ship a hosted telemetry endpoint.

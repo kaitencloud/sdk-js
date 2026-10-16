@@ -21,7 +21,9 @@ the styled components built on it. **The split is the boundary**: everything in
 the core is on the blessed path below, except the names listed as experimental, and
 everything the UI package adds is experimental, except each component's `unstyled`
 rendering. The two version independently, and the UI package depends on the core with a
-caret range, so upgrading it never forks the provider.
+caret range, so upgrading it never forks the provider; the core keeps, within a major,
+everything a published UI package uses
+([Compatibility with `@kaitencloud/react-ui`](#compatibility-with-kaitencloudreact-ui)).
 
 ## Versioning policy
 
@@ -32,7 +34,9 @@ caret range, so upgrading it never forks the provider.
   changelog says so. Each item graduates to stable (and gains that guarantee) or
   is removed.
 - **`@experimental` JSDoc tag:** anything tagged `@experimental` may change shape
-  or be removed in a minor release. Your editor strikes it through.
+  or be removed in a minor release. Your editor shows the tag where it describes the
+  name, and does not strike the name through: it does that for `@deprecated` only. This
+  document is the list to go by.
 
 ## The blessed path (most stable)
 
@@ -53,8 +57,10 @@ integration points:
   `useCustomer`, `useEntitlements`, `useFlags`, `useAddOns`, `useCredits`,
   `useUpgradeOptions`, `useKaitenAvailable`, `useKaitenBranding`,
   `useLocalization`.
-- **Provider & client** — `KaitenProvider` in its `authenticated` and `static`
-  modes, `KaitenScopeProvider`, `KaitenClient`, the error types (`KaitenError`,
+- **Provider & client** — `KaitenProvider` in its four modes (`authenticated` and
+  `static`, and `public` and `customer-session`, which
+  [need Kaiten billing](#stable-with-kaiten-billing)), `KaitenScopeProvider`,
+  `KaitenClient`, the error types (`KaitenError`,
   `KaitenNetworkError`, `TransactionIdReusedError`, `InvalidTransactionIdError`,
   `QuotaExceededError`, `RateLimitedError`, `BoundaryPendingError`,
   `ProviderUnavailableError`, `KaitenThrownError`), and the type guards
@@ -88,32 +94,27 @@ integration points:
   rendering detail: both window bounds present means a periodic counter, absent
   means lifetime, and neither answer is available when nobody read them.
 
-## Subpath exports
+## Stable, with Kaiten billing
 
-- `@kaitencloud/react/locales` (one pack per language) and `@kaitencloud/react/types` hold the
-  stability of what they carry: a type of the blessed path is stable, and one that describes an
-  experimental surface, such as the words of a checkout, is experimental with it.
-- `@kaitencloud/react/billing` is experimental, as the hooks it holds are
-  ([below](#experimental-until-kaiten-billing-ships)).
-- `@kaitencloud/react/internal` is for `@kaitencloud/react-ui` and carries no stability
-  promise: it may change in any release.
-
-## Experimental until Kaiten billing ships
-
-These read the routes Kaiten billing adds, which no released Kaiten server
-serves yet (the README says which release they need). They are written against the API
-contract that billing publishes and tested against answers Kaiten's own code produced,
-and they may change, in a minor release, as billing ships:
+These are on the blessed path too, with a compatibility note: **they need the first
+Kaiten release with billing.** They read the routes billing adds, `/public/catalog`
+and `/public/session/*`, which no released Kaiten server serves yet; a server without
+billing answers them with an error, which a hook returns in `error`. The README's
+[Kaiten version](README.md#kaiten-version) says what needs what. They are written
+against the API contract that billing publishes and tested against answers Kaiten's
+own code produced, and their shape follows semantic versioning from 1.0.0 on, like
+the rest of the blessed path:
 
 - **`mode="public"`** — the public catalog, `GET /public/catalog`, read with a
   publishable key.
 - **`mode="customer-session"`** — `CustomerSessionKaitenProviderConfig`, its
-  `sessionClient`, `initialData.portal`, the hooks that read it (`usePortal`,
-  `useKaitenSessionClient`), and a customer session as the
-  `authenticatedConfig` of `KaitenScopeProvider`. What every other hook
-  answers under this mode — a snapshot built from the portal, with no customer,
-  instance, licence or flags, and with the bound instance's `currentPlan` and
-  `subscription` — is part of it.
+  `sessionClient`, `initialData.portal`, and the hooks that read it, `usePortal` and
+  `useKaitenSessionClient`. What every other hook answers under this mode — a
+  snapshot built from the portal, with no customer, instance, licence or flags, and
+  with the bound instance's `currentPlan` and `subscription` — is part of it.
+- **The billing pair of `KaitenScopeProvider`** — a `public` or `static`
+  `publicConfig`, then a customer session as its `authenticatedConfig`: what a vendor
+  mounts for its own customers.
 - **The billing hooks** of `@kaitencloud/react/billing`, an entry of its own that the root
   does not reach for: `useCheckout`, `useCheckoutPreview`, `useInvoices`,
   `useInvoiceSettlement`, `useCancelSubscription`, `useReactivateSubscription`,
@@ -121,59 +122,31 @@ and they may change, in a minor release, as billing ships:
   `useValidateVoucher` and `isPlausibleEmail`, the rule they apply to a billing email, with
   the types of their options and results. They need `mode="customer-session"`. Every amount
   they carry is the server's, from a checkout's `dryRun` or an invoice, and none is added up.
-  The `problem` of a checkout and that of `useSetAddonQuantity` are closed lists for now, and
-  may grow.
-- **`CheckoutSummary` and `CheckoutFlow`** (`@kaitencloud/react-ui`), a checkout drawn:
-  what is due today and a customer's whole checkout. They are `useCheckoutPreview` and
-  `useCheckout`, with markup. The amount due is the server's, from a checkout's `dryRun`
-  (`dueToday`), and the SDK never adds prices up. `CheckoutSummary` took the items of the
-  host's own total before; it takes the selection to price, or a preview that something else
-  holds, and its props changed with it.
-  `CheckoutItem`, the type of those items, left the exports with them. A pricing table also draws a
-  plan's boolean or configuration grant as an included feature (a check and its name) where it
-  drew the word "boolean", and omits a boolean that is off.
-- **The words of a checkout**, `KaitenLocalization.checkoutFlow` (typed `KaitenCheckoutWords`).
-  An optional section: the provider's English defaults do not carry it, the English lives in
-  `@kaitencloud/react-ui`, and a language pack of `@kaitencloud/react/locales` carries its
-  own whole. A host's override of one string is merged over them. The section's earlier keys
-  (`title`, `description`, `plan`, `addOn`, `total`, `proceedToPayment` and the interval
-  names) are gone: they were the words of the previous `CheckoutSummary`, and the keys of the
-  present one replace them.
-- **The billing sections of `CustomerPortal`** (`@kaitencloud/react-ui`), under `mode="customer-session"`:
-  `InvoiceList` (the customer's invoices, newest first as the API serves them, a link to pay an
-  open one and to the PDF of those that have one), `VoucherEntry` (a field that only checks a code,
-  which a checkout redeems), the add-ons panel that `AddOns` and `CurrentPlan` open (quantities
-  set there and confirmed together, one change per add-on), the cancel and reactivate controls
-  of `CurrentPlan` (its `manage` prop, which `CustomerPortal` sets) and the note on a limit that
-  says where it comes from. Their amounts are the server's and nothing in them is added up; a
-  voucher code is sent in the body of the check and kept nowhere. `InvoiceList` and `VoucherEntry`
-  are elements of `CustomerPortal` under a customer session and nothing under any other mode.
-- **`PaymentMethodCard`** (`@kaitencloud/react-ui`), under `mode="customer-session"`: the payment
-  method the customer's invoices are charged to, as the labels the provider gave ("Visa •••• 4242",
-  its expiry, whether it is expired or its last payment failed, never a number), and to add one,
-  replace it on the provider's hosted page, or manage it in the provider's own billing portal.
-  It is an element of `CustomerPortal` under a session, and it is not there at all (no element,
-  no empty card) when the portal says the provider cannot capture a payment method.
-- **The subscription in `CurrentPlan`, `BillingSummary` and `Paywall`** (`@kaitencloud/react-ui`),
-  under `mode="customer-session"`: the status the portal gives (running, in its trial, canceled and
-  ending with its period, past due, over, or no subscription to speak of), when it renews or ends,
-  a plan change that is scheduled, and, in `BillingSummary`, the price of the subscription and the
-  labels of the payment method (what the host passes in `billing` wins). Billing status closes no
-  wall: a `Paywall` says where the subscription stands (`data-subscription`, and a sentence when it
-  explains the wall) and offers to "Subscribe" instead of "Upgrade" to a customer who can buy a plan
-  by themselves (`capabilities.checkout`). None of them reads the end date of a licence, which billing
-  never moves.
-- **The words of the portal and of a subscription**, `KaitenLocalization.portalBilling` and
-  `KaitenLocalization.subscription` (typed `KaitenPortalBillingWords` and
-  `KaitenSubscriptionWords`), and `KaitenLocalization.paymentMethodCard`
-  (`KaitenPaymentMethodWords`). Optional, like the checkout's: the English is in
-  `@kaitencloud/react-ui`, and a language pack carries each section whole.
-- **The billing half of `PricingTable`** (`@kaitencloud/react-ui`): the price
-  passed to `onSelectPlan`, and the "Contact us" link of a plan that is not
-  `selfServe`.
-- **`formatKaitenPrice`** — a price as a line of text: "€49.00/month", "€135.00
-  every 3 months", "€2.00 per 1M tokens". The wording of the periods and of the
-  units is `localization.price`, in each language pack.
+  The refusals they name, a checkout's steps and the states of a voucher code may gain a
+  member in a minor release, by the rules of [Unions that grow](#unions-that-grow).
+
+## Subpath exports
+
+- `@kaitencloud/react/locales` (one pack per language) and `@kaitencloud/react/types` hold the
+  stability of what they carry: a type of the blessed path is stable, and one that describes an
+  experimental surface, such as the words of a checkout, is experimental with it.
+- `@kaitencloud/react/billing` is stable, as the hooks it holds are
+  ([above](#stable-with-kaiten-billing)). It is where they are imported from for all of 1.x,
+  even if the root re-exports them one day.
+- `@kaitencloud/react/internal` is for `@kaitencloud/react-ui`, not for a host: it is not
+  documented, and the changelog does not follow it. It only grows within a major, as the next
+  section says.
+
+## Compatibility with `@kaitencloud/react-ui`
+
+`@kaitencloud/react-ui` depends on `@kaitencloud/react` with a caret range, so that an app holds
+one provider, and a published `@kaitencloud/react-ui` 1.x therefore runs beside every later
+`@kaitencloud/react` 1.x. So, within a major, `@kaitencloud/react` neither removes nor retypes
+anything that a published `@kaitencloud/react-ui` 1.x imports, from whichever of its entries:
+the root, `/billing`, `/types`, `/locales` or `/internal`. That holds for
+`@kaitencloud/react/internal`, which only grows within a major, and for a name of the core
+listed as experimental, once `@kaitencloud/react-ui` imports it. A shape that has to change is
+added beside the old one; the old one is deprecated, and leaves in 2.0.
 
 ## Experimental surface
 
@@ -185,11 +158,63 @@ Usable today, but **shape may change** in a minor release (treat as `@experiment
   `PricingTable`, `FeatureComparison`, `CheckoutSummary`, `CheckoutFlow`, `Paywall`, `PlanBadge`,
   `UpgradeButton`, `EntitlementStatusBar`, `FeatureCatalog`, `BillingSummary`,
   `KaitenBranding`. The names it re-exports from the core keep the core's
-  guarantee.
+  guarantee. What it draws from billing needs the first Kaiten release with billing
+  as well:
+  - **`CheckoutSummary` and `CheckoutFlow`** (`@kaitencloud/react-ui`), a checkout drawn:
+    what is due today and a customer's whole checkout. They are `useCheckoutPreview` and
+    `useCheckout`, with markup. The amount due is the server's, from a checkout's `dryRun`
+    (`dueToday`), and the SDK never adds prices up. `CheckoutSummary` took the items of the
+    host's own total before; it takes the selection to price, or a preview that something else
+    holds, and its props changed with it.
+    `CheckoutItem`, the type of those items, left the exports with them. A pricing table also draws a
+    plan's boolean or configuration grant as an included feature (a check and its name) where it
+    drew the word "boolean", and omits a boolean that is off.
+  - **The billing sections of `CustomerPortal`** (`@kaitencloud/react-ui`), under `mode="customer-session"`:
+    `InvoiceList` (the customer's invoices, newest first as the API serves them, a link to pay an
+    open one and to the PDF of those that have one), `VoucherEntry` (a field that only checks a code,
+    which a checkout redeems), the add-ons panel that `AddOns` and `CurrentPlan` open (quantities
+    set there and confirmed together, one change per add-on), the cancel and reactivate controls
+    of `CurrentPlan` (its `manage` prop, which `CustomerPortal` sets) and the note on a limit that
+    says where it comes from. Their amounts are the server's and nothing in them is added up; a
+    voucher code is sent in the body of the check and kept nowhere. `InvoiceList` and `VoucherEntry`
+    are elements of `CustomerPortal` under a customer session and nothing under any other mode.
+  - **`PaymentMethodCard`** (`@kaitencloud/react-ui`), under `mode="customer-session"`: the payment
+    method the customer's invoices are charged to, as the labels the provider gave ("Visa •••• 4242",
+    its expiry, whether it is expired or its last payment failed, never a number), and to add one,
+    replace it on the provider's hosted page, or manage it in the provider's own billing portal.
+    It is an element of `CustomerPortal` under a session, and it is not there at all (no element,
+    no empty card) when the portal says the provider cannot capture a payment method.
+  - **The subscription in `CurrentPlan`, `BillingSummary` and `Paywall`** (`@kaitencloud/react-ui`),
+    under `mode="customer-session"`: the status the portal gives (running, in its trial, canceled and
+    ending with its period, past due, over, or no subscription to speak of), when it renews or ends,
+    a plan change that is scheduled, and, in `BillingSummary`, the price of the subscription and the
+    labels of the payment method (what the host passes in `billing` wins). Billing status closes no
+    wall: a `Paywall` says where the subscription stands (`data-subscription`, and a sentence when it
+    explains the wall) and offers to "Subscribe" instead of "Upgrade" to a customer who can buy a plan
+    by themselves (`capabilities.checkout`). None of them reads the end date of a licence, which billing
+    never moves.
+  - **The billing half of `PricingTable`** (`@kaitencloud/react-ui`): the price
+    passed to `onSelectPlan`, and the "Contact us" link of a plan that is not
+    `selfServe`.
+- **The words of a checkout**, `KaitenLocalization.checkoutFlow` (typed `KaitenCheckoutWords`).
+  An optional section: the provider's English defaults do not carry it, the English lives in
+  `@kaitencloud/react-ui`, and a language pack of `@kaitencloud/react/locales` carries its
+  own whole. A host's override of one string is merged over them. The section's earlier keys
+  (`title`, `description`, `plan`, `addOn`, `total`, `proceedToPayment` and the interval
+  names) are gone: they were the words of the previous `CheckoutSummary`, and the keys of the
+  present one replace them.
+- **The words of the portal and of a subscription**, `KaitenLocalization.portalBilling` and
+  `KaitenLocalization.subscription` (typed `KaitenPortalBillingWords` and
+  `KaitenSubscriptionWords`), and `KaitenLocalization.paymentMethodCard`
+  (`KaitenPaymentMethodWords`). Optional, like the checkout's: the English is in
+  `@kaitencloud/react-ui`, and a language pack carries each section whole.
 - **Theming API** — `KaitenStyleRoot`, `useKaitenPortalContainer`, `appearance`
   (`KaitenAppearance`, the `themes.*` presets, the `--ktn-*` variable contract)
   and the prebuilt `kaiten.css`.
 - **Telemetry** — `KaitenTelemetryOptions` / `KaitenTelemetryEvent` and the event map.
+- **`formatKaitenPrice`** — a price as a line of text: "€49.00/month", "€135.00
+  every 3 months", "€2.00 per 1M tokens". The wording of the periods and of the
+  units is `localization.price`, in each language pack.
 - **Events, cache keys and small exports** — `emitKaitenEvent` and
   `kaitenComponentEvents` (the `kaiten:*` DOM events), `kaitenKeys` and
   `useKaitenScopeKey` (the cache keys a host can `mutate()`), `KaitenErrorBoundary`
@@ -211,7 +236,8 @@ guarantees, set out in its [STABILITY.md](../client/STABILITY.md):
   in a minor release. Handle a value you do not know rather than assume the list
   is exhaustive.
 
-This package's own types follow the same rules. The results of its hooks
+This package's own types follow the same rules, with the four unions of the next
+section as the one exception. The results of its hooks
 (`EntitlementCheckResult`, `PaywallTriggerResult`, `GateState`,
 `UseKaitenQueryResult`…) may gain optional members. The `reason` of
 `PaywallTriggerResult` and `GateState` is `PaywallReason`, an open union: a later
@@ -219,6 +245,38 @@ billing adds reasons, so a switch over it needs a default, and `GateState.blocke
 already says whether a wall is up. `KaitenProviderMode` and the provider's props
 type what you pass in, so a minor release may add a mode, as it may add an optional
 prop.
+
+### Unions that grow
+
+Four unions of `@kaitencloud/react/billing` are written closed, so that a `switch` narrows
+each member to its own fields, and may still gain members: `CheckoutProblem` and
+`AddonQuantityProblem`, the refusals of a checkout and of a change to an add-on, told apart
+by `kind` (with the `reason` of each `CheckoutAddonRefusal`); `CheckoutStep`, where a
+checkout stands; and `CheckoutVoucherState`, where its voucher code stands. For the four:
+
+- **A member is only ever added, in a minor release,** and the changelog names it. The
+  members of 1.0 keep their names, their meaning and their fields for all of 1.x; a member
+  may gain an optional field.
+- **A new refusal comes out of `other`.** A refusal the hooks do not name is
+  `{ kind: "other" }`, with the error itself in `error`, and a reason they do not name is
+  `"other"`. A kind or a reason that a minor release adds names what was `other` until
+  then, never what another member named: a host that handles `other` handles it already,
+  in plainer words.
+- **Keep a `default` branch.** For a refusal, say there what you say for `other`, and read
+  `error`. For a step, rely on what holds whatever the step: `canSubmit` says whether the
+  customer can subscribe, and `setup`, `result` and `payment` what there is to show. For a
+  voucher state, say nothing of the code: as far as you know, it is neither applied nor
+  refused. A `switch` that ends in an exhaustiveness check (`const unhandled: never = problem`)
+  stops compiling when a member is added: that is the warning it is written for, and the
+  addition is not a breaking change.
+- **`@kaitencloud/react-ui` does the same**: each of its components keeps a fallback for a
+  member it does not know, so a published `@kaitencloud/react-ui` reads what a later
+  `@kaitencloud/react` 1.x adds.
+
+The other unions of `/billing` — the `status` of `CheckoutPreviewState`, of
+`InvoiceSettlement` and of `UsePaymentMethodSessionResult`, and `CheckoutSetup["opening"]` —
+are closed, and stay as they are for all of 1.x. `CheckoutPayment["status"]` is the client's
+`CheckoutPaymentStatus`, an open union.
 
 ## Practical guidance
 

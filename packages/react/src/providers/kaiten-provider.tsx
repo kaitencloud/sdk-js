@@ -260,8 +260,7 @@ export interface StaticKaitenProviderConfig {
  * are not on the session's routes: the snapshot has no flags, and
  * `useReportUsage` refuses before sending anything.
  *
- * @experimental Until Kaiten billing ships, this mode may change in a minor
- * release (see STABILITY.md).
+ * Needs the first Kaiten release with billing (see STABILITY.md).
  */
 export interface CustomerSessionKaitenProviderConfig {
   mode: "customer-session";

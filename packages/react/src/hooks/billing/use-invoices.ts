@@ -37,7 +37,7 @@ export interface UseInvoicesResult {
  * is `hostedInvoiceUrl`, and its PDF `invoicePdfUrl`. Under any other mode there is no
  * session to read with, and the list stays empty and not loading.
  *
- * @experimental Until Kaiten billing ships (see STABILITY.md).
+ * Needs the first Kaiten release with billing (see STABILITY.md).
  */
 export function useInvoices(options: UseInvoicesOptions = {}): UseInvoicesResult {
   useTrackHook("useInvoices");
@@ -167,7 +167,7 @@ export interface InvoiceSettlement {
  * after the customer paid sees it. When it is paid, the portal and the invoices every other
  * hook holds are read again.
  *
- * @experimental Until Kaiten billing ships (see STABILITY.md).
+ * Needs the first Kaiten release with billing (see STABILITY.md).
  */
 export function useInvoiceSettlement(options: UseInvoiceSettlementOptions = {}): InvoiceSettlement {
   useTrackHook("useInvoiceSettlement");

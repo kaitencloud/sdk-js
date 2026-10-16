@@ -37,15 +37,19 @@ components are in `@kaitencloud/react-ui`, which depends on this package and re-
   `@kaitencloud/react/locales` has French, Spanish and German packs.
 - **Subpaths.** `@kaitencloud/react/types`, plain types, and `@kaitencloud/react/locales`, plain
   data a Server Component can import. `@kaitencloud/react/internal` is for
-  `@kaitencloud/react-ui` and carries no stability promise.
+  `@kaitencloud/react-ui`, not for a host, and only grows within a major.
 
 ### Stability
 
 The blessed path, which is the provider, the hooks, the control primitives, the helpers and the
-error classes, follows semantic versioning from this release on. The billing surface, meaning
-`mode="public"`, `mode="customer-session"` and the hooks of `@kaitencloud/react/billing`, is
-experimental until Kaiten billing ships and may change in a minor release, and so is the
-telemetry. [`STABILITY.md`](STABILITY.md) lists both sides, for this package and for
+error classes, follows semantic versioning from this release on. So does the billing surface,
+meaning `mode="public"`, `mode="customer-session"` and the hooks of `@kaitencloud/react/billing`,
+which needs the first Kaiten release with billing. The refusals the billing hooks name, a
+checkout's steps and the states of a voucher code may gain a member in a minor release, by the
+rules `STABILITY.md` sets out. The telemetry, `formatKaitenPrice` and the words of the styled
+components are experimental, and may change in a minor release. Within a major, nothing that a
+published `@kaitencloud/react-ui` imports is removed or retyped, from any entry.
+[`STABILITY.md`](STABILITY.md) lists both sides, for this package and for
 `@kaitencloud/react-ui`.
 
 ### Requirements
