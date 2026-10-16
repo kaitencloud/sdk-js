@@ -13,7 +13,11 @@ import {
   toKaitenError,
   TransactionIdReusedError,
 } from "../src/index.ts";
-import type { ReportedEntitlementUsage, ReportEntitlementUsageMetricData } from "../src/index.ts";
+import type {
+  Provenance,
+  ReportedEntitlementUsage,
+  ReportEntitlementUsageMetricData,
+} from "../src/index.ts";
 
 const jsonOk = async () =>
   new Response("[]", { status: 200, headers: { "content-type": "application/json" } });
@@ -323,6 +327,47 @@ describe("usage report keys and the usage history", () => {
 
   test("a usage report answers the key it was accepted under, null without one", () => {
     expectTypeOf<ReportedEntitlementUsage["transactionId"]>().toEqualTypeOf<string | null>();
+  });
+
+  test("a usage report always answers its source and provenance, null on a replay", () => {
+    // Present on every answer: the layer and the arithmetic of a first report,
+    // and null on a replay, which is rebuilt from a journal that keeps neither.
+    expectTypeOf<Pick<ReportedEntitlementUsage, "source" | "provenance">>().toEqualTypeOf<{
+      source: "license" | "addon" | null;
+      provenance: Provenance | null;
+    }>();
+  });
+
+  test("a replayed usage report reaches the caller with its null source and provenance", async () => {
+    const replay = {
+      entitlementId: "7c8d0f6e-3b52-4f7a-9d1c-2a6b8e4f1c01",
+      entitlementSlug: "seats",
+      licenseId: "7a1f0f3e-2b9c-4f61-8a55-0c2f6f7d9e10",
+      licenseSlug: "pro-v2",
+      value: { type: "number", value: 4 },
+      source: null,
+      provenance: null,
+      transactionId: "evt-1",
+    } satisfies ReportedEntitlementUsage;
+    const { fetch } = recordingFetch(
+      async () =>
+        new Response(JSON.stringify(replay), {
+          status: 200,
+          headers: { "content-type": "application/json", "Idempotent-Replayed": "true" },
+        }),
+    );
+    const client = createKaitenClient({ token: "t", baseUrl: "https://example.test", fetch });
+
+    const { data, response } = await Instances.reportEntitlementUsageMetric({
+      client,
+      throwOnError: true,
+      path: { instanceSlug: "inst-1", entitlementSlug: "seats" },
+      headers: { "Idempotency-Key": "evt-1" },
+      body: { value: { type: "number", value: 1 }, behavior: "append" },
+    });
+
+    expect(response.headers.get("Idempotent-Replayed")).toBe("true");
+    expect(data).toMatchObject({ transactionId: "evt-1", source: null, provenance: null });
   });
 
   test("the reused-key conflict is recognised by its code, with or without the original report", async () => {
