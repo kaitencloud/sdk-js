@@ -47,11 +47,7 @@ function TableFooter({ className, ...props }: React.ComponentProps<"tfoot">) {
   return (
     <tfoot
       data-slot="table-footer"
-      className={cn(
-        "ktn-own",
-        "bg-muted/50 border-t font-medium [&>tr]:last:border-b-0",
-        className,
-      )}
+      className={cn("ktn-own", "bg-muted/50 border-t font-medium *:last:border-b-0", className)}
       {...props}
     />
   );
@@ -79,7 +75,7 @@ function TableHead({ className, ...props }: React.ComponentProps<"th">) {
         "ktn-own",
         // No `text-foreground`: tables render inside cards here, and pinning the page
         // colour on a card surface is only invisible while the two tokens agree (see `Card`).
-        "h-10 px-2 text-left align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
+        "h-10 px-2 text-left align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 *:[[role=checkbox]]:translate-y-[2px]",
         className,
       )}
       {...props}
@@ -93,7 +89,7 @@ function TableCell({ className, ...props }: React.ComponentProps<"td">) {
       data-slot="table-cell"
       className={cn(
         "ktn-own",
-        "p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
+        "p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 *:[[role=checkbox]]:translate-y-[2px]",
         className,
       )}
       {...props}
