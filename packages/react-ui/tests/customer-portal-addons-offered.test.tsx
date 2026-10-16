@@ -109,6 +109,19 @@ test("without a subscription, every public add-on that fits the plan is offered,
   await waitFor(() => expect(listed()).toEqual(["Extra seats", "GPU pack"]));
 });
 
+test("a canceled subscription is not checked either: every public add-on that fits the plan is offered", async () => {
+  // Over, it bills nothing: the GPU pack, in dollars, is offered beside it, in euros.
+  await drawAddOns(
+    portalOf({
+      subscription: { ...answers.portal.subscription, status: "CANCELED" },
+      addOns: [],
+      upcomingInvoice: null,
+    }),
+  );
+
+  await waitFor(() => expect(listed()).toEqual(["Extra seats", "GPU pack"]));
+});
+
 /** A public add-on that fits Pro, as the catalogue serves one, numbered `n`, with `prices`. */
 const proAddon = (
   n: number,
