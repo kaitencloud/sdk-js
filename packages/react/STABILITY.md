@@ -121,7 +121,8 @@ and they may change, in a minor release, as billing ships:
   `useValidateVoucher` and `isPlausibleEmail`, the rule they apply to a billing email, with
   the types of their options and results. They need `mode="customer-session"`. Every amount
   they carry is the server's, from a checkout's `dryRun` or an invoice, and none is added up.
-  The `problem` of a checkout is a closed list for now, and may grow.
+  The `problem` of a checkout and that of `useSetAddonQuantity` are closed lists for now, and
+  may grow.
 - **`CheckoutSummary` and `CheckoutFlow`** (`@kaitencloud/react-ui`), a checkout drawn:
   what is due today and a customer's whole checkout. They are `useCheckoutPreview` and
   `useCheckout`, with markup. The amount due is the server's, from a checkout's `dryRun`

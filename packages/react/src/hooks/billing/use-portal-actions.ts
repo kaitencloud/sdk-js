@@ -16,6 +16,7 @@ import { useTrackHook } from "../../telemetry/context.tsx";
 import { useKaitenMutation, type UseKaitenMutationResult } from "../use-kaiten-query.ts";
 import { kaitenKeys } from "../query-keys.ts";
 import { invalidateInvoices, invalidatePortal } from "./invalidate.ts";
+import { addonQuantityProblem, type AddonQuantityProblem } from "./refusals.ts";
 import {
   clearPending,
   currentPageUrl,
@@ -170,22 +171,38 @@ export function useReactivateSubscription(
   });
 }
 
+export interface UseSetAddonQuantityResult extends UsePortalActionResult<
+  { addonSlug: string; quantity: number },
+  SessionAddon
+> {
+  /**
+   * What the last change was refused with, as a kind a screen chooses its words by: an add-on in
+   * another currency, one that does not fit the plan, too many units, another version held, a
+   * subscription that waits for its payment, a period still being closed, a provider that is down.
+   * `null` when the last change was not refused; `error` is the error itself.
+   */
+  problem: AddonQuantityProblem | null;
+}
+
 /**
  * Sets how many units of an add-on the instance holds: `mutate({ addonSlug, quantity })`,
  * `0` detaching it. The change is billed from the next renewal. Waits out a billing period
- * that is being closed like {@link useCancelSubscription}.
+ * that is being closed like {@link useCancelSubscription}, and names what any other refusal is
+ * in `problem`.
  *
  * @experimental Until Kaiten billing ships (see STABILITY.md).
  */
 export function useSetAddonQuantity(
   options: PortalActionOptions<SessionAddon> = {},
-): UsePortalActionResult<{ addonSlug: string; quantity: number }, SessionAddon> {
-  return useSessionMutation({
+): UseSetAddonQuantityResult {
+  const mutation = useSessionMutation<{ addonSlug: string; quantity: number }, SessionAddon>({
     hook: "useSetAddonQuantity",
     call: (client, { addonSlug, quantity }) => client.setAddonQuantity(addonSlug, quantity),
     waitsOutBoundary: true,
     ...options,
   });
+  const problem = React.useMemo(() => addonQuantityProblem(mutation.error), [mutation.error]);
+  return { ...mutation, problem };
 }
 
 // ---------------------------------------------------------------------------

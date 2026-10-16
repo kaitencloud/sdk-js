@@ -21,7 +21,7 @@ export type {
   CheckoutPreviewSelection,
   CheckoutSelection,
 } from "./hooks/billing/checkout-selection.ts";
-export type { CheckoutProblem } from "./hooks/billing/refusals.ts";
+export type { AddonQuantityProblem, CheckoutProblem } from "./hooks/billing/refusals.ts";
 export {
   useCheckoutPreview,
   type CheckoutPreviewState,
@@ -55,4 +55,5 @@ export {
   type UsePaymentMethodSessionOptions,
   type UsePaymentMethodSessionResult,
   type UsePortalActionResult,
+  type UseSetAddonQuantityResult,
 } from "./hooks/billing/use-portal-actions.ts";

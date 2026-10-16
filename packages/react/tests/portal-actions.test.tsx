@@ -29,6 +29,7 @@ import {
   sessionProvider,
   settle,
 } from "./support/billing.tsx";
+import { KaitenError } from "@kaitencloud/client";
 import { createMockKaitenSessionClient, DEMO_SESSION_NOW } from "@kaitencloud/client/testing";
 
 const at = (url: string) => window.history.replaceState(null, "", url);
@@ -150,6 +151,43 @@ test("an add-on is set to a quantity, and 0 detaches it", async () => {
   ]);
 });
 
+test("a refused change to an add-on is named in problem, and the next change clears it", async () => {
+  const client = createMockKaitenSessionClient();
+  vi.spyOn(client, "setAddonQuantity").mockRejectedValueOnce(
+    new KaitenError({
+      title: "Unprocessable Entity",
+      status: 422,
+      code: "SetSessionAddonQuantity.CurrencyMismatch",
+      detail: "the add-on is not priced in the subscription's currency",
+    }),
+  );
+  const view = withPortal(() => useSetAddonQuantity(), client);
+  await waitFor(() => expect(view.result.current.portal.data).toBeDefined());
+  expect(view.result.current.action.problem).toBeNull();
+
+  const change = { addonSlug: "extra-seats-v1", quantity: 3 };
+  await act(async () => {
+    await expect(view.result.current.action.mutateAsync(change)).rejects.toMatchObject({
+      code: "SetSessionAddonQuantity.CurrencyMismatch",
+    });
+  });
+  expect(view.result.current.action.problem).toEqual({ kind: "currency_mismatch" });
+  expect(view.result.current.action.error).toMatchObject({ status: 422 });
+
+  await act(async () => {
+    await view.result.current.action.mutateAsync(change);
+  });
+  expect(view.result.current.action).toMatchObject({ problem: null, error: null });
+
+  // A refusal it has no word for is other: the double does not know this add-on.
+  await act(async () => {
+    await expect(
+      view.result.current.action.mutateAsync({ addonSlug: "nope", quantity: 1 }),
+    ).rejects.toMatchObject({ code: "SetSessionAddonQuantity.AddonNotPublic" });
+  });
+  expect(view.result.current.action.problem).toEqual({ kind: "other" });
+});
+
 // ---------------------------------------------------------------------------
 // A billing period that is being closed
 // ---------------------------------------------------------------------------
@@ -215,7 +253,11 @@ describe("a change refused while the period that ended is being closed", () => {
 
     expect(spy).toHaveBeenCalledTimes(2);
     expect(refusal).toMatchObject({ status: 409, code: "SetSessionAddonQuantity.BoundaryPending" });
-    expect(view.result.current.action).toMatchObject({ isPending: false, retryAt: null });
+    expect(view.result.current.action).toMatchObject({
+      isPending: false,
+      retryAt: null,
+      problem: { kind: "boundary_pending", retryAfterSeconds: 60 },
+    });
     await settle(10 * 60_000);
     expect(spy).toHaveBeenCalledTimes(2);
   });

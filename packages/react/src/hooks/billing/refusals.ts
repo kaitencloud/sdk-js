@@ -66,6 +66,50 @@ export function checkoutProblem(error: unknown): CheckoutProblem | null {
   return { kind: "other" };
 }
 
+/**
+ * What a refused change to the quantity of an add-on is, in the words a screen needs, read from
+ * the error the client threw, like {@link CheckoutProblem}. The error itself stays on the hook's
+ * `error`.
+ */
+export type AddonQuantityProblem =
+  /** The add-on is priced in another currency than the subscription's: it cannot be attached to it. */
+  | { kind: "currency_mismatch" }
+  /**
+   * The add-on does not fit the plan: not one of the families the plan takes, not one a scheduled
+   * plan takes, no price for the subscription's billing period, or a price that meters what the
+   * plan meters already. The API answers them alike.
+   */
+  | { kind: "incompatible" }
+  /** More units than the add-on allows, or fewer than none. */
+  | { kind: "quantity_exceeds_max" }
+  /** The instance holds another version of the add-on's family: it is changed there, not here. */
+  | { kind: "other_version_attached" }
+  /** The subscription waits for the payment of its checkout: the plan starts once it is confirmed. */
+  | { kind: "subscription_incomplete" }
+  /** The billing period that ended is still being closed: the same change goes through once it is. */
+  | { kind: "boundary_pending"; retryAfterSeconds: number }
+  /** The payment provider could not be reached: try again later. */
+  | { kind: "unavailable"; retryAfterSeconds: number | null }
+  /** Anything else: read `error`. */
+  | { kind: "other" };
+
+/** The problem a refused change to an add-on's quantity is, or `null` for no error. */
+export function addonQuantityProblem(error: unknown): AddonQuantityProblem | null {
+  if (error === null || error === undefined) return null;
+  if (refusedAs(error, 422, ".CurrencyMismatch")) return { kind: "currency_mismatch" };
+  if (refusedAs(error, 422, ".Incompatible")) return { kind: "incompatible" };
+  if (refusedAs(error, 422, ".QuantityExceedsMax")) return { kind: "quantity_exceeds_max" };
+  if (refusedAs(error, 409, ".OtherVersionAttached")) return { kind: "other_version_attached" };
+  if (refusedAs(error, 409, ".SubscriptionIncomplete")) return { kind: "subscription_incomplete" };
+  if (error instanceof BoundaryPendingError) {
+    return { kind: "boundary_pending", retryAfterSeconds: error.retryAfterSeconds };
+  }
+  if (error instanceof ProviderUnavailableError) {
+    return { kind: "unavailable", retryAfterSeconds: error.retryAfterSeconds };
+  }
+  return { kind: "other" };
+}
+
 /** Whether a refusal is the billing period that ended still being closed: one to wait out and send again. */
 export const isBoundaryPending = (error: unknown): error is BoundaryPendingError =>
   error instanceof BoundaryPendingError;
