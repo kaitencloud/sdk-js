@@ -19,7 +19,11 @@ export interface CheckoutSelection {
    * a checkout, and to nothing else: no URL, no log, no element.
    */
   voucherCode: string;
-  /** `true` subscribes without the plan's trial. */
+  /**
+   * `true` subscribes without the plan's trial: the checkout sends `trial: false`. It is for a
+   * host that draws its own checkout and offers that choice. The styled `CheckoutFlow` of
+   * `@kaitencloud/react-ui` does not offer it: a plan with a trial is subscribed with it there.
+   */
   skipTrial: boolean;
   /** Where invoices go. Needed only when the customer has none yet. */
   billingEmail: string;

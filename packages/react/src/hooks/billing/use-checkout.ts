@@ -109,7 +109,10 @@ export interface UseCheckoutResult {
   setAddOnQuantity: (addonSlug: string, quantity: number) => void;
   /** Sets the voucher code, `""` for none. It is sent in the body of the checkout and kept nowhere else. */
   setVoucherCode: (code: string) => void;
-  /** Subscribes without the plan's trial. */
+  /**
+   * Subscribes without the plan's trial, or with it again: see {@link CheckoutSelection.skipTrial}.
+   * The styled `CheckoutFlow` of `@kaitencloud/react-ui` never calls it, and offers no such choice.
+   */
   setSkipTrial: (skip: boolean) => void;
   setBillingEmail: (email: string) => void;
   /** What is due today for the selection, as the server computed it. See {@link CheckoutPreviewState}. */
