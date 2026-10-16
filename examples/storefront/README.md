@@ -160,7 +160,10 @@ is a customer who moves:
   refused as the contract refuses it: `SetSessionAddonQuantity.CurrencyMismatch` for an add-on priced
   in another currency than the subscription's (the GPU pack, in dollars beside the plans in euros),
   `.Incompatible` for one that does not fit the plan, or for a paid one whose flat fees have none
-  for its billing period (an add-on that is metered only, free or custom is not checked for one);
+  for its billing period (an add-on that is metered only, free or custom is not checked for one),
+  `.QuantityExceedsMax` for more units than it allows or fewer than none. Without a live
+  subscription, after a cancellation took effect, nothing is billed: a change is in force at once,
+  and only the plan and the most units the add-on allows are checked;
 - changing the payment method saves the other of two cards, so that the change is seen;
 - every plan that is not free has a `selfServeCtaUrl`: the storefront's `/sales` page, for the plan;
 - it can move to the **next boundary**, as Kaiten's close would when the time came: a trial converts (an

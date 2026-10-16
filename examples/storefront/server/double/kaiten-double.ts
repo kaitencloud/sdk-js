@@ -1077,7 +1077,11 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
 
   // ---- Add-ons ----------------------------------------------------------------
 
-  /** `PUT /public/session/addons/{slug}`: the quantity takes effect at once, the next renewal bills it. */
+  /**
+   * `PUT /public/session/addons/{slug}`: the quantity takes effect at once, and the next renewal of a
+   * live subscription bills it. Without one there is nothing to bill, and nothing is checked but the
+   * plan and the most units the add-on allows.
+   */
   function setAddonQuantity(stored: Stored, slug: string, body: Json, path: string): Response {
     if (stored.instanceSlug === null) {
       return problem(
@@ -1098,18 +1102,16 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
       );
     }
     if (!Number.isInteger(quantity) || quantity < 0) {
-      return problem(422, "SetSessionAddonQuantity.Incompatible", "quantity is 0 or more", path);
-    }
-    const current = subscription;
-    if (!current) {
       return problem(
         422,
-        "SetSessionAddonQuantity.Incompatible",
-        "subscribe to a plan first",
+        "SetSessionAddonQuantity.QuantityExceedsMax",
+        "quantity is a whole number, 0 or more",
         path,
       );
     }
-    if (!planBySlug(planSlug)?.compatibleAddonFamilies.includes(addon.familySlug)) {
+    // The plan the instance is on, which outlives its subscription: Starter before any.
+    const licenseSlug = planSlug ?? session.portalNeverSubscribed.instance.licenseSlug;
+    if (!planBySlug(licenseSlug)?.compatibleAddonFamilies.includes(addon.familySlug)) {
       return problem(
         422,
         "SetSessionAddonQuantity.Incompatible",
@@ -1117,31 +1119,34 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
         path,
       );
     }
-    // One currency per subscription: an add-on priced in another cannot be attached to it. One with
-    // no price has none to differ.
-    const prices = addon.prices as Json[];
-    if (prices.some((each) => each.currency !== current.currency)) {
-      return problem(
-        422,
-        "SetSessionAddonQuantity.CurrencyMismatch",
-        `"${slug}" is not priced in ${current.currency}, the subscription's currency`,
-        path,
-      );
-    }
-    // A paid add-on with flat fees is billed its default fee of the period, and needs one. One that
-    // is metered only, free or custom is not checked for a period.
-    const fees = prices.filter((each) => each.billingModel === "FLAT_FEE");
-    if (
-      addon.pricingType === "PAID" &&
-      fees.length > 0 &&
-      !fees.some((each) => each.isDefault && each.billingPeriod === current.billingPeriod)
-    ) {
-      return problem(
-        422,
-        "SetSessionAddonQuantity.Incompatible",
-        `"${slug}" has no price for the subscription's billing period`,
-        path,
-      );
+    const current = subscription;
+    if (current) {
+      // One currency per subscription: an add-on priced in another cannot be attached to it. One
+      // with no price has none to differ.
+      const prices = addon.prices as Json[];
+      if (prices.some((each) => each.currency !== current.currency)) {
+        return problem(
+          422,
+          "SetSessionAddonQuantity.CurrencyMismatch",
+          `"${slug}" is not priced in ${current.currency}, the subscription's currency`,
+          path,
+        );
+      }
+      // A paid add-on with flat fees is billed its default fee of the period, and needs one. One
+      // that is metered only, free or custom is not checked for a period.
+      const fees = prices.filter((each) => each.billingModel === "FLAT_FEE");
+      if (
+        addon.pricingType === "PAID" &&
+        fees.length > 0 &&
+        !fees.some((each) => each.isDefault && each.billingPeriod === current.billingPeriod)
+      ) {
+        return problem(
+          422,
+          "SetSessionAddonQuantity.Incompatible",
+          `"${slug}" has no price for the subscription's billing period`,
+          path,
+        );
+      }
     }
     if (addon.maxQuantity != null && quantity > addon.maxQuantity) {
       return problem(
@@ -1171,7 +1176,7 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
           : quantity === 0
             ? "instance.addon.removed"
             : "instance.addon.quantity_changed",
-        `${addon.name}: ${before} → ${quantity}, in force now, billed from the next renewal`,
+        `${addon.name}: ${before} → ${quantity}, in force now, ${current ? "billed from the next renewal" : "with no subscription to bill it"}`,
       );
     }
     return reply(200, {

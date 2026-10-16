@@ -911,9 +911,10 @@ describe("add-ons", () => {
     expect(contractProblems(recorder)).toEqual([]);
   });
 
-  test("refuses what does not fit: an unknown add-on, too many, a plan it does not suit, another currency, no subscription", async () => {
-    const { double, customer, recorder } = world();
+  test("refuses what does not fit: an unknown add-on, too many or fewer than none, a plan it does not suit, another currency", async () => {
+    const { double, customer, recorder, mint, call } = world();
     const session = await customer();
+    // Never subscribed, the instance is on Starter, which takes no add-on.
     await expect(session.setAddonQuantity("extra-seats-v1", 1)).rejects.toMatchObject({
       status: 422,
       code: "SetSessionAddonQuantity.Incompatible",
@@ -925,6 +926,19 @@ describe("add-ons", () => {
       code: "SetSessionAddonQuantity.AddonNotPublic",
     });
     await expect(subscribed.setAddonQuantity("extra-seats-v1", 51)).rejects.toMatchObject({
+      code: "SetSessionAddonQuantity.QuantityExceedsMax",
+    });
+    // The client refuses a quantity below 0 before sending it; the route says what Kaiten says.
+    const below = await call("/api/public/session/addons/extra-seats-v1", {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${(await mint()).token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ quantity: -1 }),
+    });
+    expect(below.status).toBe(422);
+    expect(await below.json()).toMatchObject({
       code: "SetSessionAddonQuantity.QuantityExceedsMax",
     });
     // The Japanese pack does not suit Pro.
@@ -942,6 +956,48 @@ describe("add-ons", () => {
     await expect(
       (await customer(null)).setAddonQuantity("extra-seats-v1", 1),
     ).rejects.toMatchObject({ code: "SetSessionAddonQuantity.InstanceRequired" });
+    expect(contractProblems(recorder)).toEqual([]);
+  });
+
+  test("without a live subscription, a change is in force at once, and only the plan and the maximum are checked", async () => {
+    const { double, customer, recorder } = world();
+    double.reset({ subscribed: true });
+    const session = await customer();
+    await session.cancelSubscription();
+    expect(double.advance(ORIGIN)).toMatchObject({ ok: true, applied: "canceled" });
+    expect(double.state()).toMatchObject({ subscribed: false, plan: "pro-v2" });
+
+    // The instance is still on Pro. Nothing is billed, so neither the currency nor the period is
+    // checked: the GPU pack, in dollars, is attached as the seats are.
+    await expect(session.setAddonQuantity("extra-seats-v1", 2)).resolves.toMatchObject({
+      slug: "extra-seats-v1",
+      quantity: 2,
+    });
+    await expect(session.setAddonQuantity("gpu-pack-v1", 1)).resolves.toMatchObject({
+      slug: "gpu-pack-v1",
+      quantity: 1,
+    });
+    expect((await session.getPortal()).addOns).toMatchObject([
+      { slug: "extra-seats-v1", quantity: 2 },
+      { slug: "gpu-pack-v1", quantity: 1 },
+    ]);
+    await expect(session.setAddonQuantity("extra-seats-v1", 51)).rejects.toMatchObject({
+      code: "SetSessionAddonQuantity.QuantityExceedsMax",
+    });
+    await expect(session.setAddonQuantity("jp-pack-v1", 1)).rejects.toMatchObject({
+      code: "SetSessionAddonQuantity.Incompatible",
+    });
+
+    // A decrease is in force at once too, and 0 detaches.
+    await session.setAddonQuantity("extra-seats-v1", 1);
+    await session.setAddonQuantity("gpu-pack-v1", 0);
+    expect(double.state().addOns).toEqual([{ slug: "extra-seats-v1", quantity: 1 }]);
+    expect(double.events().slice(2)).toMatchObject([
+      { type: "instance.addon.added", detail: expect.stringContaining("no subscription to bill") },
+      { type: "instance.addon.added" },
+      { type: "instance.addon.quantity_changed" },
+      { type: "instance.addon.removed" },
+    ]);
     expect(contractProblems(recorder)).toEqual([]);
   });
 
