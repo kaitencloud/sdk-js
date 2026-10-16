@@ -159,7 +159,8 @@ is a customer who moves:
 - an add-on quantity is set from the portal, in force at once and billed from the next renewal, and
   refused as the contract refuses it: `SetSessionAddonQuantity.CurrencyMismatch` for an add-on priced
   in another currency than the subscription's (the GPU pack, in dollars beside the plans in euros),
-  `.Incompatible` for one that does not fit the plan or has no price for its billing period;
+  `.Incompatible` for one that does not fit the plan, or for a paid one whose flat fees have none
+  for its billing period (an add-on that is metered only, free or custom is not checked for one);
 - changing the payment method saves the other of two cards, so that the change is seen;
 - every plan that is not free has a `selfServeCtaUrl`: the storefront's `/sales` page, for the plan;
 - it can move to the **next boundary**, as Kaiten's close would when the time came: a trial converts (an

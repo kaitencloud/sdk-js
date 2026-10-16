@@ -4,6 +4,8 @@
 // that drifted from the contract would pass the storefront's end-to-end tests for a Kaiten that
 // does not exist.
 
+import { randomUUID } from "node:crypto";
+
 import { KaitenClient, KaitenError, KaitenSessionClient } from "@kaitencloud/client";
 import { Billing, createKaitenClient, CustomerSessions } from "@kaitencloud/server";
 import { describe, expect, test } from "vite-plus/test";
@@ -12,6 +14,8 @@ import type { Configuration } from "../../conformance/src/configuration.ts";
 import { Journey } from "../../conformance/src/journey.ts";
 import { contractProblemsOf, recordingFetch } from "../../conformance/src/recording.ts";
 import { createKaitenDouble, DOUBLE_PATH, type Call } from "../server/double/kaiten-double.ts";
+
+import acmeCatalog from "../../../packages/client/tests/fixtures/public-catalog.acme.json" with { type: "json" };
 
 const ORIGIN = "https://storefront.test";
 const API = `${ORIGIN}${DOUBLE_PATH}/api`;
@@ -25,8 +29,13 @@ const LITE_MONTHLY = "00000000-0000-4000-8000-000000000401";
 const STARTER_MONTHLY = "00000000-0000-4000-8000-000000000101";
 const JAPAN_MONTHLY = "00000000-0000-4000-8000-000000000701";
 
-function world() {
-  const double = createKaitenDouble({ serverToken: SERVER_TOKEN, publishableKey: PUBLISHABLE_KEY });
+/** The stand-in, selling from `catalog` when one is given, and the clients that call it. */
+function world(catalog?: Record<string, any>) {
+  const double = createKaitenDouble({
+    serverToken: SERVER_TOKEN,
+    publishableKey: PUBLISHABLE_KEY,
+    catalog,
+  });
   const recorder = recordingFetch(`${DOUBLE_PATH}/api`, async (input, init) => {
     const response = await double.route(new Request(input, init));
     if (!response) throw new Error("the stand-in has no such route");
@@ -959,6 +968,81 @@ describe("add-ons", () => {
     await expect(annual.setAddonQuantity("extra-seats-v1", 2)).resolves.toMatchObject({
       slug: "extra-seats-v1",
       quantity: 2,
+    });
+    expect(contractProblems(recorder)).toEqual([]);
+  });
+
+  test("attaches an add-on billed no flat fee for the period, as Kaiten does: metered only, free or custom", async () => {
+    // Acme's catalogue, with three more add-ons that fit Pro: GPU hours, metered only; Priority
+    // support, free, with a fee of 0 by the year alone; a Dedicated region, custom, with no price.
+    const catalog = structuredClone(acmeCatalog) as Record<string, any>;
+    const proAddon = (familySlug: string, name: string, pricingType: string, prices: object[]) => ({
+      familySlug,
+      addonSlug: `${familySlug}-v1`,
+      addonId: randomUUID(),
+      name,
+      description: "",
+      pricingType,
+      maxQuantity: null,
+      prices,
+      entitlements: [],
+      compatibleLicenseFamilies: ["pro"],
+    });
+    catalog.addOns.push(
+      proAddon("gpu-hours", "GPU hours", "PAID", [
+        {
+          id: randomUUID(),
+          billingModel: "USAGE_BASED",
+          billingTiming: "ARREARS",
+          currency: "EUR",
+          unitAmount: 90,
+          unitAmountDecimal: "90",
+          metered: { entitlementSlug: "gpu-hours", saleUnitFactor: "1" },
+          displayOrder: 0,
+          isDefault: false,
+        },
+      ]),
+      proAddon("priority-support", "Priority support", "FREE", [
+        {
+          id: randomUUID(),
+          billingModel: "FLAT_FEE",
+          billingTiming: "ADVANCE",
+          billingPeriod: "ANNUAL",
+          currency: "EUR",
+          unitAmount: 0,
+          unitAmountDecimal: "0",
+          displayLabel: "Annual",
+          displayOrder: 0,
+          isDefault: true,
+        },
+      ]),
+      proAddon("dedicated-region", "Dedicated region", "CUSTOM", []),
+    );
+    catalog.plans
+      .find((plan: any) => plan.familySlug === "pro")
+      .compatibleAddonFamilies.push("gpu-hours", "priority-support", "dedicated-region");
+
+    const { double, customer, recorder } = world(catalog);
+    double.reset({ subscribed: true });
+    const session = await customer();
+    // Pro, every month, in euros: none of the three has a monthly fee, and none needs one.
+    for (const slug of ["gpu-hours-v1", "priority-support-v1", "dedicated-region-v1"]) {
+      await expect(session.setAddonQuantity(slug, 1)).resolves.toMatchObject({ slug, quantity: 1 });
+    }
+    expect(double.state().addOns).toEqual([
+      { slug: "gpu-hours-v1", quantity: 1 },
+      { slug: "priority-support-v1", quantity: 1 },
+      { slug: "dedicated-region-v1", quantity: 1 },
+    ]);
+    // A paid add-on with flat fees still needs one for the period: the seats, quarterly.
+    double.reset({ card: true, email: true });
+    const quarterly = await customer();
+    await quarterly.checkout({ licensePriceId: PRO_QUARTERLY });
+    await expect(quarterly.setAddonQuantity("extra-seats-v1", 1)).rejects.toMatchObject({
+      code: "SetSessionAddonQuantity.Incompatible",
+    });
+    await expect(quarterly.setAddonQuantity("gpu-hours-v1", 1)).resolves.toMatchObject({
+      quantity: 1,
     });
     expect(contractProblems(recorder)).toEqual([]);
   });

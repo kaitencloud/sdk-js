@@ -60,6 +60,11 @@ export interface KaitenDoubleOptions {
   serverToken: string;
   /** The publishable key the catalogue accepts, as `X-Kaiten-Publishable-Key`. */
   publishableKey: string;
+  /**
+   * The public catalogue it serves and sells from, in the shape of `GET /public/catalog`: Acme's,
+   * as recorded, unless a test gives another.
+   */
+  catalog?: Json;
 }
 
 /** What the double kept of a request, with its credentials cut to what says which kind they are. */
@@ -249,7 +254,7 @@ const VOUCHER_CODE = "WELCOME20";
 
 export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
   const session = fixture("session.initech.json");
-  const catalog = fixture("public-catalog.acme.json");
+  const catalog = options.catalog ?? fixture("public-catalog.acme.json");
 
   type Stored = {
     id: string;
@@ -1112,9 +1117,10 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
         path,
       );
     }
-    // One currency per subscription: an add-on priced in another cannot be attached to it.
+    // One currency per subscription: an add-on priced in another cannot be attached to it. One with
+    // no price has none to differ.
     const prices = addon.prices as Json[];
-    if (!prices.some((each) => each.currency === current.currency)) {
+    if (prices.some((each) => each.currency !== current.currency)) {
       return problem(
         422,
         "SetSessionAddonQuantity.CurrencyMismatch",
@@ -1122,15 +1128,14 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
         path,
       );
     }
-    // The fee a subscription is billed for an add-on is its default flat fee of the period.
-    const sold = prices.find(
-      (each) =>
-        each.billingModel === "FLAT_FEE" &&
-        each.isDefault &&
-        each.currency === current.currency &&
-        each.billingPeriod === current.billingPeriod,
-    );
-    if (!sold) {
+    // A paid add-on with flat fees is billed its default fee of the period, and needs one. One that
+    // is metered only, free or custom is not checked for a period.
+    const fees = prices.filter((each) => each.billingModel === "FLAT_FEE");
+    if (
+      addon.pricingType === "PAID" &&
+      fees.length > 0 &&
+      !fees.some((each) => each.isDefault && each.billingPeriod === current.billingPeriod)
+    ) {
       return problem(
         422,
         "SetSessionAddonQuantity.Incompatible",
