@@ -1158,6 +1158,208 @@ describe("add-ons", () => {
   });
 });
 
+describe("a checkout of an instance that holds add-ons", () => {
+  /**
+   * Acme's catalogue, with Extra storage beside the seats: a paid add-on in euros that fits Pro,
+   * 5.00 a month, so that a checkout can attach a family the instance does not hold.
+   */
+  function catalogWithStorage() {
+    const catalog = structuredClone(acmeCatalog) as Record<string, any>;
+    catalog.addOns.push({
+      familySlug: "extra-storage",
+      addonSlug: "extra-storage-v1",
+      addonId: randomUUID(),
+      name: "Extra storage",
+      description: "",
+      pricingType: "PAID",
+      maxQuantity: null,
+      prices: [
+        {
+          id: randomUUID(),
+          billingModel: "FLAT_FEE",
+          billingTiming: "ADVANCE",
+          billingPeriod: "MONTHLY",
+          currency: "EUR",
+          unitAmount: 500,
+          unitAmountDecimal: "500",
+          displayLabel: "Monthly",
+          displayOrder: 0,
+          isDefault: true,
+        },
+      ],
+      entitlements: [],
+      compatibleLicenseFamilies: ["pro"],
+    });
+    catalog.plans
+      .find((plan: any) => plan.familySlug === "pro")
+      .compatibleAddonFamilies.push("extra-storage");
+    return catalog;
+  }
+
+  /**
+   * A customer whose Pro subscription, by the month, has ended, and whose instance then took
+   * `held`: without a live subscription a change is in force at once, whatever its prices.
+   */
+  async function canceledHolding(held: Array<[string, number]>, catalog?: Record<string, any>) {
+    const found = world(catalog);
+    found.double.reset({ subscribed: true });
+    const session = await found.customer();
+    await session.cancelSubscription();
+    expect(found.double.advance(ORIGIN)).toMatchObject({ ok: true, applied: "canceled" });
+    for (const [slug, quantity] of held) await session.setAddonQuantity(slug, quantity);
+    return { ...found, session };
+  }
+
+  test("keeps what it holds through the subscribe, and bills it from the activation at the new period's fee", async () => {
+    const { double, session, recorder } = await canceledHolding(
+      [["extra-seats-v1", 3]],
+      catalogWithStorage(),
+    );
+
+    // By the month, the three seats it holds are billed beside the base fee.
+    await expect(
+      session.checkout({ licensePriceId: PRO_MONTHLY, dryRun: true }),
+    ).resolves.toMatchObject({
+      status: "preview",
+      dueToday: {
+        total: 4900 + 3 * 1000,
+        lines: [
+          { type: "BASE", amount: 4900 },
+          { type: "ADDON", label: "Extra seats", quantity: "3", amount: 3000 },
+        ],
+      },
+    });
+    // By the year, at their fee of the year.
+    await expect(
+      session.checkout({ licensePriceId: PRO_ANNUAL, dryRun: true }),
+    ).resolves.toMatchObject({ dueToday: { total: 49000 + 3 * 10000 } });
+
+    // The checkout attaches storage beside them, and replaces nothing.
+    const bought = await session.checkout({
+      licensePriceId: PRO_MONTHLY,
+      addOns: [{ addonSlug: "extra-storage-v1", quantity: 2 }],
+    });
+    expect(bought).toMatchObject({
+      status: "subscribed",
+      activationInvoice: {
+        kind: "ACTIVATION",
+        total: 4900 + 3 * 1000 + 2 * 500,
+        lines: [
+          { type: "BASE", amount: 4900 },
+          { type: "ADDON", label: "Extra seats", quantity: "3", amount: 3000 },
+          { type: "ADDON", label: "Extra storage", quantity: "2", amount: 1000 },
+        ],
+      },
+      payment: { status: "paid" },
+    });
+    expect(double.state().addOns).toEqual([
+      { slug: "extra-seats-v1", quantity: 3 },
+      { slug: "extra-storage-v1", quantity: 2 },
+    ]);
+    expect((await session.getPortal()).addOns).toMatchObject([
+      { slug: "extra-seats-v1", quantity: 3 },
+      { slug: "extra-storage-v1", quantity: 2 },
+    ]);
+    // And the renewal bills them all again.
+    expect(double.advance(ORIGIN)).toMatchObject({ ok: true, applied: "renewed" });
+    expect((await session.listInvoices()).items[0]).toMatchObject({
+      kind: "RENEWAL",
+      total: 4900 + 3000 + 1000,
+    });
+    expect(contractProblems(recorder)).toEqual([]);
+  });
+
+  test("refuses what it holds and the new price cannot bill, one entry per attachment, and changes nothing", async () => {
+    const { double, session, recorder } = await canceledHolding([
+      ["extra-seats-v1", 3],
+      ["gpu-pack-v1", 1],
+    ]);
+
+    // Every quarter: the seats have no fee for it, and the GPU pack is in dollars.
+    await expect(
+      session.checkout({ licensePriceId: PRO_QUARTERLY, dryRun: true }),
+    ).rejects.toMatchObject({
+      status: 422,
+      code: "CreateSessionCheckout.AddonInvalid",
+      errors: [
+        {
+          location: "addons.extra-seats-v1",
+          value: { code: "AttachInstanceAddon.NoPriceForBillingPeriod" },
+        },
+        {
+          location: "addons.gpu-pack-v1",
+          value: { code: "AttachInstanceAddon.CurrencyMismatch" },
+        },
+      ],
+    });
+    // By the month the seats are billed, and the GPU pack alone is refused, for its currency.
+    await expect(session.checkout({ licensePriceId: PRO_MONTHLY })).rejects.toMatchObject({
+      status: 422,
+      code: "CreateSessionCheckout.CurrencyMismatch",
+      errors: [
+        { location: "addons.gpu-pack-v1", value: { code: "AttachInstanceAddon.CurrencyMismatch" } },
+      ],
+    });
+    expect(double.state()).toMatchObject({
+      subscribed: false,
+      addOns: [
+        { slug: "extra-seats-v1", quantity: 3 },
+        { slug: "gpu-pack-v1", quantity: 1 },
+      ],
+      invoices: [{ kind: "ACTIVATION" }],
+    });
+
+    // Once the GPU pack is gone, the same checkout subscribes, with the seats.
+    await session.setAddonQuantity("gpu-pack-v1", 0);
+    await expect(session.checkout({ licensePriceId: PRO_MONTHLY })).resolves.toMatchObject({
+      status: "subscribed",
+      activationInvoice: { total: 4900 + 3000 },
+    });
+    expect(double.state().addOns).toEqual([{ slug: "extra-seats-v1", quantity: 3 }]);
+    expect(contractProblems(recorder)).toEqual([]);
+  });
+
+  test("refuses an add-on of a family it holds, once the instance is found to be one it can subscribe", async () => {
+    const { double, session, customer, recorder } = await canceledHolding([["extra-seats-v1", 3]]);
+
+    for (const dryRun of [true, false]) {
+      await expect(
+        session.checkout({
+          licensePriceId: PRO_MONTHLY,
+          addOns: [{ addonSlug: "extra-seats-v1", quantity: 2 }],
+          dryRun,
+        }),
+      ).rejects.toMatchObject({
+        status: 422,
+        code: "CreateSessionCheckout.AddonInvalid",
+        errors: [
+          {
+            location: "body.addOns[0]",
+            value: { code: "AttachInstanceAddon.FamilyAlreadyAttached" },
+          },
+        ],
+      });
+    }
+    expect(double.state()).toMatchObject({
+      subscribed: false,
+      addOns: [{ slug: "extra-seats-v1", quantity: 3 }],
+    });
+
+    // A live subscription is refused for what it is first, add-ons or not.
+    double.reset({ subscribed: true });
+    const subscribed = await customer();
+    await subscribed.setAddonQuantity("extra-seats-v1", 2);
+    await expect(
+      subscribed.checkout({
+        licensePriceId: PRO_MONTHLY,
+        addOns: [{ addonSlug: "extra-seats-v1", quantity: 1 }],
+        dryRun: true,
+      }),
+    ).rejects.toMatchObject({ status: 409, code: "CreateSessionCheckout.AlreadySubscribed" });
+    expect(contractProblems(recorder)).toEqual([]);
+  });
+});
+
 describe("the vendor's scheduled plan change", () => {
   test("is scheduled with the server SDK, shown in the portal, and applied at the boundary", async () => {
     const { double, customer, server, recorder } = world();

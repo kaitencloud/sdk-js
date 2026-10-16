@@ -5,10 +5,12 @@
 // Kaiten's own code in the client's fixtures, which `fixtures-contract.test.ts` holds to the
 // API contract; what it adds to them is a customer who moves. A checkout subscribes the
 // instance, after a card has been saved on a provider's page if there is none (and replaces a free
-// subscription, V31-68); a cancellation ends the subscription with its period; a payment can be
-// declined, wait for the customer's confirmation, or be unknown for a while. A presenter can
-// move it to the next boundary: a trial converts, a period renews (an invoice that can fail and
-// leave the subscription PAST_DUE), a scheduled plan change applies, a cancellation takes effect.
+// subscription), and keeps the add-ons the instance holds, billed from its activation or
+// refused when the new price cannot bill them; a cancellation ends the subscription with its
+// period, and leaves the add-ons on the instance; a payment can be declined, wait for the
+// customer's confirmation, or be unknown for a while. A presenter can move it to the next
+// boundary: a trial converts, a period renews (an invoice that can fail and leave the
+// subscription PAST_DUE), a scheduled plan change applies, a cancellation takes effect.
 //
 // It is not a Kaiten. The sums are its own (a plan's price, an add-on's, a voucher's
 // percentage), the entitlements are the plan's own as the catalogue lists them (limits from the
@@ -414,6 +416,40 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
   const planBySlug = (slug: string | null) =>
     (catalog.plans as Json[]).find((each) => each.licenseSlug === slug);
 
+  /** The fee a period bills an add-on at: its default flat fee of that period, in the currency. */
+  const billedFee = (prices: Json[], currency: string, period: string): Json | undefined =>
+    prices.find(
+      (each) =>
+        each.billingModel === "FLAT_FEE" &&
+        each.isDefault &&
+        each.currency === currency &&
+        each.billingPeriod === period,
+    );
+
+  /**
+   * Why Kaiten would not bill an add-on the instance holds beside a base price, as the attachment's
+   * own code: priced in another currency, or paid with flat fees and none for the period. `null`
+   * when it would. A version the catalogue no longer lists is checked as a paid one.
+   */
+  const heldRefusal = (held: Json, base: Json): string | null => {
+    const prices = held.prices as Json[];
+    if (prices.some((each) => each.currency !== base.currency)) {
+      return "AttachInstanceAddon.CurrencyMismatch";
+    }
+    const pricingType =
+      (catalog.addOns as Json[]).find((each) => each.addonSlug === held.addonSlug)?.pricingType ??
+      "PAID";
+    const fees = prices.filter((each) => each.billingModel === "FLAT_FEE");
+    if (
+      pricingType === "PAID" &&
+      fees.length > 0 &&
+      !billedFee(prices, base.currency, base.billingPeriod)
+    ) {
+      return "AttachInstanceAddon.NoPriceForBillingPeriod";
+    }
+    return null;
+  };
+
   /**
    * The catalogue as a page of `origin` reads it. The recorded one sends a buyer who cannot buy by
    * themselves to an address of someone else's; the stand-in sends every plan that is not free to
@@ -501,6 +537,24 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
         ...span,
       });
       subtotal += base.unitAmount;
+    }
+    // The add-ons the instance already holds are active at the activation, and billed by it at
+    // their fee for the new period. One that cannot be billed is refused by the checkout itself.
+    for (const held of addOns) {
+      const fee = billedFee(held.prices as Json[], currency, base.billingPeriod);
+      if (!fee) continue;
+      const amount = fee.unitAmount * held.quantity;
+      lines.push({
+        seq: lines.length + 1,
+        type: "ADDON",
+        label: held.name,
+        description: `${held.quantity} × ${money(fee.unitAmount, currency)}`,
+        quantity: String(held.quantity),
+        unitAmountDecimal: String(fee.unitAmount),
+        amount,
+        ...span,
+      });
+      subtotal += amount;
     }
     for (const [at, wanted] of ((order.addOns ?? []) as Json[]).entries()) {
       const addon = (catalog.addOns as Json[]).find((each) => each.addonSlug === wanted.addonSlug);
@@ -611,6 +665,67 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
       plan,
       due: { currency, subtotal, discountTotal, total: subtotal - discountTotal, lines },
     };
+  }
+
+  /**
+   * What the subscribe of a checkout refuses of the add-ons once the instance can be subscribed,
+   * after the order's own were found in the catalogue and priced: an order's add-on of a family the
+   * instance already holds, then each add-on it holds that the base price cannot bill. Kaiten
+   * attaches no second add-on of a family, and keeps what the instance holds through a subscribe,
+   * billed from its activation, as long as it can be billed. `null` when nothing is refused.
+   */
+  function addOnRefusal(order: Json, base: Json, path: string): Response | null {
+    const families = new Set(addOns.map((held) => held.familySlug as string));
+    for (const [at, wanted] of ((order.addOns ?? []) as Json[]).entries()) {
+      if (!(wanted.quantity > 0)) continue;
+      const addon = (catalog.addOns as Json[]).find((each) => each.addonSlug === wanted.addonSlug)!;
+      if (families.has(addon.familySlug)) {
+        return problem(
+          422,
+          "CreateSessionCheckout.AddonInvalid",
+          `"${wanted.addonSlug}" is of a family the instance already holds: change its quantity instead`,
+          path,
+          {
+            errors: [
+              {
+                location: `body.addOns[${at}]`,
+                message: "an add-on of this family is already attached",
+                value: { code: "AttachInstanceAddon.FamilyAlreadyAttached" },
+              },
+            ],
+          },
+        );
+      }
+      families.add(addon.familySlug);
+    }
+
+    // One entry per attachment refused, named by its slug. The checkout answers with the code of
+    // the first: CurrencyMismatch for another currency, AddonInvalid for anything else.
+    const refused = addOns.flatMap((held) => {
+      const code = heldRefusal(held, base);
+      return code
+        ? [
+            {
+              location: `addons.${held.addonSlug}`,
+              message:
+                code === "AttachInstanceAddon.CurrencyMismatch"
+                  ? `priced in another currency than ${base.currency}`
+                  : "no default price for the billing period",
+              value: { code },
+            },
+          ]
+        : [];
+    });
+    if (refused.length === 0) return null;
+    return problem(
+      422,
+      refused[0]!.value.code === "AttachInstanceAddon.CurrencyMismatch"
+        ? "CreateSessionCheckout.CurrencyMismatch"
+        : "CreateSessionCheckout.AddonInvalid",
+      "an add-on the instance holds cannot be billed with this price",
+      path,
+      { errors: refused },
+    );
   }
 
   // ---- The portal -----------------------------------------------------------
@@ -997,6 +1112,8 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
         path,
       );
     }
+    const refusal = addOnRefusal(order, findPrice(String(order.licensePriceId))!.price, path);
+    if (refusal) return refusal;
     if (typeof order.billingEmail === "string") {
       if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(order.billingEmail)) {
         return problem(
@@ -1069,21 +1186,25 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
     }
     planName = plan.name;
     planSlug = plan.licenseSlug;
-    addOns = ((order.addOns ?? []) as Json[])
-      .filter((wanted) => wanted.quantity > 0)
-      .map((wanted) => {
-        const addon = (catalog.addOns as Json[]).find(
-          (each) => each.addonSlug === wanted.addonSlug,
-        )!;
-        return {
-          addonSlug: addon.addonSlug,
-          familySlug: addon.familySlug,
-          name: addon.name,
-          quantity: wanted.quantity,
-          maxQuantity: addon.maxQuantity ?? null,
-          prices: structuredClone(addon.prices),
-        };
-      });
+    // What the instance holds stays, beside what the checkout attaches.
+    addOns = [
+      ...addOns,
+      ...((order.addOns ?? []) as Json[])
+        .filter((wanted) => wanted.quantity > 0)
+        .map((wanted) => {
+          const addon = (catalog.addOns as Json[]).find(
+            (each) => each.addonSlug === wanted.addonSlug,
+          )!;
+          return {
+            addonSlug: addon.addonSlug,
+            familySlug: addon.familySlug,
+            name: addon.name,
+            quantity: wanted.quantity,
+            maxQuantity: addon.maxQuantity ?? null,
+            prices: structuredClone(addon.prices),
+          };
+        }),
+    ];
     const trialing = priced.trialEndsAt !== undefined;
     subscription = newSubscription(base, now, priced.trialEndsAt ?? null);
     canceling = false;

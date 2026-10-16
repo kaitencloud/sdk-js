@@ -281,7 +281,12 @@ is a customer who moves:
   trial bills nothing today. It refuses an add-on as the contract does:
   `CreateSessionCheckout.AddonNotPublic` for one that does not fit the plan, `.CurrencyMismatch` for
   one priced in another currency than the plan's, `.AddonInvalid` for a paid one with no fee for the
-  plan's billing period;
+  plan's billing period, and `.AddonInvalid` with `AttachInstanceAddon.FamilyAlreadyAttached` inside
+  for one of a family the instance already holds. The add-ons the instance holds (taken after a
+  cancellation took effect) stay through the checkout and are billed from its activation, at their
+  fee for the new period; one the new price cannot bill is refused, with one `errors[]` entry per
+  attachment (`addons.<slug>`), as `.CurrencyMismatch` when the first is priced in another currency
+  and `.AddonInvalid` otherwise;
 - a checkout of an instance whose live subscription has no paid price (a free plan) replaces it:
   cancelled at once, with no invoice, and subscribed in the same step (V31-68). Any other live
   subscription is still a 409 `CreateSessionCheckout.AlreadySubscribed`;
