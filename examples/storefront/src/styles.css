@@ -670,6 +670,14 @@ code {
     max-height: calc(100vh - var(--header-height) - 2rem);
     overflow-y: auto;
   }
+
+  /* A theme may offset the panel's shadow by 4px, and the scrolling box would cut it: room inside the
+     box for it, and negative margins to give the room back to the layout. */
+  :root[data-palette]:not([data-palette="kaiten"]) .journey-aside {
+    padding: 0 0.5rem 0.5rem 0;
+    margin-right: -0.5rem;
+    margin-bottom: -0.5rem;
+  }
 }
 
 /* Footer */
