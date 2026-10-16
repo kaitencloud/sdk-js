@@ -22,7 +22,8 @@ re-exports: an app that draws with Kaiten's components imports everything from h
   voucher, trial and billing email; the card, on the provider's page in a popup or, when popups
   are blocked, in place of the page; and every outcome, which is paid, no payment needed,
   further action required, processing and failed, with a plan that waits for its first payment
-  said to start once that is confirmed, as well as the refusals a host cares about
+  said to start once that is confirmed (also to a customer who comes back to the flow before it
+  is, with the invoice to pay), as well as the refusals a host cares about
   (already subscribed, over quota with the entitlements named, rate limited, provider
   unavailable). `CheckoutSummary` shows what is due today. The server prices every selection and
   no total is computed in the browser. A voucher code is never left in the page, an address or a

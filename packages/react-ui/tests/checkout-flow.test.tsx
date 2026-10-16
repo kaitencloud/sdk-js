@@ -45,6 +45,7 @@ import {
   setupIncomplete,
   settle,
   subscribed,
+  subscription,
   trialPreview,
   unsubscribedSession,
   voucherInvalid,
@@ -1209,6 +1210,38 @@ describe("refusals", () => {
     expect(within(flow()).getByText("You already have a subscription.")).toBeTruthy();
     expect(within(flow()).queryByRole("button")).toBeNull();
     expect(links()).toHaveLength(0);
+  });
+
+  test("a customer back at the checkout of a plan that waits for its payment is told it starts once paid, and when it is", async () => {
+    // Its subscription is live, so a checkout is refused; but nothing it bought has started.
+    const client = selling(
+      undefined,
+      () => {
+        throw alreadySubscribed();
+      },
+      demoPortal({ subscription: { ...subscription, status: "INCOMPLETE" } }),
+    );
+    client.setInvoices([activationInvoice("PAYMENT_FAILED")]);
+    await draw(client, { portalHref: "https://app.example.test/billing" });
+    await settle(0);
+
+    expect(
+      within(flow()).getByText("Your plan starts once your payment is confirmed."),
+    ).toBeTruthy();
+    expect(within(flow()).queryByText("You already have a subscription.")).toBeNull();
+    // Where the activation invoice is paid or confirmed, and the portal beside it.
+    const pay = within(flow()).getByRole("link", { name: "Pay invoice" });
+    expect(pay.getAttribute("href")).toBe("https://pay.example.test/i/inv_activation");
+    expect(pay.getAttribute("rel")).toBe("noopener noreferrer");
+    expect(within(flow()).getByRole("link", { name: "Manage your subscription" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /^Subscribe/ })).toBeNull();
+
+    // The invoice is waited on, and once it is paid the flow says so.
+    client.setInvoices([activationInvoice("PAID")]);
+    await settle(5_000);
+    expect(within(flow()).getByText("You're subscribed")).toBeTruthy();
+    expect(within(flow()).getByText("Payment received.")).toBeTruthy();
+    expect(within(flow()).queryByRole("link", { name: "Pay invoice" })).toBeNull();
   });
 
   test("an instance that became subscribed since is told so at the checkout", async () => {

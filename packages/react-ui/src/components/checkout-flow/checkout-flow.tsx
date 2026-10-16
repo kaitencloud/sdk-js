@@ -259,7 +259,8 @@ function CheckoutFlowView({
   const words = useCheckoutWords();
   const icons = useIcons();
   const catalogAddOns = useKaitenDataContext().catalog.data?.addOns;
-  const portalAddOns = usePortal().data?.addOns;
+  const portal = usePortal().data;
+  const portalAddOns = portal?.addOns;
   // A code typed and not applied is not the checkout's: Subscribe waits for it to be applied or cleared.
   const [voucherPending, setVoucherPending] = React.useState(false);
 
@@ -403,7 +404,10 @@ function CheckoutFlowView({
   if (checkout.step === "already_subscribed") {
     return frame(
       <>
-        <Message unstyled={unstyled} tone="info" text={words.alreadySubscribed} focusKey="step" />
+        <AlreadySubscribed
+          unstyled={unstyled}
+          incomplete={portal?.subscription?.status === "INCOMPLETE"}
+        />
         {portalHref || onOpenPortal ? (
           <Action
             unstyled={unstyled}
@@ -575,6 +579,55 @@ function CheckoutFlowView({
         ) : null}
       </div>
     </>,
+  );
+}
+
+/**
+ * A checkout refused because the instance is subscribed. A subscription whose checkout waits for its
+ * first payment is one, and a customer who comes back to the flow (after a reload, or a confirmation
+ * window they closed) is told that their plan starts once the payment is confirmed, offered the
+ * provider's page of the activation invoice while it is open, and told when it is paid: the invoice is
+ * waited on as after a payment that did not settle. Held from the first render, since the portal says
+ * ACTIVE once the invoice is paid.
+ */
+function AlreadySubscribed({ incomplete, unstyled }: { incomplete: boolean; unstyled: boolean }) {
+  const words = useCheckoutWords();
+  const [waiting, setWaiting] = React.useState(incomplete);
+  if (incomplete && !waiting) setWaiting(true);
+  const settlement = useInvoiceSettlement({ invoiceId: null, enabled: waiting });
+  const { check } = settlement;
+  // Read now, not after the first pause: that is where the invoice is paid from.
+  React.useEffect(() => {
+    if (waiting) check();
+  }, [waiting, check]);
+
+  if (!waiting) {
+    return (
+      <Message unstyled={unstyled} tone="info" text={words.alreadySubscribed} focusKey="step" />
+    );
+  }
+  if (settlement.status === "paid") {
+    return (
+      <>
+        <Message unstyled={unstyled} tone="success" text={words.subscribed} focusKey="step" />
+        <Message unstyled={unstyled} tone="muted" text={words.paymentReceived} />
+      </>
+    );
+  }
+  const invoice = settlement.invoice;
+  const url =
+    invoice?.status === "PUSHED" || invoice?.status === "PAYMENT_FAILED"
+      ? invoice.hostedInvoiceUrl
+      : null;
+  return (
+    <>
+      <Message unstyled={unstyled} tone="info" text={words.startsOncePaid} focusKey="step" />
+      {url ? (
+        <Action unstyled={unstyled} variant="outline" href={url} external>
+          {words.payInvoice}
+        </Action>
+      ) : null}
+    </>
   );
 }
 
