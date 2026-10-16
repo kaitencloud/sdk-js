@@ -59,6 +59,7 @@ export type Webhooks =
   | OnInstanceBillingProviderChangedWebhookRequest
   | OnInstanceBillingStartedWebhookRequest
   | OnInstanceBillingStatusChangedWebhookRequest
+  | OnInstanceBillingTrialWillEndWebhookRequest
   | OnInstanceEntitlementCapExceededWebhookRequest
   | OnInstanceEntitlementUsagePeriodRolledOverWebhookRequest
   | OnInstanceEntitlementUsageReachedWebhookRequest
@@ -566,7 +567,7 @@ export type BillingStarted = {
    * When billing started: usage before it is never billed
    */
   startedAt: string;
-  status: "TRIAL" | "ACTIVE" | "PAST_DUE" | "CANCELED";
+  status: "INCOMPLETE" | "TRIAL" | "ACTIVE" | "PAST_DUE" | "CANCELED";
   /**
    * When the trial ends, or ended: usage before it is never billed
    */
@@ -664,7 +665,7 @@ export type CanceledSubscription = {
    * When billing started: usage before it is never billed
    */
   startedAt: string;
-  status: "TRIAL" | "ACTIVE" | "PAST_DUE" | "CANCELED";
+  status: "INCOMPLETE" | "TRIAL" | "ACTIVE" | "PAST_DUE" | "CANCELED";
   /**
    * When the trial ends, or ended: usage before it is never billed
    */
@@ -738,7 +739,7 @@ export type Cancellation = {
    * When billing started: usage before it is never billed
    */
   startedAt: string;
-  status: "TRIAL" | "ACTIVE" | "PAST_DUE" | "CANCELED";
+  status: "INCOMPLETE" | "TRIAL" | "ACTIVE" | "PAST_DUE" | "CANCELED";
   /**
    * When the trial ends, or ended: usage before it is never billed
    */
@@ -808,7 +809,7 @@ export type CancellationChange = {
    * When billing started: usage before it is never billed
    */
   startedAt: string;
-  status: "TRIAL" | "ACTIVE" | "PAST_DUE" | "CANCELED";
+  status: "INCOMPLETE" | "TRIAL" | "ACTIVE" | "PAST_DUE" | "CANCELED";
   /**
    * When the trial ends, or ended: usage before it is never billed
    */
@@ -1031,7 +1032,7 @@ export type ConnectorState = {
    */
   activatedAt?: string;
   /**
-   * Whether this deployment has the connector registered
+   * Whether this installation has the connector registered
    */
   available: boolean;
   /**
@@ -1039,7 +1040,7 @@ export type ConnectorState = {
    */
   connectorName: string;
   /**
-   * Whether this organization's licence includes the connector. True for an ungated connector.
+   * Whether this organization's license includes the connector. True for an ungated connector.
    */
   entitled: boolean;
   /**
@@ -1906,9 +1907,14 @@ export type HeldInvoice = {
   handoffStatus: "NOT_REQUIRED" | "PENDING" | "ACKNOWLEDGED";
   holdDetail: HoldDetail;
   /**
-   * Why a DRAFT is held: the usage journal it was measured from failed a consistency check
+   * Why a DRAFT is held: the usage journal it was measured from failed a consistency check (LEDGER_*), or its provider cannot take that many lines (PROVIDER_ITEM_LIMIT)
    */
-  holdReason: "LEDGER_SEQUENCE_GAP" | "LEDGER_CHAIN_BREAK" | "LEDGER_COUNTER_MISMATCH" | null;
+  holdReason:
+    | "LEDGER_SEQUENCE_GAP"
+    | "LEDGER_CHAIN_BREAK"
+    | "LEDGER_COUNTER_MISMATCH"
+    | "PROVIDER_ITEM_LIMIT"
+    | null;
   /**
    * The invoice's identifier: the key an accounting system deduplicates on
    */
@@ -1921,6 +1927,10 @@ export type HeldInvoice = {
    */
   kind: "ACTIVATION" | "RENEWAL" | "FINAL";
   licenseSlug: string;
+  /**
+   * Whether the invoice is overdue when read, the grace period of automatic collection included: the predicate of ?overdue=true. Computed by the invoice list and the invoice read; false in the answers of writes and in event payloads.
+   */
+  overdue: boolean;
   paidAt: string | null;
   /**
    * Who collects it. NOOP: the organization itself, through the handoff queue
@@ -2211,7 +2221,7 @@ export type InstanceBilling = {
    * When billing started: usage before it is never billed
    */
   startedAt: string;
-  status: "TRIAL" | "ACTIVE" | "PAST_DUE" | "CANCELED";
+  status: "INCOMPLETE" | "TRIAL" | "ACTIVE" | "PAST_DUE" | "CANCELED";
   /**
    * When the trial ends, or ended: usage before it is never billed
    */
@@ -2519,9 +2529,14 @@ export type Invoice = {
    */
   holdDetail: HoldDetail | null;
   /**
-   * Why a DRAFT is held: the usage journal it was measured from failed a consistency check
+   * Why a DRAFT is held: the usage journal it was measured from failed a consistency check (LEDGER_*), or its provider cannot take that many lines (PROVIDER_ITEM_LIMIT)
    */
-  holdReason: "LEDGER_SEQUENCE_GAP" | "LEDGER_CHAIN_BREAK" | "LEDGER_COUNTER_MISMATCH" | null;
+  holdReason:
+    | "LEDGER_SEQUENCE_GAP"
+    | "LEDGER_CHAIN_BREAK"
+    | "LEDGER_COUNTER_MISMATCH"
+    | "PROVIDER_ITEM_LIMIT"
+    | null;
   /**
    * The invoice's identifier: the key an accounting system deduplicates on
    */
@@ -2536,6 +2551,10 @@ export type Invoice = {
   licenseId: string;
   licenseSlug: string;
   lines: Array<InvoiceLine>;
+  /**
+   * Whether the invoice is overdue when read, the grace period of automatic collection included: the predicate of ?overdue=true. Computed by the invoice list and the invoice read; false in the answers of writes and in event payloads.
+   */
+  overdue: boolean;
   paidAt: string | null;
   /**
    * The invoice in its payment provider; null for NOOP
@@ -2941,9 +2960,14 @@ export type InvoiceSummary = {
    */
   handoffStatus: "NOT_REQUIRED" | "PENDING" | "ACKNOWLEDGED";
   /**
-   * Why a DRAFT is held: the usage journal it was measured from failed a consistency check
+   * Why a DRAFT is held: the usage journal it was measured from failed a consistency check (LEDGER_*), or its provider cannot take that many lines (PROVIDER_ITEM_LIMIT)
    */
-  holdReason: "LEDGER_SEQUENCE_GAP" | "LEDGER_CHAIN_BREAK" | "LEDGER_COUNTER_MISMATCH" | null;
+  holdReason:
+    | "LEDGER_SEQUENCE_GAP"
+    | "LEDGER_CHAIN_BREAK"
+    | "LEDGER_COUNTER_MISMATCH"
+    | "PROVIDER_ITEM_LIMIT"
+    | null;
   /**
    * The invoice's identifier: the key an accounting system deduplicates on
    */
@@ -2956,6 +2980,10 @@ export type InvoiceSummary = {
    */
   kind: "ACTIVATION" | "RENEWAL" | "FINAL";
   licenseSlug: string;
+  /**
+   * Whether the invoice is overdue when read, the grace period of automatic collection included: the predicate of ?overdue=true. Computed by the invoice list and the invoice read; false in the answers of writes and in event payloads.
+   */
+  overdue: boolean;
   paidAt: string | null;
   /**
    * Who collects it. NOOP: the organization itself, through the handoff queue
@@ -3033,9 +3061,14 @@ export type IssuedInvoice = {
    */
   handoffStatus: "NOT_REQUIRED" | "PENDING" | "ACKNOWLEDGED";
   /**
-   * Why a DRAFT is held: the usage journal it was measured from failed a consistency check
+   * Why a DRAFT is held: the usage journal it was measured from failed a consistency check (LEDGER_*), or its provider cannot take that many lines (PROVIDER_ITEM_LIMIT)
    */
-  holdReason: "LEDGER_SEQUENCE_GAP" | "LEDGER_CHAIN_BREAK" | "LEDGER_COUNTER_MISMATCH" | null;
+  holdReason:
+    | "LEDGER_SEQUENCE_GAP"
+    | "LEDGER_CHAIN_BREAK"
+    | "LEDGER_COUNTER_MISMATCH"
+    | "PROVIDER_ITEM_LIMIT"
+    | null;
   /**
    * The invoice's identifier: the key an accounting system deduplicates on
    */
@@ -3054,6 +3087,10 @@ export type IssuedInvoice = {
    * Set when the lines did not fit the event: read the invoice for all of them
    */
   linesTruncated?: boolean;
+  /**
+   * Whether the invoice is overdue when read, the grace period of automatic collection included: the predicate of ?overdue=true. Computed by the invoice list and the invoice read; false in the answers of writes and in event payloads.
+   */
+  overdue: boolean;
   paidAt: string | null;
   /**
    * Who collects it. NOOP: the organization itself, through the handoff queue
@@ -3572,9 +3609,14 @@ export type MismatchedInvoice = {
    */
   handoffStatus: "NOT_REQUIRED" | "PENDING" | "ACKNOWLEDGED";
   /**
-   * Why a DRAFT is held: the usage journal it was measured from failed a consistency check
+   * Why a DRAFT is held: the usage journal it was measured from failed a consistency check (LEDGER_*), or its provider cannot take that many lines (PROVIDER_ITEM_LIMIT)
    */
-  holdReason: "LEDGER_SEQUENCE_GAP" | "LEDGER_CHAIN_BREAK" | "LEDGER_COUNTER_MISMATCH" | null;
+  holdReason:
+    | "LEDGER_SEQUENCE_GAP"
+    | "LEDGER_CHAIN_BREAK"
+    | "LEDGER_COUNTER_MISMATCH"
+    | "PROVIDER_ITEM_LIMIT"
+    | null;
   /**
    * The invoice's identifier: the key an accounting system deduplicates on
    */
@@ -3587,6 +3629,10 @@ export type MismatchedInvoice = {
    */
   kind: "ACTIVATION" | "RENEWAL" | "FINAL";
   licenseSlug: string;
+  /**
+   * Whether the invoice is overdue when read, the grace period of automatic collection included: the predicate of ?overdue=true. Computed by the invoice list and the invoice read; false in the answers of writes and in event payloads.
+   */
+  overdue: boolean;
   paidAt: string | null;
   /**
    * Who collects it. NOOP: the organization itself, through the handoff queue
@@ -4197,9 +4243,14 @@ export type PaidInvoice = {
    */
   handoffStatus: "NOT_REQUIRED" | "PENDING" | "ACKNOWLEDGED";
   /**
-   * Why a DRAFT is held: the usage journal it was measured from failed a consistency check
+   * Why a DRAFT is held: the usage journal it was measured from failed a consistency check (LEDGER_*), or its provider cannot take that many lines (PROVIDER_ITEM_LIMIT)
    */
-  holdReason: "LEDGER_SEQUENCE_GAP" | "LEDGER_CHAIN_BREAK" | "LEDGER_COUNTER_MISMATCH" | null;
+  holdReason:
+    | "LEDGER_SEQUENCE_GAP"
+    | "LEDGER_CHAIN_BREAK"
+    | "LEDGER_COUNTER_MISMATCH"
+    | "PROVIDER_ITEM_LIMIT"
+    | null;
   /**
    * The invoice's identifier: the key an accounting system deduplicates on
    */
@@ -4216,6 +4267,10 @@ export type PaidInvoice = {
    * The note given when it was marked paid, kept only here
    */
   note?: string;
+  /**
+   * Whether the invoice is overdue when read, the grace period of automatic collection included: the predicate of ?overdue=true. Computed by the invoice list and the invoice read; false in the answers of writes and in event payloads.
+   */
+  overdue: boolean;
   paidAt: string | null;
   /**
    * Who collects it. NOOP: the organization itself, through the handoff queue
@@ -4306,9 +4361,14 @@ export type PaymentFailedInvoice = {
    */
   handoffStatus: "NOT_REQUIRED" | "PENDING" | "ACKNOWLEDGED";
   /**
-   * Why a DRAFT is held: the usage journal it was measured from failed a consistency check
+   * Why a DRAFT is held: the usage journal it was measured from failed a consistency check (LEDGER_*), or its provider cannot take that many lines (PROVIDER_ITEM_LIMIT)
    */
-  holdReason: "LEDGER_SEQUENCE_GAP" | "LEDGER_CHAIN_BREAK" | "LEDGER_COUNTER_MISMATCH" | null;
+  holdReason:
+    | "LEDGER_SEQUENCE_GAP"
+    | "LEDGER_CHAIN_BREAK"
+    | "LEDGER_COUNTER_MISMATCH"
+    | "PROVIDER_ITEM_LIMIT"
+    | null;
   /**
    * The invoice's identifier: the key an accounting system deduplicates on
    */
@@ -4321,6 +4381,10 @@ export type PaymentFailedInvoice = {
    */
   kind: "ACTIVATION" | "RENEWAL" | "FINAL";
   licenseSlug: string;
+  /**
+   * Whether the invoice is overdue when read, the grace period of automatic collection included: the predicate of ?overdue=true. Computed by the invoice list and the invoice read; false in the answers of writes and in event payloads.
+   */
+  overdue: boolean;
   paidAt: string | null;
   /**
    * Who collects it. NOOP: the organization itself, through the handoff queue
@@ -4531,7 +4595,7 @@ export type PortalInstanceSummary = {
   /**
    * Its subscription's status; null when it was never subscribed
    */
-  billingStatus: "TRIAL" | "ACTIVE" | "PAST_DUE" | "CANCELED" | null;
+  billingStatus: "INCOMPLETE" | "TRIAL" | "ACTIVE" | "PAST_DUE" | "CANCELED" | null;
   licenseSlug: string;
   name: string;
   slug: string;
@@ -4603,7 +4667,7 @@ export type PreferenceEvent = {
    */
   eventType: string;
   /**
-   * Catalogue group the client renders this under
+   * Catalog group the client renders this under
    */
   group: string;
   /**
@@ -4614,7 +4678,7 @@ export type PreferenceEvent = {
 
 export type PreferenceMatrix = {
   /**
-   * Channels this deployment serves, in display order
+   * Channels this installation serves, in display order
    */
   channels: Array<string>;
   /**
@@ -5193,9 +5257,14 @@ export type PushFailedInvoice = {
    */
   handoffStatus: "NOT_REQUIRED" | "PENDING" | "ACKNOWLEDGED";
   /**
-   * Why a DRAFT is held: the usage journal it was measured from failed a consistency check
+   * Why a DRAFT is held: the usage journal it was measured from failed a consistency check (LEDGER_*), or its provider cannot take that many lines (PROVIDER_ITEM_LIMIT)
    */
-  holdReason: "LEDGER_SEQUENCE_GAP" | "LEDGER_CHAIN_BREAK" | "LEDGER_COUNTER_MISMATCH" | null;
+  holdReason:
+    | "LEDGER_SEQUENCE_GAP"
+    | "LEDGER_CHAIN_BREAK"
+    | "LEDGER_COUNTER_MISMATCH"
+    | "PROVIDER_ITEM_LIMIT"
+    | null;
   /**
    * The invoice's identifier: the key an accounting system deduplicates on
    */
@@ -5212,6 +5281,10 @@ export type PushFailedInvoice = {
    */
   lastPushError: string;
   licenseSlug: string;
+  /**
+   * Whether the invoice is overdue when read, the grace period of automatic collection included: the predicate of ?overdue=true. Computed by the invoice list and the invoice read; false in the answers of writes and in event payloads.
+   */
+  overdue: boolean;
   paidAt: string | null;
   /**
    * Who collects it. NOOP: the organization itself, through the handoff queue
@@ -5282,9 +5355,14 @@ export type PushedInvoice = {
    */
   handoffStatus: "NOT_REQUIRED" | "PENDING" | "ACKNOWLEDGED";
   /**
-   * Why a DRAFT is held: the usage journal it was measured from failed a consistency check
+   * Why a DRAFT is held: the usage journal it was measured from failed a consistency check (LEDGER_*), or its provider cannot take that many lines (PROVIDER_ITEM_LIMIT)
    */
-  holdReason: "LEDGER_SEQUENCE_GAP" | "LEDGER_CHAIN_BREAK" | "LEDGER_COUNTER_MISMATCH" | null;
+  holdReason:
+    | "LEDGER_SEQUENCE_GAP"
+    | "LEDGER_CHAIN_BREAK"
+    | "LEDGER_COUNTER_MISMATCH"
+    | "PROVIDER_ITEM_LIMIT"
+    | null;
   /**
    * The invoice's identifier: the key an accounting system deduplicates on
    */
@@ -5297,6 +5375,10 @@ export type PushedInvoice = {
    */
   kind: "ACTIVATION" | "RENEWAL" | "FINAL";
   licenseSlug: string;
+  /**
+   * Whether the invoice is overdue when read, the grace period of automatic collection included: the predicate of ?overdue=true. Computed by the invoice list and the invoice read; false in the answers of writes and in event payloads.
+   */
+  overdue: boolean;
   paidAt: string | null;
   providerInvoiceNumber?: string;
   /**
@@ -5362,9 +5444,14 @@ export type QueuedInvoice = {
    */
   handoffStatus: "NOT_REQUIRED" | "PENDING" | "ACKNOWLEDGED";
   /**
-   * Why a DRAFT is held: the usage journal it was measured from failed a consistency check
+   * Why a DRAFT is held: the usage journal it was measured from failed a consistency check (LEDGER_*), or its provider cannot take that many lines (PROVIDER_ITEM_LIMIT)
    */
-  holdReason: "LEDGER_SEQUENCE_GAP" | "LEDGER_CHAIN_BREAK" | "LEDGER_COUNTER_MISMATCH" | null;
+  holdReason:
+    | "LEDGER_SEQUENCE_GAP"
+    | "LEDGER_CHAIN_BREAK"
+    | "LEDGER_COUNTER_MISMATCH"
+    | "PROVIDER_ITEM_LIMIT"
+    | null;
   /**
    * The invoice's identifier: the key an accounting system deduplicates on
    */
@@ -5377,6 +5464,10 @@ export type QueuedInvoice = {
    */
   kind: "ACTIVATION" | "RENEWAL" | "FINAL";
   licenseSlug: string;
+  /**
+   * Whether the invoice is overdue when read, the grace period of automatic collection included: the predicate of ?overdue=true. Computed by the invoice list and the invoice read; false in the answers of writes and in event payloads.
+   */
+  overdue: boolean;
   paidAt: string | null;
   /**
    * Who collects it. NOOP: the organization itself, through the handoff queue
@@ -5561,9 +5652,14 @@ export type ReleasedInvoice = {
    */
   holdDetail: HoldDetail;
   /**
-   * Why a DRAFT is held: the usage journal it was measured from failed a consistency check
+   * Why a DRAFT is held: the usage journal it was measured from failed a consistency check (LEDGER_*), or its provider cannot take that many lines (PROVIDER_ITEM_LIMIT)
    */
-  holdReason: "LEDGER_SEQUENCE_GAP" | "LEDGER_CHAIN_BREAK" | "LEDGER_COUNTER_MISMATCH" | null;
+  holdReason:
+    | "LEDGER_SEQUENCE_GAP"
+    | "LEDGER_CHAIN_BREAK"
+    | "LEDGER_COUNTER_MISMATCH"
+    | "PROVIDER_ITEM_LIMIT"
+    | null;
   /**
    * The invoice's identifier: the key an accounting system deduplicates on
    */
@@ -5576,6 +5672,10 @@ export type ReleasedInvoice = {
    */
   kind: "ACTIVATION" | "RENEWAL" | "FINAL";
   licenseSlug: string;
+  /**
+   * Whether the invoice is overdue when read, the grace period of automatic collection included: the predicate of ?overdue=true. Computed by the invoice list and the invoice read; false in the answers of writes and in event payloads.
+   */
+  overdue: boolean;
   paidAt: string | null;
   /**
    * Who collects it. NOOP: the organization itself, through the handoff queue
@@ -5690,13 +5790,13 @@ export type ReportedEntitlementUsage = {
    */
   limitCapExceededOveragePercent?: number;
   /**
-   * What the licence, the add-ons and the boosts each contribute
+   * What the licence, the add-ons and the boosts each contribute. Null on a replay (Idempotent-Replayed): the journal does not store it.
    */
-  provenance?: Provenance;
+  provenance: Provenance | null;
   /**
-   * license: the licence grants it (add-ons and boosts may change it); addon: only add-ons do
+   * license: the licence grants it (add-ons and boosts may change it); addon: only add-ons do. Null on a replay (Idempotent-Replayed): the journal does not store it.
    */
-  source: "license" | "addon";
+  source: "license" | "addon" | null;
   /**
    * The Idempotency-Key this report was accepted under, echoed on the first answer and on every replay; null when the request carried none. A client can tell from it that the server honours the key.
    */
@@ -6056,7 +6156,7 @@ export type SessionSubscription = {
    * A plan change the vendor scheduled for the next boundary
    */
   scheduledChange: SessionScheduledChange | null;
-  status: "TRIAL" | "ACTIVE" | "PAST_DUE" | "CANCELED";
+  status: "INCOMPLETE" | "TRIAL" | "ACTIVE" | "PAST_DUE" | "CANCELED";
   trialEndsAt: string | null;
 };
 
@@ -6159,7 +6259,7 @@ export type StartedSubscription = {
    * When billing started: usage before it is never billed
    */
   startedAt: string;
-  status: "TRIAL" | "ACTIVE" | "PAST_DUE" | "CANCELED";
+  status: "INCOMPLETE" | "TRIAL" | "ACTIVE" | "PAST_DUE" | "CANCELED";
   /**
    * When the trial ends, or ended: usage before it is never billed
    */
@@ -6168,11 +6268,11 @@ export type StartedSubscription = {
 };
 
 export type StatusChange = {
-  from: "TRIAL" | "ACTIVE" | "PAST_DUE" | "CANCELED";
+  from: "INCOMPLETE" | "TRIAL" | "ACTIVE" | "PAST_DUE" | "CANCELED";
   instanceBillingId: string;
   instanceSlug: string;
   reason: "TRIAL_ENDED" | "INVOICE_OVERDUE" | "PAYMENT_FAILED" | "SETTLED";
-  to: "TRIAL" | "ACTIVE" | "PAST_DUE" | "CANCELED";
+  to: "INCOMPLETE" | "TRIAL" | "ACTIVE" | "PAST_DUE" | "CANCELED";
 };
 
 export type SubscriptionAddon = {
@@ -6440,9 +6540,14 @@ export type UncollectibleInvoice = {
    */
   handoffStatus: "NOT_REQUIRED" | "PENDING" | "ACKNOWLEDGED";
   /**
-   * Why a DRAFT is held: the usage journal it was measured from failed a consistency check
+   * Why a DRAFT is held: the usage journal it was measured from failed a consistency check (LEDGER_*), or its provider cannot take that many lines (PROVIDER_ITEM_LIMIT)
    */
-  holdReason: "LEDGER_SEQUENCE_GAP" | "LEDGER_CHAIN_BREAK" | "LEDGER_COUNTER_MISMATCH" | null;
+  holdReason:
+    | "LEDGER_SEQUENCE_GAP"
+    | "LEDGER_CHAIN_BREAK"
+    | "LEDGER_COUNTER_MISMATCH"
+    | "PROVIDER_ITEM_LIMIT"
+    | null;
   /**
    * The invoice's identifier: the key an accounting system deduplicates on
    */
@@ -6455,6 +6560,10 @@ export type UncollectibleInvoice = {
    */
   kind: "ACTIVATION" | "RENEWAL" | "FINAL";
   licenseSlug: string;
+  /**
+   * Whether the invoice is overdue when read, the grace period of automatic collection included: the predicate of ?overdue=true. Computed by the invoice list and the invoice read; false in the answers of writes and in event payloads.
+   */
+  overdue: boolean;
   paidAt: string | null;
   /**
    * Who collects it. NOOP: the organization itself, through the handoff queue
@@ -6659,9 +6768,14 @@ export type VoidedInvoice = {
    */
   handoffStatus: "NOT_REQUIRED" | "PENDING" | "ACKNOWLEDGED";
   /**
-   * Why a DRAFT is held: the usage journal it was measured from failed a consistency check
+   * Why a DRAFT is held: the usage journal it was measured from failed a consistency check (LEDGER_*), or its provider cannot take that many lines (PROVIDER_ITEM_LIMIT)
    */
-  holdReason: "LEDGER_SEQUENCE_GAP" | "LEDGER_CHAIN_BREAK" | "LEDGER_COUNTER_MISMATCH" | null;
+  holdReason:
+    | "LEDGER_SEQUENCE_GAP"
+    | "LEDGER_CHAIN_BREAK"
+    | "LEDGER_COUNTER_MISMATCH"
+    | "PROVIDER_ITEM_LIMIT"
+    | null;
   /**
    * The invoice's identifier: the key an accounting system deduplicates on
    */
@@ -6674,6 +6788,10 @@ export type VoidedInvoice = {
    */
   kind: "ACTIVATION" | "RENEWAL" | "FINAL";
   licenseSlug: string;
+  /**
+   * Whether the invoice is overdue when read, the grace period of automatic collection included: the predicate of ?overdue=true. Computed by the invoice list and the invoice read; false in the answers of writes and in event payloads.
+   */
+  overdue: boolean;
   paidAt: string | null;
   /**
    * Who collects it. NOOP: the organization itself, through the handoff queue
@@ -7068,7 +7186,7 @@ export type BillingStartedWritable = {
    * When billing started: usage before it is never billed
    */
   startedAt: string;
-  status: "TRIAL" | "ACTIVE" | "PAST_DUE" | "CANCELED";
+  status: "INCOMPLETE" | "TRIAL" | "ACTIVE" | "PAST_DUE" | "CANCELED";
   /**
    * When the trial ends, or ended: usage before it is never billed
    */
@@ -7138,7 +7256,7 @@ export type CanceledSubscriptionWritable = {
    * When billing started: usage before it is never billed
    */
   startedAt: string;
-  status: "TRIAL" | "ACTIVE" | "PAST_DUE" | "CANCELED";
+  status: "INCOMPLETE" | "TRIAL" | "ACTIVE" | "PAST_DUE" | "CANCELED";
   /**
    * When the trial ends, or ended: usage before it is never billed
    */
@@ -7212,7 +7330,7 @@ export type CancellationWritable = {
    * When billing started: usage before it is never billed
    */
   startedAt: string;
-  status: "TRIAL" | "ACTIVE" | "PAST_DUE" | "CANCELED";
+  status: "INCOMPLETE" | "TRIAL" | "ACTIVE" | "PAST_DUE" | "CANCELED";
   /**
    * When the trial ends, or ended: usage before it is never billed
    */
@@ -7282,7 +7400,7 @@ export type CancellationChangeWritable = {
    * When billing started: usage before it is never billed
    */
   startedAt: string;
-  status: "TRIAL" | "ACTIVE" | "PAST_DUE" | "CANCELED";
+  status: "INCOMPLETE" | "TRIAL" | "ACTIVE" | "PAST_DUE" | "CANCELED";
   /**
    * When the trial ends, or ended: usage before it is never billed
    */
@@ -7826,7 +7944,7 @@ export type InstanceBillingWritable = {
    * When billing started: usage before it is never billed
    */
   startedAt: string;
-  status: "TRIAL" | "ACTIVE" | "PAST_DUE" | "CANCELED";
+  status: "INCOMPLETE" | "TRIAL" | "ACTIVE" | "PAST_DUE" | "CANCELED";
   /**
    * When the trial ends, or ended: usage before it is never billed
    */
@@ -7939,9 +8057,14 @@ export type InvoiceWritable = {
    */
   holdDetail: HoldDetail | null;
   /**
-   * Why a DRAFT is held: the usage journal it was measured from failed a consistency check
+   * Why a DRAFT is held: the usage journal it was measured from failed a consistency check (LEDGER_*), or its provider cannot take that many lines (PROVIDER_ITEM_LIMIT)
    */
-  holdReason: "LEDGER_SEQUENCE_GAP" | "LEDGER_CHAIN_BREAK" | "LEDGER_COUNTER_MISMATCH" | null;
+  holdReason:
+    | "LEDGER_SEQUENCE_GAP"
+    | "LEDGER_CHAIN_BREAK"
+    | "LEDGER_COUNTER_MISMATCH"
+    | "PROVIDER_ITEM_LIMIT"
+    | null;
   /**
    * The invoice's identifier: the key an accounting system deduplicates on
    */
@@ -7956,6 +8079,10 @@ export type InvoiceWritable = {
   licenseId: string;
   licenseSlug: string;
   lines: Array<InvoiceLineWritable>;
+  /**
+   * Whether the invoice is overdue when read, the grace period of automatic collection included: the predicate of ?overdue=true. Computed by the invoice list and the invoice read; false in the answers of writes and in event payloads.
+   */
+  overdue: boolean;
   paidAt: string | null;
   /**
    * The invoice in its payment provider; null for NOOP
@@ -8216,9 +8343,14 @@ export type IssuedInvoiceWritable = {
    */
   handoffStatus: "NOT_REQUIRED" | "PENDING" | "ACKNOWLEDGED";
   /**
-   * Why a DRAFT is held: the usage journal it was measured from failed a consistency check
+   * Why a DRAFT is held: the usage journal it was measured from failed a consistency check (LEDGER_*), or its provider cannot take that many lines (PROVIDER_ITEM_LIMIT)
    */
-  holdReason: "LEDGER_SEQUENCE_GAP" | "LEDGER_CHAIN_BREAK" | "LEDGER_COUNTER_MISMATCH" | null;
+  holdReason:
+    | "LEDGER_SEQUENCE_GAP"
+    | "LEDGER_CHAIN_BREAK"
+    | "LEDGER_COUNTER_MISMATCH"
+    | "PROVIDER_ITEM_LIMIT"
+    | null;
   /**
    * The invoice's identifier: the key an accounting system deduplicates on
    */
@@ -8237,6 +8369,10 @@ export type IssuedInvoiceWritable = {
    * Set when the lines did not fit the event: read the invoice for all of them
    */
   linesTruncated?: boolean;
+  /**
+   * Whether the invoice is overdue when read, the grace period of automatic collection included: the predicate of ?overdue=true. Computed by the invoice list and the invoice read; false in the answers of writes and in event payloads.
+   */
+  overdue: boolean;
   paidAt: string | null;
   /**
    * Who collects it. NOOP: the organization itself, through the handoff queue
@@ -9050,13 +9186,13 @@ export type ReportedEntitlementUsageWritable = {
    */
   limitCapExceededOveragePercent?: number;
   /**
-   * What the licence, the add-ons and the boosts each contribute
+   * What the licence, the add-ons and the boosts each contribute. Null on a replay (Idempotent-Replayed): the journal does not store it.
    */
-  provenance?: ProvenanceWritable;
+  provenance: ProvenanceWritable | null;
   /**
-   * license: the licence grants it (add-ons and boosts may change it); addon: only add-ons do
+   * license: the licence grants it (add-ons and boosts may change it); addon: only add-ons do. Null on a replay (Idempotent-Replayed): the journal does not store it.
    */
-  source: "license" | "addon";
+  source: "license" | "addon" | null;
   /**
    * The Idempotency-Key this report was accepted under, echoed on the first answer and on every replay; null when the request carried none. A client can tell from it that the server honours the key.
    */
@@ -9199,7 +9335,7 @@ export type StartedSubscriptionWritable = {
    * When billing started: usage before it is never billed
    */
   startedAt: string;
-  status: "TRIAL" | "ACTIVE" | "PAST_DUE" | "CANCELED";
+  status: "INCOMPLETE" | "TRIAL" | "ACTIVE" | "PAST_DUE" | "CANCELED";
   /**
    * When the trial ends, or ended: usage before it is never billed
    */
@@ -17992,6 +18128,10 @@ export type ListMetadataFieldsData = {
   query: {
     resourceType: "DEPLOYMENT_ZONE" | "INSTANCE";
     /**
+     * Include archived fields too, each with its archivedAt
+     */
+    includeArchived?: boolean;
+    /**
      * Opaque pagination cursor from a previous response's nextCursor
      */
     cursor?: string;
@@ -21687,6 +21827,26 @@ export type OnInstanceBillingStatusChangedWebhookPayload = {
 export type OnInstanceBillingStatusChangedWebhookRequest = {
   body: OnInstanceBillingStatusChangedWebhookPayload;
   key: "com.kaiten.instance.billing.v1.status_changed";
+  path?: never;
+  query?: never;
+};
+
+export type OnInstanceBillingTrialWillEndWebhookPayload = {
+  data: InstanceBillingWritable;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "INSTANCE_BILLING_TRIAL_WILL_END";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.instance.billing.v1.trial_will_end";
+};
+
+export type OnInstanceBillingTrialWillEndWebhookRequest = {
+  body: OnInstanceBillingTrialWillEndWebhookPayload;
+  key: "com.kaiten.instance.billing.v1.trial_will_end";
   path?: never;
   query?: never;
 };

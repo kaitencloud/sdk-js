@@ -1549,7 +1549,7 @@ export const deactivateConnector = <ThrowOnError extends boolean = false>(
 /**
  * Activate connector
  *
- * Activates a registered connector for the authenticated organization. Idempotent: activating an already-active connector succeeds without changing when it was first activated. Refused when the organization's licence does not include the connector.
+ * Activates a registered connector for the authenticated organization. Idempotent: activating an already-active connector succeeds without changing when it was first activated. Refused when the organization's license does not include the connector.
  */
 export const activateConnector = <ThrowOnError extends boolean = false>(
   options: Options<ActivateConnectorData, ThrowOnError>,
@@ -1675,7 +1675,7 @@ export const getConnectorSettingsSchema = <ThrowOnError extends boolean = false>
 /**
  * Get connector state for this organization
  *
- * Returns whether the connector is registered in this deployment, whether the authenticated organization's licence includes it, and whether the organization has activated it. Answers 200 with `available: false` for a connector this deployment does not have.
+ * Returns whether the connector is registered on this installation, whether the authenticated organization's license includes it, and whether the organization has activated it. Answers 200 with `available: false` for a connector this installation does not have.
  */
 export const getConnectorState = <ThrowOnError extends boolean = false>(
   options: Options<GetConnectorStateData, ThrowOnError>,
@@ -2735,7 +2735,7 @@ export const getFeatureFlag = <ThrowOnError extends boolean = false>(
 /**
  * Update a featureflag
  *
- * Update a featureflag with the provided details
+ * Update a featureflag with the provided details. Sending a slug renames the flag; omitting it keeps the current one.
  */
 export const updateFeatureFlag = <ThrowOnError extends boolean = false>(
   options: Options<UpdateFeatureFlagData, ThrowOnError>,
@@ -4036,7 +4036,7 @@ export const getLicenses = <ThrowOnError extends boolean = false>(
  *
  * Create a new license with the provided details. Without familySlug or familyId this creates a new license family and the license becomes its version 1. With one of them it adds the next version to that family (familySlug names it by slug, familyId by identifier; sent together they must agree), and the version number is assigned by the server as the next one in the family's sequence. The version starts PUBLISHED, or DRAFT when lifecycleState says so; ARCHIVED is refused (422 CreateLicense.LifecycleStateNotSettable), because a version is archived with archive-license once it has been on sale.
  *
- * Where the deployment limits how many licenses an organization may have, only a new family counts against that limit (409 CreateLicense.EntitlementLimitReached once it is reached): a new version of an existing family never does.
+ * Where the installation limits how many licenses an organization may have, only a new family counts against that limit (409 CreateLicense.EntitlementLimitReached once it is reached): a new version of an existing family never does.
  */
 export const createLicense = <ThrowOnError extends boolean = false>(
   options: Options<CreateLicenseData, ThrowOnError>,
@@ -4464,9 +4464,9 @@ export const unarchiveLicense = <ThrowOnError extends boolean = false>(
   });
 
 /**
- * List active metadata fields for a resource type
+ * List metadata fields for a resource type
  *
- * Returns a cursor-paginated page of the active (non-archived) metadata fields declared for the org and the given resource type, ordered by displayOrder then createdAt.
+ * Returns a cursor-paginated page of the metadata fields declared for the org and the given resource type, ordered by displayOrder then createdAt. Only active fields are listed, unless includeArchived is set: an archived field's id is what unarchive-metadata-field takes.
  */
 export const listMetadataFields = <ThrowOnError extends boolean = false>(
   options: Options<ListMetadataFieldsData, ThrowOnError>,
@@ -5423,7 +5423,7 @@ export const exportOrganizationUsageReports = <ThrowOnError extends boolean = fa
 /**
  * Read the caller's notification preferences
  *
- * Every notifiable event, with this user's effective value per channel: their own choice where they made one, the catalogue default otherwise. Events absent from the catalogue of a deployment never appear, which is what keeps high-volume system events out of the feed.
+ * Every notifiable event, with this user's effective value per channel: their own choice where they made one, the catalog default otherwise. Events absent from the catalog of an installation never appear, which is what keeps high-volume system events out of the feed.
  */
 export const getNotificationPreferences = <ThrowOnError extends boolean = false>(
   options?: Options<GetNotificationPreferencesData, ThrowOnError>,
@@ -5451,7 +5451,7 @@ export const getNotificationPreferences = <ThrowOnError extends boolean = false>
 /**
  * Set the caller's notification preferences
  *
- * Stores the signed-in user's choices and answers with the whole matrix. A value that equals the catalogue default is stored as no row at all, so a later change to that default still reaches this user.
+ * Stores the signed-in user's choices and answers with the whole matrix. A value that equals the catalog default is stored as no row at all, so a later change to that default still reaches this user.
  */
 export const putNotificationPreferences = <ThrowOnError extends boolean = false>(
   options: Options<PutNotificationPreferencesData, ThrowOnError>,

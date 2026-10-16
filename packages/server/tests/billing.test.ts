@@ -106,6 +106,7 @@ function invoice(overrides: Partial<Invoice> = {}): Invoice {
         voucherId: null,
       },
     ],
+    overdue: false,
     paidAt: null,
     provider: null,
     providerKind: "NOOP",

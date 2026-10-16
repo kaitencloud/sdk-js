@@ -1046,6 +1046,8 @@ export type {
   OnInstanceBillingStartedWebhookRequest,
   OnInstanceBillingStatusChangedWebhookPayload,
   OnInstanceBillingStatusChangedWebhookRequest,
+  OnInstanceBillingTrialWillEndWebhookPayload,
+  OnInstanceBillingTrialWillEndWebhookRequest,
   OnInstanceCreatedWebhookPayload,
   OnInstanceCreatedWebhookRequest,
   OnInstanceDeletedWebhookPayload,

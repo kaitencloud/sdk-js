@@ -39,9 +39,9 @@ type EventsWithoutPayload = {
 }[KaitenWebhookType];
 
 describe("KaitenWebhookType", () => {
-  test("names the 109 events of the contract, one payload each", () => {
-    expectTypeOf<UnionToTuple<KaitenWebhookType>["length"]>().toEqualTypeOf<109>();
-    expectTypeOf<UnionToTuple<KaitenWebhookEvent>["length"]>().toEqualTypeOf<109>();
+  test("names the 110 events of the contract, one payload each", () => {
+    expectTypeOf<UnionToTuple<KaitenWebhookType>["length"]>().toEqualTypeOf<110>();
+    expectTypeOf<UnionToTuple<KaitenWebhookEvent>["length"]>().toEqualTypeOf<110>();
   });
 
   test("is a union of literals, not a string a typo can slip through", () => {
@@ -106,6 +106,7 @@ const ISSUED = {
     licenseId: "7a1f0f3e-2b9c-4f61-8a55-0c2f6f7d9e10",
     licenseSlug: "pro-v2",
     lines: [],
+    overdue: false,
     paidAt: null,
     providerKind: "NOOP",
     serviceFrom: "2026-10-01T00:00:00Z",

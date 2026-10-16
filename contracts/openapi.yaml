@@ -822,6 +822,7 @@ components:
           type: string
         status:
           enum:
+            - INCOMPLETE
             - TRIAL
             - ACTIVE
             - PAST_DUE
@@ -1010,6 +1011,7 @@ components:
           type: string
         status:
           enum:
+            - INCOMPLETE
             - TRIAL
             - ACTIVE
             - PAST_DUE
@@ -1167,6 +1169,7 @@ components:
           type: string
         status:
           enum:
+            - INCOMPLETE
             - TRIAL
             - ACTIVE
             - PAST_DUE
@@ -1319,6 +1322,7 @@ components:
           type: string
         status:
           enum:
+            - INCOMPLETE
             - TRIAL
             - ACTIVE
             - PAST_DUE
@@ -1689,7 +1693,7 @@ components:
           format: date-time
           type: string
         available:
-          description: Whether this deployment has the connector registered
+          description: Whether this installation has the connector registered
           type: boolean
         connectorName:
           description: Stable connector identifier
@@ -1697,7 +1701,7 @@ components:
             - kaiten.integration.crm.attio
           type: string
         entitled:
-          description: Whether this organization's licence includes the connector. True for an ungated connector.
+          description: Whether this organization's license includes the connector. True for an ungated connector.
           type: boolean
         version:
           description: Registered connector version. Absent when the connector is not available.
@@ -3004,11 +3008,12 @@ components:
         holdDetail:
           $ref: "#/components/schemas/HoldDetail"
         holdReason:
-          description: "Why a DRAFT is held: the usage journal it was measured from failed a consistency check"
+          description: "Why a DRAFT is held: the usage journal it was measured from failed a consistency check (LEDGER_*), or its provider cannot take that many lines (PROVIDER_ITEM_LIMIT)"
           enum:
             - LEDGER_SEQUENCE_GAP
             - LEDGER_CHAIN_BREAK
             - LEDGER_COUNTER_MISMATCH
+            - PROVIDER_ITEM_LIMIT
             - null
           type:
             - string
@@ -3034,6 +3039,9 @@ components:
           type: string
         licenseSlug:
           type: string
+        overdue:
+          description: "Whether the invoice is overdue when read, the grace period of automatic collection included: the predicate of ?overdue=true. Computed by the invoice list and the invoice read; false in the answers of writes and in event payloads."
+          type: boolean
         paidAt:
           format: date-time
           type:
@@ -3101,6 +3109,7 @@ components:
         - instanceName
         - licenseSlug
         - handoffStatus
+        - overdue
         - createdAt
         - updatedAt
       type: object
@@ -3586,6 +3595,7 @@ components:
           type: string
         status:
           enum:
+            - INCOMPLETE
             - TRIAL
             - ACTIVE
             - PAST_DUE
@@ -4081,11 +4091,12 @@ components:
                 - null
               type: "null"
         holdReason:
-          description: "Why a DRAFT is held: the usage journal it was measured from failed a consistency check"
+          description: "Why a DRAFT is held: the usage journal it was measured from failed a consistency check (LEDGER_*), or its provider cannot take that many lines (PROVIDER_ITEM_LIMIT)"
           enum:
             - LEDGER_SEQUENCE_GAP
             - LEDGER_CHAIN_BREAK
             - LEDGER_COUNTER_MISMATCH
+            - PROVIDER_ITEM_LIMIT
             - null
           type:
             - string
@@ -4117,6 +4128,9 @@ components:
           items:
             $ref: "#/components/schemas/InvoiceLine"
           type: array
+        overdue:
+          description: "Whether the invoice is overdue when read, the grace period of automatic collection included: the predicate of ?overdue=true. Computed by the invoice list and the invoice read; false in the answers of writes and in event payloads."
+          type: boolean
         paidAt:
           format: date-time
           type:
@@ -4226,6 +4240,7 @@ components:
         - instanceName
         - licenseSlug
         - handoffStatus
+        - overdue
         - createdAt
         - updatedAt
       type: object
@@ -4781,11 +4796,12 @@ components:
             - ACKNOWLEDGED
           type: string
         holdReason:
-          description: "Why a DRAFT is held: the usage journal it was measured from failed a consistency check"
+          description: "Why a DRAFT is held: the usage journal it was measured from failed a consistency check (LEDGER_*), or its provider cannot take that many lines (PROVIDER_ITEM_LIMIT)"
           enum:
             - LEDGER_SEQUENCE_GAP
             - LEDGER_CHAIN_BREAK
             - LEDGER_COUNTER_MISMATCH
+            - PROVIDER_ITEM_LIMIT
             - null
           type:
             - string
@@ -4811,6 +4827,9 @@ components:
           type: string
         licenseSlug:
           type: string
+        overdue:
+          description: "Whether the invoice is overdue when read, the grace period of automatic collection included: the predicate of ?overdue=true. Computed by the invoice list and the invoice read; false in the answers of writes and in event payloads."
+          type: boolean
         paidAt:
           format: date-time
           type:
@@ -4877,6 +4896,7 @@ components:
         - instanceName
         - licenseSlug
         - handoffStatus
+        - overdue
         - createdAt
         - updatedAt
       type: object
@@ -4949,11 +4969,12 @@ components:
             - ACKNOWLEDGED
           type: string
         holdReason:
-          description: "Why a DRAFT is held: the usage journal it was measured from failed a consistency check"
+          description: "Why a DRAFT is held: the usage journal it was measured from failed a consistency check (LEDGER_*), or its provider cannot take that many lines (PROVIDER_ITEM_LIMIT)"
           enum:
             - LEDGER_SEQUENCE_GAP
             - LEDGER_CHAIN_BREAK
             - LEDGER_COUNTER_MISMATCH
+            - PROVIDER_ITEM_LIMIT
             - null
           type:
             - string
@@ -4987,6 +5008,9 @@ components:
           type: array
         linesTruncated:
           description: "Set when the lines did not fit the event: read the invoice for all of them"
+          type: boolean
+        overdue:
+          description: "Whether the invoice is overdue when read, the grace period of automatic collection included: the predicate of ?overdue=true. Computed by the invoice list and the invoice read; false in the answers of writes and in event payloads."
           type: boolean
         paidAt:
           format: date-time
@@ -5056,6 +5080,7 @@ components:
         - instanceName
         - licenseSlug
         - handoffStatus
+        - overdue
         - createdAt
         - updatedAt
       type: object
@@ -5890,11 +5915,12 @@ components:
             - ACKNOWLEDGED
           type: string
         holdReason:
-          description: "Why a DRAFT is held: the usage journal it was measured from failed a consistency check"
+          description: "Why a DRAFT is held: the usage journal it was measured from failed a consistency check (LEDGER_*), or its provider cannot take that many lines (PROVIDER_ITEM_LIMIT)"
           enum:
             - LEDGER_SEQUENCE_GAP
             - LEDGER_CHAIN_BREAK
             - LEDGER_COUNTER_MISMATCH
+            - PROVIDER_ITEM_LIMIT
             - null
           type:
             - string
@@ -5920,6 +5946,9 @@ components:
           type: string
         licenseSlug:
           type: string
+        overdue:
+          description: "Whether the invoice is overdue when read, the grace period of automatic collection included: the predicate of ?overdue=true. Computed by the invoice list and the invoice read; false in the answers of writes and in event payloads."
+          type: boolean
         paidAt:
           format: date-time
           type:
@@ -5989,6 +6018,7 @@ components:
         - instanceName
         - licenseSlug
         - handoffStatus
+        - overdue
         - createdAt
         - updatedAt
       type: object
@@ -6860,11 +6890,12 @@ components:
             - ACKNOWLEDGED
           type: string
         holdReason:
-          description: "Why a DRAFT is held: the usage journal it was measured from failed a consistency check"
+          description: "Why a DRAFT is held: the usage journal it was measured from failed a consistency check (LEDGER_*), or its provider cannot take that many lines (PROVIDER_ITEM_LIMIT)"
           enum:
             - LEDGER_SEQUENCE_GAP
             - LEDGER_CHAIN_BREAK
             - LEDGER_COUNTER_MISMATCH
+            - PROVIDER_ITEM_LIMIT
             - null
           type:
             - string
@@ -6893,6 +6924,9 @@ components:
         note:
           description: The note given when it was marked paid, kept only here
           type: string
+        overdue:
+          description: "Whether the invoice is overdue when read, the grace period of automatic collection included: the predicate of ?overdue=true. Computed by the invoice list and the invoice read; false in the answers of writes and in event payloads."
+          type: boolean
         paidAt:
           format: date-time
           type:
@@ -6967,6 +7001,7 @@ components:
         - instanceName
         - licenseSlug
         - handoffStatus
+        - overdue
         - createdAt
         - updatedAt
       type: object
@@ -7057,11 +7092,12 @@ components:
             - ACKNOWLEDGED
           type: string
         holdReason:
-          description: "Why a DRAFT is held: the usage journal it was measured from failed a consistency check"
+          description: "Why a DRAFT is held: the usage journal it was measured from failed a consistency check (LEDGER_*), or its provider cannot take that many lines (PROVIDER_ITEM_LIMIT)"
           enum:
             - LEDGER_SEQUENCE_GAP
             - LEDGER_CHAIN_BREAK
             - LEDGER_COUNTER_MISMATCH
+            - PROVIDER_ITEM_LIMIT
             - null
           type:
             - string
@@ -7087,6 +7123,9 @@ components:
           type: string
         licenseSlug:
           type: string
+        overdue:
+          description: "Whether the invoice is overdue when read, the grace period of automatic collection included: the predicate of ?overdue=true. Computed by the invoice list and the invoice read; false in the answers of writes and in event payloads."
+          type: boolean
         paidAt:
           format: date-time
           type:
@@ -7158,6 +7197,7 @@ components:
         - instanceName
         - licenseSlug
         - handoffStatus
+        - overdue
         - createdAt
         - updatedAt
       type: object
@@ -7537,6 +7577,7 @@ components:
         billingStatus:
           description: Its subscription's status; null when it was never subscribed
           enum:
+            - INCOMPLETE
             - TRIAL
             - ACTIVE
             - PAST_DUE
@@ -7709,7 +7750,7 @@ components:
             - com.kaiten.instance.v1.deployed
           type: string
         group:
-          description: Catalogue group the client renders this under
+          description: Catalog group the client renders this under
           examples:
             - deployments
           type: string
@@ -7727,7 +7768,7 @@ components:
       additionalProperties: false
       properties:
         channels:
-          description: Channels this deployment serves, in display order
+          description: Channels this installation serves, in display order
           items:
             type: string
           type: array
@@ -8836,11 +8877,12 @@ components:
             - ACKNOWLEDGED
           type: string
         holdReason:
-          description: "Why a DRAFT is held: the usage journal it was measured from failed a consistency check"
+          description: "Why a DRAFT is held: the usage journal it was measured from failed a consistency check (LEDGER_*), or its provider cannot take that many lines (PROVIDER_ITEM_LIMIT)"
           enum:
             - LEDGER_SEQUENCE_GAP
             - LEDGER_CHAIN_BREAK
             - LEDGER_COUNTER_MISMATCH
+            - PROVIDER_ITEM_LIMIT
             - null
           type:
             - string
@@ -8869,6 +8911,9 @@ components:
           type: string
         licenseSlug:
           type: string
+        overdue:
+          description: "Whether the invoice is overdue when read, the grace period of automatic collection included: the predicate of ?overdue=true. Computed by the invoice list and the invoice read; false in the answers of writes and in event payloads."
+          type: boolean
         paidAt:
           format: date-time
           type:
@@ -8940,6 +8985,7 @@ components:
         - instanceName
         - licenseSlug
         - handoffStatus
+        - overdue
         - createdAt
         - updatedAt
       type: object
@@ -9004,11 +9050,12 @@ components:
             - ACKNOWLEDGED
           type: string
         holdReason:
-          description: "Why a DRAFT is held: the usage journal it was measured from failed a consistency check"
+          description: "Why a DRAFT is held: the usage journal it was measured from failed a consistency check (LEDGER_*), or its provider cannot take that many lines (PROVIDER_ITEM_LIMIT)"
           enum:
             - LEDGER_SEQUENCE_GAP
             - LEDGER_CHAIN_BREAK
             - LEDGER_COUNTER_MISMATCH
+            - PROVIDER_ITEM_LIMIT
             - null
           type:
             - string
@@ -9034,6 +9081,9 @@ components:
           type: string
         licenseSlug:
           type: string
+        overdue:
+          description: "Whether the invoice is overdue when read, the grace period of automatic collection included: the predicate of ?overdue=true. Computed by the invoice list and the invoice read; false in the answers of writes and in event payloads."
+          type: boolean
         paidAt:
           format: date-time
           type:
@@ -9103,6 +9153,7 @@ components:
         - instanceName
         - licenseSlug
         - handoffStatus
+        - overdue
         - createdAt
         - updatedAt
       type: object
@@ -9155,11 +9206,12 @@ components:
             - ACKNOWLEDGED
           type: string
         holdReason:
-          description: "Why a DRAFT is held: the usage journal it was measured from failed a consistency check"
+          description: "Why a DRAFT is held: the usage journal it was measured from failed a consistency check (LEDGER_*), or its provider cannot take that many lines (PROVIDER_ITEM_LIMIT)"
           enum:
             - LEDGER_SEQUENCE_GAP
             - LEDGER_CHAIN_BREAK
             - LEDGER_COUNTER_MISMATCH
+            - PROVIDER_ITEM_LIMIT
             - null
           type:
             - string
@@ -9185,6 +9237,9 @@ components:
           type: string
         licenseSlug:
           type: string
+        overdue:
+          description: "Whether the invoice is overdue when read, the grace period of automatic collection included: the predicate of ?overdue=true. Computed by the invoice list and the invoice read; false in the answers of writes and in event payloads."
+          type: boolean
         paidAt:
           format: date-time
           type:
@@ -9252,6 +9307,7 @@ components:
         - instanceName
         - licenseSlug
         - handoffStatus
+        - overdue
         - createdAt
         - updatedAt
       type: object
@@ -9532,11 +9588,12 @@ components:
           $ref: "#/components/schemas/HoldDetail"
           description: The hold it left, which the invoice no longer shows
         holdReason:
-          description: "Why a DRAFT is held: the usage journal it was measured from failed a consistency check"
+          description: "Why a DRAFT is held: the usage journal it was measured from failed a consistency check (LEDGER_*), or its provider cannot take that many lines (PROVIDER_ITEM_LIMIT)"
           enum:
             - LEDGER_SEQUENCE_GAP
             - LEDGER_CHAIN_BREAK
             - LEDGER_COUNTER_MISMATCH
+            - PROVIDER_ITEM_LIMIT
             - null
           type:
             - string
@@ -9562,6 +9619,9 @@ components:
           type: string
         licenseSlug:
           type: string
+        overdue:
+          description: "Whether the invoice is overdue when read, the grace period of automatic collection included: the predicate of ?overdue=true. Computed by the invoice list and the invoice read; false in the answers of writes and in event payloads."
+          type: boolean
         paidAt:
           format: date-time
           type:
@@ -9636,6 +9696,7 @@ components:
         - instanceName
         - licenseSlug
         - handoffStatus
+        - overdue
         - createdAt
         - updatedAt
       type: object
@@ -9731,14 +9792,21 @@ components:
           format: int32
           type: integer
         provenance:
-          $ref: "#/components/schemas/Provenance"
-          description: What the licence, the add-ons and the boosts each contribute
+          description: "What the licence, the add-ons and the boosts each contribute. Null on a replay (Idempotent-Replayed): the journal does not store it."
+          oneOf:
+            - $ref: "#/components/schemas/Provenance"
+            - enum:
+                - null
+              type: "null"
         source:
-          description: "license: the licence grants it (add-ons and boosts may change it); addon: only add-ons do"
+          description: "license: the licence grants it (add-ons and boosts may change it); addon: only add-ons do. Null on a replay (Idempotent-Replayed): the journal does not store it."
           enum:
             - license
             - addon
-          type: string
+            - null
+          type:
+            - string
+            - "null"
         transactionId:
           description: The Idempotency-Key this report was accepted under, echoed on the first answer and on every replay; null when the request carried none. A client can tell from it that the server honours the key.
           type:
@@ -9757,13 +9825,14 @@ components:
             - $ref: "#/components/schemas/BooleanEntitlementValue"
             - $ref: "#/components/schemas/ConfigEntitlementValue"
       required:
+        - source
+        - provenance
         - transactionId
         - entitlementId
         - entitlementSlug
         - licenseId
         - licenseSlug
         - value
-        - source
       type: object
     RevocationReason:
       additionalProperties: false
@@ -10438,6 +10507,7 @@ components:
               type: "null"
         status:
           enum:
+            - INCOMPLETE
             - TRIAL
             - ACTIVE
             - PAST_DUE
@@ -10631,6 +10701,7 @@ components:
           type: string
         status:
           enum:
+            - INCOMPLETE
             - TRIAL
             - ACTIVE
             - PAST_DUE
@@ -10679,6 +10750,7 @@ components:
       properties:
         from:
           enum:
+            - INCOMPLETE
             - TRIAL
             - ACTIVE
             - PAST_DUE
@@ -10697,6 +10769,7 @@ components:
           type: string
         to:
           enum:
+            - INCOMPLETE
             - TRIAL
             - ACTIVE
             - PAST_DUE
@@ -11121,11 +11194,12 @@ components:
             - ACKNOWLEDGED
           type: string
         holdReason:
-          description: "Why a DRAFT is held: the usage journal it was measured from failed a consistency check"
+          description: "Why a DRAFT is held: the usage journal it was measured from failed a consistency check (LEDGER_*), or its provider cannot take that many lines (PROVIDER_ITEM_LIMIT)"
           enum:
             - LEDGER_SEQUENCE_GAP
             - LEDGER_CHAIN_BREAK
             - LEDGER_COUNTER_MISMATCH
+            - PROVIDER_ITEM_LIMIT
             - null
           type:
             - string
@@ -11151,6 +11225,9 @@ components:
           type: string
         licenseSlug:
           type: string
+        overdue:
+          description: "Whether the invoice is overdue when read, the grace period of automatic collection included: the predicate of ?overdue=true. Computed by the invoice list and the invoice read; false in the answers of writes and in event payloads."
+          type: boolean
         paidAt:
           format: date-time
           type:
@@ -11220,6 +11297,7 @@ components:
         - instanceName
         - licenseSlug
         - handoffStatus
+        - overdue
         - createdAt
         - updatedAt
       type: object
@@ -11462,11 +11540,12 @@ components:
             - ACKNOWLEDGED
           type: string
         holdReason:
-          description: "Why a DRAFT is held: the usage journal it was measured from failed a consistency check"
+          description: "Why a DRAFT is held: the usage journal it was measured from failed a consistency check (LEDGER_*), or its provider cannot take that many lines (PROVIDER_ITEM_LIMIT)"
           enum:
             - LEDGER_SEQUENCE_GAP
             - LEDGER_CHAIN_BREAK
             - LEDGER_COUNTER_MISMATCH
+            - PROVIDER_ITEM_LIMIT
             - null
           type:
             - string
@@ -11492,6 +11571,9 @@ components:
           type: string
         licenseSlug:
           type: string
+        overdue:
+          description: "Whether the invoice is overdue when read, the grace period of automatic collection included: the predicate of ?overdue=true. Computed by the invoice list and the invoice read; false in the answers of writes and in event payloads."
+          type: boolean
         paidAt:
           format: date-time
           type:
@@ -11561,6 +11643,7 @@ components:
         - instanceName
         - licenseSlug
         - handoffStatus
+        - overdue
         - createdAt
         - updatedAt
       type: object
@@ -14767,7 +14850,7 @@ paths:
       tags:
         - connectors
     put:
-      description: "Activates a registered connector for the authenticated organization. Idempotent: activating an already-active connector succeeds without changing when it was first activated. Refused when the organization's licence does not include the connector."
+      description: "Activates a registered connector for the authenticated organization. Idempotent: activating an already-active connector succeeds without changing when it was first activated. Refused when the organization's license does not include the connector."
       operationId: activate-connector
       parameters:
         - description: Stable connector name
@@ -15089,7 +15172,7 @@ paths:
         - connectors
   /connectors/{connectorName}/state:
     get:
-      description: "Returns whether the connector is registered in this deployment, whether the authenticated organization's licence includes it, and whether the organization has activated it. Answers 200 with `available: false` for a connector this deployment does not have."
+      description: "Returns whether the connector is registered on this installation, whether the authenticated organization's license includes it, and whether the organization has activated it. Answers 200 with `available: false` for a connector this installation does not have."
       operationId: get-connector-state
       parameters:
         - description: Stable connector name
@@ -17841,7 +17924,7 @@ paths:
       tags:
         - featureflags
     put:
-      description: Update a featureflag with the provided details
+      description: Update a featureflag with the provided details. Sending a slug renames the flag; omitting it keeps the current one.
       operationId: update-feature-flag
       parameters:
         - in: path
@@ -22482,7 +22565,7 @@ paths:
       description: |-
         Create a new license with the provided details. Without familySlug or familyId this creates a new license family and the license becomes its version 1. With one of them it adds the next version to that family (familySlug names it by slug, familyId by identifier; sent together they must agree), and the version number is assigned by the server as the next one in the family's sequence. The version starts PUBLISHED, or DRAFT when lifecycleState says so; ARCHIVED is refused (422 CreateLicense.LifecycleStateNotSettable), because a version is archived with archive-license once it has been on sale.
 
-        Where the deployment limits how many licenses an organization may have, only a new family counts against that limit (409 CreateLicense.EntitlementLimitReached once it is reached): a new version of an existing family never does.
+        Where the installation limits how many licenses an organization may have, only a new family counts against that limit (409 CreateLicense.EntitlementLimitReached once it is reached): a new version of an existing family never does.
       operationId: create-license
       requestBody:
         content:
@@ -23835,7 +23918,7 @@ paths:
         - licenses
   /metadata-fields:
     get:
-      description: Returns a cursor-paginated page of the active (non-archived) metadata fields declared for the org and the given resource type, ordered by displayOrder then createdAt.
+      description: "Returns a cursor-paginated page of the metadata fields declared for the org and the given resource type, ordered by displayOrder then createdAt. Only active fields are listed, unless includeArchived is set: an archived field's id is what unarchive-metadata-field takes."
       operationId: list-metadata-fields
       parameters:
         - explode: false
@@ -23847,6 +23930,13 @@ paths:
               - DEPLOYMENT_ZONE
               - INSTANCE
             type: string
+        - description: Include archived fields too, each with its archivedAt
+          explode: false
+          in: query
+          name: includeArchived
+          schema:
+            description: Include archived fields too, each with its archivedAt
+            type: boolean
         - description: Opaque pagination cursor from a previous response's nextCursor
           explode: false
           in: query
@@ -23904,7 +23994,7 @@ paths:
       security:
         - bearerAuth:
             - read:metadata_fields
-      summary: List active metadata fields for a resource type
+      summary: List metadata fields for a resource type
       tags:
         - metadataFields
     post:
@@ -26582,7 +26672,7 @@ paths:
         - instances
   /v1/notification-preferences:
     get:
-      description: "Every notifiable event, with this user's effective value per channel: their own choice where they made one, the catalogue default otherwise. Events absent from the catalogue of a deployment never appear, which is what keeps high-volume system events out of the feed."
+      description: "Every notifiable event, with this user's effective value per channel: their own choice where they made one, the catalog default otherwise. Events absent from the catalog of an installation never appear, which is what keeps high-volume system events out of the feed."
       operationId: getNotificationPreferences
       responses:
         "200":
@@ -26616,7 +26706,7 @@ paths:
       tags:
         - notifications
     put:
-      description: Stores the signed-in user's choices and answers with the whole matrix. A value that equals the catalogue default is stored as no row at all, so a later change to that default still reaches this user.
+      description: Stores the signed-in user's choices and answers with the whole matrix. A value that equals the catalog default is stored as no row at all, so a later change to that default still reaches this user.
       operationId: putNotificationPreferences
       requestBody:
         content:
@@ -29121,7 +29211,7 @@ webhooks:
         - featureflags
   com.kaiten.identity.v1.system_token_issued:
     post:
-      description: "Triggered when a platform credential mints an organization-scoped credential for the `system:kaiten` platform identity inside this organization. Carries the platform credential that performed the mint and the scopes granted, never the credential value. Expect this at the rate an integration refreshes: roughly 120 per day per process at a 15-minute lifetime."
+      description: "Triggered when a platform credential mints an organization-scoped credential for the `system:kaiten` platform identity inside this organization. Carries the platform credential that performed the mint and the scopes granted, never the credential value. Expect this at the rate an integration refreshes: 96 a day per process at a 15-minute lifetime, more if it refreshes before expiry."
       operationId: onSystemOrganizationTokenIssued
       requestBody:
         content:
@@ -29649,6 +29739,47 @@ webhooks:
         "200":
           description: Webhook processed successfully
       summary: Instance Billing Status Changed Webhook
+      tags:
+        - webhooks
+        - billing
+  com.kaiten.instance.billing.v1.trial_will_end:
+    post:
+      description: Triggered once per subscription, 3 days before its trial ends (trialEndsAt), or at once when the trial is shorter.
+      operationId: onInstanceBillingTrialWillEnd
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                data:
+                  $ref: "#/components/schemas/InstanceBilling"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
+                name:
+                  description: Event name
+                  enum:
+                    - INSTANCE_BILLING_TRIAL_WILL_END
+                  examples:
+                    - INSTANCE_BILLING_TRIAL_WILL_END
+                  type: string
+                type:
+                  description: Event type
+                  enum:
+                    - com.kaiten.instance.billing.v1.trial_will_end
+                  examples:
+                    - com.kaiten.instance.billing.v1.trial_will_end
+                  type: string
+              required:
+                - name
+                - type
+                - data
+              type: object
+        required: true
+      responses:
+        "200":
+          description: Webhook processed successfully
+      summary: Instance Billing Trial Will End Webhook
       tags:
         - webhooks
         - billing
