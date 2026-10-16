@@ -103,6 +103,8 @@ test("an instance that holds none says so on the card, and the panel offers what
   expect(onCard()).toEqual([]);
   await waitFor(async () => expect(await listed()).toEqual(["Extra seats"]));
   expect(screen.getByRole("status", { name: "Quantity of Extra seats" }).textContent).toBe("0");
+  // The keyboard starts on the first control in use: the − of an add-on at none is not one.
+  expect(document.activeElement).toBe(screen.getByRole("button", { name: "Add one Extra seats" }));
 });
 
 test("an add-on the instance holds is listed whatever its prices, with its controls", async () => {

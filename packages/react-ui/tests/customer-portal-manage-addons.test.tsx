@@ -56,9 +56,13 @@ async function pressInPanel(name: string | RegExp) {
 /** The quantity the panel holds for an add-on. */
 const staged = (name: string) => inPanel().getByLabelText(`Quantity of ${name}`).textContent;
 
-/** The text of each line of the card: what the instance holds. */
+/** The text of each line of the card, as it is seen: what the instance holds. */
 const held = () =>
-  [...document.querySelectorAll('[data-slot="addon"]')].map((row) => flat(row.textContent));
+  [...document.querySelectorAll('[data-slot="addon"]')].map((row) => {
+    const seen = row.cloneNode(true) as Element;
+    for (const hidden of seen.querySelectorAll(".sr-only")) hidden.remove();
+    return flat(seen.textContent);
+  });
 
 /** The text of each change the panel's summary lists. */
 const changes = () =>
@@ -82,6 +86,10 @@ test("the card lists what the instance holds, its quantity and the price of a un
   await screen.findByText("Extra seats");
 
   expect(held()).toEqual(["Extra seats€10.00/month× 3", "GPU pack× 1"]);
+  // The quantity is named for a screen reader, which reads no "×".
+  const quantity = document.querySelector('[data-slot="addon-quantity"]')!;
+  expect(quantity.querySelector(".sr-only")!.textContent).toBe("Quantity of Extra seats: ");
+  expect(quantity.querySelector('[aria-hidden="true"]')!.textContent).toBe("× ");
   // No stepper on the card: a change is made in the panel.
   expect(screen.queryByRole("button", { name: "Add one Extra seats" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Remove one GPU pack" })).toBeNull();
@@ -566,4 +574,16 @@ test("removing the last add-on keeps the card, which says so, and the keyboard g
   const sentence = screen.getByText("Your add-ons have been updated.");
   expect(screen.queryByRole("button", { name: "Manage add-ons" })).toBeNull();
   await waitFor(() => expect(document.activeElement).toBe(sentence));
+});
+
+test("the panel's title is a heading, styled and unstyled, as its summary is", async () => {
+  mount(sessionServer(), <AddOns />);
+  await openPanel();
+  expect(within(panel()).getByRole("heading", { level: 2, name: "Manage add-ons" })).toBeTruthy();
+  expect(within(panel()).getByRole("heading", { level: 3, name: "Your changes" })).toBeTruthy();
+  cleanup();
+
+  mount(sessionServer(), <AddOns unstyled />);
+  await openPanel();
+  expect(within(panel()).getByRole("heading", { level: 2, name: "Manage add-ons" })).toBeTruthy();
 });

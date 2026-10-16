@@ -324,7 +324,9 @@ export const AddOnsHeld: Story = {
     const canvas = within(canvasElement);
     await canvas.findByText("Extra seats", {}, SLOW);
     // A list to read: the quantities change in the panel, not here.
-    await expect(canvas.getByText("× 3")).toBeInTheDocument();
+    await expect(
+      canvas.getByText("Quantity of Extra seats:", { exact: false }),
+    ).toBeInTheDocument();
     await expect(canvas.queryByRole("button", { name: "Add one Extra seats" })).toBeNull();
     await expect(canvas.getByRole("button", { name: "Manage add-ons" })).toBeInTheDocument();
   },
@@ -403,7 +405,13 @@ export const ManageAddOnsDone: Story = {
     await userEvent.click(panel.getByRole("button", { name: "Confirm changes" }));
     await waitFor(() => expect(canvas.queryByRole("dialog")).toBeNull(), SLOW);
     // The card is what the server now holds, and says the changes were made.
-    await expect(await canvas.findByText("× 5", {}, SLOW)).toBeInTheDocument();
+    await waitFor(
+      () =>
+        expect(canvasElement.querySelector('[data-slot="addon-quantity"]')).toHaveTextContent(
+          "× 5",
+        ),
+      SLOW,
+    );
     await expect(canvas.queryByText("GPU pack")).toBeNull();
     await expect(canvas.getByText("Your add-ons have been updated.")).toBeInTheDocument();
     // The keyboard is back on the button that opened the panel.

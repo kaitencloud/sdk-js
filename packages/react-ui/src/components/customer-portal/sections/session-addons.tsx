@@ -118,7 +118,9 @@ export function SessionAddOns({
                     data-slot="addon-quantity"
                     className="ktn-own shrink-0 font-mono text-sm font-medium"
                   >
-                    × {row.quantity}
+                    <span className="sr-only">{words.addonQuantity(row.addon.name)}: </span>
+                    <span aria-hidden="true">× </span>
+                    {row.quantity}
                   </span>
                 </li>
               );

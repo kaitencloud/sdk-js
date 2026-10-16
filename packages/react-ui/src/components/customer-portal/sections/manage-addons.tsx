@@ -203,6 +203,16 @@ function ManageAddOnsPanel({
   const closed = React.useRef(false);
   const inFlight = React.useRef(false);
   const summaryId = React.useId();
+  const content = React.useRef<HTMLDivElement>(null);
+
+  // The browser gives a modal's focus to its first control, which can be the − of an add-on at
+  // none, out of use: the keyboard starts on the first control that is not. This runs after the
+  // dialog opened, whose effect runs first.
+  React.useLayoutEffect(() => {
+    content.current
+      ?.querySelector<HTMLElement>('button:not(:disabled):not([aria-disabled="true"])')
+      ?.focus({ preventScroll: true });
+  }, []);
 
   React.useEffect(() => {
     closed.current = false;
@@ -272,17 +282,15 @@ function ManageAddOnsPanel({
       className={unstyled ? undefined : "max-w-lg"}
     >
       <div className={unstyled ? undefined : "ktn-own flex flex-col gap-1.5 pr-2"}>
-        {unstyled ? (
-          <h2>
-            <DialogTitle unstyled>{words.addonsManage}</DialogTitle>
-          </h2>
-        ) : (
-          <DialogTitle>{words.addonsManage}</DialogTitle>
-        )}
+        {/* A heading in both renderings, as the summary under it is one. */}
+        <h2 className={unstyled ? undefined : "ktn-own text-lg leading-none font-semibold"}>
+          <DialogTitle unstyled>{words.addonsManage}</DialogTitle>
+        </h2>
         <DialogDescription unstyled={unstyled}>{words.addonsManageNote}</DialogDescription>
       </div>
 
       <div
+        ref={content}
         className={
           unstyled
             ? undefined
