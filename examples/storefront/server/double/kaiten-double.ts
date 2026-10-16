@@ -189,7 +189,7 @@ const reply = (status: number, body: unknown, headers: Record<string, string> = 
     },
   });
 
-const problem = (status: number, code: string, detail: string, instance = "") =>
+const problem = (status: number, code: string, detail: string, instance = "", more: Json = {}) =>
   reply(status, {
     type: "https://tools.ietf.org/html/rfc7231",
     title: status === 401 ? "Unauthorized" : status === 429 ? "Too Many Requests" : "Refused",
@@ -197,6 +197,7 @@ const problem = (status: number, code: string, detail: string, instance = "") =>
     detail,
     instance,
     code,
+    ...more,
   });
 
 const html = (title: string, body: string) =>
@@ -501,9 +502,9 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
       });
       subtotal += base.unitAmount;
     }
-    for (const wanted of (order.addOns ?? []) as Json[]) {
-      const sold = findAddOnPrice(wanted.addonSlug, currency, base.billingPeriod);
-      if (!sold || !(plan.compatibleAddonFamilies as string[]).includes(sold.addon.familySlug)) {
+    for (const [at, wanted] of ((order.addOns ?? []) as Json[]).entries()) {
+      const addon = (catalog.addOns as Json[]).find((each) => each.addonSlug === wanted.addonSlug);
+      if (!addon || !(plan.compatibleAddonFamilies as string[]).includes(addon.familySlug)) {
         return {
           problem: problem(
             422,
@@ -512,24 +513,60 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
           ),
         };
       }
-      if (sold.addon.maxQuantity != null && wanted.quantity > sold.addon.maxQuantity) {
+      if (addon.maxQuantity != null && wanted.quantity > addon.maxQuantity) {
         return {
           problem: problem(
             422,
             "CreateSessionCheckout.QuantityExceedsMax",
-            `at most ${sold.addon.maxQuantity} of "${wanted.addonSlug}"`,
+            `at most ${addon.maxQuantity} of "${wanted.addonSlug}"`,
           ),
         };
       }
-      if (wanted.quantity <= 0) continue;
-      const amount = sold.price.unitAmount * wanted.quantity;
+      // One currency per subscription: an add-on priced in another than the plan's cannot be
+      // attached to it. One with no price has none to differ.
+      const prices = addon.prices as Json[];
+      if (prices.some((each) => each.currency !== currency)) {
+        return {
+          problem: problem(
+            422,
+            "CreateSessionCheckout.CurrencyMismatch",
+            `"${wanted.addonSlug}" is not priced in ${currency}, the plan's currency`,
+          ),
+        };
+      }
+      // A paid add-on with flat fees is billed its default fee of the period, and needs one; any
+      // other refusal of the attachment is AddonInvalid, with the attachment's own code inside.
+      const fees = prices.filter((each) => each.billingModel === "FLAT_FEE");
+      const fee = fees.find((each) => each.isDefault && each.billingPeriod === base.billingPeriod);
+      if (addon.pricingType === "PAID" && fees.length > 0 && !fee) {
+        return {
+          problem: problem(
+            422,
+            "CreateSessionCheckout.AddonInvalid",
+            `"${wanted.addonSlug}" has no price for the plan's billing period`,
+            "",
+            {
+              errors: [
+                {
+                  location: `body.addOns[${at}]`,
+                  message: "no default price for the billing period",
+                  value: { code: "AttachInstanceAddon.NoPriceForBillingPeriod" },
+                },
+              ],
+            },
+          ),
+        };
+      }
+      // Billed no flat fee (metered only, free or custom), it adds nothing to what is due today.
+      if (wanted.quantity <= 0 || !fee) continue;
+      const amount = fee.unitAmount * wanted.quantity;
       lines.push({
         seq: lines.length + 1,
         type: "ADDON",
-        label: sold.addon.name,
-        description: `${wanted.quantity} × ${money(sold.price.unitAmount, currency)}`,
+        label: addon.name,
+        description: `${wanted.quantity} × ${money(fee.unitAmount, currency)}`,
         quantity: String(wanted.quantity),
-        unitAmountDecimal: String(sold.price.unitAmount),
+        unitAmountDecimal: String(fee.unitAmount),
         amount,
         ...span,
       });

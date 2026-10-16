@@ -241,6 +241,60 @@ describe("what the stand-in does besides", () => {
     });
   });
 
+  test("refuses a checkout's add-on as Kaiten does: one that does not fit, another currency, no fee for the period", async () => {
+    const { double, customer, recorder } = world();
+    double.reset({ card: true, email: true });
+    const session = await customer();
+
+    // The GPU pack is public, and does not fit Growth.
+    await expect(
+      session.checkout({
+        licensePriceId: GROWTH_MONTHLY,
+        addOns: [{ addonSlug: "gpu-pack-v1", quantity: 1 }],
+        dryRun: true,
+      }),
+    ).rejects.toMatchObject({ status: 422, code: "CreateSessionCheckout.AddonNotPublic" });
+    // It fits Pro, and is priced in dollars beside Pro in euros.
+    await expect(
+      session.checkout({
+        licensePriceId: PRO_MONTHLY,
+        addOns: [{ addonSlug: "gpu-pack-v1", quantity: 1 }],
+        dryRun: true,
+      }),
+    ).rejects.toMatchObject({ status: 422, code: "CreateSessionCheckout.CurrencyMismatch" });
+    // The seats are sold by the month and by the year, not every quarter: the attachment's own
+    // refusal is inside.
+    await expect(
+      session.checkout({
+        licensePriceId: PRO_QUARTERLY,
+        addOns: [{ addonSlug: "extra-seats-v1", quantity: 1 }],
+        dryRun: true,
+      }),
+    ).rejects.toMatchObject({
+      status: 422,
+      code: "CreateSessionCheckout.AddonInvalid",
+      errors: [
+        {
+          location: "body.addOns[0]",
+          value: { code: "AttachInstanceAddon.NoPriceForBillingPeriod" },
+        },
+      ],
+    });
+    // By the year, they are sold, at the fee of the year.
+    await expect(
+      session.checkout({
+        licensePriceId: PRO_ANNUAL,
+        addOns: [{ addonSlug: "extra-seats-v1", quantity: 2 }],
+        dryRun: true,
+      }),
+    ).resolves.toMatchObject({
+      status: "preview",
+      dueToday: { lines: expect.arrayContaining([expect.objectContaining({ amount: 20000 })]) },
+    });
+    expect(double.state().subscribed).toBe(false);
+    expect(contractProblems(recorder)).toEqual([]);
+  });
+
   test("makes the customer save a card first, on a page it serves, and bills only once they are back", async () => {
     const { double, customer, call } = world();
     const session = await customer();

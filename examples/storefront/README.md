@@ -149,7 +149,10 @@ is a customer who moves:
 
 - a checkout subscribes the instance, after a card has been saved on the provider's page if the
   customer has none; it prices a plan, its add-ons and a voucher (`WELCOME20`), and a plan with a
-  trial bills nothing today;
+  trial bills nothing today. It refuses an add-on as the contract does:
+  `CreateSessionCheckout.AddonNotPublic` for one that does not fit the plan, `.CurrencyMismatch` for
+  one priced in another currency than the plan's, `.AddonInvalid` for a paid one with no fee for the
+  plan's billing period;
 - a checkout of an instance whose live subscription has no paid price (a free plan) replaces it:
   cancelled at once, with no invoice, and subscribed in the same step (V31-68). Any other live
   subscription is still a 409 `CreateSessionCheckout.AlreadySubscribed`;
