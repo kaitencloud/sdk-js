@@ -1,6 +1,6 @@
 // What the storefront does when a customer's way is not the happy one: a card that is declined, a
 // payment that needs the customer's confirmation, a page whose origin the key does not allow, a
-// session that has expired, and a request that has to wait. The stand-in for Kaiten is told what to
+// session that has expired, a request that has to wait, and a change to an add-on that is refused. The stand-in for Kaiten is told what to
 // refuse, and each test reads what the customer reads.
 
 import { checkout, planCard, portal } from "./support/page.ts";
@@ -159,4 +159,37 @@ test("a backend that cannot mint a session leaves the page with an error it can 
   await expect(page.getByRole("alert").filter({ hasText: "Failed to load" })).toBeVisible();
   await page.getByRole("button", { name: "Try again" }).click();
   await expect(portal(page).currentPlan).toContainText("Pro");
+});
+
+test("the portal offers no add-on the subscription cannot be billed, and says why a change was refused", async ({
+  page,
+  standIn,
+}) => {
+  await standIn.reset({ subscribed: true });
+  await page.goto("/portal");
+
+  // Pro, in euros: the seats are sold in euros and offered, the GPU pack in dollars only and not.
+  const addOns = page.locator('[data-slot="addon"]');
+  await expect(addOns).toHaveCount(1);
+  await expect(addOns).toContainText("Extra seats");
+  await expect(page.getByRole("button", { name: "Add one GPU pack" })).toHaveCount(0);
+
+  // A refusal is said with its reason, not as a failure to try again.
+  await standIn.script(
+    "PUT /public/session/addons/extra-seats-v1",
+    refusal(409, "SetSessionAddonQuantity.OtherVersionAttached", "another version is attached"),
+  );
+  await page.getByRole("button", { name: "Add one Extra seats" }).click();
+  await expect(
+    page.getByText("Your plan already includes another version of this add-on."),
+  ).toBeVisible();
+  await expect(page.getByText("That didn't work. Please try again.")).toHaveCount(0);
+  expect((await standIn.state()).addOns).toEqual([]);
+
+  // The next one goes through, and the sentence goes with it.
+  await page.getByRole("button", { name: "Add one Extra seats" }).click();
+  await expect(page.getByRole("status", { name: "Quantity of Extra seats" })).toHaveText("1");
+  await expect(
+    page.getByText("Your plan already includes another version of this add-on."),
+  ).toHaveCount(0);
 });
