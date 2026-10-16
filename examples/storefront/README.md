@@ -138,7 +138,9 @@ in its own CSS, through the public `elements` slots where one reaches the part, 
   relies on.
 - **The gradient button.** The highlighted plan's button is the brand gradient
   (`--ktn-primary-gradient`, class `ktn-cta-gradient`), whatever `colorPrimary` is, and there is no
-  key for it. A themed button gets a flat fill: `background-image: none` on every button.
+  key for it. A themed button gets a flat fill: `background-image: none` on every button. Every
+  plan's "Select plan" is a primary button, so in a theme the highlighted plan's button is the same
+  as the others', and the plan is told apart by its badge, its 2px edge and its halo.
 - **Fixed corners.** The pricing table (`rounded-[1.5rem]`) and its plans (`rounded-[1rem]`) ignore
   `borderRadius`; the portal's and checkout's cards follow it (as `radius + 4px`, so a radius of 0
   still gives 4px, as it does in shadcn). Plans take the same formula through `elements.pricingCard`;
