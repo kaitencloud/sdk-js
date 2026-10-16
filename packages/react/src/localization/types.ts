@@ -53,7 +53,6 @@ export interface KaitenCheckoutWords {
   rateLimited: string;
   /** Said beside a code that was typed and not applied: it is not part of the checkout until it is. */
   voucherPending: string;
-  skipTrial: string;
   billingEmail: string;
   billingEmailHint: string;
   /** Said under a summary while the customer still has to give a billing email, which subscribing needs. */

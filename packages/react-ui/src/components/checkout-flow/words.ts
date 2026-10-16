@@ -21,7 +21,6 @@ export const englishCheckoutWords: KaitenCheckoutWords = {
   voucherInvalid: "This code can't be used.",
   rateLimited: "Too many attempts. Try again in a moment.",
   voucherPending: "Apply the code, or clear the field, to continue.",
-  skipTrial: "Start without the free trial",
   billingEmail: "Billing email",
   billingEmailHint: "Invoices are sent to this address.",
   billingEmailToSubscribe: "Enter your billing email to subscribe.",

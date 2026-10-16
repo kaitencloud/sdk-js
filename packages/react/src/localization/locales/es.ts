@@ -165,7 +165,6 @@ export const es: KaitenLocalization = {
     voucherInvalid: "Este código no se puede usar.",
     rateLimited: "Demasiados intentos. Inténtelo de nuevo en un momento.",
     voucherPending: "Aplique el código, o vacíe el campo, para continuar.",
-    skipTrial: "Empezar sin la prueba gratuita",
     billingEmail: "Correo de facturación",
     billingEmailHint: "Las facturas se envían a esta dirección.",
     billingEmailToSubscribe: "Introduzca su correo de facturación para suscribirse.",

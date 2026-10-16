@@ -29,7 +29,6 @@ import { KaitenBranding } from "../shared/kaiten-branding.tsx";
 import { Badge } from "../ui/badge.tsx";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "../ui/card.tsx";
 import { Input } from "../ui/input.tsx";
-import { Checkbox } from "../ui/checkbox.tsx";
 import { RadioGroup, RadioGroupItem } from "../ui/radio-group.tsx";
 import { CheckoutSummaryBody, useProblemText } from "./checkout-summary.tsx";
 import { useCheckoutWords } from "./words.ts";
@@ -120,7 +119,9 @@ export interface CheckoutFlowProps {
  * refused one. A customer with no billing email is asked for one; with no payment method, sent to
  * the provider's page, in a popup or in place of the page, and brought back to go on. The
  * instance is subscribed whatever became of the payment: a card that was declined, a payment to
- * confirm, one not known yet, each is said, with what to do next.
+ * confirm, one not known yet, each is said, with what to do next. A plan with a trial is
+ * subscribed with its trial, unless the customer already took one: the flow offers no way to start
+ * without it.
  *
  * @experimental Styled component — shape may change in a minor release (see STABILITY.md); prefer `unstyled` mode or the headless hooks for the stable path.
  */
@@ -160,18 +161,6 @@ function CheckoutFlowView({
     returnUrl,
     onSubscribed,
   });
-
-  // Whether the server has said that this customer gets no trial on the plan: it priced the selection
-  // with the trial left in, and no trial came back, because one was already taken. Kept from one answer
-  // to the next, so that the choice does not come back while a new selection is priced. Ticking
-  // "without the trial" is no evidence of it: the server then prices no trial at all.
-  const [trialTaken, setTrialTaken] = React.useState(false);
-  const { preview } = checkout;
-  const trialAnswer =
-    preview.status === "ready" && !preview.isStale && preview.data && !checkout.selection.skipTrial
-      ? preview.data.trialEndsAt === null
-      : null;
-  if (trialAnswer !== null && trialAnswer !== trialTaken) setTrialTaken(trialAnswer);
 
   // Each step replaces the last one's controls: the keyboard goes to what the new one says first, and
   // to the refusal of a checkout that sent the customer back to choosing.
@@ -292,8 +281,6 @@ function CheckoutFlowView({
   const submitting = checkout.step === "submitting";
   const LoaderIcon = icons.loader;
   const ArrowIcon = icons.arrowRight;
-  const showTrialToggle =
-    ((plan.trialPeriodDays ?? 0) > 0 && !trialTaken) || checkout.selection.skipTrial;
   // An older Kaiten prices nothing before it has an address, and refuses the preview for want of one:
   // with no summary to show, the customer is told what comes first.
   const emailFirst =
@@ -339,34 +326,6 @@ function CheckoutFlowView({
         words={words}
         checking={localization.states.loading}
       />
-
-      {showTrialToggle ? (
-        // Unstyled, the choice stays a native checkbox, the markup that rendering promises;
-        // styled, it is the checkbox the console's controls are made of.
-        <label
-          className={
-            unstyled
-              ? undefined
-              : "flex w-fit cursor-pointer items-center gap-2 text-sm has-disabled:cursor-not-allowed"
-          }
-        >
-          {unstyled ? (
-            <input
-              type="checkbox"
-              checked={checkout.selection.skipTrial}
-              disabled={submitting}
-              onChange={(event) => checkout.setSkipTrial(event.target.checked)}
-            />
-          ) : (
-            <Checkbox
-              checked={checkout.selection.skipTrial}
-              disabled={submitting}
-              onCheckedChange={(checked: boolean) => checkout.setSkipTrial(checked)}
-            />
-          )}
-          {words.skipTrial}
-        </label>
-      ) : null}
 
       {checkout.needsBillingEmail ? (
         <EmailField

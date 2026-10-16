@@ -131,52 +131,8 @@ export const FreeTrial: Story = {
     const canvas = within(canvasElement);
     await expect(await canvas.findByText("$0.00 today", {}, SLOW)).toBeInTheDocument();
     await expect(canvas.getByText("Trial ends on Nov 2, 2026")).toBeInTheDocument();
-    await expect(
-      canvas.getByRole("checkbox", { name: "Start without the free trial" }),
-    ).not.toBeChecked();
-  },
-};
-
-/** The trial's checkbox, taken with the keyboard: focused, then the space bar, as for any button. */
-const skipTheTrial = async (canvasElement: HTMLElement) => {
-  const canvas = within(canvasElement);
-  await expect(await canvas.findByText("$0.00 today", {}, SLOW)).toBeInTheDocument();
-  const skip = canvas.getByRole("checkbox", { name: "Start without the free trial" });
-  skip.focus();
-  await expect(skip).toHaveFocus();
-  await userEvent.keyboard(" ");
-  await expect(skip).toBeChecked();
-  await expect(skip).toHaveAttribute("data-checked");
-  // The server prices the plan again, without the trial: something is due today.
-  await waitFor(() => expect(canvas.queryByText("$0.00 today")).toBeNull(), SLOW);
-  return canvas;
-};
-
-export const FreeTrialSkipped: Story = {
-  name: "A free trial, skipped",
-  args: { plan: planWithTrial },
-  decorators: [checkoutDecorator({ trial: true, outcome: "trial" })],
-  play: async ({ canvasElement }) => {
-    const canvas = await skipTheTrial(canvasElement);
-    // Ticked again by a click on its words, and the trial is back.
-    await userEvent.click(canvas.getByText("Start without the free trial"));
-    await expect(
-      canvas.getByRole("checkbox", { name: "Start without the free trial" }),
-    ).not.toBeChecked();
-    await expect(await canvas.findByText("$0.00 today", {}, SLOW)).toBeInTheDocument();
-    // And ticked once more, for the render the baseline keeps.
-    await userEvent.click(canvas.getByRole("checkbox", { name: "Start without the free trial" }));
-    await waitFor(() => expect(canvas.queryByText("$0.00 today")).toBeNull(), SLOW);
-  },
-};
-
-export const FreeTrialSkippedDark: Story = {
-  name: "A free trial, skipped, in the dark",
-  args: { plan: planWithTrial },
-  parameters: { themes: { themeOverride: "dark" } },
-  decorators: [checkoutDecorator({ trial: true, outcome: "trial" })],
-  play: async ({ canvasElement }) => {
-    await skipTheTrial(canvasElement);
+    // The plan is subscribed with its trial: there is nothing to tick to start without it.
+    await expect(canvas.queryByRole("checkbox")).toBeNull();
   },
 };
 

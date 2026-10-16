@@ -282,144 +282,32 @@ describe("choosing", () => {
     });
   });
 
-  // What the server prices for a plan with a 14-day trial: the trial, unless it was asked to leave it out.
-  const TRIAL_ENDS = "2026-02-01T00:00:00.000Z";
-  const pricedWithTrial = (input: CheckoutInput) =>
-    input.trial === false ? dryRun(input) : trialPreview(TRIAL_ENDS);
-  const SKIP = "Start without the free trial";
-
-  /** The trial's checkbox: a button with the role, which is what Base UI draws. */
-  const skipBox = () => screen.getByRole("checkbox", { name: SKIP });
-  const ticked = (box: HTMLElement) => box.getAttribute("aria-checked") === "true";
-
-  test("the plan's trial can be skipped, and the checkbox is there only for a plan that has one", async () => {
-    const client = selling(undefined, pricedWithTrial);
+  test("a plan with a trial is subscribed with it: nothing offers to start without it", async () => {
+    const client = selling(undefined, () => trialPreview("2026-02-01T00:00:00.000Z"));
     await draw(client, { plan: growthPlan({ trialPeriodDays: 14 }) });
-    const skip = skipBox();
-    expect(ticked(skip)).toBe(false);
-
-    await act(async () => fireEvent.click(skip));
-    await settle(300);
-    expect(previews(client).at(-1)).toEqual({
-      licensePriceId: GROWTH_MONTHLY,
-      trial: false,
-      dryRun: true,
-    });
-    // Without the trial the server prices none, which says nothing about whether it would have
-    // granted one: the checkbox stays, so that the customer can take it back.
-    expect(total()).not.toBe("$0.00 today");
-    const kept = skipBox();
-    expect(ticked(kept)).toBe(true);
-
-    await act(async () => fireEvent.click(kept));
-    await settle(300);
-    expect(ticked(skipBox())).toBe(false);
     expect(total()).toBe("$0.00 today");
-    cleanup();
-
-    await draw(selling());
     expect(screen.queryByRole("checkbox")).toBeNull();
-  });
+    expect(flow().querySelector('input[type="checkbox"]')).toBeNull();
+    expect(within(flow()).queryByText(/without the free trial/i)).toBeNull();
 
-  test("the trial's checkbox is the console's: a button, drawn by the primitive, with its state in data-checked", async () => {
-    await draw(selling(undefined, pricedWithTrial), { plan: growthPlan({ trialPeriodDays: 14 }) });
-    const skip = skipBox();
-    expect(skip.tagName).toBe("BUTTON");
-    expect(skip.getAttribute("data-slot")).toBe("checkbox");
-    expect(skip.hasAttribute("data-checked")).toBe(false);
-    // No tick is drawn until it is ticked.
-    expect(skip.querySelector('[data-slot="checkbox-indicator"]')).toBeNull();
-    // The browser's own box is nowhere in the flow.
-    expect(flow().querySelectorAll('input[type="checkbox"]:not([aria-hidden])')).toHaveLength(0);
-
-    await act(async () => fireEvent.click(skip));
-    await settle(300);
-    const afterClick = skipBox();
-    expect(afterClick.hasAttribute("data-checked")).toBe(true);
-    expect(afterClick.querySelector('[data-slot="checkbox-indicator"] svg')).not.toBeNull();
-  });
-
-  test("a click on the label's words ticks the box, as with the browser's own", async () => {
-    const client = selling(undefined, pricedWithTrial);
-    await draw(client, { plan: growthPlan({ trialPeriodDays: 14 }) });
-
-    await act(async () => fireEvent.click(screen.getByText(SKIP)));
-    await settle(300);
-    expect(ticked(skipBox())).toBe(true);
-    expect(previews(client).at(-1)?.trial).toBe(false);
-  });
-
-  test("the box is a stop of the tab order, which a button's space bar ticks (held in Chromium, by the story)", async () => {
-    await draw(selling(undefined, pricedWithTrial), { plan: growthPlan({ trialPeriodDays: 14 }) });
-
-    const skip = skipBox();
-    act(() => skip.focus());
-    expect(document.activeElement).toBe(skip);
-    expect(skip.getAttribute("tabindex")).not.toBe("-1");
-    // The hidden input Base UI keeps for a form is out of the tab order and of the accessibility tree.
-    const hidden = flow().querySelector('input[type="checkbox"]')!;
-    expect(hidden.getAttribute("aria-hidden")).toBe("true");
-    expect(hidden.getAttribute("tabindex")).toBe("-1");
-  });
-
-  test("while the checkout is being submitted the box is out of use", async () => {
-    const client = selling(() => new Promise<CheckoutResult>(() => {}), pricedWithTrial);
-    await draw(client, { plan: growthPlan({ trialPeriodDays: 14 }) });
     await press(button(/^Subscribe|^Start/));
-    expect(skipBox().matches(":disabled")).toBe(true);
+    expect(commits(client)).toHaveLength(1);
+    // No call asks the server to leave the trial out: the plan's own is the one it applies.
+    for (const input of callsOf(client, "checkout") as CheckoutInput[]) {
+      expect(input).not.toHaveProperty("trial");
+    }
   });
 
-  test("unstyled, the trial stays a native checkbox: the markup that rendering promises", async () => {
-    const client = selling(undefined, pricedWithTrial);
-    await draw(client, { plan: growthPlan({ trialPeriodDays: 14 }), unstyled: true });
-
-    const box = screen.getByLabelText(SKIP) as HTMLInputElement;
-    expect(box.tagName).toBe("INPUT");
-    expect(box.type).toBe("checkbox");
-    expect(box.checked).toBe(false);
-    expect(flow().querySelector('[data-slot="checkbox"]')).toBeNull();
-
-    await act(async () => fireEvent.click(box));
-    await settle(300);
-    expect((screen.getByLabelText(SKIP) as HTMLInputElement).checked).toBe(true);
-    expect(previews(client).at(-1)?.trial).toBe(false);
-  });
-
-  test("a customer who already took the plan's trial is not offered to start without it", async () => {
-    // The plan has a trial, and the server prices none for this customer: it was consumed.
-    const client = selling();
-    await draw(client, { plan: growthPlan({ trialPeriodDays: 14 }) });
-
-    expect(previews(client).at(-1)).toEqual({ licensePriceId: GROWTH_MONTHLY, dryRun: true });
-    expect(screen.queryByLabelText(SKIP)).toBeNull();
-    expect(within(flow()).queryByText(/Trial ends on/)).toBeNull();
-  });
-
-  test("the choice stays out while the next selection of such a customer is priced", async () => {
-    const client = selling();
-    await draw(client, { plan: growthPlan({ trialPeriodDays: 14 }) });
-    expect(screen.queryByLabelText(SKIP)).toBeNull();
-
-    // The selection moved, and the summary on screen is the last one's until the server answers.
-    await press(button("Add one Extra seats"));
-    expect(screen.queryByLabelText(SKIP)).toBeNull();
-    await settle(300);
-    expect(previews(client).at(-1)?.addOns).toEqual([{ addonSlug: "extra-seats-v1", quantity: 1 }]);
-    expect(screen.queryByLabelText(SKIP)).toBeNull();
-  });
-
-  test("a trial that comes back for a customer who has not taken it is offered again", async () => {
-    // A customer who took it and a plan whose trial the vendor has since turned back on for them.
-    let taken = true;
-    const client = selling(undefined, (input) =>
-      taken ? dryRun(input) : trialPreview("2026-02-01T00:00:00.000Z"),
+  test("unstyled, a plan with a trial has no checkbox either", async () => {
+    await draw(
+      selling(undefined, () => trialPreview("2026-02-01T00:00:00.000Z")),
+      {
+        plan: growthPlan({ trialPeriodDays: 14 }),
+        unstyled: true,
+      },
     );
-    await draw(client, { plan: growthPlan({ trialPeriodDays: 14 }) });
-    expect(screen.queryByLabelText(SKIP)).toBeNull();
-
-    taken = false;
-    await press(button("Add one Extra seats"), 300);
-    expect(screen.getByLabelText(SKIP)).toBeTruthy();
+    expect(within(flow()).getByText("Trial ends on Feb 1, 2026")).toBeTruthy();
+    expect(flow().querySelector('input[type="checkbox"]')).toBeNull();
   });
 
   test("a trial is nothing due today, and the day it ends", async () => {

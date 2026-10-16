@@ -151,15 +151,6 @@ export const STORIES: Array<{ name: string; storyId: string }> = [
   },
   { name: "checkout-flow--voucher-refused", storyId: "flows-checkoutflow--voucher-refused" },
   { name: "checkout-flow--free-trial", storyId: "flows-checkoutflow--free-trial" },
-  // The trial's checkbox ticked, in light and dark: the console's checkbox, a tick on the brand fill.
-  {
-    name: "checkout-flow--free-trial-skipped",
-    storyId: "flows-checkoutflow--free-trial-skipped",
-  },
-  {
-    name: "checkout-flow--free-trial-skipped-dark",
-    storyId: "flows-checkoutflow--free-trial-skipped-dark",
-  },
   {
     name: "checkout-flow--billing-email-needed",
     storyId: "flows-checkoutflow--billing-email-needed",
