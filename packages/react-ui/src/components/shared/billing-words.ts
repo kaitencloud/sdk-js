@@ -19,11 +19,13 @@ export const englishSubscriptionWords: KaitenSubscriptionWords = {
   active: "Active",
   pastDue: "Payment failed",
   canceled: "Canceled",
+  incomplete: "Awaiting payment",
   trialEndsOn: (isoDate) => `Trial ends on ${formatKaitenDate(isoDate)}`,
   endsOn: (isoDate) => `Ends on ${formatKaitenDate(isoDate)}`,
   changesOn: (price, isoDate) => `Changes to ${price} on ${formatKaitenDate(isoDate)}`,
   pastDueNotice: "Your latest payment didn't go through.",
   canceledNotice: "Your subscription has ended.",
+  incompleteNotice: "Your plan starts once your payment is confirmed.",
   none: "There's no subscription to show.",
   subscribe: "Subscribe",
 };

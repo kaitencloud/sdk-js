@@ -221,6 +221,7 @@ export const de: KaitenLocalization = {
     active: "Aktiv",
     pastDue: "Zahlung fehlgeschlagen",
     canceled: "Gekündigt",
+    incomplete: "Zahlung ausstehend",
     trialEndsOn: (isoDate) =>
       `Testphase endet am ${formatKaitenDate(isoDate, { locale: "de-DE" })}`,
     endsOn: (isoDate) => `Endet am ${formatKaitenDate(isoDate, { locale: "de-DE" })}`,
@@ -228,6 +229,7 @@ export const de: KaitenLocalization = {
       `Wechselt am ${formatKaitenDate(isoDate, { locale: "de-DE" })} zu ${price}`,
     pastDueNotice: "Ihre letzte Zahlung ist nicht durchgegangen.",
     canceledNotice: "Ihr Abonnement ist beendet.",
+    incompleteNotice: "Ihr Tarif beginnt, sobald Ihre Zahlung bestätigt ist.",
     none: "Es gibt kein Abonnement anzuzeigen.",
     subscribe: "Abonnieren",
   },

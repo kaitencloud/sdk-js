@@ -249,10 +249,12 @@ export function BillingSummary({
       : null;
 
   // What the portal says of the money, for whatever the host did not say itself: the price of the
-  // subscription while it lasts, and the labels of the payment method it is charged to.
+  // subscription while it lasts, and the labels of the payment method it is charged to. A
+  // subscription that waits for its first payment has the price of the plan it bought, beside the
+  // name of the plan the instance still has: it shows none until it starts.
   const subscription = sessionState?.subscription ?? null;
   const sessionPrice =
-    subscription && sessionState?.kind !== "canceled"
+    subscription && sessionState?.kind !== "canceled" && sessionState?.kind !== "incomplete"
       ? formatKaitenPrice(subscription.basePrice, localization)
       : null;
   const sessionPaymentMethod = portal?.paymentMethod
@@ -396,7 +398,8 @@ export function BillingSummary({
               {described?.change ? (
                 <p className="ktn-own text-xs text-ktn-muted-foreground">{described.change}</p>
               ) : null}
-              {sessionState?.kind === "canceled" && described?.notice ? (
+              {(sessionState?.kind === "canceled" || sessionState?.kind === "incomplete") &&
+              described?.notice ? (
                 <p className="ktn-own text-xs text-ktn-muted-foreground">{described.notice}</p>
               ) : null}
             </div>

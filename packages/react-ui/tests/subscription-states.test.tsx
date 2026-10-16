@@ -3,7 +3,8 @@
 // A customer session's subscription, said by the three components that show where it stands: the
 // current plan, the billing summary and the paywall. The portals are the ones Kaiten recorded for
 // Initech, and the states are the ones a subscription is in: running, in its trial, canceled and
-// ending with its period, past due, over, and the two sessions with no subscription to speak of.
+// ending with its period, past due, over, waiting for the first payment of its checkout, and the
+// two sessions with no subscription to speak of.
 // Nothing here reads a licence, and nothing reads the end date of one.
 
 import { readdirSync, readFileSync, statSync } from "node:fs";
@@ -39,6 +40,14 @@ const canceled = (() => {
   portal.subscription.status = "CANCELED";
   portal.upcomingInvoice = null;
   portal.capabilities = { ...portal.capabilities, unsubscribe: false, checkout: true };
+  return portal;
+})();
+
+/** A checkout that waits for its first payment: the instance still has its plan, Pro, and its limits. */
+const incomplete = (() => {
+  const portal: Record<string, any> = structuredClone(answers.portal);
+  portal.subscription.status = "INCOMPLETE";
+  portal.capabilities = { ...portal.capabilities, unsubscribe: false };
   return portal;
 })();
 
@@ -87,6 +96,19 @@ test("CurrentPlan: a subscription that is over says so, and shows no price", asy
   expect(container.querySelector('[data-slot="current-plan-price"]')).toBeNull();
 });
 
+test("CurrentPlan: a checkout that waits for its payment says the plan starts once it is confirmed", async () => {
+  const { container } = mount(sessionServer({ portal: incomplete }), <CurrentPlan />);
+  expect(await screen.findByText("Your plan starts once your payment is confirmed.")).toBeTruthy();
+  expect(container.querySelector('[data-slot="current-plan-status"]')?.textContent).toBe(
+    "Awaiting payment",
+  );
+  // Nothing it bought has started: it does not renew, and the price of the plan it bought is not
+  // shown beside the plan the instance still has.
+  expect(screen.queryByText(/^Renews on|^Ends on/)).toBeNull();
+  expect(container.querySelector('[data-slot="current-plan-price"]')).toBeNull();
+  expect(screen.queryByRole("button", { name: "Cancel subscription" })).toBeNull();
+});
+
 test("CurrentPlan: a plan change that is scheduled is said once, with its price and its day", async () => {
   mount(sessionServer({ portal: "portalScheduledChange" }), <CurrentPlan />);
   expect(await screen.findByText(`Changes to €490.00/year on ${NOV_1}`)).toBeTruthy();
@@ -112,6 +134,13 @@ test("CurrentPlan: in French", async () => {
   mount(sessionServer({ portal: "portalPastDue" }), <CurrentPlan />, fr);
   expect(await screen.findByText("Votre dernier paiement n'a pas abouti.")).toBeTruthy();
   expect(screen.getByText("Paiement échoué")).toBeTruthy();
+  cleanup();
+
+  mount(sessionServer({ portal: incomplete }), <CurrentPlan />, fr);
+  expect(
+    await screen.findByText("Votre offre démarre dès que votre paiement est confirmé."),
+  ).toBeTruthy();
+  expect(screen.getByText("Paiement en attente")).toBeTruthy();
 });
 
 // ---------------------------------------------------------------------------
@@ -161,6 +190,15 @@ test("BillingSummary: a subscription that is over", async () => {
   expect(summary().textContent).toContain("Your subscription has ended.");
   // It costs nothing any more.
   expect(flat(summary().textContent)).not.toContain("€49.00");
+});
+
+test("BillingSummary: a checkout that waits for its payment, with no price until the plan starts", async () => {
+  mount(sessionServer({ portal: incomplete }), <BillingSummary />);
+  await screen.findByText("Awaiting payment");
+  const text = flat(summary().textContent);
+  expect(text).toContain("Your plan starts once your payment is confirmed.");
+  expect(text).not.toContain("€49.00");
+  expect(text).not.toContain("Renews on");
 });
 
 test("BillingSummary: a session bound to the customer has no subscription to summarise, and says so", async () => {
@@ -240,6 +278,14 @@ test("Paywall: a payment that failed is said, and the wall is the same wall", as
   expect(await screen.findByText("Your latest payment didn't go through.")).toBeTruthy();
   expect(wallEl()!.getAttribute("data-subscription")).toBe("past_due");
   // The reason is the entitlement's, never the billing status's.
+  expect(["near_limit", "over_limit"]).toContain(wallEl()!.getAttribute("data-reason"));
+});
+
+test("Paywall: a plan that waits for its payment explains a wall the plan it bought would lift", async () => {
+  wall(incomplete);
+  expect(await screen.findByText("Your plan starts once your payment is confirmed.")).toBeTruthy();
+  expect(wallEl()!.getAttribute("data-subscription")).toBe("incomplete");
+  // The limits are the plan's the instance still has, and the reason is theirs.
   expect(["near_limit", "over_limit"]).toContain(wallEl()!.getAttribute("data-reason"));
 });
 

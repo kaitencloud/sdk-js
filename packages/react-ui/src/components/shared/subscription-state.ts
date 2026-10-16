@@ -7,7 +7,7 @@ import {
   type PortalSubscription,
 } from "@kaitencloud/react";
 
-// What a customer session's portal says of a subscription, in the five states a screen tells apart,
+// What a customer session's portal says of a subscription, in the six states a screen tells apart,
 // and what each is called. `CurrentPlan`, `BillingSummary` and `Paywall` read it from here, so that
 // the three say the same thing of the same subscription.
 //
@@ -17,12 +17,15 @@ import {
 /**
  * - `unbound`: the session is bound to the customer only, so there is no instance and no subscription.
  * - `unsubscribed`: an instance that has no subscription, or never had one.
+ * - `incomplete`: a checkout that waits for its first payment. What it bought starts once that is
+ *   confirmed: until then the instance keeps the plan and the limits it had.
  * - `trial`, `active`, `past_due`, `canceled`: the subscription's status.
  * - `unknown`: a status the API may add, which is shown by what the subscription says of its period.
  */
 export type SubscriptionStateKind =
   | "unbound"
   | "unsubscribed"
+  | "incomplete"
   | "trial"
   | "active"
   | "past_due"
@@ -48,15 +51,17 @@ export function subscriptionStateOf(portal: KaitenPortal | undefined): Subscript
     return { kind: "unsubscribed", subscription: null, ending: false, capabilities };
   }
   const kind: SubscriptionStateKind =
-    subscription.status === "TRIAL"
-      ? "trial"
-      : subscription.status === "ACTIVE"
-        ? "active"
-        : subscription.status === "PAST_DUE"
-          ? "past_due"
-          : subscription.status === "CANCELED"
-            ? "canceled"
-            : "unknown";
+    subscription.status === "INCOMPLETE"
+      ? "incomplete"
+      : subscription.status === "TRIAL"
+        ? "trial"
+        : subscription.status === "ACTIVE"
+          ? "active"
+          : subscription.status === "PAST_DUE"
+            ? "past_due"
+            : subscription.status === "CANCELED"
+              ? "canceled"
+              : "unknown";
   return {
     kind,
     subscription,
@@ -73,13 +78,13 @@ export function useSubscriptionState(): SubscriptionState | null {
 export type StatusTone = "neutral" | "warning" | "success";
 
 export interface SubscriptionDescription {
-  /** The status in a word: "Trial", "Payment failed", "Canceled". `null` for a subscription that is simply running. */
+  /** The status in a word: "Trial", "Awaiting payment", "Payment failed", "Canceled". `null` for a subscription that is simply running. */
   status: { label: string; tone: StatusTone } | null;
   /** When it renews, ends or leaves its trial. */
   detail: string | null;
   /** A plan change that is scheduled, said once. */
   change: string | null;
-  /** A sentence for a subscription that needs saying more of: past due, or over. */
+  /** A sentence for a subscription that needs saying more of: waiting for its first payment, past due, or over. */
   notice: string | null;
 }
 
@@ -105,6 +110,14 @@ export function describeSubscription(
     : null;
 
   switch (state.kind) {
+    case "incomplete":
+      // Nothing it bought has started, so it is not said to renew or to end.
+      return {
+        status: { label: words.incomplete, tone: "neutral" },
+        detail: null,
+        change,
+        notice: words.incompleteNotice,
+      };
     case "trial":
       return {
         status: { label: words.trial, tone: "neutral" },

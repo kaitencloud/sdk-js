@@ -48,6 +48,15 @@ const canceled = changed((portal) => {
 });
 
 /**
+ * A checkout that waits for its first payment: the instance still has its plan and its limits, and
+ * the activation invoice is open, to pay on the provider's page.
+ */
+const incomplete = changed((portal) => {
+  portal.subscription.status = "INCOMPLETE";
+  portal.capabilities = { ...portal.capabilities, unsubscribe: false };
+});
+
+/**
  * The recorded portal with the API calls of Initech at `used`: their 200,000 carry a 20% allowance,
  * so the API accepts usage up to 240,000.
  */
@@ -199,6 +208,40 @@ export const Trial: Story = {
     const canvas = await drawn(canvasElement);
     await expect(canvas.getByText("Trial")).toBeInTheDocument();
     await expect(canvas.getByText(/^Trial ends on/)).toBeInTheDocument();
+  },
+};
+
+export const Incomplete: Story = {
+  name: "Waiting for the payment of its checkout",
+  args: { elements: ["CurrentPlan", "AddOns", "InvoiceList"] },
+  decorators: [
+    portalDecorator({
+      portal: incomplete,
+      invoices: [
+        {
+          ...failed,
+          id: "inv_activation",
+          kind: "ACTIVATION",
+          status: "PUSHED",
+          providerInvoiceNumber: "INV-0005",
+        },
+      ],
+    }),
+  ],
+  play: async ({ canvasElement }) => {
+    const canvas = await drawn(canvasElement);
+    await expect(canvas.getByText("Awaiting payment")).toBeInTheDocument();
+    await expect(
+      canvas.getByText("Your plan starts once your payment is confirmed."),
+    ).toBeInTheDocument();
+    // It neither renews nor can be cancelled yet, and its add-ons wait for the payment too.
+    await expect(canvas.queryByText(/^Renews on/)).toBeNull();
+    await expect(canvas.queryByRole("button", { name: "Cancel subscription" })).toBeNull();
+    await expect(canvas.queryByRole("button", { name: "Manage add-ons" })).toBeNull();
+    await expect(await canvas.findByRole("link", { name: /^Pay / }, SLOW)).toHaveAttribute(
+      "rel",
+      "noopener noreferrer",
+    );
   },
 };
 

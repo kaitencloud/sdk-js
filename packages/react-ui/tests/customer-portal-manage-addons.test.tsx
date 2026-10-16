@@ -240,12 +240,14 @@ test("a subscription that waits for its checkout's payment has no panel, and say
   await screen.findAllByText("Extra seats");
 
   expect(screen.queryByRole("button", { name: "Manage add-ons" })).toBeNull();
-  // Said on each card that would have opened the panel.
+  // The plan says once that it starts when the payment is confirmed, and the add-ons card that
+  // they can change after that.
+  expect(screen.getAllByText("Your plan starts once your payment is confirmed.")).toHaveLength(1);
   expect(
     screen.getAllByText(
       "Your plan starts once your payment is confirmed. You can change add-ons after that.",
     ),
-  ).toHaveLength(2);
+  ).toHaveLength(1);
 });
 
 test("the stepper stops at the most an instance may hold, and at none", async () => {

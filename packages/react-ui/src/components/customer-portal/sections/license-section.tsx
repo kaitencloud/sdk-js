@@ -159,9 +159,15 @@ function CurrentPlanImpl({
   // `null` is the answer when the licence has no matching plan price, or when no
   // subscription is live, and it renders nothing at all. Not a "0.00", not a
   // placeholder: an invented amount on a billing screen is worse than an absent line.
+  // A subscription that waits for its first payment has the price of the plan it bought, and
+  // the plan named here is still the one the instance had: the two are not put side by side.
   const price = React.useMemo(() => {
     if (!license.data) {
-      return subscription && subscription.status !== "CANCELED" ? subscription.basePrice : null;
+      return subscription &&
+        subscription.status !== "CANCELED" &&
+        subscription.status !== "INCOMPLETE"
+        ? subscription.basePrice
+        : null;
     }
     return resolveLicensePrice(license.data, plans.data);
   }, [license.data, plans.data, subscription]);
@@ -460,11 +466,14 @@ function PlanActions({
 function ManagedPlanActions(props: PlanActionsProps) {
   const addOns = useSessionAddOns();
   const panel = useAddOnsPanel();
+  // A subscription that waits for its first payment opens no panel, and the plan above already
+  // says that it starts once the payment is confirmed: the add-ons card says the rest.
+  const waiting = addOns.live?.status === "INCOMPLETE";
   return (
     <PlanActions
       {...props}
       addOns={
-        addOns.rows.length > 0 || panel.active ? (
+        !waiting && (addOns.rows.length > 0 || panel.active) ? (
           <ManageAddOns addOns={addOns} panel={panel} unstyled={props.unstyled} inRow />
         ) : null
       }

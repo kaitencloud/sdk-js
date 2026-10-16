@@ -26,7 +26,8 @@ re-exports: an app that draws with Kaiten's components imports everything from h
   no total is computed in the browser. A voucher code is never left in the page, an address or a
   log.
 - **Summaries.** `BillingSummary`, `CurrentPlan` and `Paywall` say where a subscription stands
-  (running, in its trial, canceled and ending, past due, over), as the portal says it. Billing
+  (running, in its trial, canceled and ending, past due, over, or waiting for the first payment of
+  its checkout, whose plan starts once the payment is confirmed), as the portal says it. Billing
   status closes no wall.
 - **Usage, as the Kaiten console reads it.** `UsageMeters`, `EntitlementStatusBar`,
   `BillingSummary`, `IncludedFeatures` and the bar of a `Paywall` measure a quota against the

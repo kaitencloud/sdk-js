@@ -118,6 +118,11 @@ export interface KaitenSubscriptionWords {
   /** A subscription with an invoice past its due date. It changes nothing a customer may do. */
   pastDue: string;
   canceled: string;
+  /**
+   * A subscription whose checkout waits for its first payment (`INCOMPLETE`): what it bought,
+   * its plan and its add-ons, starts once that payment is confirmed.
+   */
+  incomplete: string;
   trialEndsOn: (isoDate: string) => string;
   /** The end of a subscription that was canceled and runs until its period is over. */
   endsOn: (isoDate: string) => string;
@@ -125,6 +130,8 @@ export interface KaitenSubscriptionWords {
   changesOn: (price: string, isoDate: string) => string;
   pastDueNotice: string;
   canceledNotice: string;
+  /** Said of a subscription that waits for its first payment: its plan starts once it is confirmed. */
+  incompleteNotice: string;
   /** Said where a subscription would be: a session bound to the customer, with no instance. */
   none: string;
   /** What a wall offers a customer who can buy a plan by themselves. */

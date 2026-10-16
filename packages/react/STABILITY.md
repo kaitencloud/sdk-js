@@ -194,7 +194,8 @@ the core lists here that `@kaitencloud/react-ui` imports only grows within a maj
     no empty card) when the portal says the provider cannot capture a payment method.
   - **The subscription in `CurrentPlan`, `BillingSummary` and `Paywall`** (`@kaitencloud/react-ui`),
     under `mode="customer-session"`: the status the portal gives (running, in its trial, canceled and
-    ending with its period, past due, over, or no subscription to speak of), when it renews or ends,
+    ending with its period, past due, over, waiting for the first payment of its checkout, or no
+    subscription to speak of), when it renews or ends,
     a plan change that is scheduled, and, in `BillingSummary`, the price of the subscription and the
     labels of the payment method (what the host passes in `billing` wins). Billing status closes no
     wall: a `Paywall` says where the subscription stands (`data-subscription`, and a sentence when it

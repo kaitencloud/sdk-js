@@ -261,13 +261,16 @@ function PaywallRoot({
 
   // Under a customer session the portal also says where the subscription stands. That never opens
   // or closes a wall (billing status closes none), but it explains one: a subscription that is over,
-  // a payment that failed, a cancellation or a trial that runs out. And a customer who can buy a plan
-  // by themselves is offered to subscribe, not to upgrade.
+  // a payment that failed, a plan bought that starts once its payment is confirmed, a cancellation
+  // or a trial that runs out. And a customer who can buy a plan by themselves is offered to
+  // subscribe, not to upgrade.
   const described = subscriptionState
     ? describeSubscription(subscriptionState, subscriptionWords, localization)
     : null;
   const note =
-    subscriptionState?.kind === "past_due" || subscriptionState?.kind === "canceled"
+    subscriptionState?.kind === "past_due" ||
+    subscriptionState?.kind === "canceled" ||
+    subscriptionState?.kind === "incomplete"
       ? (described?.notice ?? null)
       : subscriptionState?.ending || subscriptionState?.kind === "trial"
         ? (described?.detail ?? null)
