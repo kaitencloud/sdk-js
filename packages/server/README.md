@@ -230,6 +230,13 @@ for await (const invoice of billing.invoices.listAll({ updatedSince: lastSeenUpd
   `updatedAt` of the last one you read misses none.
 - `billing.invoices.get(invoiceId)` is one invoice with its lines, the customer and instance
   as they were when it was composed, its hold and its handoff.
+- An invoice read from the list or by id says whether it is `overdue` at that moment, the
+  grace period of automatic collection included: it is what the `overdue: true` filter
+  selects. The invoice a write answers, and the one an event carries, say `false`, so read it
+  from the list or the invoice itself.
+- A DRAFT that is held names why in `holdReason`: its usage journal failed a consistency check
+  (`LEDGER_SEQUENCE_GAP`, `LEDGER_CHAIN_BREAK`, `LEDGER_COUNTER_MISMATCH`), or its payment
+  provider cannot take that many lines (`PROVIDER_ITEM_LIMIT`).
 - `billing.invoices.markPaid(invoiceId, { paidAt?, externalReference?, note? })` records
   that a manual invoice was paid, and acknowledges it in the same write when it was still in
   the queue. An invoice a payment provider collects is settled there: a 409
@@ -249,8 +256,8 @@ wrapped: they are `Billing.writeOffInvoice`, `Billing.voidInvoice`, `Billing.rec
 ## Webhooks
 
 The contract declares the `com.kaiten.*` events, billing's among them (invoices issued,
-paid and handed off, subscriptions started and changed, payment methods, vouchers,
-publishable keys), and this package ships a typed payload for each — but a payload alone says
+paid and handed off, subscriptions started and changed, a trial about to end, payment methods,
+vouchers, publishable keys), and this package ships a typed payload for each — but a payload alone says
 nothing about **who sent it**. Verify the signature before acting on one; until you do, the
 endpoint is unauthenticated and it drives licences and usage.
 
