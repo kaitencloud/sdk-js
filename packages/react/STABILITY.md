@@ -32,11 +32,13 @@ everything a published UI package uses
   changelog.
 - **The _experimental_ surface:** a minor release may change its shape, and the
   changelog says so. Each item graduates to stable (and gains that guarantee) or
-  is removed.
+  is removed. A name of the core that `@kaitencloud/react-ui` imports is the exception:
+  it only grows within a major
+  ([Compatibility with `@kaitencloud/react-ui`](#compatibility-with-kaitencloudreact-ui)).
 - **`@experimental` JSDoc tag:** anything tagged `@experimental` may change shape
-  or be removed in a minor release. Your editor shows the tag where it describes the
-  name, and does not strike the name through: it does that for `@deprecated` only. This
-  document is the list to go by.
+  or be removed in a minor release, with the same exception. Your editor shows the tag
+  where it describes the name, and does not strike the name through: it does that for
+  `@deprecated` only. This document is the list to go by.
 
 ## The blessed path (most stable)
 
@@ -122,8 +124,9 @@ the rest of the blessed path:
   `useValidateVoucher` and `isPlausibleEmail`, the rule they apply to a billing email, with
   the types of their options and results. They need `mode="customer-session"`. Every amount
   they carry is the server's, from a checkout's `dryRun` or an invoice, and none is added up.
-  The refusals they name, a checkout's steps and the states of a voucher code may gain a
-  member in a minor release, by the rules of [Unions that grow](#unions-that-grow).
+  The refusals they name, a checkout's steps, and the states of a voucher code, of a payment
+  being waited on and of a payment-method page may gain a member in a minor release, by the
+  rules of [Unions that grow](#unions-that-grow).
 
 ## Subpath exports
 
@@ -150,7 +153,12 @@ added beside the old one; the old one is deprecated, and leaves in 2.0.
 
 ## Experimental surface
 
-Usable today, but **shape may change** in a minor release (treat as `@experimental`):
+Usable today, but **shape may change** in a minor release (treat as `@experimental`). A name
+the core lists here that `@kaitencloud/react-ui` imports only grows within a major (see
+[Compatibility with `@kaitencloud/react-ui`](#compatibility-with-kaitencloudreact-ui)): today
+`formatKaitenPrice`, `emitKaitenEvent`, `DEFAULT_CURRENCY_CODE`, and the types of words
+`KaitenCheckoutWords`, `KaitenPortalBillingWords`, `KaitenSubscriptionWords` and
+`KaitenPaymentMethodWords`.
 
 - **What `@kaitencloud/react-ui` adds.** Its styled components (default,
   non-`unstyled` rendering): `CustomerPortal` (and its sections
@@ -236,8 +244,8 @@ guarantees, set out in its [STABILITY.md](../client/STABILITY.md):
   in a minor release. Handle a value you do not know rather than assume the list
   is exhaustive.
 
-This package's own types follow the same rules, with the four unions of the next
-section as the one exception. The results of its hooks
+This package's own types follow the same rules, with the unions of the next section as
+the exception. The results of its hooks
 (`EntitlementCheckResult`, `PaywallTriggerResult`, `GateState`,
 `UseKaitenQueryResult`…) may gain optional members. The `reason` of
 `PaywallTriggerResult` and `GateState` is `PaywallReason`, an open union: a later
@@ -248,35 +256,51 @@ prop.
 
 ### Unions that grow
 
-Four unions of `@kaitencloud/react/billing` are written closed, so that a `switch` narrows
-each member to its own fields, and may still gain members: `CheckoutProblem` and
-`AddonQuantityProblem`, the refusals of a checkout and of a change to an add-on, told apart
-by `kind` (with the `reason` of each `CheckoutAddonRefusal`); `CheckoutStep`, where a
-checkout stands; and `CheckoutVoucherState`, where its voucher code stands. For the four:
+These unions of `@kaitencloud/react/billing` are written closed, so that a `switch` narrows
+each member to its own fields, and may still gain members:
+
+- `CheckoutProblem` and `AddonQuantityProblem`, the refusals of a checkout and of a change to
+  an add-on, told apart by `kind`, and `CheckoutAddonRefusal["reason"]`, why a checkout
+  refused each add-on of an `addon_refused`;
+- `CheckoutStep`, where a checkout stands, and `CheckoutVoucherState`, where its voucher code
+  stands;
+- `InvoiceSettlement["status"]`, what waiting on an invoice has come to (a checkout's
+  `payment.settlement` is one), and `UsePaymentMethodSessionResult["status"]`, where the
+  provider's page for a payment method stands.
+
+For all of them:
 
 - **A member is only ever added, in a minor release,** and the changelog names it. The
-  members of 1.0 keep their names, their meaning and their fields for all of 1.x; a member
-  may gain an optional field.
+  members of 1.0 keep their names, their meaning and their fields for all of 1.x, short of the
+  cases a new refusal or a new state takes from them by the next two points; a member may gain
+  an optional field.
 - **A new refusal comes out of `other`.** A refusal the hooks do not name is
   `{ kind: "other" }`, with the error itself in `error`, and a reason they do not name is
   `"other"`. A kind or a reason that a minor release adds names what was `other` until
   then, never what another member named: a host that handles `other` handles it already,
   in plainer words.
+- **A new state of a wait or of a payment-method page takes its case from the state that held
+  it, never from `paid` or `saved`.** An invoice voided while it is waited on, for one, is
+  `polling` and then `gave_up` until it has a state of its own. A host that knows only the
+  states of 1.0 never takes an unpaid invoice for paid, nor a payment method that was not
+  saved for saved.
 - **Keep a `default` branch.** For a refusal, say there what you say for `other`, and read
-  `error`. For a step, rely on what holds whatever the step: `canSubmit` says whether the
-  customer can subscribe, and `setup`, `result` and `payment` what there is to show. For a
-  voucher state, say nothing of the code: as far as you know, it is neither applied nor
-  refused. A `switch` that ends in an exhaustiveness check (`const unhandled: never = problem`)
-  stops compiling when a member is added: that is the warning it is written for, and the
-  addition is not a breaking change.
+  `error` (for `useCheckout`, `preview.error` while the customer is choosing). For a step,
+  rely on what holds whatever the step: `canSubmit` says whether the customer can subscribe,
+  and `setup`, `result` and `payment` what there is to show. For a voucher state, say nothing
+  of the code: as far as you know, it is neither applied nor refused. For the wait on an
+  invoice, take it as not paid: `invoice` is the invoice as last read, and `check()` reads it
+  again. For a payment-method page, take it that nothing was saved: `paymentMethod` is set once
+  `saved`, and `start()` opens the page again. A `switch` that ends in an exhaustiveness check
+  (`const unhandled: never = problem`) stops compiling when a member is added: that is the
+  warning it is written for, and the addition is not a breaking change.
 - **`@kaitencloud/react-ui` does the same**: each of its components keeps a fallback for a
   member it does not know, so a published `@kaitencloud/react-ui` reads what a later
   `@kaitencloud/react` 1.x adds.
 
-The other unions of `/billing` — the `status` of `CheckoutPreviewState`, of
-`InvoiceSettlement` and of `UsePaymentMethodSessionResult`, and `CheckoutSetup["opening"]` —
-are closed, and stay as they are for all of 1.x. `CheckoutPayment["status"]` is the client's
-`CheckoutPaymentStatus`, an open union.
+The other unions of `/billing`, the `status` of `CheckoutPreviewState` and
+`CheckoutSetup["opening"]`, are closed, and stay as they are for all of 1.x.
+`CheckoutPayment["status"]` is the client's `CheckoutPaymentStatus`, an open union.
 
 ## Practical guidance
 

@@ -50,9 +50,11 @@ What this package exports follows semantic versioning, the billing surface inclu
 `mode="public"`, `mode="customer-session"` and the hooks of `@kaitencloud/react/billing` are
 stable from 1.0.0, and need the first Kaiten release with billing. The exceptions may change in
 a minor release: the telemetry types, `formatKaitenPrice`, the words of the styled components,
-and a few small exports not yet classified. [`STABILITY.md`](STABILITY.md) lists both sides,
-for this package and for `@kaitencloud/react-ui`, and the rules by which the refusals, the steps
-and the voucher states of the billing hooks gain a member. The raw generated API (`KaitenApi`) is not exported here:
+and a few small exports not yet classified. One that `@kaitencloud/react-ui` imports only grows
+within a major, so that a published `@kaitencloud/react-ui` keeps working.
+[`STABILITY.md`](STABILITY.md) lists both sides, for this package and for
+`@kaitencloud/react-ui`, and the rules by which the refusals, the steps and the states of the
+billing hooks gain a member. The raw generated API (`KaitenApi`) is not exported here:
 import it from `@kaitencloud/client`.
 
 ### Hook naming
@@ -331,9 +333,9 @@ dependencies to import it. The session goes in `Authorization: Bearer kst_…`, 
 #### Billing hooks
 
 > **Served by Kaiten billing.** Like the mode they need, they need the first Kaiten
-> release with billing. Their refusals, a checkout's steps and the states of a voucher code
-> may gain a member in a minor release: keep a `default` branch
-> ([STABILITY.md](STABILITY.md#unions-that-grow)).
+> release with billing. Their refusals, a checkout's steps, and the states of a voucher code,
+> of a payment being waited on and of a payment-method page may gain a member in a minor
+> release: keep a `default` branch ([STABILITY.md](STABILITY.md#unions-that-grow)).
 
 `@kaitencloud/react/billing` holds what a checkout and a customer portal do, with no
 markup of its own: the selection and what it costs, the provider's page for a payment

@@ -147,7 +147,9 @@ export interface InvoiceSettlement {
    * `idle` when there is nothing to wait on, `polling` while the invoice is read on a
    * schedule, `paid` once it is, `failed` when its payment failed (only with `stopOnFailure`),
    * and `gave_up` when the schedule ran out first: the invoice is then read once more each
-   * time the window takes focus.
+   * time the window takes focus. A minor release may add a state, which takes its case from
+   * another and never from `paid`: take one you do not know as not paid (STABILITY.md,
+   * "Unions that grow").
    */
   status: "idle" | "polling" | "paid" | "failed" | "gave_up";
   /** The invoice as last read, `null` before the first read finds it. */

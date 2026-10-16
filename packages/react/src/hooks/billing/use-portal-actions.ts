@@ -299,7 +299,9 @@ export interface UsePaymentMethodSessionResult {
   /**
    * `idle`; `opening` while the page's address is asked for; `awaiting` while the customer
    * is on it; `saving` while the API checks with the provider that a payment method was
-   * saved; `saved`; `failed`.
+   * saved; `saved`; `failed`. A minor release may add a state, which takes its case from
+   * another and never from `saved`: take one you do not know as nothing saved (STABILITY.md,
+   * "Unions that grow").
    */
   status: "idle" | "opening" | "awaiting" | "saving" | "saved" | "failed";
   /** The payment method that is charged now, once `saved`. Its labels, never its number. */

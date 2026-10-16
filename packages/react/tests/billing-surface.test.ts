@@ -52,9 +52,13 @@ test("STABILITY.md names every export of the billing entry, and says it is stabl
   const growing = [
     "CheckoutProblem",
     "AddonQuantityProblem",
+    'CheckoutAddonRefusal["reason"]',
     "CheckoutStep",
     "CheckoutVoucherState",
+    'InvoiceSettlement["status"]',
+    'UsePaymentMethodSessionResult["status"]',
   ];
   const section = STABILITY.slice(STABILITY.indexOf("### Unions that grow"));
-  expect(growing.filter((name) => !section.includes(`\`${name}\``))).toEqual([]);
+  const listed = section.slice(0, section.indexOf("For all of them:"));
+  expect(growing.filter((name) => !listed.includes(`\`${name}\``))).toEqual([]);
 });
