@@ -14,7 +14,7 @@ import { useKaitenDataContext } from "@kaitencloud/react/internal";
 import { useMergedAppearance } from "../../../appearance/context.tsx";
 import type { KaitenAppearance } from "../../../appearance/types.ts";
 import { cn } from "../../../lib/utils.ts";
-import { addonUnitPrice, saleOfSubscription } from "../../shared/addon-fee.ts";
+import { addonFeeFor, addonUnitPrice, saleOfSubscription } from "../../shared/addon-fee.ts";
 import { usePortalBillingWords } from "../../shared/billing-words.ts";
 import { Action, Message } from "../../shared/feedback.tsx";
 import { useFocusScope } from "../../shared/focus.ts";
@@ -31,9 +31,10 @@ interface Row {
 
 /**
  * The add-ons of a customer session, with the controls to change how many it holds: the ones the
- * instance holds, and the public add-ons of the catalogue that fit its plan, when the provider reads
- * the catalogue. An add-on set to none leaves the portal, so one that was seen stays on screen for
- * as long as the section does, and can be added back.
+ * instance holds, and the public add-ons of the catalogue that fit its plan and that its
+ * subscription can be billed, when the provider reads the catalogue. An add-on set to none leaves
+ * the portal, so one that was seen stays on screen for as long as the section does, and can be
+ * added back.
  *
  * Each press is one change: the quantity is the server's to set, `0` detaching it, and a refusal is
  * the answer. A change is billed from the next renewal, with nothing refunded, which is said before
@@ -65,8 +66,16 @@ export function SessionAddOns({
   const rows = React.useMemo<Row[]>(() => {
     if (!data) return [];
     const plan = catalog?.plans.find((candidate) => candidate.slug === data.instance?.licenseSlug);
+    // A live subscription is sold an add-on only at a fee of its own currency and billing period:
+    // Kaiten refuses one priced in another currency, or with no fee for the period, so neither is
+    // offered. Without one, nothing is billed and nothing is checked.
+    const live = subscription && subscription.status !== "CANCELED" ? subscription : null;
+    const sale = live ? saleOfSubscription(live) : null;
     const offered = (catalog?.addOns ?? []).filter(
-      (addon) => !!addon.familySlug && plan?.compatibleAddonFamilies?.includes(addon.familySlug),
+      (addon) =>
+        !!addon.familySlug &&
+        !!plan?.compatibleAddonFamilies?.includes(addon.familySlug) &&
+        (sale === null || addonFeeFor(addon, sale) !== null),
     );
     const held = new Map(data.addOns.map((addon) => [addon.slug, addon] as const));
     for (const addon of data.addOns) seen.current.set(addon.slug, addon);
@@ -79,7 +88,7 @@ export function SessionAddOns({
       quantity: held.get(addon.slug)?.quantity ?? 0,
       max: addon.maxQuantity ?? null,
     }));
-  }, [data, catalog]);
+  }, [data, catalog, subscription]);
 
   if (portal.isLoading) {
     return (
