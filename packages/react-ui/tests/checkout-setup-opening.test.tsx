@@ -29,7 +29,10 @@ import {
 /** A way of opening the page that no release of the core names today. */
 const UNKNOWN_OPENING = "in_a_side_panel";
 
-/** The openings the component was handed, so that the test knows the double was in place. */
+/**
+ * The openings the component was handed, so that the test knows the double was in place. Emptied
+ * before each case: what the styled one was handed proves nothing of the unstyled one.
+ */
 const handed = vi.hoisted(() => new Set<unknown>());
 
 vi.mock("@kaitencloud/react/billing", async (importOriginal) => {
@@ -49,6 +52,7 @@ vi.mock("@kaitencloud/react/billing", async (importOriginal) => {
 const SETUP_URL = "https://pay.example.test/setup/cs_1";
 
 beforeEach(() => {
+  handed.clear();
   vi.useFakeTimers(FAKE_TIMERS);
   vi.setSystemTime(new Date(DEMO_SESSION_NOW));
   window.sessionStorage.clear();
