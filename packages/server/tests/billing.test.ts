@@ -293,6 +293,17 @@ describe("billing.invoices.list", () => {
     expect(search.get("limit")).toBe("50");
   });
 
+  test("says which invoices are overdue when read, the ones the overdue filter selects", async () => {
+    const { billing, seen } = billingAnswering(() =>
+      json({ hasMore: false, items: [{ ...summary("a"), status: "PUSHED", overdue: true }] }),
+    );
+
+    const result = await billing.invoices.list({ overdue: true });
+
+    expect(url(seen[0]!).searchParams.get("overdue")).toBe("true");
+    expect(result.items[0]).toMatchObject({ id: "a", status: "PUSHED", overdue: true });
+  });
+
   test("asks for nothing it was not asked for", async () => {
     const { billing, seen } = billingAnswering(() => json(page([])));
 
@@ -429,6 +440,23 @@ describe("billing.invoices.get", () => {
   });
 });
 
+describe("a held draft", () => {
+  test("names the provider's line limit as its reason, beside the usage journal's", async () => {
+    const held = invoice({
+      status: "DRAFT",
+      issuedAt: null,
+      dueAt: null,
+      holdReason: "PROVIDER_ITEM_LIMIT",
+    });
+    const { billing } = billingAnswering(() => json(held));
+
+    const result = await billing.invoices.get(INVOICE_ID);
+
+    expect(result.status).toBe("DRAFT");
+    expect(result.holdReason).toBe("PROVIDER_ITEM_LIMIT");
+  });
+});
+
 describe("billing.invoices.markPaid", () => {
   test("marks an invoice paid with the reference it was booked under", async () => {
     const paid = invoice({ status: "PAID", paidAt: "2026-10-12T00:00:00Z" });
@@ -558,6 +586,23 @@ describe("the types of the helpers", () => {
     expectTypeOf<ReturnType<KaitenInvoices["listAll"]>>().toEqualTypeOf<
       AsyncGenerator<InvoiceSummary, void, undefined>
     >();
+  });
+
+  test("an invoice says whether it is overdue, on its read and in the list", () => {
+    expectTypeOf<Invoice["overdue"]>().toEqualTypeOf<boolean>();
+    expectTypeOf<InvoiceSummary["overdue"]>().toEqualTypeOf<boolean>();
+    expectTypeOf<KaitenInvoiceFilters["overdue"]>().toEqualTypeOf<boolean | undefined>();
+  });
+
+  test("a draft is held for its usage journal or for its provider's line limit", () => {
+    expectTypeOf<Invoice["holdReason"]>().toEqualTypeOf<
+      | "LEDGER_SEQUENCE_GAP"
+      | "LEDGER_CHAIN_BREAK"
+      | "LEDGER_COUNTER_MISMATCH"
+      | "PROVIDER_ITEM_LIMIT"
+      | null
+    >();
+    expectTypeOf<InvoiceSummary["holdReason"]>().toEqualTypeOf<Invoice["holdReason"]>();
   });
 
   test("the filters are the list query of the contract", () => {
