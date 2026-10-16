@@ -13,7 +13,7 @@ import { useKaitenDataContext } from "@kaitencloud/react/internal";
 import { useMergedAppearance } from "../../../appearance/context.tsx";
 import type { KaitenAppearance } from "../../../appearance/types.ts";
 import { cn } from "../../../lib/utils.ts";
-import { addonFeeFor, addonUnitPrice, saleOfSubscription } from "../../shared/addon-fee.ts";
+import { addonUnitPrice, attachableTo, saleOfSubscription } from "../../shared/addon-fee.ts";
 import { usePortalBillingWords } from "../../shared/billing-words.ts";
 import { Action, Message } from "../../shared/feedback.tsx";
 import { useFocusScope } from "../../shared/focus.ts";
@@ -52,8 +52,8 @@ function refusalText(problem: AddonQuantityProblem, words: KaitenPortalBillingWo
 
 /**
  * The add-ons of a customer session, with the controls to change how many it holds: the ones the
- * instance holds, and the public add-ons of the catalogue that fit its plan and that its
- * subscription can be billed, when the provider reads the catalogue. An add-on set to none leaves
+ * instance holds, and the public add-ons of the catalogue that fit its plan and that Kaiten attaches
+ * to its subscription, when the provider reads the catalogue. An add-on set to none leaves
  * the portal, so one that was seen stays on screen for as long as the section does, and can be
  * added back.
  *
@@ -87,16 +87,16 @@ export function SessionAddOns({
   const rows = React.useMemo<Row[]>(() => {
     if (!data) return [];
     const plan = catalog?.plans.find((candidate) => candidate.slug === data.instance?.licenseSlug);
-    // A live subscription is sold an add-on only at a fee of its own currency and billing period:
-    // Kaiten refuses one priced in another currency, or with no fee for the period, so neither is
-    // offered. Without one, nothing is billed and nothing is checked.
+    // A live subscription is offered only what Kaiten attaches to it: an add-on priced in its
+    // currency and, for a paid one with flat fees, with a default fee for its billing period.
+    // Without one, nothing is billed and nothing is checked.
     const live = subscription && subscription.status !== "CANCELED" ? subscription : null;
     const sale = live ? saleOfSubscription(live) : null;
     const offered = (catalog?.addOns ?? []).filter(
       (addon) =>
         !!addon.familySlug &&
         !!plan?.compatibleAddonFamilies?.includes(addon.familySlug) &&
-        (sale === null || addonFeeFor(addon, sale) !== null),
+        (sale === null || attachableTo(addon, sale)),
     );
     const held = new Map(data.addOns.map((addon) => [addon.slug, addon] as const));
     for (const addon of data.addOns) seen.current.set(addon.slug, addon);
