@@ -25,12 +25,139 @@ vp dev            # http://localhost:5173
 
 ## The theme
 
-The header has a Light / Dark / System switch, remembered in `localStorage`. One preference has two
-readers, both set up in [`src/theme.ts`](src/theme.ts): the page's own tokens read the `dark` class
-that is put on `<html>` (an inline script in `index.html` does it before the first paint, so a dark
-page never starts light), and the components read the same choice through
-`<KaitenStyleRoot appearance={{ baseTheme }}>`, which follows the operating system by itself while it
-is `"system"`. The stylesheet is plain CSS: tokens on `:root`, redefined under `:root.dark`.
+The header has two controls, and they are two separate choices: the **colour mode** (Light / Dark /
+System) and the **theme** (Kaiten, Claude or Neo Brutalism). Every theme has a Light and a Dark, and
+System follows the operating system under any of them. Each choice is remembered in `localStorage`
+under its own key (`storefront-theme` and `storefront-palette`, wrapped in try/catch: a blocked
+storage gives System and Kaiten), and an inline script in `index.html` puts both on `<html>` before
+the first paint, so that a dark page never starts light and a themed one never starts in the Kaiten
+look.
+
+**Kaiten** is the storefront's own look and overrides nothing. **Claude** and **Neo Brutalism** are
+themes taken from [tweakcn.com](https://tweakcn.com), pasted as they were exported and kept in the
+shape shadcn/ui gives a theme: a block of tokens for light and one for dark (`--background`,
+`--primary`, `--radius`, `--font-sans`, `--shadow-*`, and so on), as
+[`src/themes/claude.ts`](src/themes/claude.ts) and
+[`src/themes/neo-brutalism.ts`](src/themes/neo-brutalism.ts). The Kaiten console is meant to let a
+vendor make a theme the same way, so the storefront consumes that exact shape.
+
+```
+src/themes/shadcn.ts          the shape of a theme, and how an override is applied to an export
+src/themes/claude.ts          a tweakcn theme as exported, and the overrides listed beside it
+src/themes/neo-brutalism.ts   the same
+src/themes/to-appearance.ts   a theme to the components' KaitenAppearance: the one place
+src/themes/page-css.ts        a theme to the page's own tokens (--bg, --surface, --brand, ...)
+src/themes/palettes.ts        the themes of the picker
+src/palette.ts                the choice: state, storage, <html data-palette>
+```
+
+### One mapper to the components
+
+[`toAppearance()`](src/themes/to-appearance.ts) turns a theme into the `variables`, `modes.light`,
+`modes.dark` and `elements` of a `KaitenAppearance`, and `app.tsx` passes it as
+`<KaitenStyleRoot appearance={{ baseTheme, ...appearance }}>`. It is small, pure and unit-tested
+([`tests/themes.test.ts`](tests/themes.test.ts)), because it is where a console-made theme would plug
+in: give it the two blocks of tokens and it gives back what the components take.
+
+- Every shadcn colour that has a `KaitenVariables` key is mapped per mode, and **every foreground is
+  passed explicitly**: the SDK derives a missing one from a hex fill only, and a theme made in a
+  console may well arrive in oklch (the mapper passes any CSS colour through as it is).
+- Hover fills have no shadcn token. The mapper derives them: a tenth toward black under a light label
+  and toward white under a dark one (the other way for a fill with no room left, a near-white one under
+  dark text), and `color-mix()` for a colour that is not hex. The SDK's own
+  derivation would give a purple hover to such a colour.
+- The radius and the sans font hold in both modes, so they go to `variables`.
+
+### The page follows
+
+The storefront's own tokens read from the same theme object, not from a second copy of its values.
+[`src/themes/page-css.ts`](src/themes/page-css.ts) turns each block into rules scoped by
+`:root[data-palette="claude"]` and `:root[data-palette="claude"].dark`, and `vite.config.ts` puts them
+in the `<head>` of the page when it is built or served, which is what lets them be there before the
+first paint (a stylesheet written when the app starts would show the Kaiten look for a moment).
+`--bg`, `--surface`, `--text`, `--text-muted`, `--border`, `--brand`, `--brand-contrast`, `--focus`,
+`--radius`, `--font` and the shadows come straight from the tokens; `--brand-hover` is derived like the
+components' hover, and `--brand-text` (the brand colour as text) and `--brand-soft` (its tint) are
+derived so that the brand colour still reads at 4.5:1 on the page, on a card and on its own tint. The
+page's corners all follow the one radius. With Kaiten selected none of this applies: its screenshots
+are pixel for pixel those from before the picker existed, the header's new control apart.
+
+The values are written into CSS as they are. They are constants of the storefront here; a theme that
+comes from somewhere else has to be validated before it goes through `page-css.ts`.
+
+### What was changed in the two themes
+
+The values are kept as exported. The few that fail WCAG AA (4.5:1) for text are changed as a listed
+override next to the export (`claudeOverrides`, `neoBrutalismOverrides`), applied to a copy: an
+override states the value it replaces and throws if the export no longer holds it. A button label
+stays white on the brand fill, so it is the fill that gives way, by the smallest darkening that
+reaches 4.5:1 (the channels move toward black in steps of 0.5%, so hue and saturation are kept).
+`tests/themes.test.ts` holds that the failing pairs of each export are exactly the ones below.
+
+| Theme         | Mode  | Token              | Exported  | Used      | Contrast, before to after                                             |
+| ------------- | ----- | ------------------ | --------- | --------- | --------------------------------------------------------------------- |
+| Claude        | Light | `primary`          | `#c96442` | `#b95c3d` | 3.90 to 4.51 under the white label                                    |
+| Claude        | Light | `muted-foreground` | `#83827d` | `#6a6965` | 3.17 to 4.53 on the muted fill, 3.65 to 5.22 on the page and the card |
+| Claude        | Dark  | `primary`          | `#d97757` | `#b06046` | 3.12 to 4.56 under the white label                                    |
+| Claude        | Dark  | `destructive`      | `#ef4444` | `#d73d3d` | 3.76 to 4.54 under the white label                                    |
+| Neo Brutalism | Light | `primary`          | `#ff3333` | `#e22d2d` | 3.64 to 4.52 under the white label                                    |
+
+Every other pair that the components draw (primary, destructive, secondary, accent, popover, card and
+page, muted text on the page and on the card, and each hover) reads at 4.5:1 or more in both modes.
+Two things the 4.5:1 rule does not cover were left as exported: the `input` borders of Claude are
+2.02:1 (Light) and 1.90:1 (Dark) against the page, under the 3:1 that WCAG asks of a control's edge,
+and Neo Brutalism's shadows are black, so they do not show on its black Dark page. The thickness of
+Neo Brutalism's borders (2px) is not in tweakcn's export: it is the storefront's, in `palettes.ts`.
+Darkening Claude's dark `primary` for a white label leaves it at 3.33:1 against the page, which is
+enough for a fill and an icon and not for the brand colour used as text there; the page's own
+`--brand-text` is derived for that, and the components have no second primary for it.
+
+DM Sans and Space Mono, which Neo Brutalism names, are not loaded: the storefront adds no web font
+and no dependency, so both fall back to the system sans and monospace stacks.
+
+To add a theme: paste its export into a file of `src/themes` in the same shape, add it to
+`palettes.ts` and to the list in the inline script of `index.html`, and run `vp test`: the contrast
+tests name each pair that needs an override.
+
+### What the `appearance` API could not express
+
+A note for the SDK's maintainers. Each item is something a tweakcn theme asks for and
+`KaitenAppearance` has no way to say; the storefront did not change the API, and worked around each
+in its own CSS, through the public `elements` slots where one reaches the part, and through the
+`data-slot` attributes where none does. It overrides no `--ktn-*` property.
+
+- **Shadows.** `KaitenVariables` has no shadow key, although the stylesheet has `--ktn-shadow-*`.
+  Neo Brutalism is mostly its `4px 4px 0 0` offset shadow, so cards get it through `elements.card`
+  and `elements.pricingCard` (`.themed-card`), and buttons through `[data-slot="button"]`.
+  A shadow of a button's own takes the focus ring (also a shadow) with it, which the CSS puts back.
+- **Border width.** There is no key and no token for it. Neo Brutalism's 2px borders come from the
+  same classes and rules, and from one custom property of the storefront's.
+- **`elements.button` does nothing.** It is declared, and no component reads it: the same for
+  `badge`, `cardDescription`, `cardFooter`, `skeleton`, `separator` and `gateLockedIcon`. Buttons
+  are reached by `[data-slot="button"]`, which makes a `data-slot` selector part of what a theme
+  relies on.
+- **The gradient button.** The highlighted plan's button is the brand gradient
+  (`--ktn-primary-gradient`, class `ktn-cta-gradient`), whatever `colorPrimary` is, and there is no
+  key for it. A themed button gets a flat fill: `background-image: none` on every button.
+- **Fixed corners.** The pricing table (`rounded-[1.5rem]`) and its plans (`rounded-[1rem]`) ignore
+  `borderRadius`; the portal's and checkout's cards follow it (as `radius + 4px`, so a radius of 0
+  still gives 4px, as it does in shadcn). Plans take the same formula through `elements.pricingCard`;
+  the table has no slot and is found by `[data-slot="pricing-table"]`.
+- **Fonts.** `fontFamily` sets `--ktn-font-sans` only. Card titles use `--ktn-font-display` and `code`
+  (the `/month` of a price) uses `--ktn-font-mono`, both with no key, and `font-serif` has none: a theme
+  with its own mono or heading face cannot have it on the components.
+- **Tracking, spacing, charts, sidebar.** No key, no effect here: both themes leave tracking and
+  spacing at the defaults, and no component the storefront draws reads a chart or sidebar token.
+- **Success, warning and the tinted destructive surface.** shadcn has no such tokens, so they stay
+  the Kaiten defaults in a theme (the green badges, the pale error panel). The `colorWarning*` tokens
+  of the stylesheet have no key at all.
+- **One primary for two jobs.** `colorPrimary` is both the fill under a white label and the text and
+  icon colour of the primary (the `link` button, the icons of the portal's card titles). In Dark the
+  first needs a darker value than the second can use; shadcn themes avoid it with a dark label on a
+  light primary, and the storefront keeps its labels white.
+- **A theme in a console's notation.** The SDK derives foregrounds, hovers and neutral surfaces from
+  hex only, so a theme in oklch has to carry all of them: that is why the mapper passes every
+  foreground and derives the hovers itself.
 
 ## Changing plan
 
@@ -118,16 +245,16 @@ this example's build for a token, the name of a secret variable and code of `@ka
 
 ## What is here
 
-| Path                                                 | What it is                                                                    |
-| ---------------------------------------------------- | ----------------------------------------------------------------------------- |
-| [`src/`](src)                                        | the page: provider, router, the screens, the journey page, the theme switcher |
-| [`server/session-route.ts`](server/session-route.ts) | `POST /storefront-api/session`, the route to put behind your own sign-in      |
-| [`server/plugin.ts`](server/plugin.ts)               | mounts the backend on `vp dev` and `vp preview`; nothing in `src/` imports it |
-| [`server/vendor-route.ts`](server/vendor-route.ts)   | the vendor's scheduled plan change, for the journey page; the stand-in only   |
-| [`server/environment.ts`](server/environment.ts)     | which Kaiten to talk to, read from the environment                            |
-| [`server/double/`](server/double)                    | the stand-in for Kaiten                                                       |
-| [`tests/`](tests)                                    | unit tests of the backend and of the stand-in                                 |
-| [`e2e/`](e2e)                                        | Playwright tests of the page in Chromium                                      |
+| Path                                                 | What it is                                                                                                              |
+| ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| [`src/`](src)                                        | the page: provider, router, the screens, the journey page, the colour mode and theme controls, [the themes](src/themes) |
+| [`server/session-route.ts`](server/session-route.ts) | `POST /storefront-api/session`, the route to put behind your own sign-in                                                |
+| [`server/plugin.ts`](server/plugin.ts)               | mounts the backend on `vp dev` and `vp preview`; nothing in `src/` imports it                                           |
+| [`server/vendor-route.ts`](server/vendor-route.ts)   | the vendor's scheduled plan change, for the journey page; the stand-in only                                             |
+| [`server/environment.ts`](server/environment.ts)     | which Kaiten to talk to, read from the environment                                                                      |
+| [`server/double/`](server/double)                    | the stand-in for Kaiten                                                                                                 |
+| [`tests/`](tests)                                    | unit tests of the backend, of the stand-in and of the themes                                                            |
+| [`e2e/`](e2e)                                        | Playwright tests of the page in Chromium                                                                                |
 
 The route signs in one fixed customer, because the storefront has no accounts. In your own
 application it sits behind your sign-in, reads who the user is, and mints a session for that
@@ -251,6 +378,10 @@ a script, and the live project reads them.
     the pricing table, the free subscription ended with no invoice, Change plan and where it leads, and
     scenarios driven through the page's own buttons (a trial ended into its invoice, a renewal that fails
     and is paid from the portal, a plan change the vendor schedules and the boundary applies).
+  - `theme.spec.ts` is the colour mode and the theme: System following the operating system, a
+    choice kept across a reload and applied before the first paint, Claude's and Neo Brutalism's
+    values on the page and on the components in Light and in Dark, going back to Kaiten, and a header
+    and pages that do not scroll sideways at 380 and 320px with any theme.
 - **`live`**, `live.spec.ts`, against your Kaiten. It is skipped without the variables below, and
   fails if only some are set. It subscribes the instance it is given, to a free plan, so the instance
   must have no subscription: a new one for each run.
