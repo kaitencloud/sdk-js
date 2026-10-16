@@ -311,9 +311,14 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
     events.push({ type, at: iso(at.getTime()), detail });
   };
 
-  /** A subscription, as the portal reads it, on a price of the catalogue. */
+  /**
+   * A subscription, as the portal reads it, on a price of the catalogue. A trial's period is the
+   * trial: it ends when the trial does, and the first billing period starts then.
+   */
   const newSubscription = (price: Json, from: Date, trialEndsAt: string | null): Json => {
-    const end = addMonths(from, MONTHS[price.billingPeriod] ?? 1);
+    const end = trialEndsAt
+      ? new Date(trialEndsAt)
+      : addMonths(from, MONTHS[price.billingPeriod] ?? 1);
     subscriptionMeta = {
       id: randomUUID(),
       anchorAt: iso(from.getTime()),

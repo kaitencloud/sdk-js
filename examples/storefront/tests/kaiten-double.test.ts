@@ -770,6 +770,12 @@ describe("the next boundary", () => {
     await session.checkout({ licensePriceId: GROWTH_MONTHLY });
     expect(double.state()).toMatchObject({ status: "TRIAL", invoices: [] });
     const trialEndsAt = double.state().trialEndsAt!;
+    // The trial's period is the trial: the portal says it ends when the trial does.
+    expect((await session.getPortal()).subscription).toMatchObject({
+      status: "TRIAL",
+      trialEndsAt,
+      currentPeriodEnd: trialEndsAt,
+    });
 
     const ended = double.endTrial(ORIGIN);
     expect(ended).toMatchObject({ ok: true, applied: "trial_converted" });
