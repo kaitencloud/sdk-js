@@ -283,6 +283,10 @@ export const de: KaitenLocalization = {
       `Sofort entfernt. Ihre Verlängerung am ${formatKaitenDate(isoDate, { locale: "de-DE" })} berechnet sie nicht mehr, und für den laufenden Zeitraum wird nichts erstattet.`,
     addonEnding: (isoDate) =>
       `Gilt sofort. Ihr Abonnement endet am ${formatKaitenDate(isoDate, { locale: "de-DE" })} und wird nicht verlängert.`,
+    addonBilledFromTrialEnd: (isoDate) =>
+      `Gilt sofort und wird ab dem Ende Ihrer Testphase am ${formatKaitenDate(isoDate, { locale: "de-DE" })} berechnet.`,
+    addonRemovedInTrial: (isoDate) =>
+      `Sofort entfernt. Zum Ende Ihrer Testphase am ${formatKaitenDate(isoDate, { locale: "de-DE" })} wird es nicht berechnet.`,
     addonUnbilled: "Gilt sofort. Ohne Abonnement wird nichts berechnet.",
     addonTrueUpNote:
       "Eine höhere Menge kann auf Ihrer nächsten Rechnung auch für den laufenden Zeitraum berechnet werden, zur höchsten darin gehaltenen Menge.",

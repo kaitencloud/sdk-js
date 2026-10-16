@@ -202,6 +202,44 @@ test("a subscription that ends renews nothing, and without one nothing is billed
   expect(inPanel().queryByText(/A higher quantity/)).toBeNull();
 });
 
+test("in a trial, a change is billed from the trial's end, with no word of the current period", async () => {
+  // The trial's period is the trial: it ends when the trial does, before the month would.
+  const portal: Record<string, any> = structuredClone(answers.portal);
+  portal.subscription = {
+    ...portal.subscription,
+    status: "TRIAL",
+    trialEndsAt: "2026-10-15T00:00:00Z",
+    currentPeriodEnd: "2026-10-15T00:00:00Z",
+  };
+  mount(sessionServer({ portal }), <AddOns />);
+  await openPanel();
+  await pressInPanel("Add one Extra seats");
+  await pressInPanel("Remove one GPU pack");
+
+  const end = formatKaitenDate("2026-10-15T00:00:00Z");
+  expect(changes()).toEqual([
+    `Extra seats 3 → 4 +1 × €10.00/monthTakes effect now, and is billed from the end of your trial on ${end}.`,
+    `GPU pack 1 → 0 −1Removed now. It isn't billed when your trial ends on ${end}.`,
+  ]);
+  // A trial is never trued up: nothing is said of the current period.
+  expect(inPanel().queryByText(/A higher quantity/)).toBeNull();
+});
+
+test("a subscription that waits for its checkout's payment has no panel, and says when add-ons can change", async () => {
+  const portal = structuredClone(answers.portal);
+  portal.subscription = { ...portal.subscription, status: "INCOMPLETE" };
+  mount(sessionServer({ portal }), <CustomerPortal elements={["CurrentPlan", "AddOns"]} />);
+  await screen.findAllByText("Extra seats");
+
+  expect(screen.queryByRole("button", { name: "Manage add-ons" })).toBeNull();
+  // Said on each card that would have opened the panel.
+  expect(
+    screen.getAllByText(
+      "Your plan starts once your payment is confirmed. You can change add-ons after that.",
+    ),
+  ).toHaveLength(2);
+});
+
 test("the stepper stops at the most an instance may hold, and at none", async () => {
   const portal = structuredClone(answers.portal);
   portal.addOns[0]!.quantity = 50;

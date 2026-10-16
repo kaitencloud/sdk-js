@@ -20,6 +20,12 @@ import { getAddonDisplayPrice } from "./addon-price.ts";
 /** One add-on of a customer session's portal, and how many units of it the instance holds. */
 export interface SessionAddonRow {
   addon: Addon;
+  /**
+   * The add-on its fees are read from: the catalogue's of the same version when the catalogue
+   * lists it, which carries the fee of every billing period; else `addon`, whose portal entry
+   * carries the fee of the subscription's period alone.
+   */
+  version: Addon;
   /** The quantity the server holds: `0` for an add-on that is offered and not held. */
   quantity: number;
   /** The most one instance may hold, `null` when unbounded. */
@@ -82,6 +88,7 @@ export function useSessionAddOns(): SessionAddOns {
     );
     const row = (addon: Addon, quantity: number): SessionAddonRow => ({
       addon,
+      version: catalog?.addOns?.find((each) => each.slug === addon.slug) ?? addon,
       quantity,
       max: addon.maxQuantity ?? null,
     });

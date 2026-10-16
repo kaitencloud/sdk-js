@@ -213,9 +213,11 @@ const SCENARIOS = [
     // Measured at 61 543 bytes, up from 59 730: the add-ons panel, where quantities are set and
     // confirmed together, with the summary of what each change does; the native dialog it opens
     // in, which only the paywall carried; and the words of its English.
+    // Measured at 61 771 bytes, up from 61 555: what the add-ons panel says of a trial, of a
+    // subscription that waits for its payment and of a renewal that changes the billing period.
     name: "react-ui · CustomerPortal + KaitenProvider + KaitenStyleRoot",
     code: `import { CustomerPortal, KaitenProvider, KaitenStyleRoot } from "@kaitencloud/react-ui"; console.log(CustomerPortal, KaitenProvider, KaitenStyleRoot);`,
-    budgetGzip: 61_700,
+    budgetGzip: 61_900,
   },
   {
     // Measured at 93 302 bytes, up from 79 688: Base UI's radio group, as in the checkout (12.4 KB),
@@ -225,9 +227,10 @@ const SCENARIOS = [
     // Measured at 95 126 bytes, up from 94 081: the customer portal's add-ons panel, as above, less
     // the dialog, which the paywall already brought.
     // Measured at 96 165 bytes, up from 95 138: what the checkout grew by, as above.
+    // Measured at 96 378 bytes, up from 96 165: what the customer portal grew by, as above.
     name: "react-ui · everything",
     code: `import * as all from "@kaitencloud/react-ui"; console.log(all);`,
-    budgetGzip: 96_300,
+    budgetGzip: 96_500,
   },
   {
     name: "client · KaitenClient alone",

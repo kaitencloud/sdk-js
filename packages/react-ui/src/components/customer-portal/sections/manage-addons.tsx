@@ -8,7 +8,7 @@ import {
   type PortalSubscription,
 } from "@kaitencloud/react";
 
-import { addonFeeFor } from "../../shared/addon-fee.ts";
+import { addonFeeFor, saleOfPrice, type AddonSale } from "../../shared/addon-fee.ts";
 import { usePortalBillingWords } from "../../shared/billing-words.ts";
 import { Action, Message } from "../../shared/feedback.tsx";
 import { Dialog, DialogDescription, DialogTitle } from "../../ui/dialog.tsx";
@@ -43,7 +43,9 @@ function refusalText(problem: AddonQuantityProblem, words: KaitenPortalBillingWo
 /**
  * When a change is billed, as the contract the SDK targets bills it: an increase from the next
  * renewal, a lower quantity or a removal at once, with the next renewal billing what is left and
- * nothing refunded. A subscription that ends renews nothing, and without a live one nothing is billed.
+ * nothing refunded. A trial is never billed for the time it lasts: the invoice at its end bills
+ * what is held then, and nothing if it ends without converting. A subscription that ends renews
+ * nothing, and without a live one nothing is billed.
  */
 function whenText(
   from: number,
@@ -52,6 +54,10 @@ function whenText(
   words: KaitenPortalBillingWords,
 ): string {
   if (!live) return words.addonUnbilled;
+  if (live.status === "TRIAL") {
+    const end = live.trialEndsAt ?? live.currentPeriodEnd;
+    return to === 0 ? words.addonRemovedInTrial(end) : words.addonBilledFromTrialEnd(end);
+  }
   if (live.cancelAtPeriodEnd) return words.addonEnding(live.currentPeriodEnd);
   if (to > from) return words.addonBilledFrom(live.currentPeriodEnd);
   // TODO: the contract's `SessionAddon` has no `pendingQuantity` yet, so a decrease is said as it
@@ -61,6 +67,19 @@ function whenText(
   return to === 0
     ? words.addonRemovedFrom(live.currentPeriodEnd)
     : words.addonLowerFrom(live.currentPeriodEnd);
+}
+
+/**
+ * What the renewal a change is billed from bills an add-on beside, when a plan change scheduled for
+ * it is in another billing period: the scheduled price's sale. `null` when none is, and for a
+ * trial or a subscription that ends, which renew nothing.
+ */
+function renewalSale(live: PortalSubscription | null): AddonSale | null {
+  const change = live?.scheduledChange;
+  if (!live || !change || live.status === "TRIAL" || live.cancelAtPeriodEnd) return null;
+  return Date.parse(change.effectiveAt) === Date.parse(live.currentPeriodEnd)
+    ? saleOfPrice(change.price)
+    : null;
 }
 
 /**
@@ -84,6 +103,16 @@ export function ManageAddOns({
   const [open, setOpen] = React.useState(false);
   const [updated, setUpdated] = React.useState(false);
   if (addOns.rows.length === 0) return null;
+
+  // A checkout that waits for its payment: Kaiten changes no add-on until it is paid, so there is
+  // nothing to open, only that to say.
+  if (addOns.live?.status === "INCOMPLETE") {
+    return (
+      <div data-slot="manage-addons" className={unstyled ? undefined : "ktn-own basis-full"}>
+        <Message unstyled={unstyled} tone="muted" text={words.addonSubscriptionIncomplete} />
+      </div>
+    );
+  }
 
   return (
     <div
@@ -216,7 +245,14 @@ function ManageAddOnsPanel({
     refused !== null && change.problem
       ? words.addonRefusedFor(refused, refusalText(change.problem, words))
       : null;
-  const raises = addOns.live !== null && changes.some(({ row, to }) => to > row.quantity);
+  // A higher quantity can be trued up at the next invoice, for the current period; a trial's never is.
+  const raises =
+    addOns.live !== null &&
+    addOns.live.status !== "TRIAL" &&
+    changes.some(({ row, to }) => to > row.quantity);
+  // The fee a change is billed at from the renewal: a plan change scheduled for it bills the
+  // add-ons at the fees of its own billing period.
+  const billedAt = renewalSale(addOns.live) ?? addOns.sale;
 
   return (
     <Dialog
@@ -329,7 +365,7 @@ function ManageAddOnsPanel({
                 const from = row.quantity;
                 // The add-on's own fee for the subscription's period, never a total of fees: a
                 // renewal's amount is the server's.
-                const fee = addOns.sale ? addonFeeFor(row.addon, addOns.sale) : null;
+                const fee = billedAt ? addonFeeFor(row.version, billedAt) : null;
                 const feeText = fee ? formatKaitenPrice(fee, localization) : null;
                 const units = `${to > from ? "+" : "−"}${Math.abs(to - from)}`;
                 return (

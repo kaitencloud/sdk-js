@@ -282,6 +282,10 @@ export const es: KaitenLocalization = {
       `Se quita ahora. Su renovación del ${formatKaitenDate(isoDate, { locale: "es-ES" })} ya no lo factura, y no se reembolsa nada del periodo en curso.`,
     addonEnding: (isoDate) =>
       `Se aplica ahora. Su suscripción termina el ${formatKaitenDate(isoDate, { locale: "es-ES" })} y no se renueva.`,
+    addonBilledFromTrialEnd: (isoDate) =>
+      `Se aplica ahora y se factura desde el final de su prueba el ${formatKaitenDate(isoDate, { locale: "es-ES" })}.`,
+    addonRemovedInTrial: (isoDate) =>
+      `Se quita ahora. No se factura cuando su prueba termine el ${formatKaitenDate(isoDate, { locale: "es-ES" })}.`,
     addonUnbilled: "Se aplica ahora. No se factura nada sin suscripción.",
     addonTrueUpNote:
       "Una cantidad mayor también puede facturarse por el periodo en curso, por la cantidad más alta que tenga en él, en su próxima factura.",

@@ -193,6 +193,13 @@ export interface KaitenPortalBillingWords {
   addonRemovedFrom: (isoDate: string) => string;
   /** Any change to a subscription that ends at the end of its period. Receives the RAW date it ends on. */
   addonEnding: (isoDate: string) => string;
+  /**
+   * An increase or a lower quantity during a trial, which is never billed for the time it lasts:
+   * the first invoice, at its end, bills what is held then. Receives the RAW date the trial ends on.
+   */
+  addonBilledFromTrialEnd: (isoDate: string) => string;
+  /** A removal during a trial: the invoice at its end does not bill it. Receives the RAW date the trial ends on. */
+  addonRemovedInTrial: (isoDate: string) => string;
   /** Any change while no subscription is live: nothing is billed. */
   addonUnbilled: string;
   /**

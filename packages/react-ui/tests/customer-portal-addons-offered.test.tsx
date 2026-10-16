@@ -131,6 +131,18 @@ test("the catalogue's version of a family the instance holds at another one is n
   expect(screen.getByRole("status", { name: "Quantity of Extra seats" }).textContent).toBe("3");
 });
 
+test("a change billed from a renewal that changes the billing period is said at the new period's fee", async () => {
+  // Pro by the month, changing to Pro by the year at the renewal on 1 November: the renewal bills
+  // the seats at their annual fee, which the catalogue's version of them carries.
+  await drawAddOns(portalOf({ subscription: answers.portalScheduledChange.subscription }));
+  await listed();
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: "Add one Extra seats" }));
+  });
+  const change = document.querySelector('[data-slot="addon-change-fee"]')!;
+  expect(change.textContent).toBe("+1 × €100.00/year");
+});
+
 test("an add-on with no fee for the subscription's billing period is not offered", async () => {
   // Pro is sold every quarter, and the seats only by the month and by the year.
   await drawAddOns(portalOf({ subscription: billedEvery("QUARTERLY"), addOns: [] }));

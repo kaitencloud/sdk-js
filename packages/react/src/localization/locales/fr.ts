@@ -280,6 +280,10 @@ export const fr: KaitenLocalization = {
       `Retirée tout de suite. Votre renouvellement du ${formatKaitenDate(isoDate, { locale: "fr-FR" })} ne la facture plus, et rien n'est remboursé pour la période en cours.`,
     addonEnding: (isoDate) =>
       `Effectif tout de suite. Votre abonnement se termine le ${formatKaitenDate(isoDate, { locale: "fr-FR" })} et n'est pas renouvelé.`,
+    addonBilledFromTrialEnd: (isoDate) =>
+      `Effectif tout de suite, et facturé à partir de la fin de votre essai le ${formatKaitenDate(isoDate, { locale: "fr-FR" })}.`,
+    addonRemovedInTrial: (isoDate) =>
+      `Retiré tout de suite. La fin de votre essai le ${formatKaitenDate(isoDate, { locale: "fr-FR" })} ne le facture pas.`,
     addonUnbilled: "Effectif tout de suite. Rien n'est facturé sans abonnement.",
     addonTrueUpNote:
       "Une quantité plus élevée peut aussi être facturée pour la période en cours, au maximum détenu pendant celle-ci, sur votre prochaine facture.",

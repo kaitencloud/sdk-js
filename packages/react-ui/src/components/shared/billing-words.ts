@@ -76,6 +76,10 @@ export const englishPortalBillingWords: KaitenPortalBillingWords = {
     `Removed now. Your renewal on ${formatKaitenDate(isoDate)} no longer bills it, and nothing is refunded for the current period.`,
   addonEnding: (isoDate) =>
     `Takes effect now. Your subscription ends on ${formatKaitenDate(isoDate)} and isn't renewed.`,
+  addonBilledFromTrialEnd: (isoDate) =>
+    `Takes effect now, and is billed from the end of your trial on ${formatKaitenDate(isoDate)}.`,
+  addonRemovedInTrial: (isoDate) =>
+    `Removed now. It isn't billed when your trial ends on ${formatKaitenDate(isoDate)}.`,
   addonUnbilled: "Takes effect now. Nothing is billed without a subscription.",
   addonTrueUpNote:
     "A higher quantity can also be billed for the current period, at the most you hold during it, on your next invoice.",
