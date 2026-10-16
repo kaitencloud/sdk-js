@@ -152,9 +152,11 @@ const SCENARIOS = [
     // change is billed, less the four of the question the portal asked before removing an add-on.
     // Measured at 5 077 bytes, up from 4 930: the five sentences of a checkout about the add-ons
     // the instance holds, and the add-ons it refuses.
+    // Measured at 5 185 bytes, up from 5 155: what cancelling a subscription that ends at once
+    // says, a trial's or a checkout's that waits for its first payment.
     name: "locales · fr alone",
     code: `import { fr } from "@kaitencloud/react/locales"; console.log(fr);`,
-    budgetGzip: 5_200,
+    budgetGzip: 5_300,
     unstyled: true,
   },
   {
@@ -192,9 +194,11 @@ const SCENARIOS = [
     // flow starts, and the price an add-on in the shape of 1.0 is judged by.
     // Measured at 66 216 bytes, up from 66 135: what the outcome says of a subscription that waits
     // for its first payment, and the words of its English.
+    // Measured at 66 391 bytes, up from 66 216: what a customer back at the checkout of such a
+    // subscription is told, the invoice it offers to pay, and the wait on it.
     name: "react-ui · CheckoutFlow + KaitenProvider + KaitenStyleRoot",
     code: `import { CheckoutFlow, KaitenProvider, KaitenStyleRoot } from "@kaitencloud/react-ui"; console.log(CheckoutFlow, KaitenProvider, KaitenStyleRoot);`,
-    budgetGzip: 66_350,
+    budgetGzip: 66_550,
   },
   {
     // What a host that shows a customer how they pay ships: the card, the billing hooks that add or
@@ -226,9 +230,11 @@ const SCENARIOS = [
     // by, which the portal shares with the checkout.
     // Measured at 62 537 bytes, up from 62 463: the state of a subscription that waits for its
     // first payment, what the plan card says of it, and the words of its English.
+    // Measured at 62 593 bytes, up from 62 537: what cancelling a subscription that ends at once
+    // says, and the words of its English.
     name: "react-ui · CustomerPortal + KaitenProvider + KaitenStyleRoot",
     code: `import { CustomerPortal, KaitenProvider, KaitenStyleRoot } from "@kaitencloud/react-ui"; console.log(CustomerPortal, KaitenProvider, KaitenStyleRoot);`,
-    budgetGzip: 62_700,
+    budgetGzip: 62_750,
   },
   {
     // Measured at 93 302 bytes, up from 79 688: Base UI's radio group, as in the checkout (12.4 KB),
@@ -243,9 +249,11 @@ const SCENARIOS = [
     // Measured at 97 278 bytes, up from 96 938: what the checkout grew by, as above.
     // Measured at 97 507 bytes, up from 97 327: what the checkout and the customer portal grew by
     // for a subscription that waits for its first payment, as above.
+    // Measured at 97 714 bytes, up from 97 507: what the checkout and the customer portal grew by
+    // for a cancellation that ends at once and a customer back at the checkout, as above.
     name: "react-ui · everything",
     code: `import * as all from "@kaitencloud/react-ui"; console.log(all);`,
-    budgetGzip: 97_650,
+    budgetGzip: 97_850,
   },
   {
     name: "client · KaitenClient alone",
