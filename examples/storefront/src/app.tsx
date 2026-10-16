@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { KaitenSessionClient } from "@kaitencloud/client";
-import { KaitenStyleRoot, KaitenProvider } from "@kaitencloud/react-ui";
+import { KaitenStyleRoot, KaitenProvider, type KaitenAppearance } from "@kaitencloud/react-ui";
 
 import { fetchCustomerSession, loadConfig, type StorefrontConfig } from "./config.ts";
+import { PalettePicker } from "./components/palette-picker.tsx";
 import { ThemeSwitcher } from "./components/theme-switcher.tsx";
 import { CheckoutPage } from "./pages/checkout-page.tsx";
 import { JourneyPage } from "./pages/journey-page.tsx";
@@ -11,6 +12,9 @@ import { PortalPage } from "./pages/portal-page.tsx";
 import { PricingPage } from "./pages/pricing-page.tsx";
 import { SalesPage } from "./pages/sales-page.tsx";
 import { Link, useLocation } from "./router.tsx";
+import { usePalette } from "./palette.ts";
+import { paletteById } from "./themes/palettes.ts";
+import { toAppearance } from "./themes/to-appearance.ts";
 import { useThemePreference } from "./theme.ts";
 
 export function App() {
@@ -36,6 +40,12 @@ export function App() {
 function Storefront({ config }: { config: StorefrontConfig }) {
   const [sessionEnded, setSessionEnded] = useState(false);
   const [theme] = useThemePreference();
+  const [palette] = usePalette();
+  // The colour mode, and the theme's tokens on top of it. The storefront's own look overrides nothing.
+  const appearance = useMemo<KaitenAppearance>(() => {
+    const themed = paletteById(palette)?.theme;
+    return { baseTheme: theme, ...(themed ? toAppearance(themed) : {}) };
+  }, [theme, palette]);
 
   // Once: the provider's scope and its cache follow this object.
   const [sessionClient] = useState(
@@ -60,8 +70,9 @@ function Storefront({ config }: { config: StorefrontConfig }) {
       localization={{ currentPlan: { upgradeVersion: "Change plan" } }}
     >
       {/* The same Light / Dark / System as the page (see theme.ts): react-ui follows the system
-          setting by itself while it is "system". */}
-      <KaitenStyleRoot appearance={{ baseTheme: theme }}>
+          setting by itself while it is "system". The theme is the one of palette.ts, mapped to
+          the components' appearance in one place (themes/to-appearance.ts). */}
+      <KaitenStyleRoot appearance={appearance}>
         <Shell mode={config.mode} sessionEnded={sessionEnded} />
       </KaitenStyleRoot>
     </KaitenProvider>
@@ -88,7 +99,7 @@ function Shell({ mode, sessionEnded }: { mode: StorefrontConfig["mode"]; session
             <span className="brand-mark" aria-hidden="true">
               A
             </span>
-            <span>Acme</span>
+            <span className="brand-name">Acme</span>
           </Link>
           <nav aria-label="Pages" className="site-nav">
             <Link
@@ -104,7 +115,10 @@ function Shell({ mode, sessionEnded }: { mode: StorefrontConfig["mode"]; session
               Journey
             </Link>
           </nav>
-          <ThemeSwitcher />
+          <div className="site-controls">
+            <PalettePicker />
+            <ThemeSwitcher />
+          </div>
         </div>
       </header>
 

@@ -1,6 +1,7 @@
-// The storefront's colour theme: Light, Dark or System, remembered between visits.
+// The storefront's colour mode: Light, Dark or System, remembered between visits. Which theme
+// (Kaiten, Claude, Neo Brutalism) wears it is a separate choice, in `palette.ts`.
 //
-// The theme is one preference with two readers. The page reads it from the `dark` class and the
+// The mode is one preference with two readers. The page reads it from the `dark` class and the
 // `data-theme` attribute this module puts on <html>, and `index.html` runs the same few lines
 // before the first paint so that a dark page never starts light. The Kaiten components read it
 // from `<KaitenStyleRoot appearance={{ baseTheme }}>`: react-ui resolves "system" itself, and

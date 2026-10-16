@@ -6,8 +6,10 @@
     <title>Acme storefront</title>
     <meta name="color-scheme" content="light dark" />
     <script>
-      // The saved theme, on <html> before the first paint, so that a dark page never starts light.
-      // The same rules as src/theme.ts, which takes over once the app runs.
+      // The saved colour mode and theme, on <html> before the first paint, so that a dark page never
+      // starts light and a themed one never starts in the Kaiten look. The same rules as src/theme.ts
+      // and src/palette.ts, which take over once the app runs. The rules of the themes themselves are
+      // in a <style> that vite.config.ts adds to this <head>.
       (function () {
         var preference = "system";
         try {
@@ -21,6 +23,13 @@
         root.classList.toggle("dark", dark);
         root.dataset.theme = preference;
         root.style.colorScheme = dark ? "dark" : "light";
+
+        var palette = "kaiten";
+        try {
+          var chosen = localStorage.getItem("storefront-palette");
+          if (chosen === "claude" || chosen === "neo-brutalism") palette = chosen;
+        } catch (error) {}
+        root.dataset.palette = palette;
       })();
     </script>
   </head>

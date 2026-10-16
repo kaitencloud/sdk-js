@@ -48,12 +48,12 @@ export function ThemeSwitcher() {
   const [preference, setPreference] = useThemePreference();
   return (
     <fieldset className="theme-switcher">
-      <legend className="visually-hidden">Theme</legend>
+      <legend className="visually-hidden">Colour mode</legend>
       {THEME_PREFERENCES.map((value) => (
         <label key={value} title={LABELS[value]}>
           <input
             type="radio"
-            name="theme"
+            name="colour-mode"
             value={value}
             checked={preference === value}
             onChange={() => setPreference(value)}
