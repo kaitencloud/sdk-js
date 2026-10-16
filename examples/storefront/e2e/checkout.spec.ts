@@ -201,7 +201,7 @@ test("a customer cancels the subscription at the end of its period, and withdraw
   expect(await standIn.state()).toMatchObject({ subscribed: true, cancelAtPeriodEnd: false });
 });
 
-test("a plan with a trial offers to start without it, with the console's checkbox", async ({
+test("a plan with a trial is subscribed with its trial, with no choice to start without it", async ({
   page,
   standIn,
 }) => {
@@ -209,22 +209,13 @@ test("a plan with a trial offers to start without it, with the console's checkbo
   await page.goto("/");
   await planCard(page, "Growth").getByRole("button", { name: "Select plan" }).click();
 
-  // A button with the role of a checkbox, not the browser's blue square.
-  const skip = page.getByRole("checkbox", { name: "Start without the free trial" });
-  await expect(skip).toHaveAttribute("data-slot", "checkbox");
-  await expect(skip).toHaveAttribute("aria-checked", "false");
   await expect(checkout(page)).toContainText("Trial ends on");
-
-  // The label's own words tick it, and the checkout is priced again without the trial.
-  await checkout(page).getByText("Start without the free trial").click();
-  await expect(skip).toHaveAttribute("aria-checked", "true");
-  await expect(checkout(page)).not.toContainText("Trial ends on");
-
-  // The space bar takes the trial back.
-  await skip.focus();
-  await page.keyboard.press("Space");
-  await expect(skip).toHaveAttribute("aria-checked", "false");
-  await expect(checkout(page)).toContainText("Trial ends on");
+  await expect(checkout(page).getByRole("checkbox")).toHaveCount(0);
+  await expect(checkout(page)).not.toContainText("without the free trial");
+  // Nothing the page sent asked the stand-in to leave the trial out.
+  const priced = (await standIn.calls()).filter((call) => call.path === "/public/session/checkout");
+  expect(priced.length).toBeGreaterThan(0);
+  for (const call of priced) expect(call.body).not.toHaveProperty("trial");
 });
 
 for (const width of [1280, 1150, 768, 380]) {
