@@ -6,7 +6,14 @@ import { compile } from "tailwindcss";
 
 import { assertScoped, assertUnlayered, scopeKaitenCss } from "./scope-kaiten-css.ts";
 
-const CLASS_TOKEN = /[^<>"'`\s]+/g;
+// A class token is a run of ordinary characters and bracketed groups. Outside brackets a
+// token stops at whitespace, a quote, a backtick or an angle bracket, which separate class
+// names in source. Inside brackets those characters belong to the class: `has-[>svg]:px-3`,
+// `[&>tr]:last:border-b-0`, `[&_svg:not([class*='size-'])]:size-4`. Splitting there used to cut
+// each of these in two, so none of them reached the published stylesheet, while Storybook
+// (Tailwind's own scanner) still drew them. A bracket group may hold one nested group and
+// never whitespace, which keeps array literals and prose from being glued into one token.
+const CLASS_TOKEN = /(?:\[(?:[^[\]\s]|\[[^[\]\s]*\])*\]|[^<>"'`\s[])+/g;
 
 // A spacing/sizing utility carrying a decimal step, e.g. `py-1.5`, `gap-1.5`,
 // `size-2.5`. The prefix is gated to a known set so this does NOT match SVG path
@@ -24,6 +31,20 @@ const DECIMAL_SPACING_UTILITY =
 // likely to lose, which is exactly what happened to the hard paywall's dialog.
 const FRACTION_UTILITY = /^-?[a-z][a-z0-9]*(?:-[a-z0-9]+)*-\d+\/\d+$/;
 const ARBITRARY_UTILITY = /^-?[a-z][a-z0-9-]*-\[[^\]]+\]$/;
+
+// A utility behind a bracketed variant whose brackets hold `>` or a quote: `[&>tr]:last:border-b-0`,
+// `has-[>svg]:px-3`, `[&_svg:not([class*='size-'])]:size-4`. These are exactly the classes the
+// scanner used to cut in two on those characters. Variants with plain brackets
+// (`data-[state=open]:animate-in`) stay unguarded: their utility may be one this stylesheet
+// does not define, and the scanner never lost them. The part after the variant must look like a
+// utility, so a selector string such as `[tabindex]:not([tabindex="-1"])` is not one.
+const BRACKETED_VARIANT_UTILITY =
+  /^(?:\*:)?(?:[a-z][a-z0-9-]*-)?(\[(?:[^[\]\s]|\[[^[\]\s]*\])*\]):(?:[a-z][a-z0-9-]*:)*-?[a-z][a-z0-9-]*(?:-\[[^\s\]]+\]|\.\d+)?$/;
+
+function isLostVariantUtility(token: string): boolean {
+  const match = BRACKETED_VARIANT_UTILITY.exec(token);
+  return match !== null && /[>'"]/.test(match[1]);
+}
 
 // A container-query utility: the named container declaration (`@container/ktn`) and
 // any container variant (`@md:flex-row`, `@max-lg:hidden`, `@[30rem]:grid-cols-2`,
@@ -142,7 +163,9 @@ function shouldKeepToken(token: string): boolean {
  * looked absent from a stylesheet that in fact carried it.
  */
 function selectorFor(util: string): string {
-  return "." + util.replace(/[.:/[\]()#%!,@]/g, (c) => `\\${c}`);
+  // Tailwind escapes every character outside [A-Za-z0-9_-] in a class selector: `.`, `/`, `:`,
+  // `@`, and in arbitrary variants `&`, `>`, `=`, `*`, `'` too (`.has-\[\>svg\]\:px-3`).
+  return "." + util.replace(/[^A-Za-z0-9_-]/g, (c) => `\\${c}`);
 }
 
 function cssEmitsUtility(css: string, util: string): boolean {
@@ -175,6 +198,7 @@ export function findDroppedUtilities(builtCss: string, rawTokens: Iterable<strin
     if (DECIMAL_SPACING_UTILITY.test(token)) required.add(token);
     if (FRACTION_UTILITY.test(token)) required.add(token);
     if (ARBITRARY_UTILITY.test(token)) required.add(token);
+    if (isLostVariantUtility(token)) required.add(token);
     if (CONTAINER_UTILITY.test(token)) required.add(token);
     if (GUARDED_SINGLE_WORD.has(token)) required.add(token);
   }
@@ -191,6 +215,11 @@ export function assertNoDroppedUtilities(builtCss: string, rawTokens: Iterable<s
         `allowlist in build-kaiten-css.ts): ${dropped.join(", ")}`,
     );
   }
+}
+
+/** The class-name tokens the scanner reads from one source file. */
+export function classTokens(content: string): string[] {
+  return content.match(CLASS_TOKEN) ?? [];
 }
 
 async function resolveStylesheet(id: string, base: string) {
@@ -271,7 +300,7 @@ async function collectCandidates(
       // The cost is a few dead rules, so this is a note rather than a defect: the
       // alternative is pairing quotes, which is what broke the paywall above. If it
       // ever matters, prefer the singular in prose ("content"), which is not one.
-      for (const token of content.match(CLASS_TOKEN) ?? []) {
+      for (const token of classTokens(content)) {
         rawTokens.add(token);
         if (shouldKeepToken(token)) {
           candidates.add(token);

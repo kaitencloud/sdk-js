@@ -3,7 +3,11 @@ import path from "node:path";
 
 import { expect, test } from "vite-plus/test";
 
-import { assertNoDroppedUtilities, findDroppedUtilities } from "../scripts/build-kaiten-css.ts";
+import {
+  assertNoDroppedUtilities,
+  classTokens,
+  findDroppedUtilities,
+} from "../scripts/build-kaiten-css.ts";
 
 // The hand-rolled CSS scanner silently dropped valid utilities (decimal
 // spacing like `py-1.5`, single-word utils like `uppercase`), shipping broken
@@ -44,9 +48,51 @@ test("does not let a shorter selector satisfy a longer utility", () => {
 });
 
 test("treats variant-prefixed utilities as their own (non-bare) token", () => {
-  // `has-[>svg]:px-1.5` is not the bare `px-1.5` utility, so the guard does not
-  // require a bare `.px-1\.5` rule for it.
-  expect(findDroppedUtilities("", ["has-[>svg]:px-1.5"])).toEqual([]);
+  // `has-[>svg]:px-1.5` is not the bare `px-1.5` utility: the guard asks for the variant's own
+  // rule, never for a bare `.px-1\.5`.
+  const variantRule = ".has-\\[\\>svg\\]\\:px-1\\.5:has(>svg){padding-inline:.375rem}";
+  expect(findDroppedUtilities(variantRule, ["has-[>svg]:px-1.5"])).toEqual([]);
+});
+
+test("keeps a class whole when its brackets hold an angle bracket or a quote", () => {
+  const source = [
+    `const a = "h-10 [&>tr]:last:border-b-0 has-[>svg]:px-3";`,
+    `const b = cn("[&_svg:not([class*='size-'])]:size-4", "*:[[role=checkbox]]:translate-y-[2px]");`,
+    `const c = <div className="[&:has([role=checkbox])]:pr-0 py-1.5">x</div>;`,
+  ].join("\n");
+  const tokens = classTokens(source);
+  for (const cls of [
+    "[&>tr]:last:border-b-0",
+    "has-[>svg]:px-3",
+    "[&_svg:not([class*='size-'])]:size-4",
+    "*:[[role=checkbox]]:translate-y-[2px]",
+    "[&:has([role=checkbox])]:pr-0",
+    "py-1.5",
+  ]) {
+    expect(tokens).toContain(cls);
+  }
+  // Outside brackets, quotes and angle brackets still end a token.
+  expect(tokens).toContain("h-10");
+  expect(tokens).not.toContain("<div");
+  expect(tokens.some((token) => token.includes('"'))).toBe(false);
+});
+
+test("does not glue an array literal or prose into one token", () => {
+  const tokens = classTokens(`const plans = ["CurrentPlan", "security"]; // see [the table] here`);
+  expect(tokens).toContain("CurrentPlan");
+  expect(tokens.some((token) => token.includes(" "))).toBe(false);
+});
+
+test("flags a utility behind an arbitrary variant that produced no rule", () => {
+  expect(findDroppedUtilities(".flex{}", ["[&>tr]:last:border-b-0", "has-[>svg]:px-3"])).toEqual([
+    "[&>tr]:last:border-b-0",
+    "has-[>svg]:px-3",
+  ]);
+  const css = [
+    ":is(.\\[\\&\\>tr\\]\\:last\\:border-b-0 > tr):last-child{border-bottom-width:0}",
+    ".has-\\[\\>svg\\]\\:px-3:has(>svg){padding-inline:.75rem}",
+  ].join("\n");
+  expect(findDroppedUtilities(css, ["[&>tr]:last:border-b-0", "has-[>svg]:px-3"])).toEqual([]);
 });
 
 test("assertNoDroppedUtilities throws with the offending utilities listed", () => {
@@ -168,7 +214,10 @@ test("the shipped stylesheet carries every guarded utility src uses", async () =
   const tokens = new Set<string>();
   for await (const file of glob("**/*.{ts,tsx}", { cwd: srcDir })) {
     const content = await readFile(path.join(srcDir, file), "utf8");
+    // Two readings: the naive split, which cannot lose a quote-delimited string, and the
+    // bracket-aware one, which is the only way to see `has-[>svg]:px-3` whole.
     for (const token of content.match(/[^<>"'`\s]+/g) ?? []) tokens.add(token);
+    for (const token of classTokens(content)) tokens.add(token);
   }
 
   const builtCss = await readFile(path.resolve(import.meta.dirname, "../dist/kaiten.css"), "utf8");
