@@ -22,6 +22,7 @@ import { useMergedAppearance } from "../../appearance/context.tsx";
 import type { KaitenAppearance } from "../../appearance/types.ts";
 import { cn } from "../../lib/utils.ts";
 import { useAssertWrappedByKaitenProvider } from "../../style-root/kaiten-style-root.tsx";
+import { addonUnitPrice, monthsOf, saleOfPrice } from "../shared/addon-fee.ts";
 import { Action, Message as FeedbackMessage } from "../shared/feedback.tsx";
 import { useFocusScope } from "../shared/focus.ts";
 import { KaitenBranding } from "../shared/kaiten-branding.tsx";
@@ -38,10 +39,6 @@ type Words = KaitenCheckoutWords;
 // ---------------------------------------------------------------------------
 // What can be chosen
 // ---------------------------------------------------------------------------
-
-/** How many calendar months a billing period lasts: a quarter is 3, a year 12. */
-const monthsOf = (price: BillingPrice) =>
-  (price.interval === "year" ? 12 : 1) * (price.intervalCount ?? 1);
 
 /**
  * The prices a customer can buy a plan at: the flat fees of its billing periods that the catalog
@@ -71,18 +68,8 @@ function initialPrice(prices: BillingPrice[], chosen: string | undefined): Billi
 }
 
 /** What an add-on costs per unit, at the billing period and in the currency of the plan's price. */
-function addonPrice(addon: Addon, plan: BillingPrice | null): BillingPrice | null {
-  const fees = (addon.billingPrices ?? []).filter(
-    (price) =>
-      price.billingModel === "FLAT_FEE" &&
-      price.amount !== undefined &&
-      price.isDefault &&
-      (plan === null || price.currencyCode === plan.currencyCode),
-  );
-  return (
-    fees.find((price) => plan !== null && monthsOf(price) === monthsOf(plan)) ?? fees[0] ?? null
-  );
-}
+const addonPrice = (addon: Addon, plan: BillingPrice | null): BillingPrice | null =>
+  addonUnitPrice(addon, plan ? saleOfPrice(plan) : null);
 
 // ---------------------------------------------------------------------------
 // The component

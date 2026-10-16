@@ -14,13 +14,14 @@ import { useKaitenDataContext } from "@kaitencloud/react/internal";
 import { useMergedAppearance } from "../../../appearance/context.tsx";
 import type { KaitenAppearance } from "../../../appearance/types.ts";
 import { cn } from "../../../lib/utils.ts";
+import { addonUnitPrice, saleOfSubscription } from "../../shared/addon-fee.ts";
 import { usePortalBillingWords } from "../../shared/billing-words.ts";
 import { Action, Message } from "../../shared/feedback.tsx";
 import { useFocusScope } from "../../shared/focus.ts";
 import { KaitenBranding } from "../../shared/kaiten-branding.tsx";
 import { Card, CardContent, CardHeader, CardTitle } from "../../ui/card.tsx";
 import { Skeleton } from "../../ui/skeleton.tsx";
-import { addonUnitPrice, getAddonDisplayPrice } from "./addon-price.ts";
+import { getAddonDisplayPrice } from "./addon-price.ts";
 
 interface Row {
   addon: Addon;
@@ -125,7 +126,7 @@ export function SessionAddOns({
   };
 
   const priceOf = (addon: Addon) => {
-    const fee = addonUnitPrice(addon, subscription);
+    const fee = addonUnitPrice(addon, subscription ? saleOfSubscription(subscription) : null);
     if (fee) return formatKaitenPrice(fee, localization);
     const shown = getAddonDisplayPrice(addon);
     return shown
