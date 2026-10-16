@@ -352,6 +352,7 @@ drawn.
 | `useValidateVoucher`                                                        | A voucher code checked on its own                                               |
 
 ```tsx
+import { formatKaitenMoney } from "@kaitencloud/react";
 import { useCheckout } from "@kaitencloud/react/billing";
 
 function Checkout({ licensePriceId }: { licensePriceId: string }) {

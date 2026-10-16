@@ -43,8 +43,9 @@ export interface UsePortalActionResult<TInput, TOutput> extends UseKaitenMutatio
   TOutput
 > {
   /**
-   * When a change the API refused for now will be sent again, as a time in milliseconds,
-   * `null` when none waits. `isPending` stays true until then and through the second try.
+   * When a change the API refused for now will be sent again, in milliseconds since the epoch
+   * (as `Date.now()` counts them), `null` when none waits. `isPending` stays true until then
+   * and through the second try.
    */
   retryAt: number | null;
 }
@@ -219,7 +220,10 @@ export interface UseBillingPortalResult extends UsePortalActionResult<
   { returnUrl?: string } | void,
   PortalSession
 > {
-  /** Asks for a link to the provider's billing portal and sends the customer there. */
+  /**
+   * Asks for a link to the provider's billing portal and sends the customer there. Rejects with
+   * the refusal when no link could be had, which `error` holds too.
+   */
   open: () => Promise<void>;
 }
 
@@ -227,7 +231,9 @@ export interface UseBillingPortalResult extends UsePortalActionResult<
  * The payment provider's own billing portal, where a customer manages their card, their
  * details and their invoices: `open()` asks for a link, which is the provider's and lasts
  * a moment, and sends the customer to it. They come back to the page they were on, minus
- * any `kaiten_*` parameter, unless `mutate({ returnUrl })` says elsewhere.
+ * any `kaiten_*` parameter. To bring them back elsewhere, ask for the link with
+ * `mutateAsync({ returnUrl })` and send them to its `url` yourself: `mutate` and `mutateAsync`
+ * only ask for it.
  *
  * Needs the first Kaiten release with billing (see STABILITY.md).
  */

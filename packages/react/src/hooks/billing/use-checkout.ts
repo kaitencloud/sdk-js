@@ -144,9 +144,16 @@ export interface UseCheckoutResult {
   /** The subscription, once `subscribed`. */
   result: CheckoutSubscribed | null;
   payment: CheckoutPayment | null;
-  /** What the last attempt was refused with, for a screen to word. `null` after a success. */
+  /**
+   * What the last attempt was refused with, for a screen to word, or else, while the customer is
+   * choosing, what pricing the selection was refused with (`preview.problem`, a refused voucher
+   * aside, which `preview.voucher` says). `null` after a success.
+   */
   problem: CheckoutProblem | null;
-  /** The error itself, with its status and code. */
+  /**
+   * The error of the last attempt itself, with its status and code. A refusal found while
+   * pricing is not here but in `preview.error`.
+   */
   error: Error | null;
   /** Back to choosing, with what was chosen kept: after a refusal to change it, or to start again. */
   reset: () => void;
