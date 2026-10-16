@@ -179,13 +179,13 @@ test("a refused change to an add-on is named in problem, and the next change cle
   });
   expect(view.result.current.action).toMatchObject({ problem: null, error: null });
 
-  // A refusal it has no word for is other: the double does not know this add-on.
+  // An add-on the double does not know is not for sale.
   await act(async () => {
     await expect(
       view.result.current.action.mutateAsync({ addonSlug: "nope", quantity: 1 }),
     ).rejects.toMatchObject({ code: "SetSessionAddonQuantity.AddonNotPublic" });
   });
-  expect(view.result.current.action.problem).toEqual({ kind: "other" });
+  expect(view.result.current.action.problem).toEqual({ kind: "addon_not_public" });
 });
 
 // ---------------------------------------------------------------------------

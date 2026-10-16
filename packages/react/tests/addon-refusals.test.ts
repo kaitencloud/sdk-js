@@ -19,11 +19,13 @@ const refused = (status: number, code: string | undefined) =>
   new KaitenError({ title: "refused", status, code, detail: "refused" });
 
 test.each([
+  [422, "AddonNotPublic", "addon_not_public"],
   [422, "CurrencyMismatch", "currency_mismatch"],
   [422, "Incompatible", "incompatible"],
   [422, "QuantityExceedsMax", "quantity_exceeds_max"],
   [409, "OtherVersionAttached", "other_version_attached"],
   [409, "SubscriptionIncomplete", "subscription_incomplete"],
+  [422, "InstanceRequired", "instance_required"],
 ] as const)("%i .%s is %s whatever use case answers it", (status, reason, kind) => {
   for (const useCase of ["SetSessionAddonQuantity", "AttachInstanceAddon", "SomethingNew", "A.B"]) {
     expect(addonQuantityProblem(refused(status, `${useCase}.${reason}`))).toEqual({ kind });
@@ -51,6 +53,12 @@ test("the status has to be the one of the refusal, as well as the reason", () =>
   expect(
     addonQuantityProblem(refused(500, "SetSessionAddonQuantity.SubscriptionIncomplete")),
   ).toEqual({ kind: "other" });
+  expect(addonQuantityProblem(refused(409, "SetSessionAddonQuantity.AddonNotPublic"))).toEqual({
+    kind: "other",
+  });
+  expect(addonQuantityProblem(refused(401, "SetSessionAddonQuantity.InstanceRequired"))).toEqual({
+    kind: "other",
+  });
 });
 
 test("a period being closed and a provider that is down keep the wait their class carries", () => {
@@ -73,11 +81,10 @@ test("a period being closed and a provider that is down keep the wait their clas
   ).toEqual({ kind: "unavailable", retryAfterSeconds: 30 });
 });
 
-// What the route refuses with a code the kinds above have no word for: an add-on the catalogue
-// should not have offered, a session that has no instance, and what the SDK never heard of.
+// What the kinds above have no word for: a code the SDK never heard of, an answer the route is not
+// documented to give, and a refusal with no code.
 test.each([
-  [422, "SetSessionAddonQuantity.AddonNotPublic"],
-  [422, "SetSessionAddonQuantity.InstanceRequired"],
+  [422, "SetSessionAddonQuantity.SomethingNew"],
   [404, "SetSessionAddonQuantity.NotFound"],
   [500, "SetSessionAddonQuantity.Internal"],
   [422, undefined],

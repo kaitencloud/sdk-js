@@ -408,10 +408,12 @@ function Checkout({ licensePriceId }: { licensePriceId: string }) {
   `rate_limited` with their wait, `not_payable_online` for a paid plan the vendor has no card
   provider for); `error` is the error itself, with its status and code. `useSetAddonQuantity`
   names the refusals of a change to an add-on the same way, in its own `problem`:
-  `currency_mismatch` (priced in another currency than the subscription's), `incompatible` (it
-  does not fit the plan, or has no price for its billing period), `quantity_exceeds_max`,
-  `other_version_attached`, `subscription_incomplete` (the checkout's payment is not confirmed
-  yet), and `boundary_pending` and `unavailable` with their wait. An address the API gives for
+  `addon_not_public` (a version that is unknown, archived, unpublished or no longer the one the
+  catalogue sells), `currency_mismatch` (priced in another currency than the subscription's),
+  `incompatible` (it does not fit the plan, or has no price for its billing period),
+  `quantity_exceeds_max`, `other_version_attached`, `subscription_incomplete` (the checkout's
+  payment is not confirmed yet), `instance_required` (a session bound to the customer alone), and
+  `boundary_pending` and `unavailable` with their wait. An address the API gives for
   the provider's page that is not `http` or `https` is never opened.
 - **A billing period being closed.** `useCancelSubscription`, `useReactivateSubscription`
   and `useSetAddonQuantity` wait out a `BoundaryPendingError` that asks for 120 seconds or

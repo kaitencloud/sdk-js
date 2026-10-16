@@ -72,6 +72,11 @@ export function checkoutProblem(error: unknown): CheckoutProblem | null {
  * `error`.
  */
 export type AddonQuantityProblem =
+  /**
+   * The add-on is not for sale: a version that is unknown, archived, unpublished, or no longer the
+   * one the catalogue sells. The same change never goes through.
+   */
+  | { kind: "addon_not_public" }
   /** The add-on is priced in another currency than the subscription's: it cannot be attached to it. */
   | { kind: "currency_mismatch" }
   /**
@@ -86,6 +91,8 @@ export type AddonQuantityProblem =
   | { kind: "other_version_attached" }
   /** The subscription waits for the payment of its checkout: the plan starts once it is confirmed. */
   | { kind: "subscription_incomplete" }
+  /** The session is bound to the customer alone: there is no instance to change the add-ons of. */
+  | { kind: "instance_required" }
   /** The billing period that ended is still being closed: the same change goes through once it is. */
   | { kind: "boundary_pending"; retryAfterSeconds: number }
   /** The payment provider could not be reached: try again later. */
@@ -96,11 +103,13 @@ export type AddonQuantityProblem =
 /** The problem a refused change to an add-on's quantity is, or `null` for no error. */
 export function addonQuantityProblem(error: unknown): AddonQuantityProblem | null {
   if (error === null || error === undefined) return null;
+  if (refusedAs(error, 422, ".AddonNotPublic")) return { kind: "addon_not_public" };
   if (refusedAs(error, 422, ".CurrencyMismatch")) return { kind: "currency_mismatch" };
   if (refusedAs(error, 422, ".Incompatible")) return { kind: "incompatible" };
   if (refusedAs(error, 422, ".QuantityExceedsMax")) return { kind: "quantity_exceeds_max" };
   if (refusedAs(error, 409, ".OtherVersionAttached")) return { kind: "other_version_attached" };
   if (refusedAs(error, 409, ".SubscriptionIncomplete")) return { kind: "subscription_incomplete" };
+  if (refusedAs(error, 422, ".InstanceRequired")) return { kind: "instance_required" };
   if (error instanceof BoundaryPendingError) {
     return { kind: "boundary_pending", retryAfterSeconds: error.retryAfterSeconds };
   }

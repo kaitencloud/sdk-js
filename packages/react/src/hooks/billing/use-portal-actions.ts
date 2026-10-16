@@ -176,9 +176,10 @@ export interface UseSetAddonQuantityResult extends UsePortalActionResult<
   SessionAddon
 > {
   /**
-   * What the last change was refused with, as a kind a screen chooses its words by: an add-on in
-   * another currency, one that does not fit the plan, too many units, another version held, a
-   * subscription that waits for its payment, a period still being closed, a provider that is down.
+   * What the last change was refused with, as a kind a screen chooses its words by: an add-on no
+   * longer for sale, one in another currency, one that does not fit the plan, too many units,
+   * another version held, a subscription that waits for its payment, a session with no instance, a
+   * period still being closed, a provider that is down.
    * `null` when the last change was not refused; `error` is the error itself.
    */
   problem: AddonQuantityProblem | null;
