@@ -68,8 +68,9 @@ export function resolveSourceSchema() {
   const files = SCHEMA_GLOBS.flatMap((pattern) => globSync(pattern, { cwd: kaitenPath }))
     .map((relative) => resolve(kaitenPath, relative))
     // globSync's order is filesystem-dependent; the print is sorted anyway, but
-    // a stable read order keeps error messages reproducible.
-    .sort();
+    // a stable read order keeps error messages reproducible. By code unit, as
+    // the default sort does, written out so that no locale decides it.
+    .sort((left, right) => (left < right ? -1 : left > right ? 1 : 0));
 
   if (files.length === 0) return null;
 
