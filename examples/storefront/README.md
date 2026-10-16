@@ -156,7 +156,10 @@ is a customer who moves:
 - a cancellation ends the subscription with its period, and a reactivation withdraws it;
 - the payment of the activation invoice can be paid, declined, wait for the customer's
   confirmation (3-D Secure) or be unknown for a while;
-- an add-on quantity is set from the portal, in force at once and billed from the next renewal;
+- an add-on quantity is set from the portal, in force at once and billed from the next renewal, and
+  refused as the contract refuses it: `SetSessionAddonQuantity.CurrencyMismatch` for an add-on priced
+  in another currency than the subscription's (the GPU pack, in dollars beside the plans in euros),
+  `.Incompatible` for one that does not fit the plan or has no price for its billing period;
 - changing the payment method saves the other of two cards, so that the change is seen;
 - every plan that is not free has a `selfServeCtaUrl`: the storefront's `/sales` page, for the plan;
 - it can move to the **next boundary**, as Kaiten's close would when the time came: a trial converts (an

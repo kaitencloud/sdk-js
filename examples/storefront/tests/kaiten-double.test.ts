@@ -18,6 +18,8 @@ const API = `${ORIGIN}${DOUBLE_PATH}/api`;
 const PUBLISHABLE_KEY = `pk_${"p".repeat(43)}`;
 const SERVER_TOKEN = `ksh_${"s".repeat(43)}`;
 const PRO_MONTHLY = "00000000-0000-4000-8000-000000000201";
+const PRO_QUARTERLY = "00000000-0000-4000-8000-000000000202";
+const PRO_ANNUAL = "00000000-0000-4000-8000-000000000204";
 const GROWTH_MONTHLY = "00000000-0000-4000-8000-000000000301";
 const LITE_MONTHLY = "00000000-0000-4000-8000-000000000401";
 const STARTER_MONTHLY = "00000000-0000-4000-8000-000000000101";
@@ -900,7 +902,7 @@ describe("add-ons", () => {
     expect(contractProblems(recorder)).toEqual([]);
   });
 
-  test("refuses what does not fit: an unknown add-on, too many, a plan it does not suit, no subscription", async () => {
+  test("refuses what does not fit: an unknown add-on, too many, a plan it does not suit, another currency, no subscription", async () => {
     const { double, customer, recorder } = world();
     const session = await customer();
     await expect(session.setAddonQuantity("extra-seats-v1", 1)).rejects.toMatchObject({
@@ -918,12 +920,46 @@ describe("add-ons", () => {
     });
     // The Japanese pack does not suit Pro.
     await expect(subscribed.setAddonQuantity("jp-pack-v1", 1)).rejects.toMatchObject({
+      status: 422,
       code: "SetSessionAddonQuantity.Incompatible",
     });
+    // The GPU pack suits Pro, and is priced in dollars only: a subscription in euros cannot take it.
+    await expect(subscribed.setAddonQuantity("gpu-pack-v1", 1)).rejects.toMatchObject({
+      status: 422,
+      code: "SetSessionAddonQuantity.CurrencyMismatch",
+    });
+    expect(double.state().addOns).toEqual([]);
     // A session bound to the customer alone has no instance to attach anything to.
     await expect(
       (await customer(null)).setAddonQuantity("extra-seats-v1", 1),
     ).rejects.toMatchObject({ code: "SetSessionAddonQuantity.InstanceRequired" });
+    expect(contractProblems(recorder)).toEqual([]);
+  });
+
+  test("refuses an add-on with no price for the subscription's billing period, in its currency", async () => {
+    const { double, customer, recorder } = world();
+    double.reset({ card: true, email: true });
+    const session = await customer();
+    // Pro, every quarter: the seats are sold in euros, by the month and by the year only.
+    await session.checkout({ licensePriceId: PRO_QUARTERLY });
+    await expect(session.setAddonQuantity("extra-seats-v1", 1)).rejects.toMatchObject({
+      status: 422,
+      code: "SetSessionAddonQuantity.Incompatible",
+    });
+    // The GPU pack has no price in euros at all, whatever the period.
+    await expect(session.setAddonQuantity("gpu-pack-v1", 1)).rejects.toMatchObject({
+      code: "SetSessionAddonQuantity.CurrencyMismatch",
+    });
+    expect(double.state().addOns).toEqual([]);
+
+    // By the year, the seats are sold.
+    double.reset({ card: true, email: true });
+    const annual = await customer();
+    await annual.checkout({ licensePriceId: PRO_ANNUAL });
+    await expect(annual.setAddonQuantity("extra-seats-v1", 2)).resolves.toMatchObject({
+      slug: "extra-seats-v1",
+      quantity: 2,
+    });
     expect(contractProblems(recorder)).toEqual([]);
   });
 });

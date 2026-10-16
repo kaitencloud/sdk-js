@@ -1095,18 +1095,46 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
     if (!Number.isInteger(quantity) || quantity < 0) {
       return problem(422, "SetSessionAddonQuantity.Incompatible", "quantity is 0 or more", path);
     }
-    const plan = planBySlug(planSlug);
-    const sold =
-      subscription && plan?.compatibleAddonFamilies.includes(addon.familySlug)
-        ? findAddOnPrice(slug, subscription.currency, subscription.billingPeriod)
-        : undefined;
-    if (!subscription || !sold) {
+    const current = subscription;
+    if (!current) {
       return problem(
         422,
         "SetSessionAddonQuantity.Incompatible",
-        subscription
-          ? "this add-on does not fit the plan, or has no price for its period"
-          : "subscribe to a plan first",
+        "subscribe to a plan first",
+        path,
+      );
+    }
+    if (!planBySlug(planSlug)?.compatibleAddonFamilies.includes(addon.familySlug)) {
+      return problem(
+        422,
+        "SetSessionAddonQuantity.Incompatible",
+        `"${slug}" does not fit the plan`,
+        path,
+      );
+    }
+    // One currency per subscription: an add-on priced in another cannot be attached to it.
+    const prices = addon.prices as Json[];
+    if (!prices.some((each) => each.currency === current.currency)) {
+      return problem(
+        422,
+        "SetSessionAddonQuantity.CurrencyMismatch",
+        `"${slug}" is not priced in ${current.currency}, the subscription's currency`,
+        path,
+      );
+    }
+    // The fee a subscription is billed for an add-on is its default flat fee of the period.
+    const sold = prices.find(
+      (each) =>
+        each.billingModel === "FLAT_FEE" &&
+        each.isDefault &&
+        each.currency === current.currency &&
+        each.billingPeriod === current.billingPeriod,
+    );
+    if (!sold) {
+      return problem(
+        422,
+        "SetSessionAddonQuantity.Incompatible",
+        `"${slug}" has no price for the subscription's billing period`,
         path,
       );
     }
