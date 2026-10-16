@@ -150,7 +150,14 @@ export function clearPending(kind: PendingKind): void {
 // Sending the customer to the page, and hearing that they are back
 // ---------------------------------------------------------------------------
 
-/** How the setup page was opened: in a popup beside the page, or in place of it. */
+/**
+ * How the setup page was opened: in a popup beside the page, or in place of it.
+ *
+ * A union that grows: a minor release may add a way to open the page, which the hooks handle
+ * themselves. Read it as information, and keep a `default` branch that says what is said after
+ * a reload (`CheckoutSetup["opening"]` is then `null`): `@kaitencloud/react-ui`, and a host,
+ * may see a way they do not know (STABILITY.md, "Unions that grow").
+ */
 export type SetupPageOpening = "popup" | "redirect";
 
 /**

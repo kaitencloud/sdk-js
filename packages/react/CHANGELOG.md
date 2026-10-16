@@ -45,8 +45,9 @@ The blessed path, which is the provider, the hooks, the control primitives, the 
 error classes, follows semantic versioning from this release on. So does the billing surface,
 meaning `mode="public"`, `mode="customer-session"` and the hooks of `@kaitencloud/react/billing`,
 which needs the first Kaiten release with billing. The refusals the billing hooks name, a
-checkout's steps, and the states of a voucher code, of a payment being waited on and of a
-payment-method page may gain a member in a minor release, by the rules `STABILITY.md` sets out.
+checkout's steps, the way a checkout opened the provider's page, and the states of a voucher
+code, of a payment being waited on and of a payment-method page may gain a member in a minor
+release, by the rules `STABILITY.md` sets out.
 The telemetry, `formatKaitenPrice` and the words of the styled components are experimental, and
 may change in a minor release, except in what a published `@kaitencloud/react-ui` imports:
 within a major, nothing it imports is removed or retyped, from any entry.

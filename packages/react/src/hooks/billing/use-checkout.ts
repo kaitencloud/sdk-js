@@ -58,7 +58,12 @@ export interface CheckoutSetup {
   url: string;
   sessionId: string;
   expiresAt: string;
-  /** How it was opened here; `null` when this page was only reloaded back to the checkout. */
+  /**
+   * How it was opened here: `popup` or `redirect`; `null` when this page was only reloaded back
+   * to the checkout. A minor release may add a way, which the hook handles itself: the checkout
+   * goes on the same, so take one you do not know as `null`, with `url` to open the page again
+   * and `resume()` once the customer is back (STABILITY.md, "Unions that grow").
+   */
   opening: SetupPageOpening | null;
 }
 

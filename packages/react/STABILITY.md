@@ -267,7 +267,10 @@ each member to its own fields, and may still gain members:
   stands;
 - `InvoiceSettlement["status"]`, what waiting on an invoice has come to (a checkout's
   `payment.settlement` is one), and `UsePaymentMethodSessionResult["status"]`, where the
-  provider's page for a payment method stands.
+  provider's page for a payment method stands;
+- `CheckoutSetup["opening"]` (`SetupPageOpening`), how a checkout opened the provider's page
+  where the customer saves a payment method: `popup` or `redirect`, and `null` when the page was
+  only reloaded back to the checkout.
 
 For all of them:
 
@@ -285,6 +288,9 @@ For all of them:
   `polling` and then `gave_up` until it has a state of its own. A host that knows only the
   states of 1.0 never takes an unpaid invoice for paid, nor a payment method that was not
   saved for saved.
+- **A new way of opening the provider's page changes nothing else of the checkout.** The hook
+  opens the page, waits for the customer and goes on by itself, whichever way it took, and the
+  step is `awaiting_payment_method` all the same, with `setup.url` and `resume()`.
 - **Keep a `default` branch.** For a refusal, say there what you say for `other`, and read
   `error` (for `useCheckout`, `preview.error` while the customer is choosing). For a step,
   rely on what holds whatever the step: `canSubmit` says whether the customer can subscribe,
@@ -292,15 +298,18 @@ For all of them:
   of the code: as far as you know, it is neither applied nor refused. For the wait on an
   invoice, take it as not paid: `invoice` is the invoice as last read, and `check()` reads it
   again. For a payment-method page, take it that nothing was saved: `paymentMethod` is set once
-  `saved`, and `start()` opens the page again. A `switch` that ends in an exhaustiveness check
-  (`const unhandled: never = problem`) stops compiling when a member is added: that is the
-  warning it is written for, and the addition is not a breaking change.
+  `saved`, and `start()` opens the page again. For the way a checkout opened the provider's
+  page, say what you say when it was reloaded back to the checkout (`opening: null`): the page
+  is at `setup.url` to be opened again, and `resume()` goes on once the customer is back. A
+  `switch` that ends in an exhaustiveness check (`const unhandled: never = problem`) stops
+  compiling when a member is added: that is the warning it is written for, and the addition is
+  not a breaking change.
 - **`@kaitencloud/react-ui` does the same**: each of its components keeps a fallback for a
   member it does not know, so a published `@kaitencloud/react-ui` reads what a later
   `@kaitencloud/react` 1.x adds.
 
-The other unions of `/billing`, the `status` of `CheckoutPreviewState` and
-`CheckoutSetup["opening"]`, are closed, and stay as they are for all of 1.x.
+The other union of `/billing`, the `status` of `CheckoutPreviewState`, is closed, and stays as
+it is for all of 1.x.
 `CheckoutPayment["status"]` is the client's `CheckoutPaymentStatus`, an open union.
 
 ## Practical guidance

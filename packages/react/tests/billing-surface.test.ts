@@ -57,8 +57,15 @@ test("STABILITY.md names every export of the billing entry, and says it is stabl
     "CheckoutVoucherState",
     'InvoiceSettlement["status"]',
     'UsePaymentMethodSessionResult["status"]',
+    'CheckoutSetup["opening"]',
   ];
   const section = STABILITY.slice(STABILITY.indexOf("### Unions that grow"));
   const listed = section.slice(0, section.indexOf("For all of them:"));
   expect(growing.filter((name) => !listed.includes(`\`${name}\``))).toEqual([]);
+  // And the one that does not grow is named as closed, with none of the growing ones beside it.
+  const closed = section.slice(section.indexOf("The other union"));
+  expect(closed.slice(0, closed.indexOf("\n\n"))).toContain("`CheckoutPreviewState`");
+  expect(growing.filter((name) => closed.slice(0, closed.indexOf("\n\n")).includes(name))).toEqual(
+    [],
+  );
 });
