@@ -8,6 +8,7 @@
 import { cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, expect, test, vi } from "vite-plus/test";
 import type { CheckoutInput, CheckoutResult } from "@kaitencloud/client";
+import type { CheckoutProblem } from "@kaitencloud/react/billing";
 import { fr } from "@kaitencloud/react/locales";
 
 import { CheckoutSummary, type CheckoutSummarySelection } from "../src/index.ts";
@@ -193,6 +194,28 @@ test("a provider that is down is a wait with a way to ask again", async () => {
   expect(requests).toHaveLength(2);
   expect(screen.queryByRole("alert")).toBeNull();
   expect(within(summary()).getByRole("status").textContent).toBe("$49.00");
+});
+
+test("a refusal of a kind this version does not know is said as `other` is, with a way to ask again", async () => {
+  // A later `@kaitencloud/react` may name a refusal that was `other` until then.
+  const client = unsubscribedSession();
+  const retry = vi.fn();
+  const refused = (kind: string) => ({
+    status: "failed" as const,
+    data: null,
+    isStale: false,
+    voucher: "none" as const,
+    problem: { kind } as unknown as CheckoutProblem,
+    error: new Error("Refused."),
+    retry,
+  });
+  const { update } = await draw(client, { preview: refused("other") });
+  const asOther = screen.getByRole("alert").textContent;
+
+  await update({ preview: refused("a_kind_of_a_later_release") });
+  expect(screen.getByRole("alert").textContent).toBe(asOther);
+  screen.getByRole("button", { name: "Try again" }).click();
+  expect(retry).toHaveBeenCalledOnce();
 });
 
 test("an instance that is subscribed already is said so", async () => {

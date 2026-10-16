@@ -135,6 +135,21 @@ function useAddOnNames(offered: readonly Addon[] | undefined): (slug: string) =>
 }
 
 /**
+ * The refusals of a preview that asking again would only repeat: the selection, the customer or
+ * the vendor has to change first. Every other one is offered a retry, as `other` is, and so is a
+ * kind that a later `@kaitencloud/react` adds, which names what was `other` until then.
+ */
+const FINAL_REFUSALS: ReadonlySet<string> = new Set<CheckoutProblem["kind"]>([
+  "addon_refused",
+  "quota_exceeded",
+  "not_payable_online",
+  "already_subscribed",
+  "voucher_invalid",
+  "billing_email_required",
+  "setup_incomplete",
+]);
+
+/**
  * What a refusal says to a customer, for the ones that have words. Anything else is the generic
  * error. A voucher is worded by its own field, so the refusal of one is not worded here. `addOns`
  * are add-ons the host handed a flow, whose names a refusal of them says.
@@ -238,11 +253,7 @@ export function CheckoutSummaryBody({
     >
       {unstyled ? null : <AlertIcon className="mt-0.5 size-4 shrink-0" />}
       <span>{refusal}</span>
-      {preview.error &&
-      (problem === null ||
-        problem.kind === "unavailable" ||
-        problem.kind === "rate_limited" ||
-        problem.kind === "other") ? (
+      {preview.error && (problem === null || !FINAL_REFUSALS.has(problem.kind)) ? (
         unstyled ? (
           <button type="button" onClick={preview.retry}>
             {localization.states.retry}
