@@ -73,8 +73,8 @@ const STORIES: Array<{ name: string; storyId: string }> = [
     name: "current-plan (customer session, quarterly)",
     storyId: "flows-customerportal--current-plan-in-a-session-quarterly",
   },
-  // The portal of a customer session: the controls of the plan, the stepper of the add-ons, the
-  // invoices with their links, a voucher check, and the sentences of a refusal.
+  // The portal of a customer session: the controls of the plan, the add-ons and the panel that
+  // changes them, the invoices with their links, a voucher check, and the sentences of a refusal.
   { name: "customer portal (session)", storyId: "flows-customer-portal-session--full" },
   // A plan with no entitlements: three of the portal's cells are empty, and its rows are filled by what remains.
   {
@@ -95,15 +95,19 @@ const STORIES: Array<{ name: string; storyId: string }> = [
   },
   {
     name: "customer portal (session, add-ons)",
-    storyId: "flows-customer-portal-session--add-on-steppers",
+    storyId: "flows-customer-portal-session--add-ons-held",
   },
   {
-    name: "customer portal (session, removing an add-on)",
-    storyId: "flows-customer-portal-session--add-on-remove-asked",
+    name: "customer portal (session, add-ons panel)",
+    storyId: "flows-customer-portal-session--manage-add-ons",
+  },
+  {
+    name: "customer portal (session, add-on refused)",
+    storyId: "flows-customer-portal-session--manage-add-ons-refused",
   },
   {
     name: "customer portal (session, closing a period)",
-    storyId: "flows-customer-portal-session--add-on-closing-period",
+    storyId: "flows-customer-portal-session--manage-add-ons-closing-period",
   },
   {
     name: "customer portal (session, invoices)",
