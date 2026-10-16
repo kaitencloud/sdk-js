@@ -135,19 +135,25 @@ function useAddOnNames(offered: readonly Addon[] | undefined): (slug: string) =>
 }
 
 /**
- * The refusals of a preview that asking again would only repeat: the selection, the customer or
- * the vendor has to change first. Every other one is offered a retry, as `other` is, and so is a
- * kind that a later `@kaitencloud/react` adds, which names what was `other` until then.
+ * Whether asking again for a refused preview can help, kind by kind: `false` for a refusal that
+ * asking again would only repeat, because the selection, the customer or the vendor has to change
+ * first. Every kind is listed, so a kind added to `CheckoutProblem` stops this package from
+ * compiling until it is classified here. A kind that a later `@kaitencloud/react` adds beside a
+ * published `@kaitencloud/react-ui` is not listed, and is offered a retry, as `other` is: it names
+ * what was `other` until then.
  */
-const FINAL_REFUSALS: ReadonlySet<string> = new Set<CheckoutProblem["kind"]>([
-  "addon_refused",
-  "quota_exceeded",
-  "not_payable_online",
-  "already_subscribed",
-  "voucher_invalid",
-  "billing_email_required",
-  "setup_incomplete",
-]);
+const RETRIES: Readonly<Record<CheckoutProblem["kind"], boolean>> = {
+  quota_exceeded: false,
+  billing_email_required: false,
+  voucher_invalid: false,
+  already_subscribed: false,
+  setup_incomplete: false,
+  unavailable: true,
+  rate_limited: true,
+  not_payable_online: false,
+  addon_refused: false,
+  other: true,
+};
 
 /**
  * What a refusal says to a customer, for the ones that have words. Anything else is the generic
@@ -253,7 +259,7 @@ export function CheckoutSummaryBody({
     >
       {unstyled ? null : <AlertIcon className="mt-0.5 size-4 shrink-0" />}
       <span>{refusal}</span>
-      {preview.error && (problem === null || !FINAL_REFUSALS.has(problem.kind)) ? (
+      {preview.error && (problem === null || RETRIES[problem.kind] !== false) ? (
         unstyled ? (
           <button type="button" onClick={preview.retry}>
             {localization.states.retry}
