@@ -199,6 +199,10 @@ test("the portal offers no add-on the subscription cannot be billed, and says wh
   await panel.getByRole("button", { name: "Confirm changes" }).click();
   await expect(panel).toHaveCount(0);
   await expect(page.locator('[data-slot="addon"]')).toContainText(["Extra seats"]);
-  await expect(page.locator('[data-slot="addon-quantity"]')).toHaveText(["× 1"]);
+  // Drawn "× 1", and read as the quantity it is.
+  const quantity = page.locator('[data-slot="addon-quantity"]');
+  await expect(quantity.locator('[aria-hidden="true"]')).toHaveText(["×"]);
+  await expect(quantity).toContainText(["× 1"]);
+  await expect(quantity.locator(".sr-only")).toHaveText(["Quantity of Extra seats:"]);
   expect((await standIn.state()).addOns).toEqual([{ slug: "extra-seats-v1", quantity: 1 }]);
 });
