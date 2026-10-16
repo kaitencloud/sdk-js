@@ -519,3 +519,51 @@ test("in the whole portal, the plan card and the add-ons card both open it", asy
   });
   expect(screen.getAllByRole("dialog")).toHaveLength(1);
 });
+
+test("the changes are said once in the portal: by the card they were made from, until a panel opens again", async () => {
+  mount(sessionServer(), <CustomerPortal elements={["CurrentPlan", "AddOns"]} />);
+  const [fromThePlan, fromTheCard] = await screen.findAllByRole("button", {
+    name: "Manage add-ons",
+  });
+  const updated = () => screen.queryAllByText("Your add-ons have been updated.");
+
+  await act(async () => {
+    fireEvent.click(fromThePlan!);
+  });
+  await pressInPanel("Add one Extra seats");
+  await pressInPanel("Confirm changes");
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  expect(updated()).toHaveLength(1);
+  expect(updated()[0]!.closest('[data-slot="card"]')!.textContent).toContain("Current plan");
+
+  // Another panel opens: what the first said is no longer the last word.
+  await act(async () => {
+    fireEvent.click(fromTheCard!);
+  });
+  expect(updated()).toHaveLength(0);
+  await pressInPanel("Add one Extra seats");
+  await pressInPanel("Confirm changes");
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  expect(updated()).toHaveLength(1);
+  expect(updated()[0]!.closest('[data-slot="card"]')!.textContent).toContain("Add-ons");
+});
+
+test("removing the last add-on keeps the card, which says so, and the keyboard goes to what it says", async () => {
+  // No catalogue is read: once the GPU pack goes, nothing is held and nothing is offered.
+  const portal = structuredClone(answers.portal);
+  portal.addOns = portal.addOns.filter((addon) => addon.addonSlug === "gpu-pack-v1");
+  const server = sessionServer({ portal });
+  mount(server, <AddOns />);
+  await openPanel();
+  await pressInPanel("Remove one GPU pack");
+  await pressInPanel("Confirm changes");
+
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  expect(sent(server)).toEqual(["gpu-pack-v1=0"]);
+  // The card stays, with what the instance now holds and the sentence of the changes; the button
+  // that opened the panel is gone with the add-ons, and the keyboard is on the sentence.
+  expect(screen.getByText("You have no add-ons yet.")).toBeTruthy();
+  const sentence = screen.getByText("Your add-ons have been updated.");
+  expect(screen.queryByRole("button", { name: "Manage add-ons" })).toBeNull();
+  await waitFor(() => expect(document.activeElement).toBe(sentence));
+});

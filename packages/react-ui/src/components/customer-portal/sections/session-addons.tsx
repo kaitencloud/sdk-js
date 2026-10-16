@@ -7,6 +7,7 @@ import { usePortalBillingWords } from "../../shared/billing-words.ts";
 import { KaitenBranding } from "../../shared/kaiten-branding.tsx";
 import { Card, CardContent, CardHeader, CardTitle } from "../../ui/card.tsx";
 import { Skeleton } from "../../ui/skeleton.tsx";
+import { useAddOnsPanel } from "./addons-panel-state.ts";
 import { ManageAddOns } from "./manage-addons.tsx";
 import { unitPriceText, useSessionAddOns } from "./session-addon-rows.ts";
 
@@ -31,6 +32,7 @@ export function SessionAddOns({
   const localization = useLocalization();
   const words = usePortalBillingWords();
   const addOns = useSessionAddOns();
+  const panel = useAddOnsPanel();
 
   if (addOns.isLoading) {
     return (
@@ -49,7 +51,9 @@ export function SessionAddOns({
       </Card>
     );
   }
-  if (addOns.rows.length === 0) return null;
+  // Nothing held and nothing offered is no section, unless its panel or what it said is on screen:
+  // the last add-on just went.
+  if (addOns.rows.length === 0 && !panel.active) return null;
 
   const priceOf = (row: (typeof addOns.held)[number]) =>
     unitPriceText(row.addon, addOns.subscription, localization);
@@ -76,7 +80,7 @@ export function SessionAddOns({
         ) : (
           <p>{words.addonsNone}</p>
         )}
-        <ManageAddOns addOns={addOns} unstyled />
+        <ManageAddOns addOns={addOns} panel={panel} unstyled />
       </section>
     );
   }
@@ -123,7 +127,7 @@ export function SessionAddOns({
         ) : (
           <p className="ktn-own text-sm text-ktn-muted-foreground">{words.addonsNone}</p>
         )}
-        <ManageAddOns addOns={addOns} unstyled={false} />
+        <ManageAddOns addOns={addOns} panel={panel} unstyled={false} />
       </CardContent>
       <KaitenBranding className="-mb-6" />
     </Card>

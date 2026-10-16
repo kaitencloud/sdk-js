@@ -12,6 +12,7 @@ import { addonFeeFor, saleOfPrice, type AddonSale } from "../../shared/addon-fee
 import { usePortalBillingWords } from "../../shared/billing-words.ts";
 import { Action, Message } from "../../shared/feedback.tsx";
 import { Dialog, DialogDescription, DialogTitle } from "../../ui/dialog.tsx";
+import type { AddOnsPanel } from "./addons-panel-state.ts";
 import { unitPriceText, type SessionAddonRow, type SessionAddOns } from "./session-addon-rows.ts";
 
 /** What the panel says of a refused change: why, when the API said why, and what to do. */
@@ -84,25 +85,41 @@ function renewalSale(live: PortalSubscription | null): AddonSale | null {
 
 /**
  * The way into the add-ons panel of a customer session: a button that opens it, and once the
- * changes made in it all went through, a sentence that says so, on a line of its own. Nothing when
- * the instance holds no add-on and none is offered.
+ * changes made in it all went through, a sentence that says so, on a line of its own. The button is
+ * there when the instance holds an add-on or is offered one; the panel and the sentence stay while
+ * they are on screen, whatever the add-ons have become, and the sentence is said by one entry point
+ * of the scope at a time (see `useAddOnsPanel`, which the component that renders this one holds).
  *
  * `inRow` puts the button in the row of actions it is rendered in, beside the others, instead of in
  * a row of its own.
  */
 export function ManageAddOns({
   addOns,
+  panel,
   unstyled,
   inRow = false,
 }: {
   addOns: SessionAddOns;
+  panel: AddOnsPanel;
   unstyled: boolean;
   inRow?: boolean;
 }) {
   const words = usePortalBillingWords();
-  const [open, setOpen] = React.useState(false);
-  const [updated, setUpdated] = React.useState(false);
-  if (addOns.rows.length === 0) return null;
+  const root = React.useRef<HTMLDivElement>(null);
+  const opener = addOns.rows.length > 0;
+
+  // The changes went through and took the last add-on with them, and the button that opened the
+  // panel with it: the keyboard goes to the sentence that says so, unless it has moved on.
+  React.useEffect(() => {
+    if (!panel.updated || opener) return;
+    const active = document.activeElement;
+    const container = root.current;
+    if (!container) return;
+    if (active && active !== document.body && !container.contains(active)) return;
+    container.querySelector<HTMLElement>('[data-focus="addons-updated"]')?.focus();
+  }, [panel.updated, opener]);
+
+  if (!opener && !panel.active) return null;
 
   // A checkout that waits for its payment: Kaiten changes no add-on until it is paid, so there is
   // nothing to open, only that to say.
@@ -116,6 +133,7 @@ export function ManageAddOns({
 
   return (
     <div
+      ref={root}
       data-slot="manage-addons"
       className={
         unstyled
@@ -125,31 +143,23 @@ export function ManageAddOns({
             : "ktn-own flex flex-wrap items-center gap-3"
       }
     >
-      <Action
-        unstyled={unstyled}
-        variant="outline"
-        size="sm"
-        onClick={() => {
-          setUpdated(false);
-          setOpen(true);
-        }}
-      >
-        {words.addonsManage}
-      </Action>
-      {updated ? (
+      {opener ? (
+        <Action unstyled={unstyled} variant="outline" size="sm" onClick={panel.show}>
+          {words.addonsManage}
+        </Action>
+      ) : null}
+      {panel.updated ? (
         <div className={unstyled ? undefined : "ktn-own basis-full"}>
-          <Message unstyled={unstyled} tone="success" text={words.addonsUpdated} />
+          <Message
+            unstyled={unstyled}
+            tone="success"
+            text={words.addonsUpdated}
+            focusKey="addons-updated"
+          />
         </div>
       ) : null}
-      {open ? (
-        <ManageAddOnsPanel
-          addOns={addOns}
-          unstyled={unstyled}
-          onClose={(done) => {
-            setOpen(false);
-            setUpdated(done);
-          }}
-        />
+      {panel.open ? (
+        <ManageAddOnsPanel addOns={addOns} unstyled={unstyled} onClose={panel.hide} />
       ) : null}
     </div>
   );

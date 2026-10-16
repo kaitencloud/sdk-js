@@ -141,6 +141,15 @@ export function useKaitenContext(): KaitenContextValue {
   return ctx;
 }
 
+/**
+ * The scope of the nearest provider: the same string for every component under it, and for a
+ * nested provider of the same scope. `null` outside any provider. For state that the components of
+ * one scope share, such as which entry point opened a panel.
+ */
+export function useKaitenScopeKey(): string | null {
+  return React.useContext(KaitenContext)?.scopeKey ?? null;
+}
+
 export function useKaitenDataContext(): KaitenDataContextValue {
   const ctx = React.useContext(KaitenDataContext);
   if (!ctx) {

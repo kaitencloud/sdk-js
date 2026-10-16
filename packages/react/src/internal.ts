@@ -11,5 +11,5 @@
 
 export { useTrackComponent } from "./telemetry/context.tsx";
 export { isHttpUrl } from "./hooks/billing/setup-return.ts";
-export { useKaitenDataContext } from "./providers/kaiten-provider.tsx";
+export { useKaitenDataContext, useKaitenScopeKey } from "./providers/kaiten-provider.tsx";
 export { isHeadlinePrice, kaitenPriceParts, type KaitenPriceParts } from "./lib/license-price.ts";

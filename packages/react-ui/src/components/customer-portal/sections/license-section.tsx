@@ -29,6 +29,7 @@ import {
   type StatusTone,
 } from "../../shared/subscription-state.ts";
 import type { KaitenAppearance } from "../../../appearance/types.ts";
+import { useAddOnsPanel } from "./addons-panel-state.ts";
 import { ManageAddOns } from "./manage-addons.tsx";
 import { useSessionAddOns } from "./session-addon-rows.ts";
 import { SubscriptionControls } from "./subscription-controls.tsx";
@@ -111,12 +112,6 @@ function CurrentPlanImpl({
   const localization = useLocalization();
   const subscriptionWords = useSubscriptionWords();
   const subscriptionState = useSubscriptionState();
-  const sessionAddOns = useSessionAddOns();
-  // The add-ons panel opens from the plan's actions, beside the host's, when there is something in it.
-  const managesAddOns = manage && sessionAddOns.rows.length > 0;
-  const [pendingAction, setPendingAction] = React.useState<"upgrade" | "quota" | "addon" | null>(
-    null,
-  );
 
   // What there is to say about the plan. A customer's licence says it all: version,
   // type, renewal. A customer session has no licence, only what its portal names: the
@@ -177,24 +172,6 @@ function CurrentPlanImpl({
     ? `${priceParts.amount}${priceParts.suffix ? `${priceParts.attached ? "" : " "}${priceParts.suffix}` : ""}`
     : null;
 
-  const trigger = React.useCallback(
-    async (
-      key: "upgrade" | "quota" | "addon",
-      callback: (() => void | Promise<void>) | undefined,
-      eventName: "kaiten:plan-changed" | "kaiten:quota-added" | "kaiten:addon-added",
-    ) => {
-      setPendingAction(key);
-      try {
-        const detail =
-          eventName === "kaiten:plan-changed" ? { planId: plan?.slug, planName: plan?.name } : {};
-        await runAction(callback, eventName, detail);
-      } finally {
-        setPendingAction(null);
-      }
-    },
-    [plan?.slug, plan?.name],
-  );
-
   if (isLoading) {
     return (
       <Card className={cn(merged.elements?.card)}>
@@ -218,6 +195,14 @@ function CurrentPlanImpl({
   if (!plan) return null;
 
   const ShieldIcon = icons.shield;
+  const actions: PlanActionsProps = {
+    plan,
+    unstyled,
+    rowClassName: merged.elements?.actionRow,
+    onUpgradeVersion,
+    onAddQuota,
+    onAddAddOn,
+  };
 
   if (unstyled) {
     return (
@@ -248,43 +233,10 @@ function CurrentPlanImpl({
             ))}
           </ul>
         ) : null}
-        {/* Same rule as the styled rendering below: an action with no handler is
-            not rendered. The two branches are one component to a consumer, so a
-            guard that holds in only one of them is not a guard. */}
-        {(onUpgradeVersion || onAddQuota || onAddAddOn || managesAddOns) && (
-          <div>
-            {onUpgradeVersion && (
-              <button
-                type="button"
-                onClick={() =>
-                  void runAction(onUpgradeVersion, "kaiten:plan-changed", {
-                    planId: plan.slug,
-                    planName: plan.name,
-                  })
-                }
-              >
-                {localization.currentPlan.upgradeVersion}
-              </button>
-            )}
-            {onAddQuota && (
-              <button
-                type="button"
-                onClick={() => void runAction(onAddQuota, "kaiten:quota-added")}
-              >
-                {localization.currentPlan.addQuota}
-              </button>
-            )}
-            {onAddAddOn && (
-              <button
-                type="button"
-                onClick={() => void runAction(onAddAddOn, "kaiten:addon-added")}
-              >
-                {localization.currentPlan.addAddOns}
-              </button>
-            )}
-            {managesAddOns ? <ManageAddOns addOns={sessionAddOns} unstyled inRow /> : null}
-          </div>
-        )}
+        {/* The same actions as the styled rendering below, by the same rule: the two
+            branches are one component to a consumer, so a guard that holds in only one
+            of them is not a guard. */}
+        {manage ? <ManagedPlanActions {...actions} /> : <PlanActions {...actions} />}
         {manage && subscriptionState ? (
           <SubscriptionControls state={subscriptionState} unstyled />
         ) : null}
@@ -361,53 +313,7 @@ function CurrentPlanImpl({
           </div>
         ) : null}
 
-        {/*
-          Each action renders only when the host gave it a handler — same rule as
-          `Paywall`, which shows its CTA only when `onUpgrade` exists. Rendering
-          them unconditionally meant a host that passed no callbacks (the common
-          case while billing is still being built) shipped three buttons that
-          flicker `aria-busy` and do nothing. A component sold to third parties
-          must not be able to display a dead CTA. The button of the add-ons panel
-          is the SDK's own, offered by the portal of a customer session, and sits
-          in the same row.
-        */}
-        {(onUpgradeVersion || onAddQuota || onAddAddOn || managesAddOns) && (
-          <div className={cn("flex flex-wrap gap-2", merged.elements?.actionRow)}>
-            {onUpgradeVersion && (
-              <Button
-                size="sm"
-                disabled={pendingAction === "upgrade"}
-                aria-busy={pendingAction === "upgrade"}
-                onClick={() => void trigger("upgrade", onUpgradeVersion, "kaiten:plan-changed")}
-              >
-                {localization.currentPlan.upgradeVersion}
-              </Button>
-            )}
-            {onAddQuota && (
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={pendingAction === "quota"}
-                aria-busy={pendingAction === "quota"}
-                onClick={() => void trigger("quota", onAddQuota, "kaiten:quota-added")}
-              >
-                {localization.currentPlan.addQuota}
-              </Button>
-            )}
-            {onAddAddOn && (
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={pendingAction === "addon"}
-                aria-busy={pendingAction === "addon"}
-                onClick={() => void trigger("addon", onAddAddOn, "kaiten:addon-added")}
-              >
-                {localization.currentPlan.addAddOns}
-              </Button>
-            )}
-            {managesAddOns ? <ManageAddOns addOns={sessionAddOns} unstyled={false} inRow /> : null}
-          </div>
-        )}
+        {manage ? <ManagedPlanActions {...actions} /> : <PlanActions {...actions} />}
 
         {manage && subscriptionState ? (
           <SubscriptionControls state={subscriptionState} unstyled={false} />
@@ -420,4 +326,148 @@ function CurrentPlanImpl({
 
 export function LicenseSection(props: CurrentPlanProps) {
   return <CurrentPlan {...props} />;
+}
+
+interface PlanActionsProps {
+  plan: { slug: string; name: string };
+  unstyled: boolean;
+  /** The appearance's class of the row of actions, styled. */
+  rowClassName?: string;
+  onUpgradeVersion?: () => void | Promise<void>;
+  onAddQuota?: () => void | Promise<void>;
+  onAddAddOn?: () => void | Promise<void>;
+  /** The way into the add-ons panel, beside the host's actions. */
+  addOns?: React.ReactNode;
+}
+
+/**
+ * The plan's row of actions. Each renders only when the host gave it a handler — same rule as
+ * `Paywall`, which shows its CTA only when `onUpgrade` exists. Rendering them unconditionally meant
+ * a host that passed no callbacks (the common case while billing is still being built) shipped
+ * three buttons that flicker `aria-busy` and do nothing. A component sold to third parties must not
+ * be able to display a dead CTA. The button of the add-ons panel is the SDK's own, offered by the
+ * portal of a customer session, and sits in the same row. With none of them, there is no row.
+ */
+function PlanActions({
+  plan,
+  unstyled,
+  rowClassName,
+  onUpgradeVersion,
+  onAddQuota,
+  onAddAddOn,
+  addOns,
+}: PlanActionsProps) {
+  const localization = useLocalization();
+  const [pendingAction, setPendingAction] = React.useState<"upgrade" | "quota" | "addon" | null>(
+    null,
+  );
+
+  const trigger = React.useCallback(
+    async (
+      key: "upgrade" | "quota" | "addon",
+      callback: (() => void | Promise<void>) | undefined,
+      eventName: "kaiten:plan-changed" | "kaiten:quota-added" | "kaiten:addon-added",
+    ) => {
+      setPendingAction(key);
+      try {
+        const detail =
+          eventName === "kaiten:plan-changed" ? { planId: plan.slug, planName: plan.name } : {};
+        await runAction(callback, eventName, detail);
+      } finally {
+        setPendingAction(null);
+      }
+    },
+    [plan.slug, plan.name],
+  );
+
+  if (!(onUpgradeVersion || onAddQuota || onAddAddOn || addOns)) return null;
+
+  if (unstyled) {
+    return (
+      <div>
+        {onUpgradeVersion && (
+          <button
+            type="button"
+            onClick={() =>
+              void runAction(onUpgradeVersion, "kaiten:plan-changed", {
+                planId: plan.slug,
+                planName: plan.name,
+              })
+            }
+          >
+            {localization.currentPlan.upgradeVersion}
+          </button>
+        )}
+        {onAddQuota && (
+          <button type="button" onClick={() => void runAction(onAddQuota, "kaiten:quota-added")}>
+            {localization.currentPlan.addQuota}
+          </button>
+        )}
+        {onAddAddOn && (
+          <button type="button" onClick={() => void runAction(onAddAddOn, "kaiten:addon-added")}>
+            {localization.currentPlan.addAddOns}
+          </button>
+        )}
+        {addOns}
+      </div>
+    );
+  }
+
+  return (
+    <div className={cn("flex flex-wrap gap-2", rowClassName)}>
+      {onUpgradeVersion && (
+        <Button
+          size="sm"
+          disabled={pendingAction === "upgrade"}
+          aria-busy={pendingAction === "upgrade"}
+          onClick={() => void trigger("upgrade", onUpgradeVersion, "kaiten:plan-changed")}
+        >
+          {localization.currentPlan.upgradeVersion}
+        </Button>
+      )}
+      {onAddQuota && (
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={pendingAction === "quota"}
+          aria-busy={pendingAction === "quota"}
+          onClick={() => void trigger("quota", onAddQuota, "kaiten:quota-added")}
+        >
+          {localization.currentPlan.addQuota}
+        </Button>
+      )}
+      {onAddAddOn && (
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={pendingAction === "addon"}
+          aria-busy={pendingAction === "addon"}
+          onClick={() => void trigger("addon", onAddAddOn, "kaiten:addon-added")}
+        >
+          {localization.currentPlan.addAddOns}
+        </Button>
+      )}
+      {addOns}
+    </div>
+  );
+}
+
+/**
+ * The plan's actions in a portal that manages the subscription: the host's, and the way into the
+ * add-ons panel when there is something in it, or while its panel or its sentence is on screen.
+ * The add-ons are read here and only here, so that a plan card that manages nothing reads none.
+ */
+function ManagedPlanActions(props: PlanActionsProps) {
+  const addOns = useSessionAddOns();
+  const panel = useAddOnsPanel();
+  return (
+    <PlanActions
+      {...props}
+      addOns={
+        addOns.rows.length > 0 || panel.active ? (
+          <ManageAddOns addOns={addOns} panel={panel} unstyled={props.unstyled} inRow />
+        ) : null
+      }
+    />
+  );
 }
