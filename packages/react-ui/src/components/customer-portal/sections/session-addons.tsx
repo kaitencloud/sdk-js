@@ -31,6 +31,8 @@ interface Row {
 /** What the section says of a refused change: why, when the API said why, and what to do. */
 function refusalText(problem: AddonQuantityProblem, words: KaitenPortalBillingWords): string {
   switch (problem.kind) {
+    case "addon_not_public":
+      return words.addonNotPublic;
     case "currency_mismatch":
       return words.addonCurrencyMismatch;
     case "incompatible":
@@ -41,6 +43,8 @@ function refusalText(problem: AddonQuantityProblem, words: KaitenPortalBillingWo
       return words.addonOtherVersionAttached;
     case "subscription_incomplete":
       return words.addonSubscriptionIncomplete;
+    case "instance_required":
+      return words.addonInstanceRequired;
     case "boundary_pending":
       return words.stillClosing;
     case "unavailable":
@@ -58,8 +62,9 @@ function refusalText(problem: AddonQuantityProblem, words: KaitenPortalBillingWo
  * added back.
  *
  * Each press is one change: the quantity is the server's to set, `0` detaching it, and a refusal is
- * the answer, said with its reason: an add-on in another currency, one that does not fit the plan,
- * too many units, another version held, a plan that waits for its payment. A change is billed from
+ * the answer, said with its reason: an add-on no longer for sale, one in another currency, one that
+ * does not fit the plan, too many units, another version held, a plan that waits for its payment, a
+ * session with no instance. A change is billed from
  * the next renewal, with nothing refunded, which is said before the last unit is removed. While a
  * billing period is being closed the API asks to wait, and the hook does: the section says so.
  */

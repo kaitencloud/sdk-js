@@ -356,6 +356,7 @@ const addonRefusal = (status: number, code: string) => ({
 });
 
 test.each([
+  [422, "AddonNotPublic", "This add-on is no longer available."],
   [422, "CurrencyMismatch", "This add-on isn't sold in the currency of your subscription."],
   [422, "Incompatible", "This add-on isn't available with your plan or its billing period."],
   [422, "QuantityExceedsMax", "That's more than this add-on allows."],
@@ -365,9 +366,9 @@ test.each([
     "SubscriptionIncomplete",
     "Your plan starts once your payment is confirmed. You can change add-ons after that.",
   ],
+  [422, "InstanceRequired", "Add-ons can't be changed from this page."],
   // What the portal has no word for is the generic sentence.
-  [422, "AddonNotPublic", "That didn't work. Please try again."],
-  [422, "InstanceRequired", "That didn't work. Please try again."],
+  [422, "SomethingNew", "That didn't work. Please try again."],
 ] as const)("%i .%s is said in its own words", async (status, code, said) => {
   const server = sessionServer();
   server.script("PUT addons/extra-seats-v1", addonRefusal(status, code));
@@ -385,16 +386,17 @@ test.each([
   expect(screen.queryByText(said)).toBeNull();
 });
 
-test("a refusal is said in the customer's language", async () => {
+test.each([
+  ["CurrencyMismatch", "Cette option n'est pas vendue dans la devise de votre abonnement."],
+  ["AddonNotPublic", "Cette option n'est plus disponible."],
+] as const)("a refusal is said in the customer's language: .%s", async (code, said) => {
   const server = sessionServer();
-  server.script("PUT addons/extra-seats-v1", addonRefusal(422, "CurrencyMismatch"));
+  server.script("PUT addons/extra-seats-v1", addonRefusal(422, code));
   mount(server, <AddOns />, fr);
   await screen.findByText("Extra seats");
 
   await press("Ajouter un Extra seats");
-  expect(
-    await screen.findByText("Cette option n'est pas vendue dans la devise de votre abonnement."),
-  ).toBeTruthy();
+  expect(await screen.findByText(said)).toBeTruthy();
 });
 
 // ---------------------------------------------------------------------------

@@ -260,6 +260,7 @@ export const fr: KaitenLocalization = {
       "Les changements sont facturés à partir de votre prochain renouvellement. Rien n'est remboursé pour la période en cours.",
     addonRemove: "Retirer",
     addonKeep: "Garder",
+    addonNotPublic: "Cette option n'est plus disponible.",
     addonCurrencyMismatch: "Cette option n'est pas vendue dans la devise de votre abonnement.",
     addonIncompatible:
       "Cette option n'est pas disponible avec votre offre ou sa période de facturation.",
@@ -267,6 +268,7 @@ export const fr: KaitenLocalization = {
     addonOtherVersionAttached: "Votre offre comprend déjà une autre version de cette option.",
     addonSubscriptionIncomplete:
       "Votre offre démarre dès que votre paiement est confirmé. Vous pourrez modifier vos options ensuite.",
+    addonInstanceRequired: "Les options ne peuvent pas être modifiées depuis cette page.",
     vouchers: "Code promo",
     voucherLabel: "Code promo",
     voucherCheck: "Vérifier",

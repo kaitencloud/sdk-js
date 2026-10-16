@@ -263,6 +263,7 @@ export const de: KaitenLocalization = {
       "Änderungen werden ab Ihrer nächsten Verlängerung berechnet. Für den laufenden Zeitraum wird nichts erstattet.",
     addonRemove: "Entfernen",
     addonKeep: "Behalten",
+    addonNotPublic: "Diese Zusatzoption ist nicht mehr verfügbar.",
     addonCurrencyMismatch:
       "Diese Zusatzoption wird nicht in der Währung Ihres Abonnements angeboten.",
     addonIncompatible:
@@ -271,6 +272,7 @@ export const de: KaitenLocalization = {
     addonOtherVersionAttached: "Ihr Tarif enthält bereits eine andere Version dieser Zusatzoption.",
     addonSubscriptionIncomplete:
       "Ihr Tarif beginnt, sobald Ihre Zahlung bestätigt ist. Danach können Sie Zusatzoptionen ändern.",
+    addonInstanceRequired: "Zusatzoptionen können auf dieser Seite nicht geändert werden.",
     vouchers: "Gutschein",
     voucherLabel: "Gutscheincode",
     voucherCheck: "Prüfen",

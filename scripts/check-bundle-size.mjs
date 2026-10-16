@@ -196,16 +196,19 @@ const SCENARIOS = [
     // badge), the meter's allowance band and tick, and the new words of the English.
     // Measured at 59 498 bytes, up from 58 943: the refusals of a change to an add-on, named by
     // the hook and said in their own words, and the fee an add-on is offered at.
+    // Measured at 59 702 bytes, up from 59 498: the rule an add-on is offered to a subscription by,
+    // and the two refusals of a change that had no words of their own.
     name: "react-ui · CustomerPortal + KaitenProvider + KaitenStyleRoot",
     code: `import { CustomerPortal, KaitenProvider, KaitenStyleRoot } from "@kaitencloud/react-ui"; console.log(CustomerPortal, KaitenProvider, KaitenStyleRoot);`,
-    budgetGzip: 59_650,
+    budgetGzip: 59_850,
   },
   {
     // Measured at 93 302 bytes, up from 79 688: Base UI's radio group, as in the checkout (12.4 KB),
     // and the Kaiten console's usage rule, as in the customer portal (1.3 KB).
+    // Measured at 93 901 bytes, up from 93 705: what the customer portal grew by, as above.
     name: "react-ui · everything",
     code: `import * as all from "@kaitencloud/react-ui"; console.log(all);`,
-    budgetGzip: 93_850,
+    budgetGzip: 94_050,
   },
   {
     name: "client · KaitenClient alone",

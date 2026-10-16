@@ -165,6 +165,8 @@ export interface KaitenPortalBillingWords {
   addonRemoveNote: string;
   addonRemove: string;
   addonKeep: string;
+  /** A change refused because the add-on is no longer for sale, which trying again does not change. */
+  addonNotPublic: string;
   /** A change refused because the add-on is priced in another currency than the subscription's. */
   addonCurrencyMismatch: string;
   /** A change refused because the add-on does not fit the plan, or has no price for its billing period. */
@@ -175,6 +177,8 @@ export interface KaitenPortalBillingWords {
   addonOtherVersionAttached: string;
   /** A change refused while the subscription waits for the payment of its checkout. */
   addonSubscriptionIncomplete: string;
+  /** A change refused because the session is the customer's alone, with no instance to change. */
+  addonInstanceRequired: string;
   vouchers: string;
   voucherLabel: string;
   voucherCheck: string;
