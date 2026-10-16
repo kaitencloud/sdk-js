@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import type { ReactNode } from "react";
+import { StrictMode, type ReactNode } from "react";
 import { action } from "storybook/actions";
 import { expect, userEvent, within } from "storybook/test";
 
@@ -187,6 +187,27 @@ export const HardOverLimit: Story = {
     threshold: 0.8,
     mode: "hard",
     children: <p className="text-sm">Content is replaced when over limit in hard mode.</p>,
+  },
+};
+
+export const HardOverLimitStrictMode: Story = {
+  name: "Hard over limit, under StrictMode",
+  // StrictMode runs the dialog's effect, its cleanup, then the effect again: the wall must stay up
+  // through that, as it does in a host's development build.
+  decorators: [
+    (Story) => (
+      <KaitenStoryProvider scenario={overScenario}>
+        <StrictMode>{shell(<Story />)}</StrictMode>
+      </KaitenStoryProvider>
+    ),
+  ],
+  args: HardOverLimit.args,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const dialog = await canvas.findByRole("dialog", {}, { timeout: 5_000 });
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    await expect(canvas.getByRole("dialog")).toBe(dialog);
+    await expect((dialog as HTMLDialogElement).open).toBe(true);
   },
 };
 

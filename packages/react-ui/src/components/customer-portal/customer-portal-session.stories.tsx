@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { StrictMode } from "react";
 import { expect, userEvent, waitFor, within } from "storybook/test";
 import { fr } from "@kaitencloud/react/locales";
 
@@ -434,6 +435,24 @@ export const ManageAddOnsUnstyled: Story = {
     await expect(dialog.tagName).toBe("DIALOG");
     await changeTwo(panel);
     await expect(panel.getByRole("heading", { name: "Your changes" })).toBeInTheDocument();
+  },
+};
+
+export const ManageAddOnsStrictMode: Story = {
+  name: "Add-ons: the panel, under StrictMode",
+  // StrictMode runs a component's effects, their cleanup, then the effects again: the panel must
+  // stay open through that, as it does in a host's development build.
+  render: () => (
+    <StrictMode>
+      <AddOnsColumn />
+    </StrictMode>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const { dialog } = await openPanel(canvasElement);
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    await expect(canvas.getByRole("dialog", { name: "Manage add-ons" })).toBe(dialog);
+    await expect((dialog as HTMLDialogElement).open).toBe(true);
   },
 };
 

@@ -91,7 +91,9 @@ export function Dialog({
     if (!element) return;
     // StrictMode runs this effect, its cleanup, then this effect again on one
     // mount. The cleanup below marks the dialog dismissed so its own `close()`
-    // reports nothing; a rerun must start clean or Escape would never work.
+    // reports nothing; a rerun must start clean or Escape would never work. The
+    // `close` event that `close()` queued arrives after the rerun opened the
+    // dialog again, and `onClose` drops it for that reason.
     dismissedRef.current = false;
     const previouslyFocused =
       document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -155,7 +157,13 @@ export function Dialog({
         event.preventDefault();
         requestClose();
       }}
-      onClose={requestClose}
+      onClose={(event) => {
+        // `close()` fires its event a task later. StrictMode's cleanup closes the dialog and its
+        // second run opens it again before that event arrives: an event that finds the dialog
+        // open is the stale one, and closes nothing.
+        if (event.currentTarget.open) return;
+        requestClose();
+      }}
       onKeyDown={(event) => {
         onKeyDown?.(event);
         if (event.defaultPrevented) return;
