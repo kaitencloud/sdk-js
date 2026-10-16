@@ -176,9 +176,11 @@ const SCENARIOS = [
     // of its English. A host that offers none does not: the four scenarios above are not in it.
     // Measured at 64 634 bytes, up from 52 434: 12.2 KB of it is Base UI's radio group, which
     // draws the billing periods.
+    // Measured at 64 832 bytes, up from 64 624: the rule an add-on is offered by beside the price
+    // chosen, the portal's, and the quantities a billing period keeps.
     name: "react-ui · CheckoutFlow + KaitenProvider + KaitenStyleRoot",
     code: `import { CheckoutFlow, KaitenProvider, KaitenStyleRoot } from "@kaitencloud/react-ui"; console.log(CheckoutFlow, KaitenProvider, KaitenStyleRoot);`,
-    budgetGzip: 64_750,
+    budgetGzip: 64_950,
   },
   {
     // What a host that shows a customer how they pay ships: the card, the billing hooks that add or
@@ -206,9 +208,10 @@ const SCENARIOS = [
     // Measured at 93 302 bytes, up from 79 688: Base UI's radio group, as in the checkout (12.4 KB),
     // and the Kaiten console's usage rule, as in the customer portal (1.3 KB).
     // Measured at 93 901 bytes, up from 93 705: what the customer portal grew by, as above.
+    // Measured at 94 081 bytes, up from 93 933: what the checkout grew by, as above.
     name: "react-ui · everything",
     code: `import * as all from "@kaitencloud/react-ui"; console.log(all);`,
-    budgetGzip: 94_050,
+    budgetGzip: 94_200,
   },
   {
     name: "client · KaitenClient alone",

@@ -89,6 +89,35 @@ export const AnnualPeriod: Story = {
   },
 };
 
+export const AddOnNotSoldForThePeriod: Story = {
+  name: "An add-on the billing period does not sell",
+  play: async ({ canvasElement }) => {
+    const { canvas } = await priced(canvasElement);
+    const more = canvas.getByRole("button", { name: "Add one Extra seats" });
+    await userEvent.click(more);
+    await userEvent.click(more);
+    // $79.00 + 2 × $25.00: the server's sum.
+    await expect(await canvas.findByText("$129.00", {}, SLOW)).toBeInTheDocument();
+
+    // The seats have a fee by the month only: Kaiten attaches none by the year, so the year does
+    // not offer them, and they leave what is bought and priced.
+    await userEvent.click(canvas.getByRole("radio", { name: "$790.00/year" }));
+    await expect(
+      canvasElement.querySelector('[data-slot="checkout-flow-addons"]'),
+    ).not.toBeInTheDocument();
+    await waitFor(() => expect(canvas.queryByText("$129.00")).toBeNull(), SLOW);
+    await expect((await canvas.findAllByText("$790.00", {}, SLOW)).length).toBeGreaterThan(0);
+
+    // Back by the month they are offered again, at none: no quantity was kept for them.
+    await userEvent.click(canvas.getByRole("radio", { name: "$79.00/month" }));
+    await expect(canvas.getByRole("status", { name: "Quantity of Extra seats" })).toHaveTextContent(
+      "0",
+    );
+    // And the month alone is priced again.
+    await priced(canvasElement);
+  },
+};
+
 export const AddOnsAndVoucher: Story = {
   name: "Add-ons and a voucher",
   play: async ({ canvasElement }) => {

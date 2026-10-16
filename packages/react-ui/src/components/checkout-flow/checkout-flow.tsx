@@ -22,7 +22,7 @@ import { useMergedAppearance } from "../../appearance/context.tsx";
 import type { KaitenAppearance } from "../../appearance/types.ts";
 import { cn } from "../../lib/utils.ts";
 import { useAssertWrappedByKaitenProvider } from "../../style-root/kaiten-style-root.tsx";
-import { addonUnitPrice, monthsOf, saleOfPrice } from "../shared/addon-fee.ts";
+import { addonFeeFor, attachableTo, monthsOf, saleOfPrice } from "../shared/addon-fee.ts";
 import { Action, Message as FeedbackMessage } from "../shared/feedback.tsx";
 import { useFocusScope } from "../shared/focus.ts";
 import { KaitenBranding } from "../shared/kaiten-branding.tsx";
@@ -66,9 +66,29 @@ function initialPrice(prices: BillingPrice[], chosen: string | undefined): Billi
   );
 }
 
-/** What an add-on costs per unit, at the billing period and in the currency of the plan's price. */
-const addonPrice = (addon: Addon, plan: BillingPrice | null): BillingPrice | null =>
-  addonUnitPrice(addon, plan ? saleOfPrice(plan) : null);
+/**
+ * Whether an add-on can be bought beside a price: Kaiten attaches it to the subscription that
+ * price starts. With no price chosen, none can.
+ */
+const attachableAt = (addon: Addon, price: BillingPrice | null): boolean =>
+  price !== null && attachableTo(addon, saleOfPrice(price));
+
+/**
+ * The quantities a price keeps: those of the add-ons offered beside the plan that Kaiten does not
+ * attach to it leave, and the others stay as they are. A slug that is none of the add-ons offered
+ * is not one this flow can judge, and stays too.
+ */
+function quantitiesKeptAt(
+  quantities: Record<string, number>,
+  candidates: Addon[],
+  price: BillingPrice | null,
+): Record<string, number> {
+  const kept = { ...quantities };
+  for (const addon of candidates) {
+    if (addon.slug in kept && !attachableAt(addon, price)) delete kept[addon.slug];
+  }
+  return kept;
+}
 
 // ---------------------------------------------------------------------------
 // The component
@@ -83,11 +103,14 @@ export interface CheckoutFlowProps {
   /** The id of the price (the billing period) chosen at first: what `onSelectPlan` hands as its third argument. */
   priceId?: string;
   /**
-   * The add-ons offered. Default: the public add-ons of the catalog that fit the plan, when
-   * the provider reads one (a publishable key), in the currency of the price chosen.
+   * The add-ons that can be offered. Default: the public add-ons of the catalog that fit the plan,
+   * when the provider reads one (a publishable key). Of these, the flow offers only the ones Kaiten
+   * attaches beside the price chosen: priced in its currency and, for a paid add-on with flat fees,
+   * with a default fee for its billing period, which is the one shown. A billing period that does
+   * not sell an add-on takes it out of the selection.
    */
   addOns?: Addon[];
-  /** The quantity of each add-on chosen at first, by slug. */
+  /** The quantity of each add-on chosen at first, by slug: one the first price does not sell is left out. */
   initialQuantities?: Record<string, number>;
   /**
    * Where the provider's page sends the customer back to, with `kaiten_setup_session` appended:
@@ -156,11 +179,48 @@ function CheckoutFlowView({
 
   const prices = React.useMemo(() => purchasablePrices(plan, priceId), [plan, priceId]);
   const start = React.useMemo(() => initialPrice(prices, priceId), [prices, priceId]);
+  // The add-ons that can be offered beside the plan, whatever the price: the host's, else the
+  // catalogue's that fit the plan.
+  const candidates = React.useMemo(
+    () =>
+      addOns ??
+      catalogAddOns?.filter(
+        (addon) => !!addon.familySlug && plan.compatibleAddonFamilies?.includes(addon.familySlug),
+      ) ??
+      [],
+    [addOns, catalogAddOns, plan],
+  );
   const checkout = useCheckout({
-    initial: { licensePriceId: start?.id ?? null, addOns: initialQuantities },
+    initial: {
+      licensePriceId: start?.id ?? null,
+      addOns: initialQuantities && quantitiesKeptAt(initialQuantities, candidates, start),
+    },
     returnUrl,
     onSubscribed,
   });
+  const chosen = prices.find((price) => price.id === checkout.selection.licensePriceId) ?? null;
+
+  // Another billing period is chosen together with what it keeps of the add-ons, in one change, so
+  // that no selection with an add-on Kaiten would refuse is ever priced.
+  const { select, setAddOnQuantity } = checkout;
+  const selectedAddOns = checkout.selection.addOns;
+  const selectPrice = (id: string) =>
+    select({
+      licensePriceId: id,
+      addOns: quantitiesKeptAt(
+        selectedAddOns,
+        candidates,
+        prices.find((price) => price.id === id) ?? null,
+      ),
+    });
+  // What arrives later (the catalogue, or other add-ons from the host) is held to the same rule.
+  React.useEffect(() => {
+    for (const addon of candidates) {
+      if ((selectedAddOns[addon.slug] ?? 0) > 0 && !attachableAt(addon, chosen)) {
+        setAddOnQuantity(addon.slug, 0);
+      }
+    }
+  }, [candidates, chosen, selectedAddOns, setAddOnQuantity]);
 
   // Each step replaces the last one's controls: the keyboard goes to what the new one says first, and
   // to the refusal of a checkout that sent the customer back to choosing.
@@ -179,14 +239,8 @@ function CheckoutFlowView({
 
   if (!checkout.available) return null;
 
-  const chosen = prices.find((price) => price.id === checkout.selection.licensePriceId) ?? null;
-  const offered = (
-    addOns ??
-    catalogAddOns?.filter(
-      (addon) => !!addon.familySlug && plan.compatibleAddonFamilies?.includes(addon.familySlug),
-    ) ??
-    []
-  ).filter((addon) => addonPrice(addon, chosen) !== null);
+  // Offered: the add-ons Kaiten attaches beside the price chosen, and only those.
+  const offered = candidates.filter((addon) => attachableAt(addon, chosen));
 
   const frame = (children: React.ReactNode, footer?: React.ReactNode) =>
     unstyled ? (
@@ -295,14 +349,14 @@ function CheckoutFlowView({
           prices={prices}
           selected={checkout.selection.licensePriceId}
           disabled={submitting}
-          onSelect={checkout.selectPrice}
+          onSelect={selectPrice}
           label={(price) =>
             formatKaitenPrice(price, localization, { entitlements: plan.entitlements }) ?? ""
           }
         />
       ) : null}
 
-      {offered.length > 0 ? (
+      {chosen && offered.length > 0 ? (
         <AddOnSteppers
           unstyled={unstyled}
           legend={localization.pricingTable.addOns}
@@ -602,7 +656,8 @@ function AddOnSteppers({
   unstyled: boolean;
   legend: string;
   addOns: Addon[];
-  chosen: BillingPrice | null;
+  /** The price chosen, which the add-ons are billed beside. */
+  chosen: BillingPrice;
   quantities: Record<string, number>;
   disabled: boolean;
   onChange: (slug: string, quantity: number) => void;
@@ -620,7 +675,9 @@ function AddOnSteppers({
         {addOns.map((addon) => {
           const quantity = quantities[addon.slug] ?? 0;
           const max = addon.maxQuantity ?? null;
-          const price = addonPrice(addon, chosen);
+          // The fee Kaiten bills it at beside the price chosen, and no other: an add-on billed
+          // no flat fee for the period (metered only, free or custom) shows none.
+          const price = addonFeeFor(addon, saleOfPrice(chosen));
           return (
             <li
               key={addon.slug}

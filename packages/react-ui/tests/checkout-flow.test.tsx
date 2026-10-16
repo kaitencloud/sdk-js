@@ -7,7 +7,7 @@
 
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vite-plus/test";
-import type { CheckoutInput, CheckoutResult } from "@kaitencloud/client";
+import type { Addon, BillingPrice, CheckoutInput, CheckoutResult } from "@kaitencloud/client";
 import { DEMO_SESSION_NOW, demoVouchers } from "@kaitencloud/client/testing";
 import { fr } from "@kaitencloud/react/locales";
 
@@ -41,6 +41,60 @@ import { off } from "./support/session-mount.tsx";
 const GROWTH_MONTHLY = "price_growth_monthly";
 const GROWTH_ANNUAL = "price_growth_annual";
 const plan = growthPlan();
+
+/** A default fee in dollars of `amount` minor units, every month or every year. */
+const fee = (id: string, amount: number, interval: "month" | "year"): BillingPrice => ({
+  id,
+  amount,
+  unitAmountDecimal: `${amount}`,
+  currencyCode: "USD",
+  billingModel: "FLAT_FEE",
+  isDefault: true,
+  interval,
+  label: interval === "year" ? "Annual" : "Monthly",
+});
+
+/** The seats as the catalogue sells them: a paid add-on with a monthly fee, and none by the year. */
+const seatsByTheMonth: Addon = { ...extraSeats, pricingType: "PAID" };
+/** Storage, paid, by the month or by the year. */
+const storage: Addon = {
+  ...extraSeats,
+  slug: "extra-storage-v1",
+  familySlug: "extra-storage",
+  name: "Extra storage",
+  pricingType: "PAID",
+  billingPrices: [
+    fee("price_storage_monthly", 500, "month"),
+    fee("price_storage_annual", 5000, "year"),
+  ],
+};
+/** GPU hours: paid, metered only, so billed no flat fee for any period. */
+const gpuHours: Addon = {
+  ...extraSeats,
+  slug: "gpu-hours-v1",
+  familySlug: "gpu-hours",
+  name: "GPU hours",
+  pricingType: "PAID",
+  billingPrices: [
+    {
+      id: "price_gpu_hours",
+      amount: 90,
+      unitAmountDecimal: "90",
+      currencyCode: "USD",
+      billingModel: "USAGE_BASED",
+      isDefault: false,
+    },
+  ],
+};
+/** Priority support: free, with a fee of nothing, by the year alone. */
+const prioritySupport: Addon = {
+  ...extraSeats,
+  slug: "priority-support-v1",
+  familySlug: "priority-support",
+  name: "Priority support",
+  pricingType: "FREE",
+  billingPrices: [fee("price_priority_support_annual", 0, "year")],
+};
 
 const at = (url: string) => window.history.replaceState(null, "", url);
 
@@ -92,6 +146,11 @@ const total = () =>
   flow().querySelector('[data-slot="checkout-summary-lines"] [role="status"]')!.textContent;
 const quantity = (name: string) =>
   within(flow()).getByRole("status", { name: `Quantity of ${name}` }).textContent;
+/** The names of the add-ons offered, in their order. */
+const names = () =>
+  [...flow().querySelectorAll('[data-slot="checkout-flow-addons"] li')].map(
+    (row) => row.querySelector("span > span")!.textContent,
+  );
 
 /** Pressing something, and letting what it starts settle. */
 async function press(target: HTMLElement, wait = 0) {
@@ -269,6 +328,120 @@ describe("choosing", () => {
     // The provider has no catalogue (no key, no client): nothing to offer unless the host says.
     await draw(selling(), { addOns: undefined });
     expect(screen.queryByText("Extra seats")).toBeNull();
+  });
+
+  test("an add-on is offered at its fee for the period chosen, and not for a period it has none for", async () => {
+    // Seats are paid for by the month only; storage by the month or by the year.
+    const client = selling();
+    await draw(client, { addOns: [seatsByTheMonth, storage] });
+
+    const root = within(flow());
+    expect(names()).toEqual(["Extra seats", "Extra storage"]);
+    expect(root.getByText("$25.00/month")).toBeTruthy();
+    expect(root.getByText("$5.00/month")).toBeTruthy();
+
+    await press(screen.getByRole("radio", { name: "$790.00/year" }), 300);
+    // By the year Kaiten attaches no seats: they are not offered, at their monthly fee or any.
+    expect(names()).toEqual(["Extra storage"]);
+    expect(root.queryByText("Extra seats")).toBeNull();
+    expect(root.queryByText("$25.00/month")).toBeNull();
+    expect(root.getByText("$50.00/year")).toBeTruthy();
+    expect(root.queryByText("$5.00/month")).toBeNull();
+  });
+
+  test("an add-on chosen leaves the selection with a period that does not sell it, and is never sent with it", async () => {
+    const client = selling();
+    await draw(client, {
+      addOns: [seatsByTheMonth, storage],
+      initialQuantities: { "extra-seats-v1": 2, "extra-storage-v1": 1 },
+    });
+    expect(previews(client)[0]!.addOns).toEqual([
+      { addonSlug: "extra-seats-v1", quantity: 2 },
+      { addonSlug: "extra-storage-v1", quantity: 1 },
+    ]);
+
+    await press(screen.getByRole("radio", { name: "$790.00/year" }), 300);
+    expect(previews(client).at(-1)).toEqual({
+      licensePriceId: GROWTH_ANNUAL,
+      addOns: [{ addonSlug: "extra-storage-v1", quantity: 1 }],
+      dryRun: true,
+    });
+    // No request ever asked for seats by the year, to price or to buy.
+    await press(button(/^Subscribe/));
+    expect(commits(client)).toHaveLength(1);
+    for (const input of callsOf(client, "checkout") as CheckoutInput[]) {
+      if (input.licensePriceId !== GROWTH_ANNUAL) continue;
+      expect(input.addOns?.map((entry) => entry.addonSlug)).toEqual(["extra-storage-v1"]);
+    }
+  });
+
+  test("a quantity is not kept for an add-on that left: back on its period it is at none", async () => {
+    const client = selling();
+    await draw(client, {
+      addOns: [seatsByTheMonth, storage],
+      initialQuantities: { "extra-seats-v1": 2 },
+    });
+    await press(screen.getByRole("radio", { name: "$790.00/year" }), 300);
+    await press(screen.getByRole("radio", { name: "$79.00/month" }), 300);
+
+    expect(quantity("Extra seats")).toBe("0");
+    expect(previews(client).at(-1)).toEqual({ licensePriceId: GROWTH_MONTHLY, dryRun: true });
+  });
+
+  test("a quantity the host starts from for an add-on the first price does not sell is not sent", async () => {
+    const client = selling();
+    await draw(client, {
+      priceId: GROWTH_ANNUAL,
+      addOns: [seatsByTheMonth, storage],
+      initialQuantities: { "extra-seats-v1": 2, "extra-storage-v1": 1 },
+    });
+    expect(previews(client)).toEqual([
+      {
+        licensePriceId: GROWTH_ANNUAL,
+        addOns: [{ addonSlug: "extra-storage-v1", quantity: 1 }],
+        dryRun: true,
+      },
+    ]);
+    expect(names()).toEqual(["Extra storage"]);
+  });
+
+  test("add-ons the host hands over later are held to the same rule", async () => {
+    // At first the host offers nothing: a quantity for a slug the flow knows nothing of is the
+    // host's, and is sent. Once the seats are handed over, the year is found not to sell them.
+    const client = selling();
+    const Wrapper = sessionProvider(client);
+    const drawn = (addOns: CheckoutFlowProps["addOns"]) => (
+      <Wrapper>
+        <CheckoutFlow
+          plan={plan}
+          priceId={GROWTH_ANNUAL}
+          addOns={addOns}
+          initialQuantities={{ "extra-seats-v1": 2 }}
+        />
+      </Wrapper>
+    );
+    const view = render(drawn([]));
+    await settle();
+    expect(previews(client)[0]!.addOns).toEqual([{ addonSlug: "extra-seats-v1", quantity: 2 }]);
+
+    view.rerender(drawn([seatsByTheMonth]));
+    await settle(300);
+    expect(previews(client).at(-1)).toEqual({ licensePriceId: GROWTH_ANNUAL, dryRun: true });
+    expect(screen.queryByText("Extra seats")).toBeNull();
+  });
+
+  test("an add-on billed no flat fee for the period is offered, and shown with no fee of another", async () => {
+    // GPU hours are metered only; priority support is free, with a fee of $0.00 by the year alone.
+    // Kaiten attaches both beside a monthly price, and bills neither a monthly fee.
+    const client = selling();
+    await draw(client, { addOns: [gpuHours, prioritySupport] });
+
+    expect(names()).toEqual(["GPU hours", "Priority support"]);
+    expect(within(flow()).queryByText("$0.00/year")).toBeNull();
+    // Each row is its name and its stepper, with no amount in it.
+    for (const row of flow().querySelectorAll('[data-slot="checkout-flow-addons"] li')) {
+      expect(row.textContent).not.toContain("$");
+    }
   });
 
   test("the quantities the host starts from are the first selection", async () => {

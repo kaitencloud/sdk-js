@@ -51,8 +51,12 @@ export function growthPlan(overrides: Partial<Plan> = {}): Plan {
   };
 }
 
-/** The add-on the stories offer: seats, $25.00 each a month, 20 at most. */
-export const extraSeats: Addon = demoSessionAddOns()[0]!;
+/**
+ * The add-on the stories offer: seats, $25.00 each a month, 20 at most. It is a paid one, as the
+ * catalogue serves it, so a billing period with no fee for it does not sell it: there is none by
+ * the year.
+ */
+export const extraSeats: Addon = { ...demoSessionAddOns()[0]!, pricingType: "PAID" };
 
 const PRICES: Record<string, number> = { price_growth_monthly: 7900, price_growth_annual: 79000 };
 const SEAT = 2500;
