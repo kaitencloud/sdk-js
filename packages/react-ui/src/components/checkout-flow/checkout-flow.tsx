@@ -31,6 +31,7 @@ import { Badge } from "../ui/badge.tsx";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "../ui/card.tsx";
 import { Input } from "../ui/input.tsx";
 import { RadioGroup, RadioGroupItem } from "../ui/radio-group.tsx";
+import { Skeleton } from "../ui/skeleton.tsx";
 import { CheckoutSummaryBody, useProblemText } from "./checkout-summary.tsx";
 import { useCheckoutWords } from "./words.ts";
 
@@ -89,18 +90,30 @@ const heldNotBilledAt = (held: HeldAddOn[], price: BillingPrice): HeldAddOn[] =>
   held.filter(({ version }) => !attachableTo(version, saleOfPrice(price)));
 
 /**
- * The quantities a price keeps: those of the add-ons offered beside the plan that Kaiten does not
- * attach to it leave, and the others stay as they are. A slug that is none of the add-ons offered
+ * Whether an add-on that fits the plan can be ordered beside a price: Kaiten attaches it there, and
+ * the instance holds no add-on of its family, since Kaiten attaches no second one.
+ */
+const orderableAt = (
+  addon: Addon,
+  price: BillingPrice | null,
+  heldFamilies: ReadonlySet<string>,
+): boolean =>
+  !(addon.familySlug && heldFamilies.has(addon.familySlug)) && attachableAt(addon, price);
+
+/**
+ * The quantities a price keeps: those of the add-ons that fit the plan and cannot be ordered beside
+ * it leave, and the others stay as they are. A slug that is none of the add-ons that fit the plan
  * is not one this flow can judge, and stays too.
  */
 function quantitiesKeptAt(
   quantities: Record<string, number>,
-  candidates: Addon[],
+  offerable: Addon[],
   price: BillingPrice | null,
+  heldFamilies: ReadonlySet<string>,
 ): Record<string, number> {
   const kept = { ...quantities };
-  for (const addon of candidates) {
-    if (addon.slug in kept && !attachableAt(addon, price)) delete kept[addon.slug];
+  for (const addon of offerable) {
+    if (addon.slug in kept && !orderableAt(addon, price, heldFamilies)) delete kept[addon.slug];
   }
   return kept;
 }
@@ -127,7 +140,10 @@ export interface CheckoutFlowProps {
    * period that cannot bill it cannot be chosen.
    */
   addOns?: Addon[];
-  /** The quantity of each add-on chosen at first, by slug: one the first price does not sell is left out. */
+  /**
+   * The quantity of each add-on chosen at first, by slug: one the first price does not sell is left
+   * out. The flow starts once the add-ons are known, to judge them.
+   */
   initialQuantities?: Record<string, number>;
   /**
    * Where the provider's page sends the customer back to, with `kaiten_setup_session` appended:
@@ -168,8 +184,61 @@ export interface CheckoutFlowProps {
 export function CheckoutFlow(props: CheckoutFlowProps) {
   useAssertWrappedByKaitenProvider("CheckoutFlow");
   useTrackComponent("CheckoutFlow");
+  const catalog = useKaitenDataContext().catalog;
+  const portal = usePortal();
+  // The add-ons are known once the host's are given, or the catalogue's and the portal's are read,
+  // or will never be. Before that no add-on can be judged, so the flow waits: the quantities the
+  // host starts from are held to them, and no selection with one Kaiten refuses is priced.
+  const known =
+    (props.addOns !== undefined || catalog.data !== undefined || !catalog.isLoading) &&
+    (portal.data !== undefined || !portal.isLoading);
+  if (!known) {
+    return (
+      <CheckoutFlowWaiting
+        plan={props.plan}
+        unstyled={props.unstyled ?? false}
+        appearance={props.appearance}
+      />
+    );
+  }
   // A flow is one plan's: another plan is another checkout, from the start.
   return <CheckoutFlowView key={`${props.plan.slug}:${props.priceId ?? ""}`} {...props} />;
+}
+
+/** The flow while what it offers is read: its plan, and that it is loading. */
+function CheckoutFlowWaiting({
+  plan,
+  unstyled,
+  appearance,
+}: {
+  plan: Plan;
+  unstyled: boolean;
+  appearance?: KaitenAppearance;
+}) {
+  const merged = useMergedAppearance(appearance);
+  const localization = useLocalization();
+  if (unstyled) {
+    return (
+      <section data-slot="checkout-flow" aria-busy="true" className="ktn-own">
+        <h3>{plan.name}</h3>
+        <p>{localization.states.loading}</p>
+      </section>
+    );
+  }
+  return (
+    <div data-slot="checkout-flow" aria-busy="true" className="ktn-own w-[min(100%,36rem)]">
+      <Card className={cn(merged.elements?.card)}>
+        <CardHeader className={cn(merged.elements?.cardHeader)}>
+          <CardTitle className={cn(merged.elements?.cardTitle)}>{plan.name}</CardTitle>
+        </CardHeader>
+        <CardContent className={cn("flex flex-col gap-3", merged.elements?.cardContent)}>
+          <Skeleton className="h-9 w-full" />
+          <Skeleton className="h-5 w-full" />
+          <Skeleton className="h-6 w-1/2 self-end" />
+        </CardContent>
+      </Card>
+    </div>
+  );
 }
 
 function CheckoutFlowView({
@@ -209,25 +278,35 @@ function CheckoutFlowView({
         })),
     [portalAddOns, catalogAddOns],
   );
-  // The add-ons that can be offered beside the plan, whatever the price: the host's, else the
-  // catalogue's that fit the plan; of a family the instance holds, none, since Kaiten attaches no
-  // second add-on of a family. The one held is changed in the portal once subscribed.
-  const candidates = React.useMemo(() => {
-    const families = new Set(held.map(({ addon }) => addon.familySlug).filter(Boolean));
-    return (
+  // The add-ons that fit the plan: the host's, else the catalogue's.
+  const offerable = React.useMemo(
+    () =>
       addOns ??
       catalogAddOns?.filter(
         (addon) => !!addon.familySlug && plan.compatibleAddonFamilies?.includes(addon.familySlug),
       ) ??
-      []
-    ).filter((addon) => !addon.familySlug || !families.has(addon.familySlug));
-  }, [addOns, catalogAddOns, plan, held]);
+      [],
+    [addOns, catalogAddOns, plan],
+  );
+  const heldFamilies = React.useMemo(
+    () => new Set(held.flatMap(({ addon }) => (addon.familySlug ? [addon.familySlug] : []))),
+    [held],
+  );
+  // The add-ons that can be offered beside the plan, whatever the price: of a family the instance
+  // holds, none, since Kaiten attaches no second add-on of a family. The one held is changed in the
+  // portal once subscribed.
+  const candidates = React.useMemo(
+    () => offerable.filter((addon) => !addon.familySlug || !heldFamilies.has(addon.familySlug)),
+    [offerable, heldFamilies],
+  );
+
   // A refusal names an add-on by the name the host gave it, or the catalogue's.
   const problemText = useProblemText(addOns);
   const checkout = useCheckout({
     initial: {
       licensePriceId: start?.id ?? null,
-      addOns: initialQuantities && quantitiesKeptAt(initialQuantities, candidates, start),
+      addOns:
+        initialQuantities && quantitiesKeptAt(initialQuantities, offerable, start, heldFamilies),
     },
     returnUrl,
     onSubscribed,
@@ -243,18 +322,20 @@ function CheckoutFlowView({
       licensePriceId: id,
       addOns: quantitiesKeptAt(
         selectedAddOns,
-        candidates,
+        offerable,
         prices.find((price) => price.id === id) ?? null,
+        heldFamilies,
       ),
     });
-  // What arrives later (the catalogue, or other add-ons from the host) is held to the same rule.
+  // What arrives later (the catalogue, the portal, or other add-ons from the host) is held to the
+  // same rule.
   React.useEffect(() => {
-    for (const addon of candidates) {
-      if ((selectedAddOns[addon.slug] ?? 0) > 0 && !attachableAt(addon, chosen)) {
+    for (const addon of offerable) {
+      if ((selectedAddOns[addon.slug] ?? 0) > 0 && !orderableAt(addon, chosen, heldFamilies)) {
         setAddOnQuantity(addon.slug, 0);
       }
     }
-  }, [candidates, chosen, selectedAddOns, setAddOnQuantity]);
+  }, [offerable, chosen, heldFamilies, selectedAddOns, setAddOnQuantity]);
 
   // Each step replaces the last one's controls: the keyboard goes to what the new one says first, and
   // to the refusal of a checkout that sent the customer back to choosing.

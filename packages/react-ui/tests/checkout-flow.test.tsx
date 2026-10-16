@@ -458,6 +458,63 @@ describe("choosing", () => {
     }
   });
 
+  test("an add-on in the shape of 1.0 is judged by its price, its currency and its interval", async () => {
+    // A host can still hand over an add-on with a `price` and no `billingPrices`: it is sold where
+    // its currency and its interval are the price's, at that price, and nowhere else.
+    const legacy = (slug: string, currencyCode: "USD" | "EUR" | undefined): Addon => ({
+      slug,
+      name: slug,
+      familySlug: slug,
+      price: 1500,
+      currencyCode,
+      interval: "month",
+    });
+    const client = selling();
+    await draw(client, {
+      addOns: [
+        legacy("Monthly dollars", "USD"),
+        legacy("Euros", "EUR"),
+        legacy("No currency", undefined),
+      ],
+    });
+    expect(names()).toEqual(["Monthly dollars"]);
+    expect(within(flow()).getByText("$15.00/month")).toBeTruthy();
+
+    await press(screen.getByRole("radio", { name: "$790.00/year" }), 300);
+    expect(names()).toEqual([]);
+  });
+
+  test("the flow waits for the catalogue before it prices the quantities the host starts from", async () => {
+    // The catalogue sells the seats by the month alone, and arrives a second after the flow is
+    // drawn, on the annual price: until it is read nothing is asked, and then the seats are not.
+    const client = selling();
+    render(
+      <KaitenProvider
+        mode="customer-session"
+        sessionClient={client}
+        client={createMockKaitenClient({
+          catalog: demoCatalog({ addOns: [seatsByTheMonth] }),
+          delayMs: 1_000,
+        })}
+        apiUrl="https://kaiten.test/api"
+        polling={{ enabled: false }}
+      >
+        <CheckoutFlow
+          plan={plan}
+          priceId={GROWTH_ANNUAL}
+          initialQuantities={{ "extra-seats-v1": 2 }}
+        />
+      </KaitenProvider>,
+    );
+    await settle(500);
+    expect(previews(client)).toEqual([]);
+    expect(flow().getAttribute("aria-busy")).toBe("true");
+
+    await settle(1_000);
+    expect(previews(client)).toEqual([{ licensePriceId: GROWTH_ANNUAL, dryRun: true }]);
+    expect(within(flow()).queryByText("Failed to load")).toBeNull();
+  });
+
   test("the quantities the host starts from are the first selection", async () => {
     const client = selling();
     await draw(client, { initialQuantities: { "extra-seats-v1": 2 } });

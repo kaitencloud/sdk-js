@@ -42,11 +42,42 @@ export const saleOfSubscription = (subscription: {
 });
 
 /**
+ * The prices of an add-on. One in the shape of 1.0, which a host can still hand over, has no
+ * `billingPrices` and says its price in `price`, `currencyCode` and `interval`: that is its one
+ * default flat fee, by the month when it names no interval, as it is shown. With no `price` it has
+ * none.
+ */
+function pricesOf(addon: Addon): BillingPrice[] {
+  if (addon.billingPrices !== undefined) return addon.billingPrices;
+  if (typeof addon.price !== "number" || addon.currencyCode === undefined) return [];
+  return [
+    {
+      id: addon.slug,
+      amount: addon.price,
+      unitAmountDecimal: String(addon.price),
+      currencyCode: addon.currencyCode,
+      interval: addon.interval ?? "month",
+      billingModel: "FLAT_FEE",
+      isDefault: true,
+    },
+  ];
+}
+
+/**
+ * Whether an add-on is paid. One in the shape of 1.0 names no pricing type: it is paid when it has
+ * a price above nothing.
+ */
+const isPaid = (addon: Addon): boolean =>
+  addon.billingPrices === undefined && addon.pricingType === undefined
+    ? (addon.price ?? 0) > 0
+    : addon.pricingType === "PAID";
+
+/**
  * The default flat fees of an add-on that have an amount, in a currency, or in any with `null`.
  * The catalogue serves ACTIVE prices only, so every one of them is ACTIVE.
  */
 function defaultFees(addon: Addon, currencyCode: string | null): BillingPrice[] {
-  return (addon.billingPrices ?? []).filter(
+  return pricesOf(addon).filter(
     (price) =>
       price.billingModel === "FLAT_FEE" &&
       price.isDefault &&
@@ -75,10 +106,18 @@ export function addonFeeFor(addon: Addon, sale: AddonSale): BillingPrice | null 
  * SDK cannot read, any default flat fee in the currency will do.
  */
 export function attachableTo(addon: Addon, sale: AddonSale): boolean {
-  const prices = addon.billingPrices ?? [];
+  // One in the shape of 1.0 with a price and no currency cannot be told to be in the sale's.
+  if (
+    addon.billingPrices === undefined &&
+    typeof addon.price === "number" &&
+    addon.currencyCode === undefined
+  ) {
+    return false;
+  }
+  const prices = pricesOf(addon);
   if (prices.some((price) => price.currencyCode !== sale.currencyCode)) return false;
   const fees = prices.filter((price) => price.billingModel === "FLAT_FEE");
-  if (addon.pricingType !== "PAID" || fees.length === 0) return true;
+  if (!isPaid(addon) || fees.length === 0) return true;
   const defaults = fees.filter((fee) => fee.isDefault);
   if (sale.months === null) return defaults.length > 0;
   return defaults.some((fee) => monthsOf(fee) === sale.months);

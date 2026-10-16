@@ -188,9 +188,11 @@ const SCENARIOS = [
     // Measured at 65 763 bytes, up from 64 830: the add-ons the instance holds, listed and kept out
     // of the order, the billing periods that cannot bill them, the add-ons a refusal names, with
     // the hook's side of it, and the words of their English.
+    // Measured at 66 091 bytes, up from 65 763: the wait for the add-ons to be known before the
+    // flow starts, and the price an add-on in the shape of 1.0 is judged by.
     name: "react-ui · CheckoutFlow + KaitenProvider + KaitenStyleRoot",
     code: `import { CheckoutFlow, KaitenProvider, KaitenStyleRoot } from "@kaitencloud/react-ui"; console.log(CheckoutFlow, KaitenProvider, KaitenStyleRoot);`,
-    budgetGzip: 65_900,
+    budgetGzip: 66_250,
   },
   {
     // What a host that shows a customer how they pay ships: the card, the billing hooks that add or
@@ -218,9 +220,11 @@ const SCENARIOS = [
     // Measured at 62 254 bytes, up from 61 771: the state the plan card and the add-ons card share
     // about the panel, which keeps it and its sentence on screen and says the changes once, and the
     // plan's actions in components of their own.
+    // Measured at 62 458 bytes, up from 62 350: the price an add-on in the shape of 1.0 is judged
+    // by, which the portal shares with the checkout.
     name: "react-ui · CustomerPortal + KaitenProvider + KaitenStyleRoot",
     code: `import { CustomerPortal, KaitenProvider, KaitenStyleRoot } from "@kaitencloud/react-ui"; console.log(CustomerPortal, KaitenProvider, KaitenStyleRoot);`,
-    budgetGzip: 62_400,
+    budgetGzip: 62_600,
   },
   {
     // Measured at 93 302 bytes, up from 79 688: Base UI's radio group, as in the checkout (12.4 KB),
@@ -232,9 +236,10 @@ const SCENARIOS = [
     // Measured at 96 165 bytes, up from 95 138: what the checkout grew by, as above.
     // Measured at 96 378 bytes, up from 96 165: what the customer portal grew by, as above.
     // Measured at 96 845 bytes, up from 96 378: what the customer portal grew by, as above.
+    // Measured at 97 278 bytes, up from 96 938: what the checkout grew by, as above.
     name: "react-ui · everything",
     code: `import * as all from "@kaitencloud/react-ui"; console.log(all);`,
-    budgetGzip: 97_000,
+    budgetGzip: 97_450,
   },
   {
     name: "client · KaitenClient alone",
