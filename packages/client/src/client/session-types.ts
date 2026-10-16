@@ -20,8 +20,18 @@ import type {
 /** `ACTIVE` (charged automatically), `EXPIRED` or `FAILED` (save another one). Open: more may come. */
 export type PaymentMethodStatus = "ACTIVE" | "EXPIRED" | "FAILED" | (string & {});
 
-/** `TRIAL`, `ACTIVE`, `PAST_DUE` or `CANCELED`. Open: more may come. */
-export type SubscriptionStatus = "TRIAL" | "ACTIVE" | "PAST_DUE" | "CANCELED" | (string & {});
+/**
+ * `INCOMPLETE` (a checkout waiting for its first payment: the plan it bought
+ * starts once the payment is confirmed), `TRIAL`, `ACTIVE`, `PAST_DUE` or
+ * `CANCELED`. Open: more may come.
+ */
+export type SubscriptionStatus =
+  | "INCOMPLETE"
+  | "TRIAL"
+  | "ACTIVE"
+  | "PAST_DUE"
+  | "CANCELED"
+  | (string & {});
 
 /**
  * An issued invoice's status: `MANUAL` (collected outside the payment

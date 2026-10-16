@@ -1,6 +1,7 @@
-import { describe, expect, test } from "vite-plus/test";
+import { describe, expect, expectTypeOf, test } from "vite-plus/test";
 
 import { KaitenError } from "../src/index.ts";
+import type { KaitenApi, SubscriptionStatus } from "../src/index.ts";
 import { answer, refused } from "./support/session-answers.ts";
 import { json, open, sent, useSessionClock } from "./support/session-harness.ts";
 
@@ -323,6 +324,47 @@ describe("the portal", () => {
       intervalCount: 3,
       basePrice: { amount: 13500, intervalCount: 3 },
     });
+  });
+
+  test("a checkout waiting for its first payment reads as an INCOMPLETE subscription", async () => {
+    const wire = answer("portal");
+    wire.subscription = { ...wire.subscription!, status: "INCOMPLETE" };
+    const { client } = open(() => json(wire));
+
+    const portal = await client.getPortal();
+
+    expect(portal.subscription?.status).toBe("INCOMPLETE");
+  });
+
+  test("an instance of a customer-wide session may be INCOMPLETE too", async () => {
+    const wire = answer("portalCustomerWide");
+    wire.instances = wire.instances.map((instance, index) =>
+      index === 0 ? { ...instance, billingStatus: "INCOMPLETE" } : instance,
+    );
+    const { client } = open(() => json(wire));
+
+    const portal = await client.getPortal();
+
+    expect(portal.instances.map((instance) => instance.billingStatus)).toEqual([
+      "INCOMPLETE",
+      null,
+    ]);
+  });
+
+  test("the statuses the contract lists are named, and the union stays open", () => {
+    /** The literals of a union, without its open `string & {}` member. */
+    type Named<T> = T extends string ? (string extends T ? never : T) : never;
+
+    expectTypeOf<Named<SubscriptionStatus>>().toEqualTypeOf<
+      "INCOMPLETE" | "TRIAL" | "ACTIVE" | "PAST_DUE" | "CANCELED"
+    >();
+    expectTypeOf<KaitenApi.SessionSubscription["status"]>().toEqualTypeOf<
+      Named<SubscriptionStatus>
+    >();
+    expectTypeOf<
+      NonNullable<KaitenApi.SessionPortal["instances"][number]["billingStatus"]>
+    >().toEqualTypeOf<Named<SubscriptionStatus>>();
+    expectTypeOf<"SOMETHING_NEW">().toExtend<SubscriptionStatus>();
   });
 
   test("a list the answer leaves out reads as empty, never as a null the host trips on", async () => {
