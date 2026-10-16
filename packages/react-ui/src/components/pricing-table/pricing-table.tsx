@@ -758,11 +758,15 @@ function PricingTableView({
                 const ctaClassName = cn(
                   "h-12 w-full text-base font-semibold",
                   // The brand gradient, scrimmed for legibility — see `.ktn-cta-gradient`
-                  // in kaiten.css. Only the highlighted plan gets it; a table where every
-                  // CTA is a gradient has no primary action.
+                  // in kaiten.css. Only the highlighted plan gets it, on top of its
+                  // variant: it is what sets that plan apart now that every plan's
+                  // select button is a primary one.
                   isHighlighted && "ktn-cta-gradient",
                 );
-                const variant = isHighlighted ? "default" : "secondary";
+                // A select button opens a checkout, so it is the primary action of its
+                // card, highlighted or not. A link to sales ("Contact us") is not a
+                // purchase and stays secondary.
+                const variant = cta === "select" ? "default" : "secondary";
                 return (
                   <CardFooter className="px-8">
                     {cta === "select" ? (
