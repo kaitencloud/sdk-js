@@ -57,7 +57,8 @@ function refusalText(problem: AddonQuantityProblem, words: KaitenPortalBillingWo
 /**
  * The add-ons of a customer session, with the controls to change how many it holds: the ones the
  * instance holds, and the public add-ons of the catalogue that fit its plan and that Kaiten attaches
- * to its subscription, when the provider reads the catalogue. An add-on set to none leaves
+ * to its subscription, of a family it holds no other version of, when the provider reads the
+ * catalogue. An add-on set to none leaves
  * the portal, so one that was seen stays on screen for as long as the section does, and can be
  * added back.
  *
@@ -97,10 +98,16 @@ export function SessionAddOns({
     // Without one, nothing is billed and nothing is checked.
     const live = subscription && subscription.status !== "CANCELED" ? subscription : null;
     const sale = live ? saleOfSubscription(live) : null;
+    // A family the instance holds is changed at the version it holds: Kaiten attaches no second
+    // version of it, so the catalogue's, when it is another, is not offered beside it.
+    const versionHeld = new Map(
+      data.addOns.map((addon) => [addon.familySlug, addon.slug] as const),
+    );
     const offered = (catalog?.addOns ?? []).filter(
       (addon) =>
         !!addon.familySlug &&
         !!plan?.compatibleAddonFamilies?.includes(addon.familySlug) &&
+        (versionHeld.get(addon.familySlug) ?? addon.slug) === addon.slug &&
         (sale === null || attachableTo(addon, sale)),
     );
     const held = new Map(data.addOns.map((addon) => [addon.slug, addon] as const));

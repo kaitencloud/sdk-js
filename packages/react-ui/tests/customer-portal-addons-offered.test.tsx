@@ -89,6 +89,20 @@ test("an add-on the instance holds is listed whatever its prices, with its contr
   expect(screen.getByRole("button", { name: "Remove one GPU pack" })).toBeTruthy();
 });
 
+test("the catalogue's version of a family the instance holds at another one is not offered beside it", async () => {
+  // The instance holds Extra seats at extra-seats-v1, and the catalogue now sells extra-seats-v2:
+  // Kaiten attaches no second version of a family, so the seats are listed once, as held.
+  const catalog = structuredClone(acmeCatalog) as Record<string, any>;
+  const seats = catalog.addOns.find((addon: any) => addon.familySlug === "extra-seats");
+  seats.addonSlug = "extra-seats-v2";
+  seats.addonId = "00000000-0000-4000-8000-0000000000c1";
+  await drawAddOns(portalOf({ addOns: [held("extra-seats-v1")] }), catalog);
+
+  await waitFor(() => expect(listed()).toEqual(["Extra seats"]));
+  expect(screen.getAllByRole("button", { name: "Add one Extra seats" })).toHaveLength(1);
+  expect(screen.getByRole("status", { name: "Quantity of Extra seats" }).textContent).toBe("3");
+});
+
 test("an add-on with no fee for the subscription's billing period is not offered", async () => {
   // Pro is sold every quarter, and the seats only by the month and by the year.
   await drawAddOns(portalOf({ subscription: billedEvery("QUARTERLY"), addOns: [] }));
