@@ -6,8 +6,11 @@ import {
   verifyKaitenWebhook,
 } from "../src/index.ts";
 import type {
+  InstanceBilling,
   KaitenWebhookEvent,
   KaitenWebhookType,
+  OnInstanceBillingStatusChangedWebhookPayload,
+  OnInstanceBillingTrialWillEndWebhookPayload,
   OnInstanceInvoiceHandoffAcknowledgedWebhookPayload,
   OnInstanceInvoiceIssuedWebhookPayload,
   OnVoucherExpiredWebhookPayload,
@@ -59,6 +62,7 @@ describe("KaitenWebhookType", () => {
     expectTypeOf<"com.kaiten.instance.invoice.v1.handoff_acknowledged">().toExtend<KaitenWebhookType>();
     expectTypeOf<"com.kaiten.instance.invoice.v1.paid">().toExtend<KaitenWebhookType>();
     expectTypeOf<"com.kaiten.instance.billing.v1.started">().toExtend<KaitenWebhookType>();
+    expectTypeOf<"com.kaiten.instance.billing.v1.trial_will_end">().toExtend<KaitenWebhookType>();
     expectTypeOf<"com.kaiten.customer.payment_method.v1.expiring">().toExtend<KaitenWebhookType>();
     expectTypeOf<"com.kaiten.publishable_key.v1.revoked">().toExtend<KaitenWebhookType>();
     expectTypeOf<"com.kaiten.voucher.v1.expired">().toExtend<KaitenWebhookType>();
@@ -71,6 +75,26 @@ describe("KaitenWebhookType", () => {
     expectTypeOf<
       Extract<KaitenWebhookEvent, { type: "com.kaiten.voucher.v1.expired" }>
     >().toEqualTypeOf<OnVoucherExpiredWebhookPayload>();
+    expectTypeOf<
+      Extract<KaitenWebhookEvent, { type: "com.kaiten.instance.billing.v1.trial_will_end" }>
+    >().toEqualTypeOf<OnInstanceBillingTrialWillEndWebhookPayload>();
+  });
+});
+
+describe("the statuses of a subscription", () => {
+  type Status = InstanceBilling["status"];
+
+  test("include INCOMPLETE, a checkout waiting for its first payment", () => {
+    expectTypeOf<"INCOMPLETE">().toExtend<Status>();
+    expectTypeOf<Status>().toEqualTypeOf<
+      "INCOMPLETE" | "TRIAL" | "ACTIVE" | "PAST_DUE" | "CANCELED"
+    >();
+  });
+
+  test("are the ones a status change goes from and to", () => {
+    type Change = OnInstanceBillingStatusChangedWebhookPayload["data"];
+    expectTypeOf<Change["from"]>().toEqualTypeOf<Status>();
+    expectTypeOf<Change["to"]>().toEqualTypeOf<Status>();
   });
 });
 
@@ -117,6 +141,54 @@ const ISSUED = {
     updatedAt: "2026-10-01T00:00:00Z",
   },
 } satisfies OnInstanceInvoiceIssuedWebhookPayload;
+
+/** What the API publishes three days before a trial ends: the instance's billing, still in TRIAL. */
+const TRIAL_WILL_END = {
+  name: "INSTANCE_BILLING_TRIAL_WILL_END",
+  type: "com.kaiten.instance.billing.v1.trial_will_end",
+  data: {
+    anchorAt: "2026-10-01T00:00:00Z",
+    basePrice: {
+      billingModel: "FLAT_FEE",
+      billingPeriod: "MONTHLY",
+      billingTiming: "ADVANCE",
+      currency: "USD",
+      deprecatedAt: null,
+      displayLabel: null,
+      displayOrder: 0,
+      isDefault: true,
+      metered: null,
+      status: "ACTIVE",
+      unitAmount: 2900,
+      unitAmountDecimal: "2900",
+    },
+    billingPeriod: "MONTHLY",
+    cancelAtPeriodEnd: false,
+    cancelRequestedAt: null,
+    canceledAt: null,
+    cancellationReason: null,
+    collectionMethod: "CHARGE_AUTOMATICALLY",
+    collectionMethodOverride: null,
+    createdAt: "2026-10-01T00:00:00Z",
+    currency: "USD",
+    currentPeriodEnd: "2026-10-15T00:00:00Z",
+    currentPeriodStart: "2026-10-01T00:00:00Z",
+    customerName: "Initech",
+    customerSlug: "initech",
+    daysUntilDue: 0,
+    daysUntilDueOverride: null,
+    id: "3c9e2f41-6a7b-4d8c-9e0f-1a2b3c4d5e6f",
+    instanceName: "Initech production",
+    instanceSlug: "initech-prod",
+    pastDueSince: null,
+    providerKind: "STRIPE",
+    scheduledChange: null,
+    startedAt: "2026-10-01T00:00:00Z",
+    status: "TRIAL",
+    trialEndsAt: "2026-10-15T00:00:00Z",
+    updatedAt: "2026-10-01T00:00:00Z",
+  },
+} satisfies OnInstanceBillingTrialWillEndWebhookPayload;
 
 /** The delivery of `body` as Svix signs it: `id.timestamp.payload`, HMAC-SHA256. */
 async function delivered(body: string) {
@@ -204,6 +276,19 @@ describe("a relayed billing event", () => {
     if (isKaitenWebhookOfType(event, "com.kaiten.instance.invoice.v1.issued")) {
       expect(event.data.total).toBe(2900);
     }
+  });
+
+  test("tells a subscription its trial is about to end, with the billing it concerns", async () => {
+    const event = await verify(await delivered(JSON.stringify(TRIAL_WILL_END)));
+
+    if (!isKaitenWebhookOfType(event, "com.kaiten.instance.billing.v1.trial_will_end")) {
+      throw new Error("the event was not narrowed");
+    }
+    expect(event.name).toBe("INSTANCE_BILLING_TRIAL_WILL_END");
+    expect(event.data.status).toBe("TRIAL");
+    expect(event.data.trialEndsAt).toBe("2026-10-15T00:00:00Z");
+    expect(event.data.instanceSlug).toBe("initech-prod");
+    expectTypeOf(event.data.trialEndsAt).toEqualTypeOf<string | null>();
   });
 
   test("carries the acknowledgement of a handoff as its own type", async () => {
