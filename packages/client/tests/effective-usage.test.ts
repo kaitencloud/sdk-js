@@ -1,4 +1,4 @@
-import { describe, expect, test, vi } from "vite-plus/test";
+import { describe, expect, expectTypeOf, test, vi } from "vite-plus/test";
 
 import { KaitenClient } from "../src/index.ts";
 import type {
@@ -87,7 +87,19 @@ describe("the answer to a replayed report", () => {
     ...EFFECTIVE_TOKENS_ROW,
     source: null,
     provenance: null,
-  };
+    transactionId: "llm-call:9f2c:tokens",
+  } satisfies KaitenApi.ReportedEntitlementUsage;
+
+  test("is what the contract answers a report with, and the result carries it", () => {
+    // The contract always sends both members, and null on a replay.
+    expectTypeOf<KaitenApi.ReportedEntitlementUsage["source"]>().toEqualTypeOf<
+      "license" | "addon" | null
+    >();
+    expectTypeOf<
+      KaitenApi.ReportedEntitlementUsage["provenance"]
+    >().toEqualTypeOf<KaitenApi.Provenance | null>();
+    expectTypeOf<KaitenApi.ReportedEntitlementUsage>().toExtend<ReportUsageResult>();
+  });
 
   test("carries a null source and a null provenance through, with the replay marker", async () => {
     const fetch = vi.fn(

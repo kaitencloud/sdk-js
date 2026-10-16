@@ -45,10 +45,10 @@ import type {
  * is unaffected; the raw type is still `KaitenApi.EntitlementUsage`.
  *
  * All three also accept `null`. A report the server answers from its journal,
- * because the same key was already applied, carries the figures of
- * that first report and not a fresh reading of the layers, so a server may send
- * `source` and `provenance` as `null` (or leave them empty): read them as "not
- * computed for this answer", never as "no layer grants this". Narrow with
+ * because the same key was already applied, carries the figures of that first
+ * report and not a fresh reading of the layers, so its `source` and
+ * `provenance` are `null`, as the contract declares: read them as "not computed
+ * for this answer", never as "no layer grants this". Narrow with
  * `row.source != null` before using them.
  */
 export type EntitlementUsage = Omit<
@@ -58,14 +58,14 @@ export type EntitlementUsage = Omit<
   /**
    * The layer that grants the entitlement: `license` when the licence does, its
    * value possibly changed by add-ons and boosts, `addon` when only add-ons do.
-   * Open: more may come. Absent on a server that predates it, and possibly `null`
-   * on the answer to a replayed report.
+   * Open: more may come. Absent on a server that predates it, `null` on the
+   * answer to a replayed report.
    */
   source?: "license" | "addon" | (string & {}) | null;
   /**
    * Why `limit` is what it is: the licence's grant, the add-ons, the voucher
-   * boosts. Absent on a server that predates it, and possibly `null` on
-   * the answer to a replayed report.
+   * boosts. Absent on a server that predates it, `null` on the answer to a
+   * replayed report.
    */
   provenance?: EntitlementProvenance | null;
   /**
@@ -370,7 +370,7 @@ export interface ReportUsageInput {
  *
  * On a replay (`idempotentReplayed: true`) the body is rebuilt from the report's
  * journal entry, which keeps the figures of the counter but not the layers they
- * were computed from: `source` and `provenance` may be `null`, and the overage
+ * were computed from: `source` and `provenance` are `null`, and the overage
  * percent is the one recorded with that report. A first answer fills all three
  * for a number entitlement.
  */
