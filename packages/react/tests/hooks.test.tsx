@@ -547,6 +547,36 @@ test("useKaitenMutation tracks success, sync mutate, and normalized errors", asy
   expect(onError).toHaveBeenCalledWith(expect.objectContaining({ message: "boom" }));
 });
 
+test("useKaitenMutation's mutate leaves a refusal in error, and rejects nothing it hands back", async () => {
+  const unhandled = vi.fn();
+  process.on("unhandledRejection", unhandled);
+  try {
+    const onError = vi.fn();
+    const failing = renderHook(() =>
+      useKaitenMutation({
+        mutationFn: async (_input: string) => {
+          throw new Error("refused");
+        },
+        onError,
+      }),
+    );
+
+    act(() => {
+      failing.result.current.mutate("bad");
+    });
+
+    await waitFor(() => {
+      expect(failing.result.current.error?.message).toBe("refused");
+    });
+    expect(onError).toHaveBeenCalledOnce();
+    // Fire and forget: what the call came to is on `error`, and nothing rejects behind it.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(unhandled).not.toHaveBeenCalled();
+  } finally {
+    process.off("unhandledRejection", unhandled);
+  }
+});
+
 test("useReportUsage reports usage, emits telemetry, and surfaces mode and snapshot errors", async () => {
   const telemetryTransport = vi.fn();
   const onSuccess = vi.fn();

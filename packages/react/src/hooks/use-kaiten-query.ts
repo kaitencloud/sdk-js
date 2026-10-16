@@ -63,7 +63,9 @@ export interface UseKaitenMutationOptions<TInput, TOutput> {
 }
 
 export interface UseKaitenMutationResult<TInput, TOutput> {
+  /** Makes the call and returns at once: a refusal is on `error` and `onError`, never a rejection. */
   mutate: (input: TInput) => void;
+  /** Makes the call: resolves to its answer, or rejects with its refusal, which `error` holds too. */
   mutateAsync: (input: TInput) => Promise<TOutput>;
   data: TOutput | undefined;
   isPending: boolean;
@@ -114,9 +116,11 @@ export function useKaitenMutation<TInput, TOutput>({
     [mutate],
   );
 
+  // Fire and forget: what the call came to is on `error` and `onError`, so the rejection is
+  // caught here rather than reported by the browser as unhandled.
   const mutateSync = React.useCallback(
     (input: TInput) => {
-      void mutateAsync(input);
+      mutateAsync(input).catch(() => {});
     },
     [mutateAsync],
   );
