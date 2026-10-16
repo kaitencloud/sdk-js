@@ -205,6 +205,14 @@ export const fr: KaitenLocalization = {
     payInvoice: "Payer la facture",
     alreadySubscribed: "Vous avez déjà un abonnement.",
     managePlan: "Gérer votre abonnement",
+    addOnHeld: (quantity) => `Vous en avez déjà ${quantity}`,
+    periodsLimitedBy: (names) =>
+      `Certaines périodes de facturation ne sont pas proposées, car elles ne peuvent pas facturer les options que vous avez déjà\u00a0: ${names}.`,
+    addOnNotForPeriod: (names) =>
+      `Cette période de facturation ne peut pas facturer les options que vous avez déjà\u00a0: ${names}. Choisissez-en une autre.`,
+    addOnAlreadyHeld: (names) =>
+      `Vous avez déjà ${names}. Vous pourrez en changer la quantité une fois votre abonnement commencé.`,
+    addOnRefused: (names) => `Cette offre ne peut pas facturer ${names}.`,
   },
   subscription: {
     trial: "Essai",

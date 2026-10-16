@@ -406,7 +406,10 @@ function Checkout({ licensePriceId }: { licensePriceId: string }) {
   (`quota_exceeded` and the entitlements over the plan, `already_subscribed`,
   `voucher_invalid`, `billing_email_required`, `setup_incomplete`, `unavailable` and
   `rate_limited` with their wait, `not_payable_online` for a paid plan the vendor has no card
-  provider for); `error` is the error itself, with its status and code. `useSetAddonQuantity`
+  provider for, `addon_refused` and each add-on the price cannot bill, one of the order or one
+  the instance holds, which a subscribe keeps, with why: `currency_mismatch`,
+  `no_price_for_period`, `family_held` or `other`); `error` is the error itself, with its status
+  and code. `useSetAddonQuantity`
   names the refusals of a change to an add-on the same way, in its own `problem`:
   `addon_not_public` (a version that is unknown, archived, unpublished or no longer the one the
   catalogue sells), `currency_mismatch` (priced in another currency than the subscription's),

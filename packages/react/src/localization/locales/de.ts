@@ -207,6 +207,14 @@ export const de: KaitenLocalization = {
     payInvoice: "Rechnung bezahlen",
     alreadySubscribed: "Sie haben bereits ein Abonnement.",
     managePlan: "Abonnement verwalten",
+    addOnHeld: (quantity) => `Bereits vorhanden: ${quantity}`,
+    periodsLimitedBy: (names) =>
+      `Einige Abrechnungszeiträume sind nicht verfügbar, da sie Ihre vorhandenen Zusatzoptionen nicht abrechnen können: ${names}.`,
+    addOnNotForPeriod: (names) =>
+      `Dieser Abrechnungszeitraum kann Ihre vorhandenen Zusatzoptionen nicht abrechnen: ${names}. Wählen Sie einen anderen.`,
+    addOnAlreadyHeld: (names) =>
+      `Sie haben bereits ${names}. Die Menge können Sie ändern, sobald Ihr Abonnement begonnen hat.`,
+    addOnRefused: (names) => `Dieser Tarif kann ${names} nicht abrechnen.`,
   },
   subscription: {
     trial: "Testphase",

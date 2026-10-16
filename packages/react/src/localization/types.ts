@@ -95,6 +95,16 @@ export interface KaitenCheckoutWords {
   payInvoice: string;
   alreadySubscribed: string;
   managePlan: string;
+  /** Beside an add-on the instance already holds, which a subscribe keeps and bills. Receives the quantity. */
+  addOnHeld: (quantity: string) => string;
+  /** Under the billing periods, when some cannot bill the add-ons the instance holds: their names, joined. */
+  periodsLimitedBy: (names: string) => string;
+  /** A checkout refused because its billing period cannot bill add-ons the instance holds: their names, joined. */
+  addOnNotForPeriod: (names: string) => string;
+  /** A checkout refused because it orders add-ons of families the instance already holds: their names, joined. */
+  addOnAlreadyHeld: (names: string) => string;
+  /** A checkout refused for other add-ons it cannot bill, another currency among them: their names, joined. */
+  addOnRefused: (names: string) => string;
 }
 
 /**

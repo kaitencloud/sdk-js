@@ -54,6 +54,89 @@ test("a voucher is refused the same way under any use case that checks one", () 
   expect(isVoucherRefusal(refused(422, "SubscribeInstance.VoucherInvalid"))).toBe(true);
 });
 
+// An add-on the checkout cannot bill is named, from where the refusal points: `addons.<slug>` for one
+// the instance holds, which a subscribe keeps, and `body.addOns[i]` for the order's i-th. The reason
+// is the code of the rule it failed, inside.
+const addOnRefusal = (
+  code: string,
+  errors: { location: string; value?: unknown }[],
+  status = 422,
+) =>
+  new KaitenError({
+    title: "refused",
+    status,
+    code,
+    detail: "refused",
+    errors: errors.map((entry) => ({ message: "refused", ...entry })),
+  });
+
+const inner = (code: string) => ({ code: `AttachInstanceAddon.${code}` });
+
+test("an add-on the instance holds is named by its slug, with why the price cannot bill it", () => {
+  const error = addOnRefusal("CreateSessionCheckout.AddonInvalid", [
+    { location: "addons.extra-seats-v1", value: inner("NoPriceForBillingPeriod") },
+    { location: "addons.gpu-pack-v1", value: inner("CurrencyMismatch") },
+    { location: "addons.archive-v1", value: inner("AddonNotPublished") },
+  ]);
+  expect(checkoutProblem(error)).toEqual({
+    kind: "addon_refused",
+    addOns: [
+      { slug: "extra-seats-v1", held: true, reason: "no_price_for_period" },
+      { slug: "gpu-pack-v1", held: true, reason: "currency_mismatch" },
+      { slug: "archive-v1", held: true, reason: "other" },
+    ],
+  });
+  // The checkout answers CurrencyMismatch when the first is in another currency: the same names.
+  const currency = addOnRefusal("CreateSessionCheckout.CurrencyMismatch", [
+    { location: "addons.gpu-pack-v1", value: inner("CurrencyMismatch") },
+  ]);
+  expect(checkoutProblem(currency)).toEqual({
+    kind: "addon_refused",
+    addOns: [{ slug: "gpu-pack-v1", held: true, reason: "currency_mismatch" }],
+  });
+});
+
+test("an add-on of the order is named by its place in it, when the order is known", () => {
+  const error = addOnRefusal("SubscribeInstance.AddonInvalid", [
+    { location: "body.addOns[1]", value: inner("FamilyAlreadyAttached") },
+  ]);
+  const order = {
+    licensePriceId: "price_growth_monthly",
+    addOns: [
+      { addonSlug: "extra-seats-v1", quantity: 2 },
+      { addonSlug: "extra-storage-v1", quantity: 1 },
+    ],
+  };
+  expect(checkoutProblem(error, order)).toEqual({
+    kind: "addon_refused",
+    addOns: [{ slug: "extra-storage-v1", held: false, reason: "family_held" }],
+  });
+  // Without the order, or past its end, nothing is named, and the refusal has no kind of its own.
+  expect(checkoutProblem(error)).toEqual({ kind: "other" });
+  expect(checkoutProblem(error, { ...order, addOns: order.addOns.slice(0, 1) })).toEqual({
+    kind: "other",
+  });
+});
+
+test("an add-on named twice is named once, and another status or code names none", () => {
+  const twice = addOnRefusal("CreateSessionCheckout.AddonInvalid", [
+    { location: "addons.extra-seats-v1", value: inner("NoPriceForBillingPeriod") },
+    { location: "addons.extra-seats-v1", value: inner("CurrencyMismatch") },
+    { location: "body", value: inner("NoPriceForBillingPeriod") },
+  ]);
+  expect(checkoutProblem(twice)).toEqual({
+    kind: "addon_refused",
+    addOns: [{ slug: "extra-seats-v1", held: true, reason: "no_price_for_period" }],
+  });
+  const errors = [{ location: "addons.extra-seats-v1", value: inner("CurrencyMismatch") }];
+  expect(checkoutProblem(addOnRefusal("CreateSessionCheckout.AddonInvalid", errors, 409))).toEqual({
+    kind: "other",
+  });
+  expect(checkoutProblem(addOnRefusal("CreateSessionCheckout.QuantityExceedsMax", errors))).toEqual(
+    { kind: "other" },
+  );
+});
+
 // What the checkout refuses with a code the kinds above have no word for. Each one is a
 // refusal of a request the SDK itself builds, or of a catalogue that should not have offered
 // the plan, and a screen words it with the generic error.

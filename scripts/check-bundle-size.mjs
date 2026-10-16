@@ -128,17 +128,20 @@ const SCENARIOS = [
     // What a host that draws its own checkout ships: the hooks of the `billing` entry and the
     // provider they read from. Nothing styled is in it, and nothing of it is in the scenarios
     // above, which is the point of the entry.
+    // Measured at 28 817 bytes, up from 28 518: the add-ons a refused checkout names, held or
+    // ordered, and why the price cannot bill them.
     name: "billing · useCheckout + KaitenProvider",
     code: `import { KaitenProvider } from "@kaitencloud/react"; import { useCheckout } from "@kaitencloud/react/billing"; console.log(KaitenProvider, useCheckout);`,
-    budgetGzip: 28_700,
+    budgetGzip: 28_950,
     unstyled: true,
   },
   {
     // Measured at 18 001 bytes, up from 17 854: the kinds a refused change to an add-on's
     // quantity is named with.
+    // Measured at 18 335 bytes, up from 18 035: the add-ons a refused checkout names, as above.
     name: "billing · everything",
     code: `import * as all from "@kaitencloud/react/billing"; console.log(all);`,
-    budgetGzip: 18_150,
+    budgetGzip: 18_450,
     unstyled: true,
   },
   {
@@ -147,9 +150,11 @@ const SCENARIOS = [
     // carries. (At 4 449 before that, up from under 4 400, for the words of a quota's usage state.)
     // Measured at 4 930 bytes, up from 4 648: the words of the add-ons panel, which say when each
     // change is billed, less the four of the question the portal asked before removing an add-on.
+    // Measured at 5 077 bytes, up from 4 930: the five sentences of a checkout about the add-ons
+    // the instance holds, and the add-ons it refuses.
     name: "locales · fr alone",
     code: `import { fr } from "@kaitencloud/react/locales"; console.log(fr);`,
-    budgetGzip: 5_050,
+    budgetGzip: 5_200,
     unstyled: true,
   },
   {
@@ -180,9 +185,12 @@ const SCENARIOS = [
     // draws the billing periods.
     // Measured at 64 832 bytes, up from 64 624: the rule an add-on is offered by beside the price
     // chosen, the portal's, and the quantities a billing period keeps.
+    // Measured at 65 763 bytes, up from 64 830: the add-ons the instance holds, listed and kept out
+    // of the order, the billing periods that cannot bill them, the add-ons a refusal names, with
+    // the hook's side of it, and the words of their English.
     name: "react-ui · CheckoutFlow + KaitenProvider + KaitenStyleRoot",
     code: `import { CheckoutFlow, KaitenProvider, KaitenStyleRoot } from "@kaitencloud/react-ui"; console.log(CheckoutFlow, KaitenProvider, KaitenStyleRoot);`,
-    budgetGzip: 64_950,
+    budgetGzip: 65_900,
   },
   {
     // What a host that shows a customer how they pay ships: the card, the billing hooks that add or
@@ -216,9 +224,10 @@ const SCENARIOS = [
     // Measured at 94 081 bytes, up from 93 933: what the checkout grew by, as above.
     // Measured at 95 126 bytes, up from 94 081: the customer portal's add-ons panel, as above, less
     // the dialog, which the paywall already brought.
+    // Measured at 96 165 bytes, up from 95 138: what the checkout grew by, as above.
     name: "react-ui · everything",
     code: `import * as all from "@kaitencloud/react-ui"; console.log(all);`,
-    budgetGzip: 95_300,
+    budgetGzip: 96_300,
   },
   {
     name: "client · KaitenClient alone",

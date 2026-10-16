@@ -59,6 +59,14 @@ export const englishCheckoutWords: KaitenCheckoutWords = {
   payInvoice: "Pay invoice",
   alreadySubscribed: "You already have a subscription.",
   managePlan: "Manage your subscription",
+  addOnHeld: (quantity) => `You already have ${quantity}`,
+  periodsLimitedBy: (names) =>
+    `Some billing periods aren't available, as they can't bill the add-ons you already have: ${names}.`,
+  addOnNotForPeriod: (names) =>
+    `This billing period can't bill the add-ons you already have: ${names}. Choose another one.`,
+  addOnAlreadyHeld: (names) =>
+    `You already have ${names}. Change how many once your subscription has started.`,
+  addOnRefused: (names) => `This plan can't bill ${names}.`,
 };
 
 /** The words a checkout says: the language's, and the host's own over them, over the English ones. */

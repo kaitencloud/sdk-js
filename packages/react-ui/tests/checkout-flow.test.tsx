@@ -7,8 +7,21 @@
 
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vite-plus/test";
-import type { Addon, BillingPrice, CheckoutInput, CheckoutResult } from "@kaitencloud/client";
-import { DEMO_SESSION_NOW, demoVouchers } from "@kaitencloud/client/testing";
+import {
+  KaitenError,
+  type Addon,
+  type BillingPrice,
+  type CheckoutInput,
+  type CheckoutResult,
+  type KaitenPortal,
+} from "@kaitencloud/client";
+import {
+  DEMO_SESSION_NOW,
+  createMockKaitenClient,
+  demoCatalog,
+  demoSessionAddOns,
+  demoVouchers,
+} from "@kaitencloud/client/testing";
 import { fr } from "@kaitencloud/react/locales";
 
 import { CheckoutFlow, type CheckoutFlowProps } from "../src/index.ts";
@@ -37,6 +50,7 @@ import {
   voucherInvalid,
 } from "./support/checkout.tsx";
 import { off } from "./support/session-mount.tsx";
+import { KaitenProvider } from "./support/styled-provider.tsx";
 
 const GROWTH_MONTHLY = "price_growth_monthly";
 const GROWTH_ANNUAL = "price_growth_annual";
@@ -1201,12 +1215,177 @@ describe("refusals", () => {
 });
 
 // ---------------------------------------------------------------------------
+// What the instance holds
+// ---------------------------------------------------------------------------
+
+describe("what the instance holds", () => {
+  /**
+   * An instance whose subscription ended and that took three seats since, as its portal reads it:
+   * the portal's add-on carries the fee of one period, and no pricing type.
+   */
+  const holding = (): KaitenPortal => {
+    const portal = demoPortal();
+    return {
+      ...portal,
+      subscription: { ...portal.subscription!, status: "CANCELED" },
+      addOns: [{ ...demoSessionAddOns()[0]!, quantity: 3 }],
+      capabilities: { ...portal.capabilities, unsubscribe: false, checkout: true },
+    };
+  };
+
+  /** A refusal of the checkout, with an entry per add-on refused. */
+  const addOnRefused = (code: string, errors: { location: string; inner: string }[]) =>
+    new KaitenError({
+      title: code,
+      status: 422,
+      code,
+      detail: code,
+      errors: errors.map(({ location, inner }) => ({
+        location,
+        message: "refused",
+        value: { code: `AttachInstanceAddon.${inner}` },
+      })),
+    });
+
+  /** The flow on `client`, with a catalogue that sells `catalogAddOns`. */
+  async function drawWithCatalogue(
+    client: Client,
+    catalogAddOns: Addon[],
+    props: Partial<CheckoutFlowProps> = {},
+  ) {
+    render(
+      <KaitenProvider
+        mode="customer-session"
+        sessionClient={client}
+        client={createMockKaitenClient({ catalog: demoCatalog({ addOns: catalogAddOns }) })}
+        apiUrl="https://kaiten.test/api"
+        polling={{ enabled: false }}
+      >
+        <CheckoutFlow plan={plan} {...props} />
+      </KaitenProvider>,
+    );
+    await settle();
+  }
+
+  test("a family the instance holds is listed as held, and neither offered nor ordered again", async () => {
+    const client = selling(undefined, dryRun, holding());
+    await draw(client, { addOns: [extraSeats, storage] });
+
+    const root = within(flow());
+    expect(names()).toEqual(["Extra seats", "Extra storage"]);
+    // The seats are the instance's: three, kept and billed by the subscribe, with no stepper.
+    expect(root.getByText("You already have 3")).toBeTruthy();
+    expect(root.queryByRole("button", { name: "Add one Extra seats" })).toBeNull();
+    expect(root.getByRole("button", { name: "Add one Extra storage" })).toBeTruthy();
+    await press(button("Add one Extra storage"), 300);
+    for (const input of callsOf(client, "checkout") as CheckoutInput[]) {
+      expect(input.addOns?.map((entry) => entry.addonSlug) ?? []).not.toContain("extra-seats-v1");
+    }
+  });
+
+  test("a billing period that cannot bill what the instance holds cannot be chosen, and says why", async () => {
+    // The catalogue sells the seats held as a paid add-on by the month alone: the year cannot bill them.
+    const client = selling(undefined, dryRun, holding());
+    await drawWithCatalogue(client, [seatsByTheMonth]);
+
+    const root = within(flow());
+    expect(screen.getByRole("radio", { name: "$790.00/year" })).toHaveProperty("disabled", true);
+    expect(screen.getByRole("radio", { name: "$79.00/month" })).toHaveProperty("disabled", false);
+    const note = root.getByText(
+      "Some billing periods aren't available, as they can't bill the add-ons you already have: Extra seats.",
+    );
+    expect(
+      screen.getByRole("radio", { name: "$790.00/year" }).getAttribute("aria-describedby"),
+    ).toBe(note.id);
+    // Held at its fee for the period chosen, and never ordered again.
+    expect(root.getByText("$25.00/month")).toBeTruthy();
+    expect(root.getByText("You already have 3")).toBeTruthy();
+    expect(previews(client)).toEqual([{ licensePriceId: GROWTH_MONTHLY, dryRun: true }]);
+  });
+
+  test("a refusal names the add-ons it cannot bill, in place of the lines of another selection", async () => {
+    // No catalogue: the portal's add-on says nothing of the year, and the server is the judge.
+    const client = selling(
+      undefined,
+      (input) =>
+        input.licensePriceId === GROWTH_ANNUAL
+          ? addOnRefused("CreateSessionCheckout.AddonInvalid", [
+              { location: "addons.extra-seats-v1", inner: "NoPriceForBillingPeriod" },
+            ])
+          : dryRun(input),
+      holding(),
+    );
+    await draw(client, { addOns: [storage] });
+    expect(total()).toBe("$79.00");
+
+    await press(screen.getByRole("radio", { name: "$790.00/year" }), 300);
+    const root = within(flow());
+    expect(root.getByRole("alert").textContent).toBe(
+      "This billing period can't bill the add-ons you already have: Extra seats. Choose another one.",
+    );
+    // The lines and the total of the month are not this selection's: none is shown.
+    expect(flow().querySelector('[data-slot="checkout-summary-lines"]')).toBeNull();
+    expect(root.queryByText("$79.00")).toBeNull();
+    expect(root.queryByText("Failed to load")).toBeNull();
+    expect(root.queryByRole("button", { name: "Try again" })).toBeNull();
+    expect(button(/^Subscribe/)).toHaveProperty("disabled", true);
+
+    await press(screen.getByRole("radio", { name: "$79.00/month" }), 300);
+    expect(root.queryByRole("alert")).toBeNull();
+    expect(total()).toBe("$79.00");
+  });
+
+  test("an add-on of the order is named by its place in it, and another currency is said too", async () => {
+    const client = selling(undefined, (input) =>
+      input.addOns?.length
+        ? addOnRefused("CreateSessionCheckout.AddonInvalid", [
+            { location: "body.addOns[0]", inner: "FamilyAlreadyAttached" },
+          ])
+        : dryRun(input),
+    );
+    await draw(client, { addOns: [storage] });
+    await press(button("Add one Extra storage"), 300);
+    expect(within(flow()).getByRole("alert").textContent).toBe(
+      "You already have Extra storage. Change how many once your subscription has started.",
+    );
+    cleanup();
+
+    const currency = selling(
+      undefined,
+      () =>
+        addOnRefused("CreateSessionCheckout.CurrencyMismatch", [
+          { location: "addons.extra-seats-v1", inner: "CurrencyMismatch" },
+        ]),
+      holding(),
+    );
+    await draw(currency, { addOns: [] });
+    expect(within(flow()).getByRole("alert").textContent).toBe("This plan can't bill Extra seats.");
+  });
+
+  test("in French, the add-ons held and the refusals are French", async () => {
+    const client = selling(
+      undefined,
+      () =>
+        addOnRefused("CreateSessionCheckout.AddonInvalid", [
+          { location: "addons.extra-seats-v1", inner: "NoPriceForBillingPeriod" },
+        ]),
+      holding(),
+    );
+    await draw(client, { addOns: [] }, { locale: fr });
+    const root = within(flow());
+    expect(root.getByText("Vous en avez déjà 3")).toBeTruthy();
+    expect(root.getByRole("alert").textContent).toBe(
+      "Cette période de facturation ne peut pas facturer les options que vous avez déjà\u00a0: Extra seats. Choisissez-en une autre.",
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Outside a session, unstyled, in French
 // ---------------------------------------------------------------------------
 
 describe("the other ways to draw it", () => {
   test("outside a customer session there is no checkout to draw", async () => {
-    const { KaitenProvider } = await import("./support/styled-provider.tsx");
     render(
       <KaitenProvider mode="static" catalog={{ plans: [] }}>
         <CheckoutFlow plan={plan} />

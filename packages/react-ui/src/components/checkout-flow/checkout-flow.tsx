@@ -8,6 +8,7 @@ import {
 } from "@kaitencloud/react/billing";
 import {
   useLocalization,
+  usePortal,
   formatKaitenPrice,
   type Addon,
   type BillingPrice,
@@ -73,6 +74,20 @@ function initialPrice(prices: BillingPrice[], chosen: string | undefined): Billi
 const attachableAt = (addon: Addon, price: BillingPrice | null): boolean =>
   price !== null && attachableTo(addon, saleOfPrice(price));
 
+/** An add-on the instance holds, and the version of it its prices are read from. */
+interface HeldAddOn {
+  addon: Addon;
+  /**
+   * The catalogue's add-on of the same version when the catalogue sells it, which carries every
+   * price; else the portal's, which carries the fee of the last billing period.
+   */
+  version: Addon;
+}
+
+/** The add-ons the instance holds that a price cannot bill: Kaiten refuses its checkout. */
+const heldNotBilledAt = (held: HeldAddOn[], price: BillingPrice): HeldAddOn[] =>
+  held.filter(({ version }) => !attachableTo(version, saleOfPrice(price)));
+
 /**
  * The quantities a price keeps: those of the add-ons offered beside the plan that Kaiten does not
  * attach to it leave, and the others stay as they are. A slug that is none of the add-ons offered
@@ -107,7 +122,9 @@ export interface CheckoutFlowProps {
    * when the provider reads one (a publishable key). Of these, the flow offers only the ones Kaiten
    * attaches beside the price chosen: priced in its currency and, for a paid add-on with flat fees,
    * with a default fee for its billing period, which is the one shown. A billing period that does
-   * not sell an add-on takes it out of the selection.
+   * not sell an add-on takes it out of the selection. None is offered of a family the instance
+   * already holds: what it holds is listed, since a subscribe keeps and bills it, and a billing
+   * period that cannot bill it cannot be chosen.
    */
   addOns?: Addon[];
   /** The quantity of each add-on chosen at first, by slug: one the first price does not sell is left out. */
@@ -172,24 +189,41 @@ function CheckoutFlowView({
   const localization = useLocalization();
   const words = useCheckoutWords();
   const icons = useIcons();
-  const problemText = useProblemText();
   const catalogAddOns = useKaitenDataContext().catalog.data?.addOns;
+  const portalAddOns = usePortal().data?.addOns;
   // A code typed and not applied is not the checkout's: Subscribe waits for it to be applied or cleared.
   const [voucherPending, setVoucherPending] = React.useState(false);
 
   const prices = React.useMemo(() => purchasablePrices(plan, priceId), [plan, priceId]);
   const start = React.useMemo(() => initialPrice(prices, priceId), [prices, priceId]);
-  // The add-ons that can be offered beside the plan, whatever the price: the host's, else the
-  // catalogue's that fit the plan.
-  const candidates = React.useMemo(
+  // What the instance holds, as its portal says: a subscribe keeps it, and bills it from the
+  // activation at its fee for the price's period. An instance whose subscription ended can hold
+  // add-ons, and a checkout is how it subscribes again.
+  const held = React.useMemo<HeldAddOn[]>(
     () =>
+      (portalAddOns ?? [])
+        .filter((addon) => (addon.quantity ?? 0) > 0)
+        .map((addon) => ({
+          addon,
+          version: catalogAddOns?.find((each) => each.slug === addon.slug) ?? addon,
+        })),
+    [portalAddOns, catalogAddOns],
+  );
+  // The add-ons that can be offered beside the plan, whatever the price: the host's, else the
+  // catalogue's that fit the plan; of a family the instance holds, none, since Kaiten attaches no
+  // second add-on of a family. The one held is changed in the portal once subscribed.
+  const candidates = React.useMemo(() => {
+    const families = new Set(held.map(({ addon }) => addon.familySlug).filter(Boolean));
+    return (
       addOns ??
       catalogAddOns?.filter(
         (addon) => !!addon.familySlug && plan.compatibleAddonFamilies?.includes(addon.familySlug),
       ) ??
-      [],
-    [addOns, catalogAddOns, plan],
-  );
+      []
+    ).filter((addon) => !addon.familySlug || !families.has(addon.familySlug));
+  }, [addOns, catalogAddOns, plan, held]);
+  // A refusal names an add-on by the name the host gave it, or the catalogue's.
+  const problemText = useProblemText(addOns);
   const checkout = useCheckout({
     initial: {
       licensePriceId: start?.id ?? null,
@@ -241,6 +275,15 @@ function CheckoutFlowView({
 
   // Offered: the add-ons Kaiten attaches beside the price chosen, and only those.
   const offered = candidates.filter((addon) => attachableAt(addon, chosen));
+  // A price that cannot bill what the instance holds is not one to choose: Kaiten refuses it.
+  const unbillable = new Set(
+    prices.filter((price) => heldNotBilledAt(held, price).length > 0).map((price) => price.id),
+  );
+  const limiting = [
+    ...new Set(
+      prices.flatMap((price) => heldNotBilledAt(held, price).map(({ addon }) => addon.name)),
+    ),
+  ];
 
   const frame = (children: React.ReactNode, footer?: React.ReactNode) =>
     unstyled ? (
@@ -349,6 +392,8 @@ function CheckoutFlowView({
           prices={prices}
           selected={checkout.selection.licensePriceId}
           disabled={submitting}
+          unavailable={unbillable}
+          note={limiting.length > 0 ? words.periodsLimitedBy(limiting.join(", ")) : null}
           onSelect={selectPrice}
           label={(price) =>
             formatKaitenPrice(price, localization, { entitlements: plan.entitlements }) ?? ""
@@ -356,11 +401,12 @@ function CheckoutFlowView({
         />
       ) : null}
 
-      {chosen && offered.length > 0 ? (
+      {chosen && (offered.length > 0 || held.length > 0) ? (
         <AddOnSteppers
           unstyled={unstyled}
           legend={localization.pricingTable.addOns}
           addOns={offered}
+          held={held}
           chosen={chosen}
           quantities={checkout.selection.addOns}
           disabled={submitting}
@@ -399,7 +445,7 @@ function CheckoutFlowView({
         <Message unstyled={unstyled} tone="muted" text={words.billingEmailFirst} />
       ) : (
         <>
-          <CheckoutSummaryBody preview={checkout.preview} unstyled={unstyled} />
+          <CheckoutSummaryBody preview={checkout.preview} unstyled={unstyled} addOns={addOns} />
           {checkout.billingEmailMissing ? (
             <Message unstyled={unstyled} tone="muted" text={words.billingEmailToSubscribe} />
           ) : null}
@@ -581,6 +627,8 @@ function PeriodChoice({
   prices,
   selected,
   disabled,
+  unavailable,
+  note,
   onSelect,
   label,
 }: {
@@ -589,11 +637,16 @@ function PeriodChoice({
   prices: BillingPrice[];
   selected: string | null;
   disabled: boolean;
+  /** The ids of the prices that cannot be chosen: they cannot bill what the instance holds. */
+  unavailable: ReadonlySet<string>;
+  /** What says why some cannot be chosen. */
+  note: string | null;
   onSelect: (id: string) => void;
   label: (price: BillingPrice) => string;
 }) {
   const name = React.useId();
   const legendId = React.useId();
+  const noteId = React.useId();
   return (
     <fieldset
       data-slot="checkout-flow-period"
@@ -613,6 +666,8 @@ function PeriodChoice({
                 type="radio"
                 name={name}
                 checked={selected === price.id}
+                disabled={unavailable.has(price.id)}
+                aria-describedby={unavailable.has(price.id) && note ? noteId : undefined}
                 onChange={() => onSelect(price.id)}
               />
               {label(price)}
@@ -632,12 +687,21 @@ function PeriodChoice({
               key={price.id}
               className="group/field-label flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm has-data-checked:border-ktn-primary has-data-checked:ring-2 has-data-checked:ring-ktn-primary/20 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ktn-primary/50 has-disabled:cursor-not-allowed"
             >
-              <RadioGroupItem value={price.id} />
+              <RadioGroupItem
+                value={price.id}
+                disabled={unavailable.has(price.id)}
+                aria-describedby={unavailable.has(price.id) && note ? noteId : undefined}
+              />
               {label(price)}
             </label>
           ))}
         </RadioGroup>
       )}
+      {note ? (
+        <p id={noteId} className={unstyled ? undefined : "text-xs text-ktn-muted-foreground"}>
+          {note}
+        </p>
+      ) : null}
     </fieldset>
   );
 }
@@ -646,6 +710,7 @@ function AddOnSteppers({
   unstyled,
   legend,
   addOns,
+  held,
   chosen,
   quantities,
   disabled,
@@ -656,6 +721,8 @@ function AddOnSteppers({
   unstyled: boolean;
   legend: string;
   addOns: Addon[];
+  /** What the instance holds: listed first, to read, since the subscribe keeps and bills it. */
+  held: HeldAddOn[];
   /** The price chosen, which the add-ons are billed beside. */
   chosen: BillingPrice;
   quantities: Record<string, number>;
@@ -672,6 +739,33 @@ function AddOnSteppers({
     >
       <legend className={unstyled ? undefined : "mb-2 text-sm font-medium"}>{legend}</legend>
       <ul className={unstyled ? undefined : "flex flex-col gap-2"}>
+        {held.map(({ addon, version }) => {
+          const price = addonFeeFor(version, saleOfPrice(chosen));
+          return (
+            <li
+              key={addon.slug}
+              data-slot="checkout-flow-addon-held"
+              className={cn(
+                "ktn-own",
+                unstyled
+                  ? undefined
+                  : "flex flex-wrap items-center justify-between gap-x-4 gap-y-2",
+              )}
+            >
+              <span className={unstyled ? undefined : "flex min-w-0 flex-col text-sm"}>
+                <span className={unstyled ? undefined : "break-words"}>{addon.name}</span>
+                {price ? (
+                  <span className={unstyled ? undefined : "text-xs text-ktn-muted-foreground"}>
+                    {priceLabel(price)}
+                  </span>
+                ) : null}
+              </span>{" "}
+              <span className={unstyled ? undefined : "text-sm text-ktn-muted-foreground"}>
+                {words.addOnHeld(String(addon.quantity ?? 0))}
+              </span>
+            </li>
+          );
+        })}
         {addOns.map((addon) => {
           const quantity = quantities[addon.slug] ?? 0;
           const max = addon.maxQuantity ?? null;

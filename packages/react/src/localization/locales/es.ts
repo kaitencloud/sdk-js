@@ -206,6 +206,14 @@ export const es: KaitenLocalization = {
     payInvoice: "Pagar la factura",
     alreadySubscribed: "Ya tiene una suscripción.",
     managePlan: "Gestionar su suscripción",
+    addOnHeld: (quantity) => `Ya tiene ${quantity}`,
+    periodsLimitedBy: (names) =>
+      `Algunos periodos de facturación no están disponibles, porque no pueden facturar los complementos que ya tiene: ${names}.`,
+    addOnNotForPeriod: (names) =>
+      `Este periodo de facturación no puede facturar los complementos que ya tiene: ${names}. Elija otro.`,
+    addOnAlreadyHeld: (names) =>
+      `Ya tiene ${names}. Podrá cambiar la cantidad cuando haya empezado su suscripción.`,
+    addOnRefused: (names) => `Este plan no puede facturar ${names}.`,
   },
   subscription: {
     trial: "Prueba",

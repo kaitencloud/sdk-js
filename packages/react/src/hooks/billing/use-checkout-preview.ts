@@ -227,8 +227,10 @@ export function useCheckoutPreview(
     isStale: priced && answer !== null && !answered,
     voucher,
     // A refused voucher is not an error of the summary: it has a state of its own.
+    // The refusal is of `wanted`'s request: an add-on it names by its place in the order is named
+    // by its slug.
     problem: refused
-      ? checkoutProblem(refused.error)
+      ? checkoutProblem(refused.error, wanted ? checkoutInput(wanted) : undefined)
       : refusedVoucher
         ? { kind: "voucher_invalid" }
         : null,

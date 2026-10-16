@@ -6,8 +6,8 @@ import {
   type CheckoutProblem,
   type CheckoutPreviewState,
 } from "@kaitencloud/react/billing";
-import { useLocalization, usePortal } from "@kaitencloud/react";
-import { useTrackComponent } from "@kaitencloud/react/internal";
+import { useLocalization, usePortal, type Addon } from "@kaitencloud/react";
+import { useKaitenDataContext, useTrackComponent } from "@kaitencloud/react/internal";
 
 import { useIcons } from "../../appearance/icons.tsx";
 import { useMergedAppearance } from "../../appearance/context.tsx";
@@ -119,15 +119,54 @@ export function useEntitlementNames(): (slug: string) => string {
 }
 
 /**
- * What a refusal says to a customer, for the ones that have words. Anything else is the generic
- * error. A voucher is worded by its own field, so the refusal of one is not worded here.
+ * The names a refusal gives the add-ons it names: the portal's for one the instance holds, else
+ * those the host gave, else the catalogue's, else the slug.
  */
-export function useProblemText(): (problem: CheckoutProblem | null) => string {
+function useAddOnNames(offered: readonly Addon[] | undefined): (slug: string) => string {
+  const held = usePortal().data?.addOns;
+  const sold = useKaitenDataContext().catalog.data?.addOns;
+  return React.useCallback(
+    (slug: string) =>
+      [held, offered, sold]
+        .map((addOns) => addOns?.find((addon) => addon.slug === slug)?.name)
+        .find((name) => name !== undefined) ?? slug,
+    [held, offered, sold],
+  );
+}
+
+/**
+ * What a refusal says to a customer, for the ones that have words. Anything else is the generic
+ * error. A voucher is worded by its own field, so the refusal of one is not worded here. `addOns`
+ * are add-ons the host handed a flow, whose names a refusal of them says.
+ */
+export function useProblemText(
+  addOns?: readonly Addon[],
+): (problem: CheckoutProblem | null) => string {
   const words = useCheckoutWords();
   const nameOf = useEntitlementNames();
+  const addOnName = useAddOnNames(addOns);
   return React.useCallback(
     (problem) => {
       switch (problem?.kind) {
+        case "addon_refused": {
+          // The refusal the customer can act on first: an add-on of a family they hold, which the
+          // checkout should not have ordered, then a billing period that cannot bill what they
+          // hold, which another period can.
+          const names = (reason?: string, held?: boolean) =>
+            problem.addOns
+              .filter(
+                (each) =>
+                  (reason === undefined || each.reason === reason) &&
+                  (held === undefined || each.held === held),
+              )
+              .map((each) => addOnName(each.slug))
+              .join(", ");
+          if (names("family_held")) return words.addOnAlreadyHeld(names("family_held"));
+          if (names("no_price_for_period", true)) {
+            return words.addOnNotForPeriod(names("no_price_for_period", true));
+          }
+          return words.addOnRefused(names());
+        }
         case "quota_exceeded":
           return words.quotaExceeded(problem.entitlementSlugs.map(nameOf).join(", "));
         case "unavailable":
@@ -146,13 +185,15 @@ export function useProblemText(): (problem: CheckoutProblem | null) => string {
           return words.error;
       }
     },
-    [words, nameOf],
+    [words, nameOf, addOnName],
   );
 }
 
 export interface CheckoutSummaryBodyProps {
   preview: CheckoutPreviewState;
   unstyled?: boolean;
+  /** Add-ons the host handed the flow: a refusal of one says the name given there. */
+  addOns?: readonly Addon[];
 }
 
 /**
@@ -160,15 +201,20 @@ export interface CheckoutSummaryBodyProps {
  * flow draws inside its own card. It says what it can about a refusal the flow does not
  * word itself.
  */
-export function CheckoutSummaryBody({ preview, unstyled = false }: CheckoutSummaryBodyProps) {
+export function CheckoutSummaryBody({
+  preview,
+  unstyled = false,
+  addOns,
+}: CheckoutSummaryBodyProps) {
   const localization = useLocalization();
   const words = useCheckoutWords();
-  const problemText = useProblemText();
+  const problemText = useProblemText(addOns);
   const icons = useIcons();
   const AlertIcon = icons.alertTriangle;
   const { data, problem } = preview;
 
   const refusal =
+    problem?.kind === "addon_refused" ||
     problem?.kind === "quota_exceeded" ||
     problem?.kind === "unavailable" ||
     problem?.kind === "rate_limited" ||
@@ -178,8 +224,7 @@ export function CheckoutSummaryBody({ preview, unstyled = false }: CheckoutSumma
       : preview.error
         ? localization.states.failed
         : null;
-  // A refusal of the selection that is on screen: the lines that are still there are the last
-  // selection's, and are marked as such.
+  // A refusal of the selection that is on screen, said in place of its lines.
   const alert = refusal ? (
     <div
       role="alert"
@@ -223,7 +268,9 @@ export function CheckoutSummaryBody({ preview, unstyled = false }: CheckoutSumma
     );
   }
 
-  if (data === null) {
+  // A refused selection has no lines of its own, and those of another one would say what this
+  // one does not cost: the refusal stands alone.
+  if (data === null || (alert && preview.status === "failed")) {
     if (alert) return alert;
     // Asked for, not answered yet.
     return unstyled ? (

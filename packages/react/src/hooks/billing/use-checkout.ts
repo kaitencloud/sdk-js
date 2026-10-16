@@ -155,7 +155,10 @@ export interface UseCheckoutResult {
 interface Flow {
   step: CheckoutStep;
   setup: CheckoutSetup | null;
-  /** What was chosen when the customer was sent away: it is what the checkout goes on with. */
+  /**
+   * What was chosen when the customer was sent away: it is what the checkout goes on with. After a
+   * refusal, what the refused checkout asked for, so that the refusal can name its add-ons.
+   */
   committed: CheckoutSelection | null;
   result: CheckoutSubscribed | null;
   error: Error | null;
@@ -261,7 +264,10 @@ export function useCheckout(options: UseCheckoutOptions = {}): UseCheckoutResult
     paused: !choosing,
   });
 
-  const flowProblem = checkoutProblem(flow.error);
+  const flowProblem = checkoutProblem(
+    flow.error,
+    flow.committed ? checkoutInput(flow.committed) : undefined,
+  );
   const needsBillingEmail =
     knownWithoutEmail ||
     preview.problem?.kind === "billing_email_required" ||
@@ -321,7 +327,7 @@ export function useCheckout(options: UseCheckoutOptions = {}): UseCheckoutResult
         latest.current.options.onSubscribed?.(result);
       } catch (thrown) {
         const error = thrown instanceof Error ? thrown : new Error(String(thrown));
-        const refusal = checkoutProblem(error);
+        const refusal = checkoutProblem(error, input);
         if (refusal?.kind === "voucher_invalid") setRefusedVoucherCode(chosen.voucherCode);
         if (refusal?.kind === "already_subscribed") {
           clearPending("checkout");
@@ -347,7 +353,7 @@ export function useCheckout(options: UseCheckoutOptions = {}): UseCheckoutResult
         setFlow(
           retryable
             ? { step: "awaiting_payment_method", setup, committed: chosen, result: null, error }
-            : { step: "selecting", setup: null, committed: null, result: null, error },
+            : { step: "selecting", setup: null, committed: chosen, result: null, error },
         );
       }
     },

@@ -21,7 +21,11 @@ export type {
   CheckoutPreviewSelection,
   CheckoutSelection,
 } from "./hooks/billing/checkout-selection.ts";
-export type { AddonQuantityProblem, CheckoutProblem } from "./hooks/billing/refusals.ts";
+export type {
+  AddonQuantityProblem,
+  CheckoutAddonRefusal,
+  CheckoutProblem,
+} from "./hooks/billing/refusals.ts";
 export {
   useCheckoutPreview,
   type CheckoutPreviewState,
