@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // The themes of the storefront: the mapper from a shadcn theme to the components' appearance, the
 // page's CSS for a theme, and the contrast of the two themes taken from tweakcn.
 

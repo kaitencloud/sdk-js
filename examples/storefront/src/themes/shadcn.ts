@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // The shape a theme has in shadcn/ui, and so on tweakcn.com: one block of CSS custom properties for
 // light and one for dark, keyed here by the property's name without its leading `--`. It is what the
 // Kaiten console would one day hand over for a vendor's theme, and what `to-appearance.ts` and

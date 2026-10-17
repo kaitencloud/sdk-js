@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 import { expect, test } from "@playwright/test";
 
 import { STORIES } from "../visual/stories.ts";

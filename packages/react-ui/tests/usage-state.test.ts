@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // The rule the styled components read usage by is the Kaiten console's, ported as it is. The first
 // cases below are the console's own test cases, with its status names in the SDK's spelling.
 

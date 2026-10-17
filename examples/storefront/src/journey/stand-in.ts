@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // The journey page's hands on the stand-in for Kaiten: its control surface, under
 // `/kaiten-double/control`, and the storefront backend's vendor route. A test drives the same
 // surface from Playwright (`e2e/support/stand-in.ts`); the page does it from the browser, on the

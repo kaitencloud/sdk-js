@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // @vitest-environment jsdom
 //
 // The add-ons a customer session's portal offers beside the ones its instance holds, in the panel

@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 import * as React from "react";
 
 /** How many renders a request waits for its target to appear before it falls back to the root. */

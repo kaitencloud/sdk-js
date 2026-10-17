@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // @vitest-environment jsdom
 
 // What the styled components say of a quota follows the Kaiten console's rule, not the headless

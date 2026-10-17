@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // The way a customer changes plan, and the journey page that walks a presenter through the payment
 // lifecycle: upgrading from the free plan, the portal's "Change plan", and scenarios of the journey
 // page driven through its own buttons. The stand-in for Kaiten plays the other side.

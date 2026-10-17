@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 /**
  * Minimal static file server for `storybook-static/`, used by the visual
  * regression suite (`tests/visual/`). No new runtime dependency — pure Node.

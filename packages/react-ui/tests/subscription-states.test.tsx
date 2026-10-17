@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // @vitest-environment jsdom
 //
 // A customer session's subscription, said by the three components that show where it stands: the

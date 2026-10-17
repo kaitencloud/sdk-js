@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 

@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 import { createMockKaitenClient, demoCatalog } from "@kaitencloud/client/testing";
 import { Gate, KaitenProvider, usePlans } from "@kaitencloud/react";
 

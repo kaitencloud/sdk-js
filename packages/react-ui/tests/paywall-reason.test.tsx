@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // @vitest-environment jsdom
 //
 // A paywall reason this package does not know, as a later release may add: the wall comes up

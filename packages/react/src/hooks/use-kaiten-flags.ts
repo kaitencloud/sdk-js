@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 import type { ResolvedFeatureFlag } from "../types.ts";
 import { useTrackHook } from "../telemetry/context.tsx";
 import { useLicensingSnapshot } from "./use-licensing-snapshot.ts";

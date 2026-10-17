@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // The words of a customer session's billing screens are optional in the core and carried whole by
 // every language pack. The English lives with the components, so what this suite holds is the packs
 // against each other: one that forgot a string, or wrote an empty one, would leave a hole in the

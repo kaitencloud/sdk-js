@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // Node's request and response, and the standard ones. The routes of this storefront take a
 // `Request` and answer a `Response`, so that a test calls them without a socket; this is
 // the one place that knows about `http`.

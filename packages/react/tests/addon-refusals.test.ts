@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // What a refused change to the quantity of an add-on is called, from the status and the code the
 // API answered `PUT /public/session/addons/{addonSlug}` with.
 //

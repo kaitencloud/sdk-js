@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // The vendor's side of a plan change: a route of the storefront's backend that schedules it with the
 // server token, against the stand-in. Called here as the page calls it, through the same list of
 // routes the dev server mounts.

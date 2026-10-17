@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // What the stories of a checkout draw: a customer session on the session double, and a server
 // that prices what it is asked.
 //

@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // A router small enough to read: the storefront has three pages, and the checkout has to be
 // served at a path of its own. The provider's setup page brings the customer back to the page
 // they left, with a query parameter, and a route in the fragment would be lost on the way.

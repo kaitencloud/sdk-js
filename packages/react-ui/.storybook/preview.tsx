@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // Ambient `*.css` typing for the side-effect import below. Under `moduleResolution: nodenext`
 // a program-level ambient wildcard does not match a relative specifier, so a file-local
 // reference is required here.

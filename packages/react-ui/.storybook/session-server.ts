@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // A Kaiten for the tests and the stories of the billing components: the real customer-session client, whose `fetch`
 // answers the way Kaiten does. The answers are the ones recorded from Kaiten for Initech
 // (`packages/client/tests/fixtures/session.initech.json`), and a call that changes the customer's

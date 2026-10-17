@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // A stand-in for Kaiten, to run the storefront and its end-to-end tests without one.
 //
 // It answers the routes the storefront calls: the public catalogue, the minting of a customer

@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 /** Warn once per (hook, slug) — the entitlement hooks re-run on every poll. */
 const warned = new Set<string>();
 

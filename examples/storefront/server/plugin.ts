@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // The storefront's backend, as a plugin of its own dev and preview servers: the routes under
 // `/storefront-api`, and, when no Kaiten is configured, the stand-in that plays one.
 //

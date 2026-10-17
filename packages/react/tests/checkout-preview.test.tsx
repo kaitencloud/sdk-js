@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // @vitest-environment jsdom
 //
 // What is due today, from the server: a checkout's `dryRun`, asked when a selection has stood

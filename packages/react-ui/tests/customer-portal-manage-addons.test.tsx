@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // @vitest-environment jsdom
 //
 // The add-ons of a customer session's portal: the card lists what the instance holds, and the

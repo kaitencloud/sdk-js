@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // What the stories of a customer session's portal draw: the real session client, answering with what
 // Kaiten answered for Initech (see `session-server.ts`). A story is a customer in one situation, and
 // the situation is the portal it is given and the refusals it is scripted.

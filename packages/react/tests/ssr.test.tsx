@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // @vitest-environment node
 //
 // Server-rendering tests run WITHOUT jsdom, on purpose.

@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 import { defineConfig } from "vite-plus/test/config";
 
 /** jsdom hook & provider tests under tests/ — the only project this package has. */

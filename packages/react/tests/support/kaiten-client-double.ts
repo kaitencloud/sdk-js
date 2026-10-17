@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // The KaitenClient double the React suites run against.
 //
 // It used to be `class KaitenClient { constructor(_config: unknown) {} }` with

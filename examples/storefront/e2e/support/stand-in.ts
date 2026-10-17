@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // What a test does to the stand-in for Kaiten that the storefront runs against: it starts it over,
 // scripts what it answers, and reads what it was asked. The stand-in's control surface is under
 // `/kaiten-double/control`, on the storefront's own origin.

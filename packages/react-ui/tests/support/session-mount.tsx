@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // What a test of a billing component mounts: the provider of a customer session on a `sessionServer`,
 // with the style root. And the small readers every such test needs.
 

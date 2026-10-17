@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // A copy of `packages/react/tests/support/kaiten-client-double.ts`.
 //
 // Both packages' suites drive the same double, and it cannot be shared: each

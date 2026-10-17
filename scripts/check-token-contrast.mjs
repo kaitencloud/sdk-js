@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // Fails when a foreground/background token pair used by the components falls
 // below the WCAG AA contrast floor, in either theme.
 //

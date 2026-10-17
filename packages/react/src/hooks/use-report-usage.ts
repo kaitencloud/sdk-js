@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 import { useSWRConfig } from "swr";
 
 import { useKaitenContext } from "../providers/kaiten-provider.tsx";

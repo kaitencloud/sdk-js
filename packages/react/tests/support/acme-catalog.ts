@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // The public catalogue of Acme, as the client maps it.
 //
 // `public-catalog.acme.json` is what Kaiten serves for `GET /public/catalog`, produced

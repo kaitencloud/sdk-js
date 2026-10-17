@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 import { useIcons } from "../../appearance/icons.tsx";
 import { cn } from "../../lib/utils.ts";
 import { useLocalization } from "@kaitencloud/react";

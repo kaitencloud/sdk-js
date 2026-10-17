@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // Which Kaiten the storefront talks to, read from the environment of its server.
 //
 // With none of the variables below the storefront runs against a stand-in for Kaiten

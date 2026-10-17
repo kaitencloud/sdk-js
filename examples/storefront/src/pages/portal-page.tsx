@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 import { CustomerPortal, usePlans, usePortal } from "@kaitencloud/react-ui";
 
 import { changePlanTarget } from "../change-plan.ts";

@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 import { useEffect, useMemo, useState } from "react";
 
 import { KaitenSessionClient } from "@kaitencloud/client";

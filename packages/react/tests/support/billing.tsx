@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // What the suites of the billing hooks share: a provider on a session double, and the answers a
 // checkout gives, in the shapes the client maps them to.
 

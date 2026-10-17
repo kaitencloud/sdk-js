@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // The storefront against a Kaiten of your own, with whatever payment provider it has. Skipped
 // without the variables of the `live` project (see `playwright.config.ts`), so that it never runs
 // by accident: it subscribes an instance.

@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // What a refused checkout is called, from the status and the code the API answered with.
 //
 // The code is `<UseCase>.<Reason>` and the use case is not part of what a refusal means: the

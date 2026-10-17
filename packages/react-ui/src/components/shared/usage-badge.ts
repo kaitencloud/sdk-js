@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 import type { UsageState } from "./usage-state.ts";
 
 /** The look of a badge: one of the `Badge` variants and the classes that tune it. */

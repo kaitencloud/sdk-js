@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 import { resolveUsageScope } from "@kaitencloud/client";
 
 import type { KaitenLocalization } from "../localization/types.ts";

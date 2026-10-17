@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // What the storefront does when a customer's way is not the happy one: a card that is declined, a
 // payment that needs the customer's confirmation, a page whose origin the key does not allow, a
 // session that has expired, a request that has to wait, and a change to an add-on that is refused. The stand-in for Kaiten is told what to

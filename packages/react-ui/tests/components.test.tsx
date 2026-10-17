@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // @vitest-environment jsdom
 
 import { act, render, screen, waitFor, fireEvent, cleanup } from "@testing-library/react";

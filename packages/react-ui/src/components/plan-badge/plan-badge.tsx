@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 import { useLicense, type LicenseType } from "@kaitencloud/react";
 import { cn } from "../../lib/utils.ts";
 import { useAssertWrappedByKaitenProvider } from "../../style-root/kaiten-style-root.tsx";

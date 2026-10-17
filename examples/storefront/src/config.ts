@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // What the page needs to reach Kaiten, which its own backend tells it. Nothing in it is secret:
 // the API's address and a publishable key, which reads the catalogue and nothing else.
 

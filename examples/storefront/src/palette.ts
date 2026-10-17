@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // The storefront's theme (Kaiten, Claude, Neo Brutalism), the second choice beside the colour mode of
 // `theme.ts`: every theme has a Light and a Dark, and the two are picked apart. It is remembered
 // between visits.

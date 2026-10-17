@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // THIRD_PARTY_NOTICES.md names the third-party material that @kaitencloud/react-ui
 // copies into its source: the icons it draws and the primitives it derives from
 // shadcn/ui. This holds the notice against the source, so that adding an icon, a

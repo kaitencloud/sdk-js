@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // The README of each package, and the root one, say which Kaiten release the billing
 // features need, in a section of their own. The sentence is the same everywhere, so
 // that the day a Kaiten release carries billing, the version is written once and

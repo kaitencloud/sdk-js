@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 import type { LicenseEntitlement } from "../types.ts";
 import { useLicensingSnapshot } from "./use-licensing-snapshot.ts";
 import { useEntitlements } from "./use-kaiten-entitlements.ts";

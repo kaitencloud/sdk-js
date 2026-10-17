@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // `POST /storefront-api/session`: what the storefront's backend does so that its page can
 // act for one customer. It mints a customer session (`kst_`) with the server token and hands
 // the page the session and when it ends, and nothing else: the token stays here, and the

@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // What the journey page walks a presenter through: scenarios of the payment lifecycle, each a few
 // steps. A step says what to look at, and has the control that gets there: a button that drives the
 // stand-in for Kaiten (start a customer, say what the next payment comes to, move to the next

@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 import { resolveVariables } from "../../src/appearance/apply.ts";
 import type { KaitenAppearance } from "../../src/appearance/types.ts";
 

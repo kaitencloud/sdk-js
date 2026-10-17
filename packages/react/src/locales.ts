@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 /**
  * The built-in locale packs — import from `@kaitencloud/react/locales`.
  *

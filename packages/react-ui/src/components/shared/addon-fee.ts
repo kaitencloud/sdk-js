@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 import type { Addon, BillingPrice } from "@kaitencloud/react";
 
 // The fee an add-on is billed at beside a plan: the rule the checkout offers add-ons by and the

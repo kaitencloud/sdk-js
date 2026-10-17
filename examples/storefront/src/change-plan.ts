@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // Where the portal's "Change plan" goes.
 //
 // In V1 a customer does not move themselves from one paid plan to another: a tier change is a

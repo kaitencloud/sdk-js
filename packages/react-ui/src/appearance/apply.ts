@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 import type { KaitenAppearance, KaitenVariables } from "./types.ts";
 
 type VariableKey = keyof KaitenVariables;

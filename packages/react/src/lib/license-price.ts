@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 import { DEFAULT_CURRENCY_CODE } from "../localization/money.ts";
 import type { KaitenLocalization } from "../localization/types.ts";
 import type {

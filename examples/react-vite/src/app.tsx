@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 import { useEffect, useState } from "react";
 
 import { ComponentsPage } from "./components-page.tsx";

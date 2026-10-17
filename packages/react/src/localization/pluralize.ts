@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 /**
  * Selects one of the plural forms supplied in `forms` based on `count` and an
  * optional locale, using `Intl.PluralRules`.

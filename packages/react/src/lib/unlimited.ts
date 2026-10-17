@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 /**
  * The Kaiten API encodes "no cap" as the exact `-1` sentinel — the usage
  * reporter enforces any other value, negative or not. Callers should prefer

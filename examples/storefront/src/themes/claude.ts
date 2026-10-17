@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // The "Claude" theme of tweakcn.com, as exported (`:root` is `light`, `.dark` is `dark`), with the
 // storefront's few adjustments listed under the export and never written into it.
 

@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // What a test finds on the storefront's pages. The words are the ones of `@kaitencloud/react-ui`'s
 // English pack: a test that reads one says what a customer reads.
 

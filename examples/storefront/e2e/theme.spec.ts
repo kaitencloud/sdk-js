@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // The colour mode (Light, Dark or System) and the theme (Kaiten, Claude, Neo Brutalism), on the page
 // and on the Kaiten components, remembered between visits, with no flash of the other look when the
 // page loads. They are two choices: every theme has a Light and a Dark.

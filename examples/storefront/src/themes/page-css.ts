@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // The page's own CSS for a theme: the storefront's tokens (`--bg`, `--surface`, `--brand`, ...)
 // taken from the same shadcn tokens the components get, so that the shop and its components change
 // together. Pure, so that a theme made at runtime can go through it too; the stylesheet it builds is

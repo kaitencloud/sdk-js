@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // What the suites of the checkout components share: a styled provider on a session double, the
 // answers a checkout gives, and the plan and add-on they sell.
 //

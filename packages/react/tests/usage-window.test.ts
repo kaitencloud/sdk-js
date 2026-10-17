@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 import { afterAll, beforeAll, describe, expect, test } from "vite-plus/test";
 
 import { formatKaitenUsageWindowBound } from "../src/localization/date.ts";

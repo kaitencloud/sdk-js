@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // @vitest-environment jsdom
 //
 // `CurrentPlan` under `mode="customer-session"`: the plan the bound instance is on, what

@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // The one place a shadcn theme becomes the components' `KaitenAppearance`. Small, pure and
 // unit-tested (`tests/themes.test.ts`) because it is the piece the Kaiten console would feed with a
 // vendor's tweakcn theme.

@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { StrictMode, type ReactNode } from "react";
 import { action } from "storybook/actions";

@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // How a limit is made up, written down from the figures the server sends. The server settles the
 // arithmetic, so the tests give it figures that do not add up, and hold the note to saying them.
 

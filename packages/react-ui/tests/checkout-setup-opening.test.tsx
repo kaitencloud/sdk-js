@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // @vitest-environment jsdom
 //
 // How a checkout opened the provider's page, `CheckoutSetup["opening"]`, is a union that grows

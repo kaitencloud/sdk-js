@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 import { DEFAULT_CURRENCY_CODE, type Addon, type CurrencyCode } from "@kaitencloud/react";
 
 export interface AddonDisplayPrice {

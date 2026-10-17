@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // Dispatches the "Update visual baselines" workflow against the current branch.
 //
 // The baselines are amd64-Linux renderings (sub-pixel anti-aliasing differs by CPU

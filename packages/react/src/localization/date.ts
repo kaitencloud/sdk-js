@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 import type { KaitenDateFormatOptions, KaitenDateInput } from "./types.ts";
 
 const DATE_ONLY = /^(\d{4})-(\d{2})-(\d{2})$/;

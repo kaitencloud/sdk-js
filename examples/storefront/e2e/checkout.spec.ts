@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // A customer's way through the storefront, from its pricing table to its portal, against the
 // stand-in for Kaiten: the page, the storefront's backend and the SDK's components, all of them
 // real, and only Kaiten and the payment provider played.

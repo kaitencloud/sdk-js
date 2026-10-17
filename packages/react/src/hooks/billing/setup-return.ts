@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // What a checkout, or a payment method, does around the provider's hosted setup page:
 // where it sends the customer back to, how it finds out they came back, and how it
 // remembers what they were doing in between.

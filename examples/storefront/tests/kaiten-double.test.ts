@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // The stand-in for Kaiten, held to what it stands in for: the conformance suite's journey, which
 // takes a customer from the catalogue to a revoked session and holds each answer to the API
 // contract, runs against it; and so does every other answer these tests make it give. A stand-in

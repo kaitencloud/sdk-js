@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // `import.meta.glob` below is a Vite API. A file-local reference rather than a
 // program-level `types` entry, for the same reason `preview.tsx` needs one for `*.css`:
 // the lint pass and `tsgo` do not resolve the ambient set identically.

@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 /**
  * Visual regression — curated allowlist of Storybook stories that are
  * **stable on Linux Chromium** and represent the SDK surface most likely to

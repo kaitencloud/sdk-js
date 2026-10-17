@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // The themes a visitor can pick. "Kaiten" is the storefront's own look and has no theme object:
 // nothing is overridden, on the page or on the components.
 

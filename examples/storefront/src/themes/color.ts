@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // The little colour arithmetic a theme needs: contrast, a hover shade, a tint. Hex only on purpose:
 // the exported themes are hex, the arithmetic is exact there, and a colour in another notation
 // (`oklch(...)`, `var(...)`) is passed through untouched by the callers instead of being guessed at.
