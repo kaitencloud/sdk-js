@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // An application written against @kaitencloud/client 1.0.0, and nothing else.
 //
 // It is compiled, never run, by `node scripts/check-compat-1.0.mjs`, twice: against

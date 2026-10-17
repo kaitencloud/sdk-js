@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // The command line of a check: `--name value` options and bare `--switch`es.
 //
 // A check that ignores what it does not understand is worse than one that refuses

@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // What a package's declarations export, by name.
 //
 // A consumer fixture only names what its author remembered to use. The names a

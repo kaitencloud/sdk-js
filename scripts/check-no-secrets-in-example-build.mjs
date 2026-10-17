@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // Fails when a browser bundle carries something that belongs on a server.
 //
 // Anything that reaches a browser is public: a credential that got that far has

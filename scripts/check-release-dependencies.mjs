@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // Checks that what this tree would publish can be published, and installed.
 //
 // Two steps, in the order a release needs them.

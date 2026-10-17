@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // Code written against @kaitencloud/client 1.0.0 must keep compiling, unchanged,
 // against every 1.x. This file is where that is held: `vp check` type-checks it,
 // so a breaking change to the surface it touches fails the build. Do not adapt

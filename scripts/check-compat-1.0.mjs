@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // Fails when code written against @kaitencloud/client 1.0.0 stops compiling.
 //
 // Every release of 1.x promises that code written against 1.0.0 keeps compiling

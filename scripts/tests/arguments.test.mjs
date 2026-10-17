@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // The command line of a check: what it reads, and what it refuses.
 
 import { describe, expect, test } from "vite-plus/test";

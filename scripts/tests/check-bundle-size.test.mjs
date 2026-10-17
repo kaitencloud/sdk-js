@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // The guard of check-bundle-size.mjs that keeps a headless bundle free of code that
 // draws, tried on entries that plant what it exists to catch and on one that does
 // not. The budgets themselves are measured on the built package by the script.

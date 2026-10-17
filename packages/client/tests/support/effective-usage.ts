@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 import type { KaitenApi } from "../../src/index.ts";
 
 // A usage row as a current Kaiten server answers it: the instance's effective

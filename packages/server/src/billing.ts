@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // Helpers over the invoices and the handoff queue of the billing API.
 //
 // The generated `Billing` class has one static method per route, each taking

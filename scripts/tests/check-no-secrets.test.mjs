@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // The check that no secret reaches a browser bundle
 // (scripts/check-no-secrets-in-example-build.mjs), tried on a clean bundle and on
 // planted ones: the real client built for a browser passes, and a token, the name

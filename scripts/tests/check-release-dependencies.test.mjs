@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // The release check (scripts/check-release-dependencies.mjs), tried on small trees
 // built for the occasion: the floor of the client, with a client that has or lacks
 // the name a React package imports, and the shape of the release, with one rule

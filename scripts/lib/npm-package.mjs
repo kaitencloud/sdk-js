@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // What the scripts that look at a package the way a consumer receives it share:
 // fetching a published version from npm, packing the one in this tree, unpacking
 // a tarball, and running the TypeScript compiler on a project.

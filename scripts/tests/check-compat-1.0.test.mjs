@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // The compile check of 1.0 consumers (scripts/check-compat-1.0.mjs), tried on the
 // package built from this tree: it passes on the real consumer, and it fails, with
 // the compiler's own message, on the two breaks it exists to catch. The tarball of
