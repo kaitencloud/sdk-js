@@ -19,6 +19,15 @@ function readFromRoot(rel: string): string {
   throw new Error(`not found from cwd: ${rel}`);
 }
 
+/**
+ * The first line of a source that is code: the license header and any other
+ * leading `//` comment or blank line come before it. A directive such as
+ * "use client" still has to be the first statement, and comments may precede it.
+ */
+function firstStatement(source: string): string | undefined {
+  return source.split("\n").find((line) => line.trim() !== "" && !line.startsWith("//"));
+}
+
 const pkg = JSON.parse(readFromRoot("package.json")) as {
   types?: string;
   sideEffects?: boolean | string[];
@@ -41,14 +50,14 @@ describe("published package shape", () => {
     }
   });
 
-  test("the package entry is a client module ('use client' first line)", () => {
-    expect(readFromRoot("src/index.ts").split("\n")[0]).toBe('"use client";');
+  test("the package entry is a client module ('use client' first, after the license header)", () => {
+    expect(firstStatement(readFromRoot("src/index.ts"))).toBe('"use client";');
   });
 
   test("the billing subpath is published, and is not the root", () => {
     // Its own entry, so that a host that offers no checkout bundles none of its hooks.
     expect(pkg.exports["./billing"]).toBe("./dist/billing.mjs");
-    expect(readFromRoot("src/billing.ts").split("\n")[0]).toBe('"use client";');
+    expect(firstStatement(readFromRoot("src/billing.ts"))).toBe('"use client";');
   });
 
   test("the internal and locales subpaths are published, and no stylesheet", () => {
@@ -69,6 +78,6 @@ describe("published package shape", () => {
   test("the locales entry is plain data, importable from a server component", () => {
     // Deliberately no "use client": the packs are strings and formatters, and a
     // Server Component that picks the language must be able to import them.
-    expect(readFromRoot("src/locales.ts").split("\n")[0]).not.toBe('"use client";');
+    expect(firstStatement(readFromRoot("src/locales.ts"))).not.toBe('"use client";');
   });
 });

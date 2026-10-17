@@ -18,6 +18,15 @@ function readFromRoot(rel: string): string {
   throw new Error(`not found from cwd: ${rel}`);
 }
 
+/**
+ * The first line of a source that is code: the license header and any other
+ * leading `//` comment or blank line come before it. A directive such as
+ * "use client" still has to be the first statement, and comments may precede it.
+ */
+function firstStatement(source: string): string | undefined {
+  return source.split("\n").find((line) => line.trim() !== "" && !line.startsWith("//"));
+}
+
 const pkg = JSON.parse(readFromRoot("package.json")) as {
   types?: string;
   sideEffects?: boolean | string[];
@@ -50,7 +59,7 @@ describe("published package shape", () => {
     expect(pkg.dependencies?.["@kaitencloud/react"]).toBe("workspace:^");
   });
 
-  test("the package entry is a client module ('use client' first line)", () => {
-    expect(readFromRoot("src/index.ts").split("\n")[0]).toBe('"use client";');
+  test("the package entry is a client module ('use client' first, after the license header)", () => {
+    expect(firstStatement(readFromRoot("src/index.ts"))).toBe('"use client";');
   });
 });
