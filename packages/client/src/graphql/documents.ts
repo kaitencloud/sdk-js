@@ -26,11 +26,12 @@ import { graphql } from "./generated/gql.ts";
  * forced the snapshot to mark every window unknown.
  *
  * It does not select `source`, `provenance` or `limitCapExceededOveragePercent`,
- * the effective members the REST usage reads carry on a current server. The
- * published GraphQL schema does not have them yet, and a query that names a field
- * an older server does not know fails whole, which sends the snapshot to its REST
- * fallback. They are added with the schema release that publishes them; until
- * then this path measures against the grant's overage percent.
+ * the effective members the REST usage reads carry on a current server.
+ * `contracts/schema.graphql` declares them since kaiten's billing schema, but a
+ * server released before that schema does not serve them, and a query that
+ * names a field the server does not know fails whole, which sends the snapshot
+ * to its REST fallback. They are selected once a released server serves them;
+ * until then this path measures against the grant's overage percent.
  *
  * `licenses` is cursor-paginated (`LicensePage`), so the page size is pinned to
  * the server's `MaxLimit` (200 — see internal/shared/pagination) and both
