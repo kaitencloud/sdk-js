@@ -1,4 +1,90 @@
 """
+An add-on version: what a voucher names an add-on by, and the prices it
+is sold at. The versions of one product share a name, so the version tells them
+apart.
+"""
+type Addon {
+  description: String!
+
+  """The family the version belongs to."""
+  familySlug: String!
+  id: UUID!
+
+  """The version the family resolves to. Only a PUBLISHED version."""
+  isDefault: Boolean!
+
+  """DRAFT, PUBLISHED or ARCHIVED."""
+  lifecycleState: String!
+
+  """The most one instance may hold; null when unbounded."""
+  maxQuantity: Int
+  name: String!
+
+  """
+  The version's prices in display order; status ACTIVE or DEPRECATED narrows
+  them.
+  """
+  prices(status: String): [AddonPrice!]!
+
+  """FREE, PAID or CUSTOM: how this version is sold."""
+  pricingType: String!
+  slug: String!
+
+  """The version number in its family."""
+  version: Int!
+  versionName: String!
+}
+
+"""A cursor-paginated page of add-on versions."""
+type AddonPage {
+  hasMore: Boolean!
+  items: [Addon!]!
+
+  """Opaque cursor for the next page. Null when hasMore is false."""
+  nextCursor: String
+}
+
+"""
+A price of an add-on version. It has the shape of a licence price.
+Amounts are in minor units of currency.
+"""
+type AddonPrice {
+  """FLAT_FEE, USAGE_BASED or OVERAGE."""
+  billingModel: String!
+
+  """MONTHLY, QUARTERLY, SEMI_ANNUAL or ANNUAL; null on a metered price."""
+  billingPeriod: String
+
+  """ADVANCE or ARREARS."""
+  billingTiming: String!
+  currency: String!
+  deprecatedAt: Time
+  displayLabel: String
+  displayOrder: Int!
+  id: UUID!
+  isDefault: Boolean!
+
+  """
+  The slug of the entitlement a metered price measures; null on a flat fee.
+  """
+  meteredEntitlement: String
+
+  """
+  Measured units in one sale unit of a metered price; null on a flat fee.
+  """
+  saleUnitFactor: String
+
+  """ACTIVE or DEPRECATED."""
+  status: String!
+
+  """The amount, when it is a whole number of minor units; null otherwise."""
+  unitAmount: Int
+
+  """The amount in minor units, up to 12 decimal places."""
+  unitAmountDecimal: String!
+}
+
+"""
 AuditTrail records a single domain event captured from the outbox CDC pipeline.
 """
 type AuditTrail {
@@ -53,6 +139,8 @@ type ComponentPage {
 
 """Customer represents a client organization of a organization."""
 type Customer {
+  """Where the customer's invoices are sent. Personal data."""
+  billingEmail: String
   createdAt: Time!
   createdBy: User!
   domain: String
@@ -276,6 +364,24 @@ type EntitlementUsage {
   limit: Map
 
   """
+  How far above limit usage is still accepted, in percent: -1 unlimited, 0 a
+  hard limit. Null for BOOLEAN and CONFIG.
+  """
+  limitCapExceededOveragePercent: Int
+
+  """
+  What the licence, the add-ons and the boosts each contribute, as the
+  REST gauge read returns it.
+  """
+  provenance: Map
+
+  """
+  license when the licence grants it (add-ons and boosts may change it), addon
+  when only add-ons do.
+  """
+  source: String!
+
+  """
   Typed usage value. Shapes: {type:"number",value:N,event_count:C},
   {type:"boolean",value:B}, {type:"object",value:{...}}
   """
@@ -283,6 +389,9 @@ type EntitlementUsage {
 }
 
 type Instance {
+  """The add-ons the instance holds now, oldest attachment first."""
+  addons: [InstanceAddon!]!
+
   """Cursor-paginated audit trail entries for this instance."""
   auditTrails(
     after: Time
@@ -295,6 +404,12 @@ type Instance {
     """Maximum number of entries to return (default 50, max 200)"""
     limit: Int
   ): AuditTrailPage!
+
+  """
+  The instance's subscription; null when it was never subscribed. Requires
+  read:billing: fetch it in a document of its own, once billing is enabled.
+  """
+  billing: InstanceBillingSummary
   createdAt: Time!
   createdBy: User!
 
@@ -329,6 +444,39 @@ type Instance {
   status: InstanceStatus!
   updatedAt: Time!
   updatedBy: User!
+}
+
+"""An add-on version an instance holds, and how many units."""
+type InstanceAddon {
+  addonId: UUID!
+  addonSlug: String!
+  attachedAt: Time!
+  familySlug: String!
+  id: UUID!
+
+  """The most one instance may hold; null when unbounded."""
+  maxQuantity: Int
+  name: String!
+  quantity: Int!
+}
+
+"""
+What the console's instance lists show of an instance's subscription. The
+whole subscription is GET /instances/{instanceSlug}/billing.
+"""
+type InstanceBillingSummary {
+  cancelAtPeriodEnd: Boolean!
+  currentPeriodEnd: Time!
+  pastDueSince: Time
+
+  """NOOP or STRIPE."""
+  providerKind: String!
+
+  """
+  INCOMPLETE, TRIAL, ACTIVE, PAST_DUE or CANCELED. INCOMPLETE: a public checkout waiting for its first payment.
+  """
+  status: String!
+  trialEndsAt: Time
 }
 
 """A cursor-paginated page of instances."""
@@ -373,7 +521,27 @@ type License {
   """Whether this version may be served."""
   lifecycleState: LicenseLifecycleState!
   name: String!
+
+  """
+  The version's prices in display order; status ACTIVE or DEPRECATED narrows
+  them.
+  """
+  prices(status: String): [LicensePrice!]!
+
+  """FREE, PAID or CUSTOM: how this version is sold."""
+  pricingType: String!
+
+  """Whether self-serve signup captures a payment method before activation."""
+  requiresPaymentMethod: Boolean
+
+  """Where a buyer is sent when this version cannot be bought self-serve."""
+  selfServeCtaUrl: String
   slug: String!
+
+  """
+  The trial a subscription starts with by default, in days; null when none.
+  """
+  trialPeriodDays: Int
   type: LicenseType!
   version: String!
   versionName: String
@@ -427,6 +595,11 @@ slug.
 """
 type LicenseFamily {
   id: UUID!
+
+  """
+  Whether the family's default PUBLISHED version is in the public catalogue.
+  """
+  isPublic: Boolean!
   slug: String!
 }
 
@@ -446,6 +619,11 @@ type LicenseFamilyView {
   """
   currentVersion: License
   id: UUID!
+
+  """
+  Whether the family's default PUBLISHED version is in the public catalogue.
+  """
+  isPublic: Boolean!
   slug: String!
 
   """Number of versions in this family, whatever their lifecycle state."""
@@ -477,6 +655,43 @@ type LicensePage {
 
   """Opaque cursor for the next page. Null when hasMore is false."""
   nextCursor: String
+}
+
+"""A price of a licence version. Amounts are in minor units of currency."""
+type LicensePrice {
+  """FLAT_FEE, USAGE_BASED or OVERAGE."""
+  billingModel: String!
+
+  """MONTHLY, QUARTERLY, SEMI_ANNUAL or ANNUAL; null on a metered price."""
+  billingPeriod: String
+
+  """ADVANCE or ARREARS."""
+  billingTiming: String!
+  currency: String!
+  deprecatedAt: Time
+  displayLabel: String
+  displayOrder: Int!
+  id: UUID!
+  isDefault: Boolean!
+
+  """
+  The slug of the entitlement a metered price measures; null on a flat fee.
+  """
+  meteredEntitlement: String
+
+  """
+  Measured units in one sale unit of a metered price; null on a flat fee.
+  """
+  saleUnitFactor: String
+
+  """ACTIVE or DEPRECATED."""
+  status: String!
+
+  """The amount, when it is a whole number of minor units; null otherwise."""
+  unitAmount: Int
+
+  """The amount in minor units, up to 12 decimal places."""
+  unitAmountDecimal: String!
 }
 
 """License type enumeration"""
@@ -577,6 +792,12 @@ type OrganizationAuditTrailPage {
 """Health check endpoint"""
 type Query {
   _health: String!
+
+  """
+  The organization's add-on versions, newest first, cursor-paginated. Like the
+  REST list, it needs billing to be enabled for the organization.
+  """
+  addons(cursor: String, limit: Int): AddonPage!
 
   """List audit trail entries for a given instance slug."""
   auditTrails(
