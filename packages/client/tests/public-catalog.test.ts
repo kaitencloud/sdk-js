@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 import { readFileSync } from "node:fs";
 
 import { afterEach, describe, expect, test, vi } from "vite-plus/test";

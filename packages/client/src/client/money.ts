@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // Money, read exactly.
 //
 // Every amount in this SDK is in a currency's minor units, as the API counts

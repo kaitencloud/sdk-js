@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // Maps the payloads of the public billing routes onto the SDK's types.
 //
 // The API speaks its own money and period vocabulary (`currency`, integer
