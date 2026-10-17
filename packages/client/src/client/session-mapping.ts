@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // Maps the answers of the `/public/session/*` routes onto the SDK's types.
 //
 // The money and period vocabulary is the one of the public catalogue (see

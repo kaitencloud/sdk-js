@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // A stand-in for Kaiten, to rehearse the journey without one. It answers the ten
 // routes the journey calls with the answers recorded in the client's fixtures, which
 // are held to the contract, and keeps just enough state for the journey to move: a

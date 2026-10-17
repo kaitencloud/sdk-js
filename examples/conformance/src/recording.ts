@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // A fetch that keeps what went over the wire, so that the suite can hold the real
 // answers of a Kaiten to the contract, not the values the SDKs made of them.
 

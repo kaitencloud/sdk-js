@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // The one step of the journey that no SDK can take: the customer, on the payment
 // provider's hosted page, saving a card. A person does it with a browser; the suite
 // has to do it with a call.

@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 import { KaitenError } from "../core/runtime/errors.ts";
 import type { KaitenSessionClientLike } from "../client/session-client.ts";
 import type {

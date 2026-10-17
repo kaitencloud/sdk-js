@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // Types of the customer-session surface: what a customer, signed in to the
 // vendor's application, reads and changes about their own subscription through
 // the `/public/session/*` routes, with a `kst_` customer session.

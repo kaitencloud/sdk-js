@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // What the tests of the session client share: a clock, a fetch double that
 // records its requests, and a client with a session already held.
 

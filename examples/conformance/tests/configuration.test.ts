@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // What the suite makes of its environment: nothing set skips, everything set runs,
 // anything in between or out of shape is an error that names the variable.
 

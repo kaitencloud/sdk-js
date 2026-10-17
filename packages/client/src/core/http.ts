@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // The HTTP plumbing every client of this package shares: base URL and fetch
 // resolution, error mapping, the retry rule and the browser secret guard. It
 // imports nothing generated, so a client that needs only these stays small.

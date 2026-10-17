@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // A customer's whole journey through Kaiten, taken with @kaitencloud/client and
 // @kaitencloud/server and nothing else: the catalogue is read with a publishable
 // key, the vendor's backend mints a customer session, the customer previews a

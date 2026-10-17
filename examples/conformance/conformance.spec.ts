@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // The conformance suite: a customer's whole journey through a running Kaiten, with
 // @kaitencloud/client and @kaitencloud/server alone, each answer held to the API
 // contract. See README.md for what it needs and how to run it.

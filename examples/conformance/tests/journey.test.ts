@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // The journey, rehearsed against a stand-in for Kaiten (tests/support/fake-kaiten.ts):
 // it walks the routes in the order the suite promises, and it fails, naming what is
 // wrong, when the API does not keep to the contract or to the journey. None of this

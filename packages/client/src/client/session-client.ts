@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // The client of the customer-session routes, `/public/session/*`: what a
 // browser does for one signed-in customer, with a `kst_` session the vendor's
 // backend mints. A class of its own rather than more methods on `KaitenClient`:

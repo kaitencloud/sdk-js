@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // The answers of the session routes as Kaiten serves them, typed by the
 // contract: see fixtures/README.md. Each read gives a copy to change freely.
 

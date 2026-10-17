@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 import { afterEach, beforeEach, describe, expect, test, vi } from "vite-plus/test";
 
 import { KaitenError, KaitenNetworkError, KaitenSessionClient } from "../src/index.ts";

@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // The two ways the hosted setup page gets completed: through the Stripe API, with a
 // test card, and through a module of the person's own.
 

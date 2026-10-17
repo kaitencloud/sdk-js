@@ -1,3 +1,6 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
 // What the conformance suite needs to know about the stack it runs against, read
 // from the environment, and what it says when it does not have it.
 //
