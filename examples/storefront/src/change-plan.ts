@@ -1,7 +1,7 @@
 // Where the portal's "Change plan" goes.
 //
 // In V1 a customer does not move themselves from one paid plan to another: a tier change is a
-// commercial request (V31-40, spec §14.6 rule 5), and the portal's button opens the plan's
+// commercial request, and the portal's button opens the plan's
 // `selfServeCtaUrl`, the address the vendor gave that plan for starting the conversation.
 // Immediate self-serve change, with proration, is V1.1.
 //
@@ -13,7 +13,7 @@
 //
 // Two plans have no address of their own to send to:
 //
-// - a free plan needs none: its subscription is replaced by a checkout (V31-68), so "Change plan"
+// - a free plan needs none: its subscription is replaced by a checkout, so "Change plan"
 //   goes to the pricing table, where the customer buys what they want;
 // - a paid plan whose vendor left the address empty goes to the storefront's sales page all the
 //   same, because a button that does nothing is the one thing "Change plan" must not be.

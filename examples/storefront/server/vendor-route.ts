@@ -1,6 +1,6 @@
 // `PUT` and `DELETE` on `/storefront-api/vendor/plan-change`: what the vendor does in its own back
 // office when it moves a customer to another plan at the next boundary. A customer cannot do it
-// in V1 (V31-40: "Change plan" is a commercial request), so the move is the vendor's, with the
+// in V1 ("Change plan" is a commercial request), so the move is the vendor's, with the
 // server token, through `Billing.schedulePlanChange` of `@kaitencloud/server`.
 //
 // This route exists for the journey page, which plays the vendor's side of that conversation. A

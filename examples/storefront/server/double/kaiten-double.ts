@@ -154,7 +154,7 @@ export interface DoubleState {
   planName: string | null;
   /** `TRIAL`, `ACTIVE` or `PAST_DUE`; `null` without a live subscription. */
   status: string | null;
-  /** The live subscription has no PAID price (V31-68): a checkout replaces it. */
+  /** The live subscription has no PAID price: a checkout replaces it. */
   free: boolean;
   trialEndsAt: string | null;
   currentPeriodEnd: string | null;
@@ -175,7 +175,7 @@ export interface Scenario {
   subscribed?: boolean;
   /**
    * The instance is subscribed to Starter, which is free: a customer with an email and, unless `card`
-   * says so, no card. A checkout of a paid plan replaces that subscription (V31-68).
+   * says so, no card. A checkout of a paid plan replaces that subscription.
    */
   free?: boolean;
 }
@@ -472,7 +472,7 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
   };
 
   /**
-   * Whether the live subscription is free (V31-68): its plan is FREE and no add-on it holds has a
+   * Whether the live subscription is free: its plan is FREE and no add-on it holds has a
    * price above 0. A subscription that is not is never replaced by a checkout.
    */
   const isFree = (): boolean => {
@@ -795,7 +795,7 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
       portal.instance = {
         slug: stored.instanceSlug,
         name: stored.instanceSlug,
-        // The plan outlives the subscription, as the licence does until a fallback moves it (V31-66).
+        // The plan outlives the subscription, as the licence does until a fallback moves it.
         licenseSlug: planSlug ?? portal.instance.licenseSlug,
         licenseName: planName ?? portal.instance.licenseName,
       };
@@ -818,7 +818,7 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
         paymentMethods: true,
         invoices: true,
         unsubscribe: subscription !== null && !canceling,
-        // An instance with no live subscription, or a free one, can check out (V31-68).
+        // An instance with no live subscription, or a free one, can check out.
         checkout: subscription === null || isFree(),
       };
     }
@@ -1107,7 +1107,7 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
     }
     const priced = price(order);
     if (priced.problem) return priced.problem;
-    // A free subscription is replaced (V31-68); any other live one is refused.
+    // A free subscription is replaced; any other live one is refused.
     const replacing = subscription !== null && isFree();
     if (subscription && !replacing) {
       return problem(
@@ -1131,7 +1131,7 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
     }
     const { plan, due } = priced as { plan: Json; due: Json };
 
-    // A preview is priced without an address (Kaiten: Δ2.12): what is due does not depend on it.
+    // As in Kaiten, a preview is priced without an address: what is due does not depend on it.
     if (order.dryRun) {
       return reply(200, {
         status: "preview",
@@ -1182,7 +1182,7 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
     const periodEnd = addMonths(now, MONTHS[base.billingPeriod] ?? 1);
     if (replacing) {
       // In the checkout's one transaction: the free subscription ends at once, with no invoice and
-      // no fallback, and the new one is created (V31-68).
+      // no fallback, and the new one is created.
       emit(
         "instance.billing.canceled",
         `${planName} (free) replaced by a checkout: IMMEDIATE, no final invoice`,
@@ -1407,7 +1407,7 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
     };
   }
 
-  /** `PUT /instances/{slug}/billing/scheduled-change` (§9.4): a move to another price at the next boundary. */
+  /** `PUT /instances/{slug}/billing/scheduled-change`: a move to another price at the next boundary. */
   function schedulePlanChange(slug: string, body: Json, path: string): Response {
     const code = (name: string) => `SchedulePlanChange.${name}`;
     if (!subscription) {
@@ -1583,11 +1583,11 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
       const to = addMonths(at, MONTHS[price.billingPeriod] ?? 1);
       const due = advanceLines(price, subscription.currency, at, to);
       // Kaiten's own rule for a trial that ends with no card is the vendor's to choose (CANCEL or
-      // CONVERT, V31-65), and that choice is not in the contract this stand-in follows yet.
+      // CONVERT), and that choice is not in the contract this stand-in follows yet.
       if (due.total > 0 && !card) {
         return refuse(
           "trial_without_payment_method",
-          `the trial of ${plan?.name ?? "the plan"} ends with no payment method on file; what Kaiten does then (CANCEL or CONVERT, V31-65) comes with the v3.1 contract`,
+          `the trial of ${plan?.name ?? "the plan"} ends with no payment method on file; what Kaiten does then (CANCEL or CONVERT) comes with the v3.1 contract`,
         );
       }
       subscription = {

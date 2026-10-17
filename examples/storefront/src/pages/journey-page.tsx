@@ -86,9 +86,7 @@ export function JourneyPage({ mode }: { mode: "double" | "live" }) {
             <ul className="coming-list">
               {coming.map((item) => (
                 <li key={item.id} className="panel coming" data-testid={`coming-${item.id}`}>
-                  <h3>
-                    {item.title} <span className="pill">{item.ref}</span>
-                  </h3>
+                  <h3>{item.title}</h3>
                   <p>{item.will}</p>
                   <p className="muted">
                     <strong>Today:</strong> {item.today}

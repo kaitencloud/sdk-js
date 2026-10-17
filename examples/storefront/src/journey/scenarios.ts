@@ -382,8 +382,6 @@ export interface Coming {
   will: string;
   /** What the stand-in does in the meantime. */
   today: string;
-  /** The decision of the specification. */
-  ref: string;
 }
 
 export const coming: Coming[] = [
@@ -393,7 +391,6 @@ export const coming: Coming[] = [
     will: "A checkout with an amount due keeps the previous plan until the invoice is paid, for up to 23 hours. The subscription is INCOMPLETE meanwhile, and expires if nobody pays.",
     today:
       "The stand-in subscribes at once, and a payment that fails leaves an open invoice on an active plan.",
-    ref: "V31-63",
   },
   {
     id: "trial-end",
@@ -401,28 +398,24 @@ export const coming: Coming[] = [
     will: "The vendor chooses, per plan family, between CANCEL (the subscription ends) and CONVERT (the first invoice is issued and fails, so the subscription is past due).",
     today:
       "The stand-in converts a trial that has a card, and refuses to end one that has none, saying so.",
-    ref: "V31-65",
   },
   {
     id: "fallback",
     title: "Fallback to the free plan",
     will: "When a subscription ends, the instance moves to the free plan its family names.",
     today: "The instance keeps the plan it had, with no subscription.",
-    ref: "V31-66",
   },
   {
     id: "addon-decrease",
     title: "Add-on decrease at the next boundary",
     will: "Removing seats is scheduled for the next boundary and access is kept until then. The portal shows the pending quantity.",
     today: "A decrease is in force at once, as the current contract says.",
-    ref: "V31-67",
   },
   {
     id: "true-up",
     title: "True-up of add-ons",
     will: "At the boundary an add-on billed in advance is also billed for the highest quantity held during the period that ended.",
     today: "The renewal bills the quantity held at the boundary.",
-    ref: "V31-70",
   },
   {
     id: "trial-will-end",
@@ -430,13 +423,11 @@ export const coming: Coming[] = [
     will: "Kaiten tells the vendor's backend three days before a trial ends, so that it can ask for a card.",
     today:
       "The stand-in logs the events it would send but delivers no webhook, and the storefront has no receiver yet.",
-    ref: "V31-69",
   },
   {
     id: "one-trial",
     title: "One trial per customer and plan family",
     will: "A customer who had a trial of a family does not get a second one.",
     today: "Every checkout of Growth gets its trial.",
-    ref: "V31-64",
   },
 ];

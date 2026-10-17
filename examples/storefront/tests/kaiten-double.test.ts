@@ -113,7 +113,7 @@ describe("what the stand-in does besides", () => {
     const { double, recorder, customer } = world();
     const session = await customer();
 
-    // A customer with no email: a preview is priced without one (Kaiten: Δ2.12), the checkout
+    // A customer with no email: as in Kaiten, a preview is priced without one, and the checkout
     // itself is refused for want of it.
     await expect(
       session.checkout({ licensePriceId: PRO_MONTHLY, dryRun: true }),
@@ -600,7 +600,7 @@ describe("the catalogue's links", () => {
   });
 });
 
-describe("checkout from a free plan (V31-68)", () => {
+describe("checkout from a free plan", () => {
   test("a free subscription is replaced: cancelled at once with no invoice, then subscribed", async () => {
     const { double, customer, recorder } = world();
     double.reset({ free: true, card: true });
@@ -918,7 +918,7 @@ describe("the next boundary", () => {
       plan: "pro-v2",
       cancelAtPeriodEnd: false,
     });
-    // No fallback is played (V31-66): the instance keeps the plan it had.
+    // No fallback is played: the instance keeps the plan it had.
     expect(await session.getPortal()).toMatchObject({
       instance: { licenseName: "Pro" },
       subscription: null,

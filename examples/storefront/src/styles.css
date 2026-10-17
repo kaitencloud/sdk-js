@@ -434,7 +434,6 @@ code {
   color: var(--brand-text);
 }
 
-.pill,
 .badge {
   display: inline-block;
   padding: 0.0625rem 0.5rem;

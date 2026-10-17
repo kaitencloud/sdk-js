@@ -164,7 +164,7 @@ in its own CSS, through the public `elements` slots where one reaches the part, 
 ## Changing plan
 
 In V1 a customer does not move themselves from one paid plan to another: a tier change is a
-commercial request (V31-40), and the portal's **Change plan** button opens the plan's
+commercial request, and the portal's **Change plan** button opens the plan's
 `selfServeCtaUrl`. Passing `onUpgradeVersion` to `CustomerPortal` is what shows the button
 ([`src/pages/portal-page.tsx`](src/pages/portal-page.tsx)), and
 [`src/change-plan.ts`](src/change-plan.ts) decides where it goes:
@@ -175,8 +175,8 @@ commercial request (V31-40), and the portal's **Change plan** button opens the p
   [`/sales`](src/pages/sales-page.tsx) page takes the plan in its address, so whoever answers knows
   the starting point. An address on the storefront's origin is followed inside the app, any other
   opens in a new tab.
-- **The pricing table** for a customer on a free plan: a checkout replaces a free subscription
-  (V31-68), so there is nothing to ask for.
+- **The pricing table** for a customer on a free plan: a checkout replaces a free subscription,
+  so there is nothing to ask for.
 - **`/sales`** for a paid plan whose vendor left the address empty, because a button that does nothing
   is the one thing Change plan must not be.
 
@@ -210,9 +210,9 @@ your Kaiten the buttons are off and the links remain.
 
 What the v3.1 contract adds and the stand-in does not play yet is listed on the page as **Coming with
 the v3.1 contract**, with nothing to press and with what the stand-in does meanwhile: payment before
-the plan (INCOMPLETE, V31-63), a trial that ends without a card (CANCEL or CONVERT, V31-65), the
-fallback to the free plan (V31-66), the deferred add-on decrease (V31-67), the true-up (V31-70), the
-`trial_will_end` webhook (V31-69) and one trial per family (V31-64).
+the plan (INCOMPLETE), a trial that ends without a card (CANCEL or CONVERT), the fallback to the
+free plan, the deferred add-on decrease, the true-up, the `trial_will_end` webhook and one trial per
+family.
 
 The vendor's scheduled plan change goes through
 [`server/vendor-route.ts`](server/vendor-route.ts): `PUT` and `DELETE` on
@@ -288,7 +288,7 @@ is a customer who moves:
   attachment (`addons.<slug>`), as `.CurrencyMismatch` when the first is priced in another currency
   and `.AddonInvalid` otherwise;
 - a checkout of an instance whose live subscription has no paid price (a free plan) replaces it:
-  cancelled at once, with no invoice, and subscribed in the same step (V31-68). Any other live
+  cancelled at once, with no invoice, and subscribed in the same step. Any other live
   subscription is still a 409 `CreateSessionCheckout.AlreadySubscribed`;
 - a cancellation ends the subscription with its period, and a reactivation withdraws it;
 - the payment of the activation invoice can be paid, declined, wait for the customer's
