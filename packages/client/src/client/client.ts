@@ -28,6 +28,8 @@ import {
 } from "./normalize.ts";
 import { isEvaluationSuccess } from "./feature-flags.ts";
 import { KaitenTransport } from "../core/index.ts";
+import { createAiModule } from "../ai/module.ts";
+import type { KaitenAiModule } from "../ai/module.ts";
 import { LICENSING_CATALOG_QUERY, LICENSING_SNAPSHOT_QUERY } from "../graphql/documents.ts";
 import type {
   LicensingCatalogQuery,
@@ -341,6 +343,12 @@ export class KaitenClient implements KaitenClientLike {
   public readonly licenses: KaitenLicensesModule;
   public readonly usage: KaitenUsageModule;
   public readonly flags: KaitenFlagsModule;
+  /**
+   * AI credits: `reserve`, `commit` and `run` on an AI credit pool. The
+   * provider wrappers (`@kaitencloud/ai-openai`, `@kaitencloud/ai-anthropic`, …)
+   * drive it for you. Server-side: the report needs a `ksh_` token.
+   */
+  public readonly ai: KaitenAiModule;
 
   constructor(config: KaitenClientConfig) {
     // No default scheme: publishable keys are not served yet, and a default that
@@ -386,6 +394,8 @@ export class KaitenClient implements KaitenClientLike {
       getByGroup: (groupSlug, instanceSlug) =>
         this.getEntitlementGroupUsage(groupSlug, instanceSlug),
     };
+
+    this.ai = createAiModule(this.transport);
 
     this.flags = {
       evaluate: (key, context) => this.evaluateFlag(key, context),

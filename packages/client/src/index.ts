@@ -60,6 +60,37 @@ export {
   resolveLicenseTerm,
   withQuery,
 } from "./client/normalize.ts";
+// AI credits: the `ai` namespace's types, its typed errors and the provider-
+// agnostic helpers the wrapper packages build on.
+export { classifyProviderError } from "./ai/module.ts";
+export type {
+  AiCommitInput,
+  AiReportResult,
+  AiReserveInput,
+  AiRunContext,
+  AiRunOptions,
+  AiTarget,
+  KaitenAiModule,
+} from "./ai/module.ts";
+export {
+  AiUsageUnsupportedError,
+  InsufficientCreditsError,
+  ModelNotAuthorizedError,
+  TransactionIdReusedError,
+  UnknownModelError,
+} from "./ai/errors.ts";
+export { fromAnthropic, fromOpenAI } from "./ai/normalize.ts";
+export { estimateTokens, uuidv7 } from "./ai/ids.ts";
+export type {
+  AiEntitlementUsage,
+  AiOperationStatus,
+  AiRequestStatus,
+  AiRequestType,
+  AiUsage,
+  AiUsageOutcome,
+  AiUsagePhase,
+  AiUsageWarning,
+} from "./ai/contract.ts";
 export { isEvaluationFailure, isEvaluationSuccess } from "./client/feature-flags.ts";
 export type { FeatureFlagEvaluation } from "./client/feature-flags.ts";
 // An entitlement business rule shared by every usage surface, not infrastructure

@@ -46,6 +46,7 @@ you make:
 | `usage.getByInstance()`, `usage.getDetail()` | `read:instances`                                                                               |
 | `usage.getByGroup()`                         | `read:entitlements`                                                                            |
 | `usage.report()`                             | `write:instances`                                                                              |
+| `ai.*`                                       | `write:instances`                                                                              |
 | `flags.*`                                    | `read:feature_flags`                                                                           |
 
 A call that needs a scope the token lacks is refused with `403` and the code
@@ -77,6 +78,42 @@ const snapshot = await kaiten.components.getSnapshot("acme-corp");
 - `kaiten.customers` / `kaiten.instances` / `kaiten.licenses` — curated reads
 - `kaiten.usage` — entitlement usage (read + report)
 - `kaiten.flags` — feature-flag evaluation (`evaluate`, `evaluateAll`)
+- `kaiten.ai` — AI credits on a credit pool: `reserve`, `commit`, `run` (below)
+
+### AI credits
+
+A call to a model reserves its estimate on an AI credit pool, runs, and commits
+what it really used, under one `transactionId`. Kaiten prices it; the SDK never
+carries credits, and Kaiten never sees a prompt or a completion.
+
+```ts
+import { fromOpenAI } from "@kaitencloud/client";
+
+const completion = await kaiten.ai.run(
+  {
+    instance: "acme-prod",
+    pool: "chat-credits",
+    model: "gpt-4o",
+    requestType: "COMPLETION",
+    estimate: { inputTokens: 1000, outputTokens: 800 },
+    usage: (result) => fromOpenAI(result.usage),
+  },
+  () => openai.chat.completions.create({ model: "gpt-4o", messages, max_tokens: 800 }),
+);
+```
+
+A refused reservation throws before the provider is called:
+`InsufficientCreditsError`, `ModelNotAuthorizedError`, `UnknownModelError`.
+`TransactionIdReusedError` is a caller bug and is never retried, and
+`AiUsageUnsupportedError` means the pool or the server cannot take an AI report.
+Both phases are retried three times on network errors and 500/502/503/504 under
+the same `transactionId` and `Idempotency-Key`. `fromOpenAI` and `fromAnthropic`
+map a provider's usage onto the disjoint token fields.
+
+You rarely write this by hand: `@kaitencloud/ai-openai`, `@kaitencloud/ai-anthropic`
+and `@kaitencloud/ai-vercel` wrap a provider client in one call, and
+`@kaitencloud/ai-claude-agent` and `@kaitencloud/ai-codex` do it per model turn
+of an agent run.
 
 ## Testing without an API — `@kaitencloud/client/testing`
 
