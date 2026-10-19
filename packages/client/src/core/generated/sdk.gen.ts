@@ -18,6 +18,9 @@ import type {
   AddEntitlementToGroupData,
   AddEntitlementToGroupErrors,
   AddEntitlementToGroupResponses,
+  ArchiveConversionRuleData,
+  ArchiveConversionRuleErrors,
+  ArchiveConversionRuleResponses,
   ArchiveLicenseData,
   ArchiveLicenseErrors,
   ArchiveLicenseResponses,
@@ -30,6 +33,9 @@ import type {
   CreateComponentData,
   CreateComponentErrors,
   CreateComponentResponses,
+  CreateConversionRuleData,
+  CreateConversionRuleErrors,
+  CreateConversionRuleResponses,
   CreateCustomerData,
   CreateCustomerErrors,
   CreateCustomerIntegrationData,
@@ -60,6 +66,9 @@ import type {
   CreateMetadataFieldData,
   CreateMetadataFieldErrors,
   CreateMetadataFieldResponses,
+  CreateModelData,
+  CreateModelErrors,
+  CreateModelResponses,
   CreateReleaseData,
   CreateReleaseErrors,
   CreateReleaseResponses,
@@ -108,6 +117,9 @@ import type {
   DeleteLicenseEntitlementResponses,
   DeleteLicenseErrors,
   DeleteLicenseResponses,
+  DeleteModelData,
+  DeleteModelErrors,
+  DeleteModelResponses,
   DeleteReleaseData,
   DeleteReleaseErrors,
   DeleteReleaseResponses,
@@ -141,6 +153,9 @@ import type {
   GetConnectorStateData,
   GetConnectorStateErrors,
   GetConnectorStateResponses,
+  GetConversionRuleData,
+  GetConversionRuleErrors,
+  GetConversionRuleResponses,
   GetCustomerData,
   GetCustomerErrors,
   GetCustomerIntegrationByExternalIdData,
@@ -201,6 +216,9 @@ import type {
   GetLicensesData,
   GetLicensesErrors,
   GetLicensesResponses,
+  GetModelData,
+  GetModelErrors,
+  GetModelResponses,
   GetNotificationPreferencesData,
   GetNotificationPreferencesErrors,
   GetNotificationPreferencesResponses,
@@ -225,12 +243,21 @@ import type {
   LintTargetingRuleData,
   LintTargetingRuleErrors,
   LintTargetingRuleResponses,
+  ListAiInferencesData,
+  ListAiInferencesErrors,
+  ListAiInferencesResponses,
+  ListAiReservationsData,
+  ListAiReservationsErrors,
+  ListAiReservationsResponses,
   ListComponentsData,
   ListComponentsErrors,
   ListComponentsResponses,
   ListConnectorsData,
   ListConnectorsErrors,
   ListConnectorsResponses,
+  ListConversionRulesData,
+  ListConversionRulesErrors,
+  ListConversionRulesResponses,
   ListCustomersData,
   ListCustomersErrors,
   ListCustomersResponses,
@@ -249,6 +276,9 @@ import type {
   ListMetadataFieldsData,
   ListMetadataFieldsErrors,
   ListMetadataFieldsResponses,
+  ListModelsData,
+  ListModelsErrors,
+  ListModelsResponses,
   ListNotificationsData,
   ListNotificationsErrors,
   ListNotificationsResponses,
@@ -291,6 +321,9 @@ import type {
   UpdateConnectorSettingsData,
   UpdateConnectorSettingsErrors,
   UpdateConnectorSettingsResponses,
+  UpdateConversionRuleData,
+  UpdateConversionRuleErrors,
+  UpdateConversionRuleResponses,
   UpdateCustomerData,
   UpdateCustomerErrors,
   UpdateCustomerIntegrationData,
@@ -324,6 +357,9 @@ import type {
   UpdateMetadataFieldData,
   UpdateMetadataFieldErrors,
   UpdateMetadataFieldResponses,
+  UpdateModelData,
+  UpdateModelErrors,
+  UpdateModelResponses,
   UpdateServiceAccountData,
   UpdateServiceAccountErrors,
   UpdateServiceAccountResponses,
@@ -480,7 +516,7 @@ export const deactivateConnector = <ThrowOnError extends boolean = false>(
 /**
  * Activate connector
  *
- * Activates a registered connector for the authenticated organization. Idempotent: activating an already-active connector succeeds without changing when it was first activated. Refused when the organization's licence does not include the connector.
+ * Activates a registered connector for the authenticated organization. Idempotent: activating an already-active connector succeeds without changing when it was first activated. Refused when the organization's license does not include the connector.
  */
 export const activateConnector = <ThrowOnError extends boolean = false>(
   options: Options<ActivateConnectorData, ThrowOnError>,
@@ -576,7 +612,7 @@ export const getConnectorSettingsSchema = <ThrowOnError extends boolean = false>
 /**
  * Get connector state for this organization
  *
- * Returns whether the connector is registered in this deployment, whether the authenticated organization's licence includes it, and whether the organization has activated it. Answers 200 with `available: false` for a connector this deployment does not have.
+ * Returns whether the connector is registered on this installation, whether the authenticated organization's license includes it, and whether the organization has activated it. Answers 200 with `available: false` for a connector this installation does not have.
  */
 export const getConnectorState = <ThrowOnError extends boolean = false>(
   options: Options<GetConnectorStateData, ThrowOnError>,
@@ -1056,7 +1092,7 @@ export const createEntitlement = <ThrowOnError extends boolean = false>(
 /**
  * Delete an entitlement
  *
- * Delete an entitlement by its slug
+ * Delete an entitlement by its slug. Its usage is deleted with it. An entitlement a license still grants is refused with a 409: remove the grants first.
  */
 export const deleteEntitlement = <ThrowOnError extends boolean = false>(
   options: Options<DeleteEntitlementData, ThrowOnError>,
@@ -1238,7 +1274,7 @@ export const getFeatureFlag = <ThrowOnError extends boolean = false>(
 /**
  * Update a featureflag
  *
- * Update a featureflag with the provided details
+ * Update a featureflag with the provided details. Sending a slug renames the flag; omitting it keeps the current one.
  */
 export const updateFeatureFlag = <ThrowOnError extends boolean = false>(
   options: Options<UpdateFeatureFlagData, ThrowOnError>,
@@ -1433,6 +1469,34 @@ export const reportEntitlementUsageMetric = <ThrowOnError extends boolean = fals
       "Content-Type": "application/json",
       ...options.headers,
     },
+  });
+
+/**
+ * List AI inferences
+ */
+export const listAiInferences = <ThrowOnError extends boolean = false>(
+  options: Options<ListAiInferencesData, ThrowOnError>,
+): RequestResult<ListAiInferencesResponses, ListAiInferencesErrors, ThrowOnError> =>
+  (options.client ?? client).get<ListAiInferencesResponses, ListAiInferencesErrors, ThrowOnError>({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/instances/{instanceSlug}/entitlements/{entitlementSlug}/usage/inferences",
+    ...options,
+  });
+
+/**
+ * List open AI reservations
+ */
+export const listAiReservations = <ThrowOnError extends boolean = false>(
+  options: Options<ListAiReservationsData, ThrowOnError>,
+): RequestResult<ListAiReservationsResponses, ListAiReservationsErrors, ThrowOnError> =>
+  (options.client ?? client).get<
+    ListAiReservationsResponses,
+    ListAiReservationsErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/instances/{instanceSlug}/entitlements/{entitlementSlug}/usage/reservations",
+    ...options,
   });
 
 /**
@@ -1679,7 +1743,7 @@ export const getLicenses = <ThrowOnError extends boolean = false>(
  *
  * Create a new license with the provided details. Without familySlug or familyId this creates a new license family and the license becomes its version 1. With one of them it adds the next version to that family (familySlug names it by slug, familyId by identifier; sent together they must agree), and the version number is assigned by the server as the next one in the family's sequence. The version starts PUBLISHED, or DRAFT when lifecycleState says so; ARCHIVED is refused (422 CreateLicense.LifecycleStateNotSettable), because a version is archived with archive-license once it has been on sale.
  *
- * Where the deployment limits how many licenses an organization may have, only a new family counts against that limit (409 CreateLicense.EntitlementLimitReached once it is reached): a new version of an existing family never does.
+ * Where the installation limits how many licenses an organization may have, only a new family counts against that limit (409 CreateLicense.EntitlementLimitReached once it is reached): a new version of an existing family never does.
  */
 export const createLicense = <ThrowOnError extends boolean = false>(
   options: Options<CreateLicenseData, ThrowOnError>,
@@ -1752,6 +1816,92 @@ export const archiveLicense = <ThrowOnError extends boolean = false>(
     security: [{ scheme: "bearer", type: "http" }],
     url: "/licenses/{licenseSlug}/archive",
     ...options,
+  });
+
+/**
+ * List conversion rules
+ */
+export const listConversionRules = <ThrowOnError extends boolean = false>(
+  options: Options<ListConversionRulesData, ThrowOnError>,
+): RequestResult<ListConversionRulesResponses, ListConversionRulesErrors, ThrowOnError> =>
+  (options.client ?? client).get<
+    ListConversionRulesResponses,
+    ListConversionRulesErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/licenses/{licenseSlug}/conversion-rules",
+    ...options,
+  });
+
+/**
+ * Create a conversion rule
+ */
+export const createConversionRule = <ThrowOnError extends boolean = false>(
+  options: Options<CreateConversionRuleData, ThrowOnError>,
+): RequestResult<CreateConversionRuleResponses, CreateConversionRuleErrors, ThrowOnError> =>
+  (options.client ?? client).post<
+    CreateConversionRuleResponses,
+    CreateConversionRuleErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/licenses/{licenseSlug}/conversion-rules",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Archive a conversion rule
+ */
+export const archiveConversionRule = <ThrowOnError extends boolean = false>(
+  options: Options<ArchiveConversionRuleData, ThrowOnError>,
+): RequestResult<ArchiveConversionRuleResponses, ArchiveConversionRuleErrors, ThrowOnError> =>
+  (options.client ?? client).delete<
+    ArchiveConversionRuleResponses,
+    ArchiveConversionRuleErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/licenses/{licenseSlug}/conversion-rules/{ruleId}",
+    ...options,
+  });
+
+/**
+ * Get a conversion rule
+ */
+export const getConversionRule = <ThrowOnError extends boolean = false>(
+  options: Options<GetConversionRuleData, ThrowOnError>,
+): RequestResult<GetConversionRuleResponses, GetConversionRuleErrors, ThrowOnError> =>
+  (options.client ?? client).get<GetConversionRuleResponses, GetConversionRuleErrors, ThrowOnError>(
+    {
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/licenses/{licenseSlug}/conversion-rules/{ruleId}",
+      ...options,
+    },
+  );
+
+/**
+ * Update a conversion rule
+ */
+export const updateConversionRule = <ThrowOnError extends boolean = false>(
+  options: Options<UpdateConversionRuleData, ThrowOnError>,
+): RequestResult<UpdateConversionRuleResponses, UpdateConversionRuleErrors, ThrowOnError> =>
+  (options.client ?? client).put<
+    UpdateConversionRuleResponses,
+    UpdateConversionRuleErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/licenses/{licenseSlug}/conversion-rules/{ruleId}",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
   });
 
 /**
@@ -1885,9 +2035,9 @@ export const unarchiveLicense = <ThrowOnError extends boolean = false>(
   });
 
 /**
- * List active metadata fields for a resource type
+ * List metadata fields for a resource type
  *
- * Returns a cursor-paginated page of the active (non-archived) metadata fields declared for the org and the given resource type, ordered by displayOrder then createdAt.
+ * Returns a cursor-paginated page of the metadata fields declared for the org and the given resource type, ordered by displayOrder then createdAt. Only active fields are listed, unless includeArchived is set: an archived field's id is what unarchive-metadata-field takes.
  */
 export const listMetadataFields = <ThrowOnError extends boolean = false>(
   options: Options<ListMetadataFieldsData, ThrowOnError>,
@@ -2024,6 +2174,74 @@ export const unarchiveMetadataField = <ThrowOnError extends boolean = false>(
     security: [{ scheme: "bearer", type: "http" }],
     url: "/metadata-fields/{id}/unarchive",
     ...options,
+  });
+
+/**
+ * List models
+ */
+export const listModels = <ThrowOnError extends boolean = false>(
+  options?: Options<ListModelsData, ThrowOnError>,
+): RequestResult<ListModelsResponses, ListModelsErrors, ThrowOnError> =>
+  (options?.client ?? client).get<ListModelsResponses, ListModelsErrors, ThrowOnError>({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/models",
+    ...options,
+  });
+
+/**
+ * Create a model
+ */
+export const createModel = <ThrowOnError extends boolean = false>(
+  options: Options<CreateModelData, ThrowOnError>,
+): RequestResult<CreateModelResponses, CreateModelErrors, ThrowOnError> =>
+  (options.client ?? client).post<CreateModelResponses, CreateModelErrors, ThrowOnError>({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/models",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Delete a model
+ */
+export const deleteModel = <ThrowOnError extends boolean = false>(
+  options: Options<DeleteModelData, ThrowOnError>,
+): RequestResult<DeleteModelResponses, DeleteModelErrors, ThrowOnError> =>
+  (options.client ?? client).delete<DeleteModelResponses, DeleteModelErrors, ThrowOnError>({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/models/{modelSlug}",
+    ...options,
+  });
+
+/**
+ * Get a model
+ */
+export const getModel = <ThrowOnError extends boolean = false>(
+  options: Options<GetModelData, ThrowOnError>,
+): RequestResult<GetModelResponses, GetModelErrors, ThrowOnError> =>
+  (options.client ?? client).get<GetModelResponses, GetModelErrors, ThrowOnError>({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/models/{modelSlug}",
+    ...options,
+  });
+
+/**
+ * Update a model
+ */
+export const updateModel = <ThrowOnError extends boolean = false>(
+  options: Options<UpdateModelData, ThrowOnError>,
+): RequestResult<UpdateModelResponses, UpdateModelErrors, ThrowOnError> =>
+  (options.client ?? client).put<UpdateModelResponses, UpdateModelErrors, ThrowOnError>({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/models/{modelSlug}",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
   });
 
 /**
@@ -2292,7 +2510,7 @@ export const deleteServiceAccountToken = <ThrowOnError extends boolean = false>(
 /**
  * Read the caller's notification preferences
  *
- * Every notifiable event, with this user's effective value per channel: their own choice where they made one, the catalogue default otherwise. Events absent from the catalogue of a deployment never appear, which is what keeps high-volume system events out of the feed.
+ * Every notifiable event, with this user's effective value per channel: their own choice where they made one, the catalog default otherwise. Events absent from the catalog of an installation never appear, which is what keeps high-volume system events out of the feed.
  */
 export const getNotificationPreferences = <ThrowOnError extends boolean = false>(
   options?: Options<GetNotificationPreferencesData, ThrowOnError>,
@@ -2314,7 +2532,7 @@ export const getNotificationPreferences = <ThrowOnError extends boolean = false>
 /**
  * Set the caller's notification preferences
  *
- * Stores the signed-in user's choices and answers with the whole matrix. A value that equals the catalogue default is stored as no row at all, so a later change to that default still reaches this user.
+ * Stores the signed-in user's choices and answers with the whole matrix. A value that equals the catalog default is stored as no row at all, so a later change to that default still reaches this user.
  */
 export const putNotificationPreferences = <ThrowOnError extends boolean = false>(
   options: Options<PutNotificationPreferencesData, ThrowOnError>,

@@ -118,3 +118,5 @@ export type {
 // are the curated subset that stays top-level; the rest of the generated surface
 // is under `KaitenApi`. Some names intentionally override the generated ones.
 export type * from "./client/types.ts";
+
+export type { KaitenModelsModule, KaitenConversionRulesModule } from "./ai/catalog.ts";

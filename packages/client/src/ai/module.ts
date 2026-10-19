@@ -1,9 +1,17 @@
 // Copyright 2026 KAITEN INC
 // SPDX-License-Identifier: Apache-2.0
 
-import { reportEntitlementUsageMetric } from "../core/index.ts";
-import type { KaitenTransport } from "../core/index.ts";
-import { asReportBody } from "./contract.ts";
+import {
+  reportEntitlementUsageMetric,
+  listAiInferences,
+  listAiReservations,
+} from "../core/index.ts";
+import type {
+  KaitenTransport,
+  ListAiInferencesData,
+  AiInferencePage,
+  AiReservations,
+} from "../core/index.ts";
 import type {
   AiEntitlementUsage,
   AiReportBody,
@@ -87,6 +95,10 @@ export interface AiRunOptions<T> extends Omit<AiReserveInput, "usage"> {
 export interface KaitenAiModule {
   /** Prices the estimate, gates it, and holds the credits. Throws a typed error when refused. */
   reserve(input: AiReserveInput): Promise<AiReportResult>;
+  /** Newest-first, cursor-paginated inference history; returns the wire page unchanged. */
+  listInferences(target: AiTarget, query?: ListAiInferencesData["query"]): Promise<AiInferencePage>;
+  /** Open, unexpired reservations for this instance/pool. */
+  listReservations(target: AiTarget): Promise<AiReservations>;
   /** Charges the real usage and closes the reservation. Never refused for a commercial reason. */
   commit(input: AiCommitInput): Promise<AiReportResult>;
   /** `reserve` → `fn` → `commit`, with the failure matrix of the contract. */
@@ -117,19 +129,19 @@ export function createAiModule(transport: KaitenTransport): KaitenAiModule {
     // gateway in front of it.
     const idempotencyKey = crypto.randomUUID();
     try {
-      const entitlementUsage = (await transport.run(
+      const entitlementUsage = await transport.run(
         (client) =>
           reportEntitlementUsageMetric({
             client,
             path: { instanceSlug: target.instance, entitlementSlug: target.pool },
-            body: asReportBody(body),
+            body,
             headers: { "Idempotency-Key": idempotencyKey },
           }),
         `ai.${value.phase}(${target.instance}, ${target.pool}, ${value.transactionId})`,
         // Keyed by `transactionId`, so a replay is answered from the first
         // attempt and nothing is charged twice: three retries, transient only.
         { idempotent: true, maxAttempts: 4, retryStatuses: RETRY_STATUSES },
-      )) as AiEntitlementUsage;
+      );
       return { transactionId: value.transactionId, outcome: entitlementUsage.ai, entitlementUsage };
     } catch (error) {
       throw toAiError(error);
@@ -137,6 +149,25 @@ export function createAiModule(transport: KaitenTransport): KaitenAiModule {
   }
 
   const module: KaitenAiModule = {
+    listInferences: (target, query) =>
+      transport.run(
+        (client) =>
+          listAiInferences({
+            client,
+            path: { instanceSlug: target.instance, entitlementSlug: target.pool },
+            query,
+          }),
+        `ai.listInferences(${target.instance}, ${target.pool})`,
+      ),
+    listReservations: (target) =>
+      transport.run(
+        (client) =>
+          listAiReservations({
+            client,
+            path: { instanceSlug: target.instance, entitlementSlug: target.pool },
+          }),
+        `ai.listReservations(${target.instance}, ${target.pool})`,
+      ),
     reserve: (input) =>
       report(input, {
         type: "ai_usage",

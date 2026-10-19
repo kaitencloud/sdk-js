@@ -30,7 +30,9 @@ export type Webhooks =
   | OnFeatureFlagEvaluatedWebhookRequest
   | OnFeatureFlagUpdatedWebhookRequest
   | OnSystemOrganizationTokenIssuedWebhookRequest
+  | OnInstanceAiModelUsageUnauthorizedWebhookRequest
   | OnInstanceEntitlementCapExceededWebhookRequest
+  | OnInstanceEntitlementMaximumExceededWebhookRequest
   | OnInstanceEntitlementUsagePeriodRolledOverWebhookRequest
   | OnInstanceEntitlementUsageReachedWebhookRequest
   | OnInstanceEntitlementUsageReportAcceptedWebhookRequest
@@ -44,6 +46,9 @@ export type Webhooks =
   | OnInstanceMigratedWebhookRequest
   | OnInstanceStatusChangedWebhookRequest
   | OnInstanceUpdatedWebhookRequest
+  | OnArchiveConversionRuleWebhookRequest
+  | OnCreateConversionRuleWebhookRequest
+  | OnUpdateConversionRuleWebhookRequest
   | OnLicenseEntitlementAssignedWebhookRequest
   | OnLicenseEntitlementUnassignedWebhookRequest
   | OnLicenseEntitlementUpdatedWebhookRequest
@@ -61,8 +66,79 @@ export type Webhooks =
   | OnMetadataFieldReorderedWebhookRequest
   | OnMetadataFieldUnarchivedWebhookRequest
   | OnMetadataFieldUpdatedWebhookRequest
+  | OnModelCreatedWebhookRequest
+  | OnModelDeletedWebhookRequest
+  | OnModelUpdatedWebhookRequest
   | OnReleaseCreatedWebhookRequest
   | OnReleaseDeletedWebhookRequest;
+
+export type AiCredits = {
+  charged?: string;
+  computed?: string;
+  reserved?: string;
+};
+
+export type AiInference = {
+  authorized?: boolean;
+  committedAt?: string;
+  conversionRuleId?: string;
+  credits: AiCredits;
+  denialReason?: string;
+  expiresAt?: string;
+  model: string;
+  modelSlug?: string;
+  reportedAt: string;
+  requestStatus?: string;
+  requestType: "COMPLETION" | "EMBEDDING" | "IMAGE_GENERATION" | "AUDIO" | "VIDEO";
+  status: "RESERVED" | "COMMITTED" | "RELEASED" | "EXPIRED";
+  transactionId: string;
+  usage: AiUsage;
+  valueAfter?: number;
+  valueBefore?: number;
+  windowStart?: string;
+};
+
+export type AiInferencePage = {
+  hasMore: boolean;
+  items: Array<AiInference> | null;
+  nextCursor?: string;
+};
+
+export type AiReservations = {
+  items: Array<AiInference> | null;
+};
+
+export type AiUsage = {
+  cacheReadInputTokens?: number;
+  cacheWriteInputTokens?: number;
+  durationMs?: number;
+  inputTokens?: number;
+  outputTokens?: number;
+  unitType?: "image" | "second" | "frame";
+  units?: string;
+};
+
+export type AiUsageOutcome = {
+  authorized?: boolean;
+  credits: AiCredits;
+  expiresAt?: string;
+  phase: "reserve" | "commit";
+  remaining: string | null;
+  status: "RESERVED" | "COMMITTED" | "RELEASED";
+  transactionId: string;
+  warnings: Array<string>;
+};
+
+export type AiUsageValue = {
+  model?: string;
+  phase: "reserve" | "commit";
+  requestStatus?: "SUCCESS" | "PROVIDER_ERROR" | "CUSTOMER_ERROR" | "NOT_SENT";
+  requestType?: "COMPLETION" | "EMBEDDING" | "IMAGE_GENERATION" | "AUDIO" | "VIDEO";
+  transactionId?: string;
+  ttlSeconds?: number;
+  type: "ai_usage";
+  usage?: AiUsage;
+};
 
 export type AuditTrail = {
   /**
@@ -270,7 +346,7 @@ export type ConnectorState = {
    */
   activatedAt?: string;
   /**
-   * Whether this deployment has the connector registered
+   * Whether this installation has the connector registered
    */
   available: boolean;
   /**
@@ -278,13 +354,54 @@ export type ConnectorState = {
    */
   connectorName: string;
   /**
-   * Whether this organization's licence includes the connector. True for an ungated connector.
+   * Whether this organization's license includes the connector. True for an ungated connector.
    */
   entitled: boolean;
   /**
    * Registered connector version. Absent when the connector is not available.
    */
   version?: string;
+};
+
+export type ConversionRates = {
+  perCacheWriteToken?: string | null;
+  perCachedInputToken?: string | null;
+  perInputToken?: string | null;
+  perOutputToken?: string | null;
+  perRequest?: string | null;
+  perSecond?: string | null;
+  perUnit?: string | null;
+};
+
+export type ConversionRule = {
+  chargeOnError: "NEVER" | "ALWAYS" | "PROVIDER_ERROR_ONLY";
+  createdAt: string;
+  entitlementSlug: string;
+  grantedByLicense: boolean;
+  id: string;
+  licenseSlug: string;
+  maximumCreditsPerRequest: string | null;
+  minimumCreditsPerRequest: string;
+  modelSlug: string | null;
+  rates: ConversionRates;
+  requestType: "COMPLETION" | "EMBEDDING" | "IMAGE_GENERATION" | "AUDIO" | "VIDEO" | null;
+  status: "ACTIVE" | "ARCHIVED";
+  updatedAt: string;
+};
+
+export type ConversionRuleUpdated = {
+  after: ConversionRule;
+  before: ConversionRule;
+};
+
+export type CreateConversionRuleBody = {
+  chargeOnError?: "NEVER" | "ALWAYS" | "PROVIDER_ERROR_ONLY";
+  entitlementSlug: string;
+  maximumCreditsPerRequest?: string | null;
+  minimumCreditsPerRequest?: string;
+  modelSlug?: string | null;
+  rates: ConversionRates;
+  requestType?: "COMPLETION" | "EMBEDDING" | "IMAGE_GENERATION" | "AUDIO" | "VIDEO" | null;
 };
 
 export type Customer = {
@@ -676,6 +793,10 @@ export type EntitlementGroupUsage = {
 
 export type EntitlementUsage = {
   /**
+   * Outcome of this AI report; absent on ordinary reads
+   */
+  ai?: AiUsageOutcome;
+  /**
    * End of the current usage window (exclusive). Null for a lifetime entitlement (no configured reset period).
    */
   currentPeriodEnd?: string;
@@ -712,6 +833,10 @@ export type EntitlementUsage = {
     | ({
         type: "object";
       } & ConfigEntitlementValue);
+  /**
+   * Open, unexpired reserved credits; present only on AI credit pools
+   */
+  reserved?: string;
   /**
    * Resolved entitlement value, discriminated by the 'type' field
    */
@@ -792,6 +917,26 @@ export type EvaluationSuccess = {
    * string of the evaluated flag value
    */
   variant?: string;
+};
+
+export type EventHeaders = {
+  /**
+   * W3C baggage of that request, when it carried any
+   */
+  baggage?: string;
+  /**
+   * The instance the event concerns, set on the events of one instance. The usage events' payloads do not name it.
+   */
+  instance_id?: string;
+  /**
+   * W3C trace context of the request that produced the event
+   */
+  traceparent?: string;
+  /**
+   * W3C trace state of that request, when it carried one
+   */
+  tracestate?: string;
+  [key: string]: unknown;
 };
 
 export type FeatureFlag = {
@@ -948,6 +1093,13 @@ export type Instance = {
    * User who last updated this instance
    */
   readonly updatedBy: User;
+};
+
+export type InstanceAiModelUsageUnauthorized = {
+  entitlement_slug: string;
+  model: string;
+  reason: string;
+  request_type: string;
 };
 
 export type InstanceBody = {
@@ -1455,6 +1607,37 @@ export type MetadataFieldSchemaProposal = {
   };
 };
 
+export type Model = {
+  readonly createdAt: string;
+  description?: string;
+  /**
+   * Exact provider identifiers, unique per organization; cannot shadow another model's slug
+   */
+  externalIds?: Array<string>;
+  readonly id: string;
+  metadata?: {
+    [key: string]: unknown;
+  };
+  modality: "TEXT" | "IMAGE" | "AUDIO" | "VIDEO" | "EMBEDDING" | "MULTIMODAL";
+  name: string;
+  /**
+   * Immutable URL-friendly identifier, unique per organization
+   */
+  slug: string;
+  /**
+   * ACTIVE authorizes usage; DEPRECATED keeps existing rules; ARCHIVED authorizes none. Reversible.
+   */
+  status: "ACTIVE" | "DEPRECATED" | "ARCHIVED";
+  readonly updatedAt: string;
+  vendor: string;
+  vendorCosts?: VendorCosts;
+};
+
+export type ModelUpdated = {
+  after: Model;
+  before: Model;
+};
+
 export type Notification = {
   /**
    * Where clicking the notification goes
@@ -1653,6 +1836,18 @@ export type PageMetadataField = {
   nextCursor?: string;
 };
 
+export type PageModel = {
+  /**
+   * Whether more rows exist beyond this page.
+   */
+  hasMore: boolean;
+  items: Array<Model>;
+  /**
+   * Opaque cursor for the next page. Absent when hasMore is false.
+   */
+  nextCursor?: string;
+};
+
 export type PageRelease = {
   /**
    * Whether more rows exist beyond this page.
@@ -1737,7 +1932,7 @@ export type PreferenceEvent = {
    */
   eventType: string;
   /**
-   * Catalogue group the client renders this under
+   * Catalog group the client renders this under
    */
   group: string;
   /**
@@ -1748,7 +1943,7 @@ export type PreferenceEvent = {
 
 export type PreferenceMatrix = {
   /**
-   * Channels this deployment serves, in display order
+   * Channels this installation serves, in display order
    */
   channels: Array<string>;
   /**
@@ -1864,11 +2059,8 @@ export type ReportEntitlementUsageBody = {
         type: "number";
       } & NumberEntitlementValue)
     | ({
-        type: "boolean";
-      } & BooleanEntitlementValue)
-    | ({
-        type: "object";
-      } & ConfigEntitlementValue);
+        type: "ai_usage";
+      } & AiUsageValue);
 };
 
 export type RolloutDate = {
@@ -1973,6 +2165,10 @@ export type TargetingContextNode = {
    * What this value means, shown by the editor
    */
   description?: string;
+  /**
+   * Shape of each known key, for a map whose entries differ. Named after the key
+   */
+  entries?: Array<TargetingContextNode>;
   /**
    * Named children, for an object
    */
@@ -2105,6 +2301,16 @@ export type Token = {
   slug?: string;
 };
 
+export type UpdateConversionRuleBody = {
+  chargeOnError?: "NEVER" | "ALWAYS" | "PROVIDER_ERROR_ONLY";
+  entitlementSlug?: string | null;
+  maximumCreditsPerRequest?: string | null;
+  minimumCreditsPerRequest?: string;
+  modelSlug?: string | null;
+  rates: ConversionRates;
+  requestType?: string | null;
+};
+
 export type User = {
   /**
    * ID of the user
@@ -2120,6 +2326,16 @@ export type Variant = {
   description: string;
   name: string;
   value: unknown;
+};
+
+export type VendorCosts = {
+  currency: "USD";
+  perCacheWriteToken?: string;
+  perCachedInputToken?: string;
+  perInputToken?: string;
+  perOutputToken?: string;
+  perRequest?: string;
+  perUnit?: string;
 };
 
 export type ComponentWritable = {
@@ -2370,6 +2586,10 @@ export type EntitlementGroupUsageWritable = {
 
 export type EntitlementUsageWritable = {
   /**
+   * Outcome of this AI report; absent on ordinary reads
+   */
+  ai?: AiUsageOutcome;
+  /**
    * End of the current usage window (exclusive). Null for a lifetime entitlement (no configured reset period).
    */
   currentPeriodEnd?: string;
@@ -2406,6 +2626,10 @@ export type EntitlementUsageWritable = {
     | ({
         type: "object";
       } & ConfigEntitlementValue);
+  /**
+   * Open, unexpired reserved credits; present only on AI credit pools
+   */
+  reserved?: string;
   /**
    * Resolved entitlement value, discriminated by the 'type' field
    */
@@ -2655,6 +2879,34 @@ export type MetadataFieldWritable = {
   resourceType: "DEPLOYMENT_ZONE" | "INSTANCE";
 };
 
+export type ModelWritable = {
+  description?: string;
+  /**
+   * Exact provider identifiers, unique per organization; cannot shadow another model's slug
+   */
+  externalIds?: Array<string>;
+  metadata?: {
+    [key: string]: unknown;
+  };
+  modality: "TEXT" | "IMAGE" | "AUDIO" | "VIDEO" | "EMBEDDING" | "MULTIMODAL";
+  name: string;
+  /**
+   * Immutable URL-friendly identifier, unique per organization
+   */
+  slug: string;
+  /**
+   * ACTIVE authorizes usage; DEPRECATED keeps existing rules; ARCHIVED authorizes none. Reversible.
+   */
+  status: "ACTIVE" | "DEPRECATED" | "ARCHIVED";
+  vendor: string;
+  vendorCosts?: VendorCosts;
+};
+
+export type ModelUpdatedWritable = {
+  after: ModelWritable;
+  before: ModelWritable;
+};
+
 export type NumberEntitlementValueWritable = {
   /**
    * Value type discriminator
@@ -2798,6 +3050,18 @@ export type PageMetadataFieldWritable = {
   nextCursor?: string;
 };
 
+export type PageModelWritable = {
+  /**
+   * Whether more rows exist beyond this page.
+   */
+  hasMore: boolean;
+  items: Array<ModelWritable>;
+  /**
+   * Opaque cursor for the next page. Absent when hasMore is false.
+   */
+  nextCursor?: string;
+};
+
 export type PageReleaseWritable = {
   /**
    * Whether more rows exist beyond this page.
@@ -2882,11 +3146,8 @@ export type ReportEntitlementUsageBodyWritable = {
         type: "number";
       } & NumberEntitlementValueWritable)
     | ({
-        type: "boolean";
-      } & BooleanEntitlementValue)
-    | ({
-        type: "object";
-      } & ConfigEntitlementValue);
+        type: "ai_usage";
+      } & AiUsageValue);
 };
 
 export type ServiceAccountWritable = {
@@ -4856,6 +5117,10 @@ export type DeleteEntitlementErrors = {
    */
   404: Problem;
   /**
+   * Conflict
+   */
+  409: Problem;
+  /**
    * Unprocessable Entity
    */
   422: Problem;
@@ -5877,6 +6142,106 @@ export type ReportEntitlementUsageMetricResponses = {
 export type ReportEntitlementUsageMetricResponse =
   ReportEntitlementUsageMetricResponses[keyof ReportEntitlementUsageMetricResponses];
 
+export type ListAiInferencesData = {
+  body?: never;
+  path: {
+    instanceSlug: string;
+    entitlementSlug: string;
+  };
+  query?: {
+    from?: string;
+    to?: string;
+    status?: "RESERVED" | "COMMITTED" | "RELEASED" | "EXPIRED";
+    transactionId?: string;
+    cursor?: string;
+    limit?: number;
+  };
+  url: "/instances/{instanceSlug}/entitlements/{entitlementSlug}/usage/inferences";
+};
+
+export type ListAiInferencesErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+};
+
+export type ListAiInferencesError = ListAiInferencesErrors[keyof ListAiInferencesErrors];
+
+export type ListAiInferencesResponses = {
+  /**
+   * OK
+   */
+  200: AiInferencePage;
+};
+
+export type ListAiInferencesResponse = ListAiInferencesResponses[keyof ListAiInferencesResponses];
+
+export type ListAiReservationsData = {
+  body?: never;
+  path: {
+    instanceSlug: string;
+    entitlementSlug: string;
+  };
+  query?: never;
+  url: "/instances/{instanceSlug}/entitlements/{entitlementSlug}/usage/reservations";
+};
+
+export type ListAiReservationsErrors = {
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+};
+
+export type ListAiReservationsError = ListAiReservationsErrors[keyof ListAiReservationsErrors];
+
+export type ListAiReservationsResponses = {
+  /**
+   * OK
+   */
+  200: AiReservations;
+};
+
+export type ListAiReservationsResponse =
+  ListAiReservationsResponses[keyof ListAiReservationsResponses];
+
 export type DeleteInstanceIntegrationData = {
   body?: never;
   path: {
@@ -6764,6 +7129,276 @@ export type ArchiveLicenseResponses = {
 
 export type ArchiveLicenseResponse = ArchiveLicenseResponses[keyof ArchiveLicenseResponses];
 
+export type ListConversionRulesData = {
+  body?: never;
+  path: {
+    licenseSlug: string;
+  };
+  query?: {
+    status?: "ACTIVE" | "ARCHIVED";
+    entitlementSlug?: string;
+    modelSlug?: string;
+  };
+  url: "/licenses/{licenseSlug}/conversion-rules";
+};
+
+export type ListConversionRulesErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+};
+
+export type ListConversionRulesError = ListConversionRulesErrors[keyof ListConversionRulesErrors];
+
+export type ListConversionRulesResponses = {
+  /**
+   * OK
+   */
+  200: Array<ConversionRule> | null;
+};
+
+export type ListConversionRulesResponse =
+  ListConversionRulesResponses[keyof ListConversionRulesResponses];
+
+export type CreateConversionRuleData = {
+  body: CreateConversionRuleBody;
+  path: {
+    licenseSlug: string;
+  };
+  query?: never;
+  url: "/licenses/{licenseSlug}/conversion-rules";
+};
+
+export type CreateConversionRuleErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+};
+
+export type CreateConversionRuleError =
+  CreateConversionRuleErrors[keyof CreateConversionRuleErrors];
+
+export type CreateConversionRuleResponses = {
+  /**
+   * Created
+   */
+  201: ConversionRule;
+};
+
+export type CreateConversionRuleResponse =
+  CreateConversionRuleResponses[keyof CreateConversionRuleResponses];
+
+export type ArchiveConversionRuleData = {
+  body?: never;
+  path: {
+    licenseSlug: string;
+    ruleId: string;
+  };
+  query?: never;
+  url: "/licenses/{licenseSlug}/conversion-rules/{ruleId}";
+};
+
+export type ArchiveConversionRuleErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+};
+
+export type ArchiveConversionRuleError =
+  ArchiveConversionRuleErrors[keyof ArchiveConversionRuleErrors];
+
+export type ArchiveConversionRuleResponses = {
+  /**
+   * No Content
+   */
+  204: void;
+};
+
+export type ArchiveConversionRuleResponse =
+  ArchiveConversionRuleResponses[keyof ArchiveConversionRuleResponses];
+
+export type GetConversionRuleData = {
+  body?: never;
+  path: {
+    licenseSlug: string;
+    ruleId: string;
+  };
+  query?: never;
+  url: "/licenses/{licenseSlug}/conversion-rules/{ruleId}";
+};
+
+export type GetConversionRuleErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+};
+
+export type GetConversionRuleError = GetConversionRuleErrors[keyof GetConversionRuleErrors];
+
+export type GetConversionRuleResponses = {
+  /**
+   * OK
+   */
+  200: ConversionRule;
+};
+
+export type GetConversionRuleResponse =
+  GetConversionRuleResponses[keyof GetConversionRuleResponses];
+
+export type UpdateConversionRuleData = {
+  body: UpdateConversionRuleBody;
+  path: {
+    licenseSlug: string;
+    ruleId: string;
+  };
+  query?: never;
+  url: "/licenses/{licenseSlug}/conversion-rules/{ruleId}";
+};
+
+export type UpdateConversionRuleErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+};
+
+export type UpdateConversionRuleError =
+  UpdateConversionRuleErrors[keyof UpdateConversionRuleErrors];
+
+export type UpdateConversionRuleResponses = {
+  /**
+   * OK
+   */
+  200: ConversionRule;
+};
+
+export type UpdateConversionRuleResponse =
+  UpdateConversionRuleResponses[keyof UpdateConversionRuleResponses];
+
 export type GetLicenseEntitlementsData = {
   body?: never;
   path: {
@@ -7145,6 +7780,10 @@ export type ListMetadataFieldsData = {
   query: {
     resourceType: "DEPLOYMENT_ZONE" | "INSTANCE";
     /**
+     * Include archived fields too, each with its archivedAt
+     */
+    includeArchived?: boolean;
+    /**
      * Opaque pagination cursor from a previous response's nextCursor
      */
     cursor?: string;
@@ -7489,6 +8128,234 @@ export type UnarchiveMetadataFieldResponses = {
 
 export type UnarchiveMetadataFieldResponse =
   UnarchiveMetadataFieldResponses[keyof UnarchiveMetadataFieldResponses];
+
+export type ListModelsData = {
+  body?: never;
+  path?: never;
+  query?: {
+    cursor?: string;
+    /**
+     * Page size (default 50, max 200)
+     */
+    limit?: number;
+    status?: "ACTIVE" | "DEPRECATED" | "ARCHIVED";
+    vendor?: string;
+    modality?: "TEXT" | "IMAGE" | "AUDIO" | "VIDEO" | "EMBEDDING" | "MULTIMODAL";
+  };
+  url: "/models";
+};
+
+export type ListModelsErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+};
+
+export type ListModelsError = ListModelsErrors[keyof ListModelsErrors];
+
+export type ListModelsResponses = {
+  /**
+   * OK
+   */
+  200: PageModel;
+};
+
+export type ListModelsResponse = ListModelsResponses[keyof ListModelsResponses];
+
+export type CreateModelData = {
+  body: ModelWritable;
+  path?: never;
+  query?: never;
+  url: "/models";
+};
+
+export type CreateModelErrors = {
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+};
+
+export type CreateModelError = CreateModelErrors[keyof CreateModelErrors];
+
+export type CreateModelResponses = {
+  /**
+   * Created
+   */
+  201: Model;
+};
+
+export type CreateModelResponse = CreateModelResponses[keyof CreateModelResponses];
+
+export type DeleteModelData = {
+  body?: never;
+  path: {
+    modelSlug: string;
+  };
+  query?: never;
+  url: "/models/{modelSlug}";
+};
+
+export type DeleteModelErrors = {
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+};
+
+export type DeleteModelError = DeleteModelErrors[keyof DeleteModelErrors];
+
+export type DeleteModelResponses = {
+  /**
+   * No Content
+   */
+  204: void;
+};
+
+export type DeleteModelResponse = DeleteModelResponses[keyof DeleteModelResponses];
+
+export type GetModelData = {
+  body?: never;
+  path: {
+    modelSlug: string;
+  };
+  query?: never;
+  url: "/models/{modelSlug}";
+};
+
+export type GetModelErrors = {
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+};
+
+export type GetModelError = GetModelErrors[keyof GetModelErrors];
+
+export type GetModelResponses = {
+  /**
+   * OK
+   */
+  200: Model;
+};
+
+export type GetModelResponse = GetModelResponses[keyof GetModelResponses];
+
+export type UpdateModelData = {
+  body: ModelWritable;
+  path: {
+    modelSlug: string;
+  };
+  query?: never;
+  url: "/models/{modelSlug}";
+};
+
+export type UpdateModelErrors = {
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+};
+
+export type UpdateModelError = UpdateModelErrors[keyof UpdateModelErrors];
+
+export type UpdateModelResponses = {
+  /**
+   * OK
+   */
+  200: Model;
+};
+
+export type UpdateModelResponse = UpdateModelResponses[keyof UpdateModelResponses];
 
 export type EvaluateFlagsBulkData = {
   /**
@@ -8403,6 +9270,7 @@ export type MarkNotificationsReadResponse =
 
 export type OnComponentCreatedWebhookPayload = {
   data: ComponentWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -8422,6 +9290,7 @@ export type OnComponentCreatedWebhookRequest = {
 
 export type OnComponentDeletedWebhookPayload = {
   data: ComponentWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -8441,6 +9310,7 @@ export type OnComponentDeletedWebhookRequest = {
 
 export type OnComponentUpdatedWebhookPayload = {
   data: ComponentWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -8460,6 +9330,7 @@ export type OnComponentUpdatedWebhookRequest = {
 
 export type OnCustomerCreatedWebhookPayload = {
   data: CustomerWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -8479,6 +9350,7 @@ export type OnCustomerCreatedWebhookRequest = {
 
 export type OnCustomerCreationRejectedWebhookPayload = {
   data: CustomerCreationRejected;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -8498,6 +9370,7 @@ export type OnCustomerCreationRejectedWebhookRequest = {
 
 export type OnCustomerDeletedWebhookPayload = {
   data: CustomerWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -8517,6 +9390,7 @@ export type OnCustomerDeletedWebhookRequest = {
 
 export type OnCustomerUpdatedWebhookPayload = {
   data: CustomerWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -8536,6 +9410,7 @@ export type OnCustomerUpdatedWebhookRequest = {
 
 export type OnDeploymentZoneCreatedWebhookPayload = {
   data: DeploymentZoneWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -8555,6 +9430,7 @@ export type OnDeploymentZoneCreatedWebhookRequest = {
 
 export type OnDeploymentZoneDeletedWebhookPayload = {
   data: DeploymentZoneWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -8574,6 +9450,7 @@ export type OnDeploymentZoneDeletedWebhookRequest = {
 
 export type OnReleaseDeployedWebhookPayload = {
   data: Deployment;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -8593,6 +9470,7 @@ export type OnReleaseDeployedWebhookRequest = {
 
 export type OnDeploymentZoneUpdatedWebhookPayload = {
   data: DeploymentZoneWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -8612,6 +9490,7 @@ export type OnDeploymentZoneUpdatedWebhookRequest = {
 
 export type OnEntitlementCreatedWebhookPayload = {
   data: EntitlementWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -8631,6 +9510,7 @@ export type OnEntitlementCreatedWebhookRequest = {
 
 export type OnEntitlementDeletedWebhookPayload = {
   data: EntitlementWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -8650,6 +9530,7 @@ export type OnEntitlementDeletedWebhookRequest = {
 
 export type OnEntitlementUpdatedWebhookPayload = {
   data: EntitlementWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -8669,6 +9550,7 @@ export type OnEntitlementUpdatedWebhookRequest = {
 
 export type OnEntitlementGroupCreatedWebhookPayload = {
   data: EntitlementGroupWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -8688,6 +9570,7 @@ export type OnEntitlementGroupCreatedWebhookRequest = {
 
 export type OnEntitlementGroupDeletedWebhookPayload = {
   data: EntitlementGroupWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -8707,6 +9590,7 @@ export type OnEntitlementGroupDeletedWebhookRequest = {
 
 export type OnEntitlementGroupUpdatedWebhookPayload = {
   data: EntitlementGroupWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -8726,6 +9610,7 @@ export type OnEntitlementGroupUpdatedWebhookRequest = {
 
 export type OnFeatureFlagCreatedWebhookPayload = {
   data: FeatureFlagWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -8745,6 +9630,7 @@ export type OnFeatureFlagCreatedWebhookRequest = {
 
 export type OnFeatureFlagDeletedWebhookPayload = {
   data: FeatureFlagWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -8764,6 +9650,7 @@ export type OnFeatureFlagDeletedWebhookRequest = {
 
 export type OnFeatureFlagEvaluatedWebhookPayload = {
   data: FeatureFlagEvaluated;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -8783,6 +9670,7 @@ export type OnFeatureFlagEvaluatedWebhookRequest = {
 
 export type OnFeatureFlagUpdatedWebhookPayload = {
   data: FeatureFlagWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -8802,6 +9690,7 @@ export type OnFeatureFlagUpdatedWebhookRequest = {
 
 export type OnSystemOrganizationTokenIssuedWebhookPayload = {
   data: SystemTokenIssuance;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -8819,8 +9708,29 @@ export type OnSystemOrganizationTokenIssuedWebhookRequest = {
   query?: never;
 };
 
+export type OnInstanceAiModelUsageUnauthorizedWebhookPayload = {
+  data: InstanceAiModelUsageUnauthorized;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "INSTANCE_AI_MODEL_USAGE_UNAUTHORIZED";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.instance.ai.v1.model_usage_unauthorized";
+};
+
+export type OnInstanceAiModelUsageUnauthorizedWebhookRequest = {
+  body: OnInstanceAiModelUsageUnauthorizedWebhookPayload;
+  key: "com.kaiten.instance.ai.v1.model_usage_unauthorized";
+  path?: never;
+  query?: never;
+};
+
 export type OnInstanceEntitlementCapExceededWebhookPayload = {
   data: InstanceEntitlementCapExceeded;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -8838,8 +9748,29 @@ export type OnInstanceEntitlementCapExceededWebhookRequest = {
   query?: never;
 };
 
+export type OnInstanceEntitlementMaximumExceededWebhookPayload = {
+  data: InstanceEntitlementCapExceeded;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "INSTANCE_ENTITLEMENT_MAXIMUM_EXCEEDED";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.instance.entitlement.v1.maximum_exceeded";
+};
+
+export type OnInstanceEntitlementMaximumExceededWebhookRequest = {
+  body: OnInstanceEntitlementMaximumExceededWebhookPayload;
+  key: "com.kaiten.instance.entitlement.v1.maximum_exceeded";
+  path?: never;
+  query?: never;
+};
+
 export type OnInstanceEntitlementUsagePeriodRolledOverWebhookPayload = {
   data: InstanceEntitlementUsagePeriodRolledOver;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -8859,6 +9790,7 @@ export type OnInstanceEntitlementUsagePeriodRolledOverWebhookRequest = {
 
 export type OnInstanceEntitlementUsageReachedWebhookPayload = {
   data: EntitlementUsageWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -8878,6 +9810,7 @@ export type OnInstanceEntitlementUsageReachedWebhookRequest = {
 
 export type OnInstanceEntitlementUsageReportAcceptedWebhookPayload = {
   data: InstanceEntitlementUsageReportAccepted;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -8897,6 +9830,7 @@ export type OnInstanceEntitlementUsageReportAcceptedWebhookRequest = {
 
 export type OnInstanceEntitlementUsageReportRejectedWebhookPayload = {
   data: InstanceEntitlementUsageReportAccepted;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -8916,6 +9850,7 @@ export type OnInstanceEntitlementUsageReportRejectedWebhookRequest = {
 
 export type OnInstanceEntitlementUsageWarningThresholdReachedWebhookPayload = {
   data: InstanceEntitlementUsageWarningThresholdReached;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -8935,6 +9870,7 @@ export type OnInstanceEntitlementUsageWarningThresholdReachedWebhookRequest = {
 
 export type OnInstanceEntitlementValueGetWebhookPayload = {
   data: InstanceEntitlementValueGetWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -8954,6 +9890,7 @@ export type OnInstanceEntitlementValueGetWebhookRequest = {
 
 export type OnInstanceCreatedWebhookPayload = {
   data: InstanceWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -8973,6 +9910,7 @@ export type OnInstanceCreatedWebhookRequest = {
 
 export type OnInstanceDeletedWebhookPayload = {
   data: InstanceWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -8992,6 +9930,7 @@ export type OnInstanceDeletedWebhookRequest = {
 
 export type OnInstanceDeployedWebhookPayload = {
   data: InstanceWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -9011,6 +9950,7 @@ export type OnInstanceDeployedWebhookRequest = {
 
 export type OnInstanceLifecycleStageChangedWebhookPayload = {
   data: InstanceLifecycleStageChanged;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -9030,6 +9970,7 @@ export type OnInstanceLifecycleStageChangedWebhookRequest = {
 
 export type OnInstanceMigratedWebhookPayload = {
   data: InstanceWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -9049,6 +9990,7 @@ export type OnInstanceMigratedWebhookRequest = {
 
 export type OnInstanceStatusChangedWebhookPayload = {
   data: InstanceStatusChanged;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -9068,6 +10010,7 @@ export type OnInstanceStatusChangedWebhookRequest = {
 
 export type OnInstanceUpdatedWebhookPayload = {
   data: InstanceWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -9085,8 +10028,69 @@ export type OnInstanceUpdatedWebhookRequest = {
   query?: never;
 };
 
+export type OnArchiveConversionRuleWebhookPayload = {
+  data: ConversionRule;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "LICENSE_CONVERSION_RULE_ARCHIVED";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.license.conversion_rule.v1.archived";
+};
+
+export type OnArchiveConversionRuleWebhookRequest = {
+  body: OnArchiveConversionRuleWebhookPayload;
+  key: "com.kaiten.license.conversion_rule.v1.archived";
+  path?: never;
+  query?: never;
+};
+
+export type OnCreateConversionRuleWebhookPayload = {
+  data: ConversionRule;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "LICENSE_CONVERSION_RULE_CREATED";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.license.conversion_rule.v1.created";
+};
+
+export type OnCreateConversionRuleWebhookRequest = {
+  body: OnCreateConversionRuleWebhookPayload;
+  key: "com.kaiten.license.conversion_rule.v1.created";
+  path?: never;
+  query?: never;
+};
+
+export type OnUpdateConversionRuleWebhookPayload = {
+  data: ConversionRuleUpdated;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "LICENSE_CONVERSION_RULE_UPDATED";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.license.conversion_rule.v1.updated";
+};
+
+export type OnUpdateConversionRuleWebhookRequest = {
+  body: OnUpdateConversionRuleWebhookPayload;
+  key: "com.kaiten.license.conversion_rule.v1.updated";
+  path?: never;
+  query?: never;
+};
+
 export type OnLicenseEntitlementAssignedWebhookPayload = {
   data: LicenseEntitlementWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -9106,6 +10110,7 @@ export type OnLicenseEntitlementAssignedWebhookRequest = {
 
 export type OnLicenseEntitlementUnassignedWebhookPayload = {
   data: LicenseEntitlementWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -9125,6 +10130,7 @@ export type OnLicenseEntitlementUnassignedWebhookRequest = {
 
 export type OnLicenseEntitlementUpdatedWebhookPayload = {
   data: LicenseEntitlementWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -9144,6 +10150,7 @@ export type OnLicenseEntitlementUpdatedWebhookRequest = {
 
 export type OnLicenseArchivedWebhookPayload = {
   data: LicenseWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -9163,6 +10170,7 @@ export type OnLicenseArchivedWebhookRequest = {
 
 export type OnLicenseCreatedWebhookPayload = {
   data: LicenseWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -9182,6 +10190,7 @@ export type OnLicenseCreatedWebhookRequest = {
 
 export type OnLicenseDeletedWebhookPayload = {
   data: LicenseWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -9201,6 +10210,7 @@ export type OnLicenseDeletedWebhookRequest = {
 
 export type OnLicensePublishedWebhookPayload = {
   data: LicenseWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -9220,6 +10230,7 @@ export type OnLicensePublishedWebhookRequest = {
 
 export type OnLicenseUnarchivedWebhookPayload = {
   data: LicenseWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -9239,6 +10250,7 @@ export type OnLicenseUnarchivedWebhookRequest = {
 
 export type OnLicenseUpdatedWebhookPayload = {
   data: LicenseWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -9258,6 +10270,7 @@ export type OnLicenseUpdatedWebhookRequest = {
 
 export type OnLicenseFamilyCreatedWebhookPayload = {
   data: LicenseFamilyViewWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -9277,6 +10290,7 @@ export type OnLicenseFamilyCreatedWebhookRequest = {
 
 export type OnLicenseFamilyDeletedWebhookPayload = {
   data: LicenseFamilyViewWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -9296,6 +10310,7 @@ export type OnLicenseFamilyDeletedWebhookRequest = {
 
 export type OnLicenseFamilyUpdatedWebhookPayload = {
   data: LicenseFamilyViewWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -9315,6 +10330,7 @@ export type OnLicenseFamilyUpdatedWebhookRequest = {
 
 export type OnMetadataFieldArchivedWebhookPayload = {
   data: MetadataFieldWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -9334,6 +10350,7 @@ export type OnMetadataFieldArchivedWebhookRequest = {
 
 export type OnMetadataFieldCreatedWebhookPayload = {
   data: MetadataFieldWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -9353,6 +10370,7 @@ export type OnMetadataFieldCreatedWebhookRequest = {
 
 export type OnMetadataFieldReorderedWebhookPayload = {
   data: MetadataFieldReordered;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -9372,6 +10390,7 @@ export type OnMetadataFieldReorderedWebhookRequest = {
 
 export type OnMetadataFieldUnarchivedWebhookPayload = {
   data: MetadataFieldWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -9391,6 +10410,7 @@ export type OnMetadataFieldUnarchivedWebhookRequest = {
 
 export type OnMetadataFieldUpdatedWebhookPayload = {
   data: MetadataFieldWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -9408,8 +10428,69 @@ export type OnMetadataFieldUpdatedWebhookRequest = {
   query?: never;
 };
 
+export type OnModelCreatedWebhookPayload = {
+  data: ModelWritable;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "MODEL_CREATED";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.model.v1.created";
+};
+
+export type OnModelCreatedWebhookRequest = {
+  body: OnModelCreatedWebhookPayload;
+  key: "com.kaiten.model.v1.created";
+  path?: never;
+  query?: never;
+};
+
+export type OnModelDeletedWebhookPayload = {
+  data: ModelWritable;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "MODEL_DELETED";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.model.v1.deleted";
+};
+
+export type OnModelDeletedWebhookRequest = {
+  body: OnModelDeletedWebhookPayload;
+  key: "com.kaiten.model.v1.deleted";
+  path?: never;
+  query?: never;
+};
+
+export type OnModelUpdatedWebhookPayload = {
+  data: ModelUpdatedWritable;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "MODEL_UPDATED";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.model.v1.updated";
+};
+
+export type OnModelUpdatedWebhookRequest = {
+  body: OnModelUpdatedWebhookPayload;
+  key: "com.kaiten.model.v1.updated";
+  path?: never;
+  query?: never;
+};
+
 export type OnReleaseCreatedWebhookPayload = {
   data: ReleaseWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -9429,6 +10510,7 @@ export type OnReleaseCreatedWebhookRequest = {
 
 export type OnReleaseDeletedWebhookPayload = {
   data: ReleaseWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */

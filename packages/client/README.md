@@ -240,3 +240,36 @@ Apache-2.0. See `LICENSE` and `NOTICE`, and `THIRD_PARTY_NOTICES.md` for the
 third-party code this package bundles. The license does not grant permission to use
 the Kaiten name or logos: see the
 [trademark policy](https://github.com/kaitencloud/sdk-js/blob/main/TRADEMARKS.md).
+
+### AI catalogue and history reads
+
+The regenerated KTN-201 contract provides explicit read namespaces:
+
+```ts
+const page = await kaiten.models.list({ status: "ACTIVE", limit: 50 });
+const model = await kaiten.models.get("model-slug");
+const rules = await kaiten.licenses.conversionRules.list("license-slug", {
+  entitlementSlug: "credits",
+});
+const rule = await kaiten.licenses.conversionRules.get("license-slug", "rule-id");
+const history = await kaiten.ai.listInferences(
+  { instance: "acme", pool: "credits" },
+  {
+    status: "COMMITTED",
+    cursor: undefined,
+    limit: 50,
+  },
+);
+const reservations = await kaiten.ai.listReservations({ instance: "acme", pool: "credits" });
+```
+
+Pages preserve the server's `nextCursor`, `hasMore` and nullable `items`; callers
+choose when to fetch the next page. Credit `reserved` and report `ai` outcomes
+are generated contract fields, including nullable unlimited `remaining`.
+The full server SDK exposes generated `Models`, `Licenses` and `Instances`
+operations for administration as well as reads.
+
+For this feature branch, the snapshots were synced from a local Kaiten checkout
+with `KAITEN_OPENAPI=/path/to/kaiten/app/openapi.yaml` and
+`KAITEN_PATH=/path/to/kaiten`, using the standard sync scripts. This does not
+add a product-to-workspace dependency; generation reads committed snapshots.
