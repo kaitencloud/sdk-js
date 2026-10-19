@@ -1,6 +1,7 @@
 # Architecture
 
-This repository publishes two packages. Two boundaries shape them, and each is
+This repository publishes a browser client, a server SDK and separate AI integration
+packages. Two boundaries shape them, and each is
 enforced by the package graph rather than by convention.
 
 ## Browser and server
@@ -36,3 +37,17 @@ The generated OpenAPI client and the transport live in `packages/client/src/core
 `@kaitencloud/client` re-exports them, the generated surface under the `KaitenApi`
 namespace; they are not a separate package. `@kaitencloud/server` generates its own
 client from the same snapshot.
+
+## AI integrations
+
+`@kaitencloud/client/ai` is a provider-free toolkit over the same Core API transport.
+It has no provider runtime dependency and performs no pricing. The separate
+`ai-openai`, `ai-anthropic` and `ai-vercel` packages reserve before each bounded
+provider/model call, then settle normalized usage. Provider SDKs are optional peers;
+development dependencies verify the supported public APIs without network calls.
+
+`ai-claude-agent` and `ai-copilot` observe post-call usage only. `ai-codex` gates
+submitted prompts, not internal model inferences. These are intentionally explicit
+limitations: their supported SDK APIs cannot provide the universal per-inference
+preflight required by KTN-201 D4. Package READMEs record the evidence and supported
+surface. No event-only adapter is presented as stopping an already-running model.

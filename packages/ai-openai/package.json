@@ -1,0 +1,59 @@
+{
+  "name": "@kaitencloud/ai-openai",
+  "version": "0.0.0",
+  "description": "Kaiten AI credits for the OpenAI SDK: wrapOpenAI(client) reserves and commits every allow-listed call. Server-side only.",
+  "homepage": "https://github.com/kaitencloud/sdk-js/tree/main/packages/ai-openai#readme",
+  "bugs": {
+    "url": "https://github.com/kaitencloud/sdk-js/issues"
+  },
+  "license": "Apache-2.0",
+  "author": "Kaiten",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kaitencloud/sdk-js.git",
+    "directory": "packages/ai-openai"
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "NOTICE",
+    "THIRD_PARTY_NOTICES.md"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "types": "./dist/index.d.mts",
+  "exports": {
+    ".": "./dist/index.mjs",
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "scripts": {
+    "build": "vp pack",
+    "dev": "vp pack --watch",
+    "test": "vp test",
+    "check": "vp check"
+  },
+  "devDependencies": {
+    "@kaitencloud/client": "workspace:*",
+    "@types/node": "catalog:",
+    "openai": "^7.0.0",
+    "typescript": "catalog:",
+    "vite-plus": "catalog:"
+  },
+  "peerDependencies": {
+    "@kaitencloud/client": "workspace:^",
+    "openai": "^7.0.0"
+  },
+  "peerDependenciesMeta": {
+    "openai": {
+      "optional": true
+    }
+  },
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "packageManager": "pnpm@12.4.1"
+}

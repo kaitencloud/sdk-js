@@ -233,3 +233,25 @@ Participation in the Kaiten community is governed by
 
 For contribution questions, open a GitHub Discussion or issue in the relevant
 Kaiten repository.
+
+## AI wrapper compatibility
+
+AI integrations are separate server-side packages with optional provider peers.
+Provider SDKs are development-only dependencies for API/type compatibility tests;
+wrappers do not bundle or re-export them. Agent development dependencies include
+native CLI distributions but tests must never launch them or use provider auth.
+Installed compatibility versions are OpenAI 7.38.0, Anthropic 0.135.0, AI 7.0.143,
+Claude Agent 0.3.303, Codex 0.163.0 and Copilot 1.0.22. Peer ranges intentionally
+bound the public surface; preview agent 0.x peers are patch-range bounded.
+Fixtures use synthetic usage and custom fetch/model doubles, never live providers.
+See each integration README for explicit unavailable preflight guarantees.
+No extra third-party attribution is required for these externally resolved peers:
+no provider material is copied, bundled or distributed by the wrapper packages.
+
+The isolated agent compatibility install uses `pnpm install --ignore-scripts`.
+Copilot pulls `koffi@3.2.1`; its native build is not approved in `allowBuilds`.
+Vite+ `vp run -r build` currently attempts an install and reports
+`ERR_PNPM_IGNORED_BUILDS`. Do not approve native scripts merely to check wrappers:
+run each package's `../../node_modules/.bin/vp pack` directly in dependency order,
+then `node_modules/.bin/vp check` and `node_modules/.bin/vp test run --cache=false`.
+A normal frozen CI install still needs an explicit native-build policy decision.

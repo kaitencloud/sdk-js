@@ -274,6 +274,71 @@ describe("ai.run", () => {
     expect(requests).toHaveLength(1);
   });
 
+  it.for([undefined, { inputTokens: 5, outputTokens: 2 }])(
+    "settles successful provider usage when the extractor throws (known: %j)",
+    async (known) => {
+      const { client, requests } = fakeApi();
+      const boom = new Error("usage extractor failed");
+      const classifyError = vi.fn(() => "NOT_SENT" as const);
+      const onCommitError = vi.fn();
+      const result = { answer: "provider succeeded" };
+
+      await expect(
+        client.ai.run(
+          {
+            ...RUN,
+            classifyError,
+            onCommitError,
+            usage: () => {
+              throw boom;
+            },
+          },
+          (context) => {
+            if (known) context.setUsage(known);
+            return result;
+          },
+        ),
+      ).resolves.toBe(result);
+
+      expect(requests.map((request) => request.body.value.phase)).toEqual(["reserve", "commit"]);
+      expect(requests[1]!.body.value.requestStatus).toBe("SUCCESS");
+      expect(requests[1]!.body.value.usage).toEqual(known);
+      expect(requests[1]!.body.value.transactionId).toBe(requests[0]!.body.value.transactionId);
+      expect(classifyError).not.toHaveBeenCalled();
+      expect(onCommitError).toHaveBeenCalledExactlyOnceWith(boom);
+    },
+  );
+
+  it("returns the provider result when extraction and settlement both fail", async () => {
+    const { client, requests } = fakeApi([{ status: 200 }, { status: 503 }]);
+    const boom = new Error("usage extractor failed");
+    const onCommitError = vi.fn();
+
+    await expect(
+      client.ai.run(
+        {
+          ...RUN,
+          onCommitError,
+          usage: () => {
+            throw boom;
+          },
+        },
+        () => "provider succeeded",
+      ),
+    ).resolves.toBe("provider succeeded");
+
+    expect(requests).toHaveLength(5);
+    expect(onCommitError).toHaveBeenCalledTimes(2);
+    expect(onCommitError.mock.calls[0]![0]).toBe(boom);
+    expect(onCommitError.mock.calls[1]![0]).toBeInstanceOf(KaitenError);
+    expect(
+      requests.slice(1).every((request) => request.body.value.requestStatus === "SUCCESS"),
+    ).toBe(true);
+    expect(
+      new Set(requests.slice(1).map((request) => request.headers.get("Idempotency-Key"))).size,
+    ).toBe(1);
+  });
+
   it("returns the result when the commit gives up, and reports it", async () => {
     const { client, requests } = fakeApi([{ status: 200 }, { status: 503 }]);
     const onCommitError = vi.fn();

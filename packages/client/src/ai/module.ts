@@ -76,8 +76,9 @@ export interface AiRunOptions<T> extends Omit<AiReserveInput, "usage"> {
    */
   onUnsupported?: (error: AiUsageUnsupportedError) => void;
   /**
-   * Called when the commit still fails after its retries. The call has run, so
-   * this never fails it: the reservation expires on its own. Defaults to
+   * Called when usage extraction fails or the commit still fails after its retries.
+   * The call has run, so reporting never fails it. A failed commit's reservation
+   * expires on its own. Defaults to
    * `console.error`.
    */
   onCommitError?: (error: unknown) => void;
@@ -196,11 +197,27 @@ export function createAiModule(transport: KaitenTransport): KaitenAiModule {
         await settle(status, status === "NOT_SENT" ? undefined : known);
         throw error;
       }
-      await settle("SUCCESS", readUsage?.(result) ?? known);
+      let actual: AiUsage | undefined;
+      try {
+        actual = readUsage?.(result) ?? known;
+      } catch (error) {
+        // Reporting is best-effort: an extractor failure must not replace the
+        // successful provider result. Settle with whatever usage is known.
+        (onCommitError ?? logExtractionError)(error);
+        actual = known;
+      }
+      await settle("SUCCESS", actual);
       return result;
     },
   };
   return module;
+}
+
+function logExtractionError(error: unknown): void {
+  console.error(
+    "Kaiten: AI usage extraction failed. The call succeeded; committing the usage known so far.",
+    error,
+  );
 }
 
 function logCommitError(error: unknown): void {
