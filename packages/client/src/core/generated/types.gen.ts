@@ -394,7 +394,7 @@ export type ConversionRuleUpdated = {
   before: ConversionRule;
 };
 
-export type CreateConversionRuleBody = {
+export type CreateConversionRule = {
   chargeOnError?: "NEVER" | "ALWAYS" | "PROVIDER_ERROR_ONLY";
   entitlementSlug: string;
   maximumCreditsPerRequest?: string | null;
@@ -1099,7 +1099,7 @@ export type InstanceAiModelUsageUnauthorized = {
   entitlement_slug: string;
   model: string;
   reason: string;
-  request_type: string;
+  requestType: string;
 };
 
 export type InstanceBody = {
@@ -2301,7 +2301,7 @@ export type Token = {
   slug?: string;
 };
 
-export type UpdateConversionRuleBody = {
+export type UpdateConversionRule = {
   chargeOnError?: "NEVER" | "ALWAYS" | "PROVIDER_ERROR_ONLY";
   entitlementSlug?: string | null;
   maximumCreditsPerRequest?: string | null;
@@ -7186,7 +7186,7 @@ export type ListConversionRulesResponse =
   ListConversionRulesResponses[keyof ListConversionRulesResponses];
 
 export type CreateConversionRuleData = {
-  body: CreateConversionRuleBody;
+  body: CreateConversionRule;
   path: {
     licenseSlug: string;
   };
@@ -7346,7 +7346,7 @@ export type GetConversionRuleResponse =
   GetConversionRuleResponses[keyof GetConversionRuleResponses];
 
 export type UpdateConversionRuleData = {
-  body: UpdateConversionRuleBody;
+  body: UpdateConversionRule;
   path: {
     licenseSlug: string;
     ruleId: string;

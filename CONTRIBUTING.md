@@ -76,8 +76,9 @@ vp install
 vp run -r build
 ```
 
-> Everything installs from npm, with no token, and the contract checks read what
-> the API publishes from npm too (see [API contracts](#api-contracts)).
+> Everything installs from npm, with no token. CI compares contracts with the
+> published npm artifacts by default; coordinated feature PRs may name a reviewed
+> immutable companion commit (see [API contracts](#api-contracts)).
 
 ## Build before you check
 
@@ -138,6 +139,42 @@ Both contracts are required: a drift check that cannot read one fails. Locally, 
 OpenAPI check fetches the published contract from npm, with no token, and the
 GraphQL check reads a checkout of kaiten next to this repository, or the schema file
 `KAITEN_GRAPHQL_SCHEMA` names.
+
+### Coordinated, unpublished API changes
+
+A feature PR can validate against a companion Kaiten commit **without publishing**
+contracts just to pass CI. `.github/kaiten-contract-source.json` records the fixed
+repository `kaitencloud/kaiten`, its full lowercase 40-hex `commit`, and the SDK
+feature `headBranch`. The current AI credits source is Kaiten PR #66,
+`feat/ai-credits`, at `51224227aaad2c3d2a990440ff48c66db6fbd8e6`; this is **not** a
+claim of compatibility with npm latest (which currently has 162 OpenAPI operations
+versus this feature's 182).
+
+The contract-drift workflow honors this file **only** for a `pull_request` whose
+head branch exactly matches `headBranch`. Other PR branches, pushes to `main`, and
+scheduled checks still fetch both npm `latest` artifacts. No environment variable
+or absent artifact silently skips a comparison. Invalid overrides, failed fetches,
+missing contracts, and symlinks fail closed. The jobs fetch an immutable Git tree
+and read only the OpenAPI blob and gqlgen schema fragments: no companion checkout,
+install, build, or code execution. Logs and the job summary name the actual source,
+with file hashes in the fetch output. Existing OpenAPI byte-equality, GraphQL
+canonical equality **and** shipped-operation validation all still run.
+
+When companion schemas change, update the pin to the reviewed commit and sync /
+regenerate from that same source. For a local checkout of that exact commit:
+
+```bash
+KAITEN_OPENAPI=/path/to/kaiten/app/openapi.yaml node scripts/check-openapi-drift.mjs
+KAITEN_PATH=/path/to/kaiten node scripts/check-graphql-drift.mjs
+```
+
+Review the pin with both PRs. Before landing/releasing the SDK, matching contracts
+must be published through the ordinary Kaiten release process, then remove the
+feature override and rerun the default published-contract checks. A green feature
+PR check is evidence of compatibility with the named companion commit only; it
+never proves the new API is published or deployed. Main and weekly checks remain
+red until the published contracts really agree. Do not add tags or publish packages
+just to make a coordinated development check green.
 
 ## Upgrading Vite+
 
@@ -248,10 +285,20 @@ See each integration README for explicit unavailable preflight guarantees.
 No extra third-party attribution is required for these externally resolved peers:
 no provider material is copied, bundled or distributed by the wrapper packages.
 
-The isolated agent compatibility install uses `pnpm install --ignore-scripts`.
-Copilot pulls `koffi@3.2.1`; its native build is not approved in `allowBuilds`.
-Vite+ `vp run -r build` currently attempts an install and reports
-`ERR_PNPM_IGNORED_BUILDS`. Do not approve native scripts merely to check wrappers:
-run each package's `../../node_modules/.bin/vp pack` directly in dependency order,
-then `node_modules/.bin/vp check` and `node_modules/.bin/vp test run --cache=false`.
-A normal frozen CI install still needs an explicit native-build policy decision.
+Copilot pulls `koffi@3.2.1`. Its native lifecycle script is explicitly **denied**
+with `allowBuilds.koffi: false`, not approved or left undecided. Copilot imports in
+the observer and its tests are type-only; tests use synthetic events and never
+start the Copilot runtime. These compatibility checks need no native Koffi build.
+This repository's policy does not configure a consumer's own Copilot installation.
+
+Use the normal locked install and dependency-order verification, as CI does:
+
+```bash
+pnpm install --frozen-lockfile
+vp run -r build
+vp check
+vp run -r test
+```
+
+Do not run `pnpm approve-builds` or approve native scripts merely to check wrappers.
+The existing esbuild approval is unchanged.

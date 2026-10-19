@@ -40,7 +40,8 @@ catalogs:
 catalogMode: prefer
 allowBuilds:
   esbuild: true
-  koffi: set this to true or false
+  # Copilot is used only for types and synthetic events; never run its native build.
+  koffi: false
 # No typescript override: it would force TypeScript 7 onto the codegen packages.
 overrides:
   # `@*` keys, as `vp migrate` writes them: they pin the semver ranges transitive and

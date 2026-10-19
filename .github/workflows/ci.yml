@@ -99,6 +99,8 @@ jobs:
         run: vp run -r build
       - name: Run workspace tests
         run: vp run -r test
+      - name: Test contract CI source selection and pinned blob safety
+        run: vp test run scripts/contract-ci-source.test.ts --cache=false
 
   changeset:
     if: github.event_name == 'pull_request'
