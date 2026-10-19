@@ -5,7 +5,7 @@
 //
 //   import OpenAI from "openai";
 //   import { wrapOpenAI } from "@kaitencloud/ai-openai";
-//   const openai = wrapOpenAI(new OpenAI(), { kaiten, instance: "acme-prod", pool: "chat-credits" });
+//   const openai = wrapOpenAI(new OpenAI(), { kaiten, instance: "acme-prod", entitlement: "chat-credits" });
 //
 // Every allow-listed call reserves its estimate, runs, and commits what it
 // really used. Everything else on the client is the client's own object.
@@ -48,7 +48,7 @@ export interface WrapOpenAIOptions {
   /** Instance slug. */
   instance: string;
   /** Entitlement slug of the AI credit pool. */
-  pool: string;
+  entitlement: string;
   /**
    * The estimate a call reserves. Defaults to {@link estimateOpenAI}; plug a
    * tokenizer in here when the estimate matters.
@@ -128,7 +128,7 @@ export function wrapOpenAI<T extends object>(client: T, options: WrapOpenAIOptio
   const meter = createAiMeter({
     kaiten: options.kaiten,
     instance: options.instance,
-    pool: options.pool,
+    entitlement: options.entitlement,
     metadata: options.metadata,
     logger: options.logger,
   });

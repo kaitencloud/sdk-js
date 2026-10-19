@@ -16,7 +16,7 @@ it("observes usage without pretending async event listeners gate model calls", a
   const reserve = vi.fn();
   const observer = observeCopilotSession(
     { on },
-    { kaiten: { ai: { reserve, commit } } as any, instance: "i", pool: "p", runId: "run" },
+    { kaiten: { ai: { reserve, commit } } as any, instance: "i", entitlement: "p", runId: "run" },
   );
   for (let i = 0; i < 3; i++) {
     const event = {

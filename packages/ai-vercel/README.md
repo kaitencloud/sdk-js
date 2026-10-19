@@ -7,7 +7,7 @@ import { wrapLanguageModel } from "ai";
 import { kaitenMiddleware } from "@kaitencloud/ai-vercel";
 const metered = wrapLanguageModel({
   model,
-  middleware: kaitenMiddleware({ kaiten, instance: "acme", pool: "credits" }),
+  middleware: kaitenMiddleware({ kaiten, instance: "acme", entitlement: "credits" }),
 });
 ```
 

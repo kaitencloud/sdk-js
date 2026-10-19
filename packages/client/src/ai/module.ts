@@ -29,7 +29,7 @@ export interface AiTarget {
   /** Instance slug. */
   instance: string;
   /** Entitlement slug of the AI credit pool. */
-  pool: string;
+  entitlement: string;
   /** Accepted by the API and not stored. Never put a prompt or personal data here. */
   metadata?: Record<string, unknown>;
 }
@@ -133,11 +133,11 @@ export function createAiModule(transport: KaitenTransport): KaitenAiModule {
         (client) =>
           reportEntitlementUsageMetric({
             client,
-            path: { instanceSlug: target.instance, entitlementSlug: target.pool },
+            path: { instanceSlug: target.instance, entitlementSlug: target.entitlement },
             body,
             headers: { "Idempotency-Key": idempotencyKey },
           }),
-        `ai.${value.phase}(${target.instance}, ${target.pool}, ${value.transactionId})`,
+        `ai.${value.phase}(${target.instance}, ${target.entitlement}, ${value.transactionId})`,
         // Keyed by `transactionId`, so a replay is answered from the first
         // attempt and nothing is charged twice: three retries, transient only.
         { idempotent: true, maxAttempts: 4, retryStatuses: RETRY_STATUSES },
@@ -154,19 +154,19 @@ export function createAiModule(transport: KaitenTransport): KaitenAiModule {
         (client) =>
           listAiInferences({
             client,
-            path: { instanceSlug: target.instance, entitlementSlug: target.pool },
+            path: { instanceSlug: target.instance, entitlementSlug: target.entitlement },
             query,
           }),
-        `ai.listInferences(${target.instance}, ${target.pool})`,
+        `ai.listInferences(${target.instance}, ${target.entitlement})`,
       ),
     listReservations: (target) =>
       transport.run(
         (client) =>
           listAiReservations({
             client,
-            path: { instanceSlug: target.instance, entitlementSlug: target.pool },
+            path: { instanceSlug: target.instance, entitlementSlug: target.entitlement },
           }),
-        `ai.listReservations(${target.instance}, ${target.pool})`,
+        `ai.listReservations(${target.instance}, ${target.entitlement})`,
       ),
     reserve: (input) =>
       report(input, {
@@ -197,7 +197,7 @@ export function createAiModule(transport: KaitenTransport): KaitenAiModule {
       const { estimate, usage: readUsage, classifyError, onUnsupported, onCommitError } = options;
       const target: AiTarget = {
         instance: options.instance,
-        pool: options.pool,
+        entitlement: options.entitlement,
         metadata: options.metadata,
       };
       let transactionId: string;

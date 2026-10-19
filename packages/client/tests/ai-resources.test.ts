@@ -61,7 +61,7 @@ it("aliases the regenerated AI contract and preserves exact outcomes", async () 
   });
   const result = await client.ai.reserve({
     instance: "i",
-    pool: "p",
+    entitlement: "p",
     model: "m",
     requestType: "COMPLETION",
     transactionId: "t",
@@ -105,7 +105,7 @@ it("exposes model, conversion rule and inference reads with filters and wire pag
   expect(await client.licenses.conversionRules.get("license", "r")).toEqual({ id: "r" });
   expect(
     await client.ai.listInferences(
-      { instance: "i", pool: "p" },
+      { instance: "i", entitlement: "p" },
       {
         status: "COMMITTED",
         transactionId: "t",
@@ -116,7 +116,9 @@ it("exposes model, conversion rule and inference reads with filters and wire pag
       },
     ),
   ).toEqual({ items: null, hasMore: false });
-  expect(await client.ai.listReservations({ instance: "i", pool: "p" })).toEqual({ items: [] });
+  expect(await client.ai.listReservations({ instance: "i", entitlement: "p" })).toEqual({
+    items: [],
+  });
   expect(requests.map((u) => u.pathname)).toEqual([
     "/api/models",
     "/api/models/model%2Fslug",

@@ -4,7 +4,12 @@ Optional peer `@openai/codex-sdk` ~0.163.0. Server-side only.
 
 ```ts
 import { wrapCodexThread } from "@kaitencloud/ai-codex";
-const metered = wrapCodexThread(thread, { kaiten, instance, pool, model: "configured-model" });
+const metered = wrapCodexThread(thread, {
+  kaiten,
+  instance,
+  entitlement,
+  model: "configured-model",
+});
 ```
 
 `run` and `runStreamed` reserve once before the submitted prompt executes and

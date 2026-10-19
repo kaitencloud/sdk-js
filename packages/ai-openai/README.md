@@ -4,7 +4,7 @@ Server-side only. Install this package alongside `openai` 7 and `@kaitencloud/cl
 
 ```ts
 import { wrapOpenAI } from "@kaitencloud/ai-openai";
-const metered = wrapOpenAI(openai, { kaiten, instance: "acme", pool: "credits" });
+const metered = wrapOpenAI(openai, { kaiten, instance: "acme", entitlement: "credits" });
 ```
 
 The wrapper delegates the user's client, retaining its own unlisted resources and

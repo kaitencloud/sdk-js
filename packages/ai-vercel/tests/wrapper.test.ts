@@ -42,7 +42,7 @@ function setup() {
     middleware: kaitenMiddleware({
       kaiten: { ai: { reserve, commit } } as any,
       instance: "i",
-      pool: "p",
+      entitlement: "p",
     }),
   });
   return { model, reserve, commit, doGenerate, doStream };

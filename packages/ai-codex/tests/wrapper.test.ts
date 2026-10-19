@@ -19,7 +19,7 @@ it("gates submitted prompts, not fabricated internal turns, and preserves refusa
   const thread = wrapCodexThread({ run } as unknown as Thread, {
     kaiten: { ai: { reserve, commit } } as any,
     instance: "i",
-    pool: "p",
+    entitlement: "p",
     model: "synthetic-model",
   });
   await thread.run("synthetic");
@@ -51,7 +51,7 @@ it("preserves streamed events and reports aggregate completion usage", async () 
   const thread = wrapCodexThread({ runStreamed } as unknown as Thread, {
     kaiten: { ai: { reserve, commit } } as any,
     instance: "i",
-    pool: "p",
+    entitlement: "p",
     model: "synthetic-model",
   });
   const result = await thread.runStreamed("synthetic");

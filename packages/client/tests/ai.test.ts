@@ -65,7 +65,7 @@ const problem = (status: number, code: string): Reply => ({
   body: { title: code, status, code: `ReportEntitlementUsageMetric.${code}` },
 });
 
-const TARGET = { instance: "acme-prod", pool: "chat-credits" };
+const TARGET = { instance: "acme-prod", entitlement: "chat-credits" };
 
 describe("ai.reserve and ai.commit", () => {
   it("sends the reserve variant on the usage route, keyed", async () => {

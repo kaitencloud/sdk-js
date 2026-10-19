@@ -4,7 +4,7 @@ Optional peer `@github/copilot-sdk` ^1.0.22. Server-side only.
 
 ```ts
 import { observeCopilotSession } from "@kaitencloud/ai-copilot";
-const observer = observeCopilotSession(session, { kaiten, instance, pool });
+const observer = observeCopilotSession(session, { kaiten, instance, entitlement });
 // After session work completes:
 observer.dispose();
 await observer.flush();

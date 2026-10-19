@@ -5,7 +5,7 @@ Optional peer `@anthropic-ai/claude-agent-sdk` ~0.3.303. Server-side only.
 ```ts
 import { observeClaudeAgent } from "@kaitencloud/ai-claude-agent";
 const messages = query({ prompt, options: { includePartialMessages: true } });
-for await (const message of observeClaudeAgent(messages, { kaiten, instance, pool })) {
+for await (const message of observeClaudeAgent(messages, { kaiten, instance, entitlement })) {
   // Render the unchanged message locally.
 }
 ```

@@ -4,7 +4,7 @@ Server-side only; optional peer `@anthropic-ai/sdk` (`>=0.100.0 <1`).
 
 ```ts
 import { wrapAnthropic } from "@kaitencloud/ai-anthropic";
-const metered = wrapAnthropic(anthropic, { kaiten, instance: "acme", pool: "credits" });
+const metered = wrapAnthropic(anthropic, { kaiten, instance: "acme", entitlement: "credits" });
 ```
 
 `messages.create` and `messages.stream` reserve before the underlying request,

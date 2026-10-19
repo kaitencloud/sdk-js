@@ -45,7 +45,7 @@ it("accounts three distinct model responses, final output and subagent model wit
   for await (const m of observeClaudeAgent(source(), {
     kaiten: { ai: { commit, reserve } } as any,
     instance: "i",
-    pool: "p",
+    entitlement: "p",
     runId: "run",
   }))
     output.push(m);

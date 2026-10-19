@@ -61,7 +61,7 @@ export interface AiMeter {
  */
 export function createAiMeter(options: AiMeterOptions): AiMeter {
   const { kaiten, logger = console } = options;
-  const target: AiTarget = { instance: options.instance, pool: options.pool };
+  const target: AiTarget = { instance: options.instance, entitlement: options.entitlement };
   if (options.metadata) target.metadata = options.metadata;
   let degraded = false;
 
@@ -77,7 +77,7 @@ export function createAiMeter(options: AiMeterOptions): AiMeter {
     },
 
     unmetered(reason) {
-      logger.warn(`Kaiten: ${reason}; this call is not reported to ${target.pool}.`);
+      logger.warn(`Kaiten: ${reason}; this call is not reported to ${target.entitlement}.`);
       return noop();
     },
 
@@ -97,7 +97,7 @@ export function createAiMeter(options: AiMeterOptions): AiMeter {
         if (!(error instanceof AiUsageUnsupportedError)) throw error;
         degraded = true;
         logger.error(
-          `Kaiten: AI usage is NOT being reported. ${target.instance}/${target.pool} cannot take ` +
+          `Kaiten: AI usage is NOT being reported. ${target.instance}/${target.entitlement} cannot take ` +
             `an AI report (${error.code ?? error.status}): the pool is not an AI credit pool, or ` +
             `the Kaiten API predates AI credits. Provider calls go on, unmetered.`,
           error,

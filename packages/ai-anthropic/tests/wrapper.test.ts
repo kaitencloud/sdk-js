@@ -48,7 +48,7 @@ function setup(streamed: boolean) {
   const client = wrapAnthropic(original, {
     kaiten: { ai: { reserve, commit } } as any,
     instance: "i",
-    pool: "p",
+    entitlement: "p",
   });
   return { client, reserve, commit, fetch, original };
 }

@@ -13,7 +13,7 @@ it("degrades once, refuses other errors, and settles once even after commit fail
   const meter = createAiMeter({
     kaiten: { ai: { reserve, commit } } as any,
     instance: "i",
-    pool: "p",
+    entitlement: "p",
     logger,
   });
   reserve.mockRejectedValueOnce(new Error("refused"));

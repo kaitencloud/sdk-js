@@ -15,7 +15,7 @@ function setup(response: () => Response) {
   const wrapped = wrapOpenAI(client, {
     kaiten: { ai: { reserve, commit } } as any,
     instance: "i",
-    pool: "p",
+    entitlement: "p",
     logger,
   });
   return { wrapped, reserve, commit, fetch, logger, client };

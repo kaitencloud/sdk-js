@@ -21,7 +21,7 @@ export async function* observeClaudeAgent(
     try {
       await options.kaiten.ai.commit({
         instance: options.instance,
-        pool: options.pool,
+        entitlement: options.entitlement,
         metadata: options.metadata,
         ...call,
         requestType: "COMPLETION",

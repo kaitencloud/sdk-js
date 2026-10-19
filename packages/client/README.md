@@ -78,11 +78,11 @@ const snapshot = await kaiten.components.getSnapshot("acme-corp");
 - `kaiten.customers` / `kaiten.instances` / `kaiten.licenses` — curated reads
 - `kaiten.usage` — entitlement usage (read + report)
 - `kaiten.flags` — feature-flag evaluation (`evaluate`, `evaluateAll`)
-- `kaiten.ai` — AI credits on a credit pool: `reserve`, `commit`, `run` (below)
+- `kaiten.ai` — AI credits on a credit entitlement: `reserve`, `commit`, `run` (below)
 
 ### AI credits
 
-A call to a model reserves its estimate on an AI credit pool, runs, and commits
+A call to a model reserves its estimate on an AI credit entitlement, runs, and commits
 what it really used, under one `transactionId`. Kaiten prices it; the SDK never
 carries credits, and Kaiten never sees a prompt or a completion.
 
@@ -92,7 +92,7 @@ import { fromOpenAI } from "@kaitencloud/client";
 const completion = await kaiten.ai.run(
   {
     instance: "acme-prod",
-    pool: "chat-credits",
+    entitlement: "chat-credits",
     model: "gpt-4o",
     requestType: "COMPLETION",
     estimate: { inputTokens: 1000, outputTokens: 800 },
@@ -253,14 +253,14 @@ const rules = await kaiten.licenses.conversionRules.list("license-slug", {
 });
 const rule = await kaiten.licenses.conversionRules.get("license-slug", "rule-id");
 const history = await kaiten.ai.listInferences(
-  { instance: "acme", pool: "credits" },
+  { instance: "acme", entitlement: "credits" },
   {
     status: "COMMITTED",
     cursor: undefined,
     limit: 50,
   },
 );
-const reservations = await kaiten.ai.listReservations({ instance: "acme", pool: "credits" });
+const reservations = await kaiten.ai.listReservations({ instance: "acme", entitlement: "credits" });
 ```
 
 Pages preserve the server's `nextCursor`, `hasMore` and nullable `items`; callers
