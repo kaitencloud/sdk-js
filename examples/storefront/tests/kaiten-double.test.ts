@@ -1861,6 +1861,60 @@ describe("the stand-in as a Kaiten with no customer yet", () => {
     expect(contractProblems(recorder)).toEqual([]);
   });
 
+  test("a second sign-up replaces the first: no session is minted for it, and the ones it held end", async () => {
+    const { double, recorder, server, customer, instance } = visitorWorld();
+    const mint = (customerSlug: string, instanceSlug?: string) =>
+      CustomerSessions.createCustomerSession({
+        client: server,
+        throwOnError: true,
+        body: {
+          customerSlug,
+          ...(instanceSlug === undefined ? {} : { instanceSlug }),
+          ttlSeconds: 900,
+        },
+      });
+    const portalOf = (token: string, expiresAt: string) =>
+      new KaitenSessionClient({
+        apiUrl: API,
+        fetch: recorder.fetch,
+        getCustomerSession: () => ({ token, expiresAt }),
+      }).getPortal();
+
+    const { data: initech } = await customer("Initech", {
+      slug: "initech-aaaaaa",
+      billingEmail: "billing@initech.test",
+    });
+    await instance(initech.id, "initech-bbbbbb");
+    const { data: first } = await mint("initech-aaaaaa", "initech-bbbbbb");
+    await expect(portalOf(first.token, first.expiresAt)).resolves.toMatchObject({
+      customer: { name: "Initech", billingEmail: "billing@initech.test" },
+    });
+
+    const { data: globex } = await customer("Globex", {
+      slug: "globex-aaaaaa",
+      billingEmail: "ap@globex.test",
+    });
+    await instance(globex.id, "globex-bbbbbb", PRO_LICENCE);
+
+    // Initech's cookie is still good in its browser: it mints nothing, so Globex's plan and address
+    // are never shown under Initech's name.
+    await expect(mint("initech-aaaaaa", "initech-bbbbbb")).rejects.toMatchObject({
+      status: 404,
+      code: "CreateCustomerSession.CustomerNotFound",
+    });
+    await expect(mint("initech-aaaaaa")).rejects.toMatchObject({ status: 404 });
+    // And the session it already held does not read them either.
+    await expect(portalOf(first.token, first.expiresAt)).rejects.toMatchObject({ status: 401 });
+    // Globex is the account now.
+    const { data: second } = await mint("globex-aaaaaa", "globex-bbbbbb");
+    await expect(portalOf(second.token, second.expiresAt)).resolves.toMatchObject({
+      customer: { name: "Globex", billingEmail: "ap@globex.test" },
+      instance: { licenseSlug: "pro-v2" },
+    });
+    // Ending a replaced account's sessions is not a sign-out: the count of revocations is the storefront's.
+    expect(double.state().revoked).toBe(0);
+  });
+
   test("plays one instance at a time: a new one starts the billing over on its own licence", async () => {
     const { double, customer, instance } = visitorWorld();
     const { data: first } = await customer("Initech", { slug: "initech-aaaaaa" });

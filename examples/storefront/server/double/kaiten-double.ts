@@ -18,7 +18,8 @@
 // It also plays a Kaiten with no customer yet: in the sign-up scenario (`Scenario.signUp`) a visitor
 // makes one, through `POST /customers` and `POST /instances`, and then gets a session for it, as a
 // vendor's backend does when someone signs up on its site. It plays one instance at a time: a new
-// instance starts the billing state over, on the licence it was created on.
+// instance starts the billing state over, on the licence it was created on, and replaces the account
+// before it (no session is minted for that one any more, and the sessions it held end).
 //
 // It is not a Kaiten. The sums are its own (a plan's price, an add-on's, a voucher's
 // percentage), the entitlements are the plan's own as the catalogue lists them (limits from the
@@ -1056,6 +1057,12 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
       createdAt: new Date().toISOString(),
     };
     instances.push(stored);
+    // An account that this one replaces keeps nothing: the billing state below is the new instance's, and
+    // a session of the earlier customer would show it under the earlier customer's name.
+    if (signedUp) {
+      for (const each of sessions.values())
+        if (each.customerSlug !== customer.slug) each.revoked = true;
+    }
 
     // One instance at a time: the billing state is the new instance's. It holds the licence it was
     // created on and no subscription, and its customer's address as the billing email.
@@ -1128,10 +1135,12 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
         if (!Number.isInteger(ttl) || ttl < 300 || ttl > 3600) {
           return problem(422, "CreateCustomerSession.InvalidTtl", "ttlSeconds is 300 to 3600");
         }
-        // A visitor's account is what a sign-up made; a session is for nobody else.
+        // A visitor's account is what a sign-up made; a session is for nobody else. The stand-in plays one
+        // customer at a time (its billing state is the newest instance's), so an account that a later
+        // sign-up replaced is gone, and a cookie that still names it must not read the newer one's billing.
         if (signedUp) {
           const customer = customers.find((each) => each.slug === body.customerSlug);
-          if (!customer) {
+          if (!customer || customer !== customers.at(-1)) {
             return problem(
               404,
               "CreateCustomerSession.CustomerNotFound",
