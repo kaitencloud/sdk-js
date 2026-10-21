@@ -3,9 +3,13 @@
 
 // The cookie that remembers who signed up. This storefront has no passwords: a visitor who signed
 // up on this browser is the customer and the instance the cookie names, and nothing else. So the
-// cookie holds those two slugs and nothing more (no name, no e-mail, no Kaiten id), and it is
-// signed: the server keeps a secret, and a cookie it did not sign, or one that was altered, is
-// ignored as if it were absent.
+// cookie holds those two slugs and the moment it stops being good (no name, no e-mail, no Kaiten
+// id), and it is signed: the server keeps a secret, and a cookie it did not sign, one that was
+// altered, or one that has expired, is ignored as if it were absent.
+//
+// There is no server-side store, so there is nothing to revoke: a sign-out clears the browser's copy
+// and ends the sessions this process minted, but a copy of the cookie made before stays good until
+// it expires, or until the secret changes. A real site keeps its sessions server-side.
 //
 // A real site has its own authentication and maps its user to a customer and an instance; this is
 // the smallest honest stand-in for that mapping.
@@ -18,8 +22,8 @@ export const ACCOUNT_COOKIE = "storefront_account";
 /** The shortest secret `STOREFRONT_COOKIE_SECRET` can be. */
 export const MIN_SECRET_LENGTH = 32;
 
-/** How long a browser keeps the account: 30 days. Nothing server-side expires it. */
-const MAX_AGE_SECONDS = 30 * 24 * 60 * 60;
+/** How long an account is good for after sign-up: 30 days, in the browser (`Max-Age`) and in the signed value. */
+export const ACCOUNT_LIFETIME_SECONDS = 30 * 24 * 60 * 60;
 
 /** The account a visitor signed up: the slugs Kaiten knows it by. */
 export interface Account {
@@ -33,6 +37,9 @@ const isSlug = (value: unknown): value is string =>
   typeof value === "string" && value.length >= 2 && value.length <= 100 && SLUG.test(value);
 
 const VERSION = "v1";
+
+/** What a MAC looks like once written: 32 bytes in unpadded base64url. Nothing else is decoded. */
+const MAC_TEXT = /^[A-Za-z0-9_-]{43}$/;
 
 export interface AccountCookie {
   /** The cookie's value for an account. */
@@ -57,7 +64,10 @@ const encode = (text: string) => Buffer.from(text, "utf8").toString("base64url")
  */
 export function createAccountCookie(
   secret: string = randomBytes(32).toString("base64url"),
+  /** The clock, for when a value expires. */
+  now: () => Date = () => new Date(),
 ): AccountCookie {
+  const seconds = () => Math.floor(now().getTime() / 1000);
   const mac = (payload: string) =>
     createHmac("sha256", secret).update(`${VERSION}.${payload}`).digest();
 
@@ -66,15 +76,18 @@ export function createAccountCookie(
     if (parts.length !== 3 || parts[0] !== VERSION) return null;
     const [, payload, given] = parts as [string, string, string];
 
+    // `Buffer.from(…, "base64url")` skips what is not base64, so a MAC with junk in it would decode to
+    // the right bytes: only the canonical text is decoded.
+    if (!MAC_TEXT.test(given)) return null;
     const expected = mac(payload);
     const received = Buffer.from(given, "base64url");
-    // `timingSafeEqual` throws on buffers of different lengths, which is itself a "no".
     if (received.length !== expected.length || !timingSafeEqual(received, expected)) return null;
 
     try {
       const decoded: unknown = JSON.parse(Buffer.from(payload, "base64url").toString("utf8"));
       if (typeof decoded !== "object" || decoded === null) return null;
-      const { c, i } = decoded as { c?: unknown; i?: unknown };
+      const { c, i, e } = decoded as { c?: unknown; i?: unknown; e?: unknown };
+      if (typeof e !== "number" || !Number.isInteger(e) || e <= seconds()) return null;
       return isSlug(c) && isSlug(i) ? { customerSlug: c, instanceSlug: i } : null;
     } catch {
       return null;
@@ -82,7 +95,13 @@ export function createAccountCookie(
   };
 
   const sign = (account: Account): string => {
-    const payload = encode(JSON.stringify({ c: account.customerSlug, i: account.instanceSlug }));
+    const payload = encode(
+      JSON.stringify({
+        c: account.customerSlug,
+        i: account.instanceSlug,
+        e: seconds() + ACCOUNT_LIFETIME_SECONDS,
+      }),
+    );
     return `${VERSION}.${payload}.${mac(payload).toString("base64url")}`;
   };
 
@@ -115,7 +134,7 @@ export function createAccountCookie(
     },
     present: (request) => raw(request) !== null,
     set: (account, request) =>
-      `${ACCOUNT_COOKIE}=${sign(account)}; ${attributes(request, MAX_AGE_SECONDS)}`,
+      `${ACCOUNT_COOKIE}=${sign(account)}; ${attributes(request, ACCOUNT_LIFETIME_SECONDS)}`,
     clear: (request) => `${ACCOUNT_COOKIE}=; ${attributes(request, 0)}`,
   };
 }
