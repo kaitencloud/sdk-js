@@ -54,6 +54,8 @@ export interface StandIn {
     email?: boolean;
     subscribed?: boolean;
     free?: boolean;
+    /** A visitor with no account: the storefront runs in sign-up mode until the next reset. */
+    signUp?: boolean;
   }) => Promise<void>;
   /** The next calls to `METHOD /path` are answered with these, in turn. */
   script: (key: string, ...replies: Reply[]) => Promise<void>;
@@ -84,6 +86,8 @@ export interface StandIn {
     scheduledChange: { plan: string; priceId: string; effectiveAt: string } | null;
     addOns: Array<{ slug: string; quantity: number }>;
     card: string | null;
+    customers: Array<{ slug: string; name: string; billingEmail: string | null }>;
+    instances: Array<{ slug: string; customerSlug: string; licenseSlug: string }>;
   }>;
 }
 

@@ -15,6 +15,11 @@
 // boundary: a trial converts, a period renews (an invoice that can fail and leave the
 // subscription PAST_DUE), a scheduled plan change applies, a cancellation takes effect.
 //
+// It also plays a Kaiten with no customer yet: in the sign-up scenario (`Scenario.signUp`) a visitor
+// makes one, through `POST /customers` and `POST /instances`, and then gets a session for it, as a
+// vendor's backend does when someone signs up on its site. It plays one instance at a time: a new
+// instance starts the billing state over, on the licence it was created on.
+//
 // It is not a Kaiten. The sums are its own (a plan's price, an add-on's, a voucher's
 // percentage), the entitlements are the plan's own as the catalogue lists them (limits from the
 // catalogue, usage a fixed share of the limit, nothing metered), and it accepts every origin and
@@ -31,6 +36,7 @@ import { randomBytes, randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 
 import type { Route } from "../http.ts";
+import { generateSlug } from "../slug.ts";
 
 type Json = Record<string, any>;
 
@@ -111,6 +117,8 @@ export interface KaitenDouble {
   route: Route;
   /** Starts again from a customer with nothing: no subscription, no card, no email. */
   reset: (scenario?: Scenario) => void;
+  /** Whether the scenario is a visitor who has no account yet (see `Scenario.signUp`). */
+  signUp: () => boolean;
   /** Answers the next calls to `METHOD /path` with these, in turn, instead of what it would. */
   script: (key: string, ...replies: Reply[]) => void;
   /** What the next activation invoice's payment comes to. */
@@ -166,6 +174,10 @@ export interface DoubleState {
   addOns: Array<{ slug: string; quantity: number }>;
   /** The card on file, for a person: `Visa 4242`. */
   card: string | null;
+  /** The customers the stand-in was asked to create, in order. Only a sign-up scenario has any. */
+  customers: Array<{ slug: string; name: string; billingEmail: string | null }>;
+  /** The instances it was asked to create, with the licence each started on. */
+  instances: Array<{ slug: string; customerSlug: string; licenseSlug: string }>;
 }
 
 /** How the customer starts. */
@@ -181,6 +193,12 @@ export interface Scenario {
    * says so, no card. A checkout of a paid plan replaces that subscription.
    */
   free?: boolean;
+  /**
+   * The visitor has no account: the stand-in holds no customer and no instance until `POST /customers`
+   * and `POST /instances` make them, and a session is minted for them only. The other members are
+   * ignored with it, and the storefront's backend runs in sign-up mode while it is on.
+   */
+  signUp?: boolean;
 }
 
 /** `Retry-After` in the answers it is attached to. */
@@ -271,6 +289,27 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
     revoked: boolean;
   };
 
+  type StoredCustomer = {
+    id: string;
+    slug: string;
+    name: string;
+    billingEmail: string | null;
+    createdAt: string;
+  };
+  type StoredInstance = {
+    id: string;
+    slug: string;
+    name: string;
+    description: string;
+    customerId: string;
+    customerSlug: string;
+    licenseId: string;
+    licenseSlug: string;
+    startLicenseDate: string;
+    endLicenseDate: string;
+    createdAt: string;
+  };
+
   /** The cards a customer can save on the provider's page, in turn: changing it changes the card. */
   const CARDS: Array<{ method: Json; number: string }> = [
     { method: session.portal.paymentMethod, number: "4242 4242 4242 4242" },
@@ -303,6 +342,10 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
   let outcome: PaymentOutcome;
   let minted: number;
   let revoked: number;
+  /** A sign-up scenario: the customers and instances below are the ones a visitor made. */
+  let signedUp: boolean;
+  let customers: StoredCustomer[];
+  let instances: StoredInstance[];
 
   /** The card the next setup page offers: the one that is not on file, so that a change is seen. */
   const nextCard = () => {
@@ -343,7 +386,8 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
     };
   };
 
-  const reset = (scenario: Scenario = {}) => {
+  /** What the customer holds: a subscription, a card, an email, invoices and add-ons, as `scenario` says. */
+  const startBilling = (scenario: Scenario) => {
     subscription = null;
     subscriptionMeta = { id: randomUUID(), anchorAt: iso(Date.now()), createdAt: iso(Date.now()) };
     planName = null;
@@ -358,7 +402,6 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
     invoices = [];
     dunning = new Set();
     addOns = [];
-    events = [];
     if (scenario.subscribed) {
       const now = new Date();
       const end = addMonths(now, 1);
@@ -387,6 +430,15 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
       subscription = newSubscription(starter.prices[0], new Date(), null);
     }
     setups = new Map();
+  };
+
+  const reset = (scenario: Scenario = {}) => {
+    signedUp = scenario.signUp === true;
+    customers = [];
+    instances = [];
+    // A visitor with no account has nothing of the billing a scenario describes.
+    startBilling(signedUp ? {} : scenario);
+    events = [];
     sessions = new Map();
     log = [];
     scripts = new Map();
@@ -786,7 +838,13 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
 
   const portalOf = (stored: Stored): Json => {
     const portal = structuredClone(subscription ? session.portal : session.portalNeverSubscribed);
-    portal.customer = { slug: stored.customerSlug, name: "Acme storefront customer", billingEmail };
+    portal.customer = {
+      slug: stored.customerSlug,
+      name:
+        customers.find((each) => each.slug === stored.customerSlug)?.name ??
+        "Acme storefront customer",
+      billingEmail,
+    };
     if (stored.instanceSlug === null) {
       portal.instance = null;
       portal.subscription = null;
@@ -831,6 +889,183 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
     return portal;
   };
 
+  // ---- The customers and instances a visitor's sign-up makes ---------------
+
+  /** The service account that "created" what a sign-up made: the contract asks who did. */
+  const SERVICE = {
+    id: "00000000-0000-4000-8000-0000000000f0",
+    name: "Storefront service account",
+  };
+  const SLUG = /^[a-z0-9][a-z0-9-]*[a-z0-9]$/;
+  const validSlug = (slug: unknown) =>
+    typeof slug === "string" && slug.length >= 2 && slug.length <= 100 && SLUG.test(slug);
+
+  const customerBody = (stored: StoredCustomer): Json => ({
+    id: stored.id,
+    name: stored.name,
+    slug: stored.slug,
+    ...(stored.billingEmail === null ? {} : { billingEmail: stored.billingEmail }),
+    createdAt: stored.createdAt,
+    createdBy: SERVICE,
+    updatedAt: stored.createdAt,
+    updatedBy: SERVICE,
+  });
+
+  const instanceBody = (stored: StoredInstance): Json => ({
+    id: stored.id,
+    name: stored.name,
+    description: stored.description,
+    slug: stored.slug,
+    customerId: stored.customerId,
+    customerSlug: stored.customerSlug,
+    licenseId: stored.licenseId,
+    licenseSlug: stored.licenseSlug,
+    startLicenseDate: stored.startLicenseDate,
+    endLicenseDate: stored.endLicenseDate,
+    status: "HEALTHY",
+    createdAt: stored.createdAt,
+    createdBy: SERVICE,
+    updatedAt: stored.createdAt,
+    updatedBy: SERVICE,
+  });
+
+  function createCustomer(body: Json): Response {
+    if (typeof body.name !== "string" || body.name.length < 1) {
+      return problem(422, "CreateCustomer.InvalidName", "name is required", "/api/customers");
+    }
+    if (body.slug !== undefined && !validSlug(body.slug)) {
+      return problem(
+        422,
+        "CreateCustomer.InvalidSlug",
+        "slug is 2 to 100 lower-case letters, digits and dashes, not starting or ending with a dash",
+        "/api/customers",
+      );
+    }
+    if (
+      body.billingEmail !== undefined &&
+      (typeof body.billingEmail !== "string" ||
+        body.billingEmail.length > 254 ||
+        !body.billingEmail.includes("@"))
+    ) {
+      return problem(
+        422,
+        "CreateCustomer.InvalidBillingEmail",
+        "billingEmail is an e-mail address of 254 characters at most",
+        "/api/customers",
+      );
+    }
+    const slug: string = body.slug ?? generateSlug(body.name);
+    if (customers.some((each) => each.slug === slug)) {
+      return problem(
+        409,
+        "CreateCustomer.SlugConflict",
+        `Customer with slug "${slug}" already exists in this organization`,
+        "/api/customers",
+      );
+    }
+    const stored: StoredCustomer = {
+      id: randomUUID(),
+      slug,
+      name: body.name,
+      billingEmail: body.billingEmail ?? null,
+      createdAt: new Date().toISOString(),
+    };
+    customers.push(stored);
+    return reply(201, customerBody(stored));
+  }
+
+  function deleteCustomer(slug: string): Response {
+    const at = customers.findIndex((each) => each.slug === slug);
+    if (at < 0) {
+      return problem(
+        404,
+        "DeleteCustomer.NotFound",
+        `Customer with slug "${slug}" not found`,
+        `/api/customers/${slug}`,
+      );
+    }
+    const [gone] = customers.splice(at, 1);
+    instances = instances.filter((each) => each.customerId !== gone!.id);
+    return reply(204, null);
+  }
+
+  function createInstance(body: Json): Response {
+    for (const member of [
+      "name",
+      "description",
+      "customerId",
+      "licenseId",
+      "startLicenseDate",
+      "endLicenseDate",
+    ]) {
+      if (typeof body[member] !== "string" || (member === "name" && body[member] === "")) {
+        return problem(
+          422,
+          "CreateInstance.InvalidBody",
+          `${member} is required`,
+          "/api/instances",
+        );
+      }
+    }
+    if (body.slug !== undefined && !validSlug(body.slug)) {
+      return problem(
+        422,
+        "CreateInstance.InvalidSlug",
+        "slug is 2 to 100 lower-case letters, digits and dashes, not starting or ending with a dash",
+        "/api/instances",
+      );
+    }
+    const customer = customers.find((each) => each.id === body.customerId);
+    if (!customer) {
+      return problem(
+        404,
+        "CreateInstance.CustomerNotFound",
+        `Customer with ID ${body.customerId} not found`,
+        "/api/instances",
+      );
+    }
+    const licence = (catalog.plans as Json[]).find((each) => each.licenseId === body.licenseId);
+    if (!licence) {
+      return problem(
+        404,
+        "CreateInstance.LicenseNotFound",
+        `License with ID ${body.licenseId} not found`,
+        "/api/instances",
+      );
+    }
+    const slug: string = body.slug ?? generateSlug(body.name);
+    if (instances.some((each) => each.slug === slug)) {
+      return problem(
+        409,
+        "CreateInstance.SlugConflict",
+        `Instance with slug "${slug}" already exists in this organization`,
+        "/api/instances",
+      );
+    }
+    const stored: StoredInstance = {
+      id: randomUUID(),
+      slug,
+      name: body.name,
+      description: body.description,
+      customerId: customer.id,
+      customerSlug: customer.slug,
+      licenseId: licence.licenseId,
+      licenseSlug: licence.licenseSlug,
+      startLicenseDate: body.startLicenseDate,
+      endLicenseDate: body.endLicenseDate,
+      createdAt: new Date().toISOString(),
+    };
+    instances.push(stored);
+
+    // One instance at a time: the billing state is the new instance's. It holds the licence it was
+    // created on and no subscription, and its customer's address as the billing email.
+    startBilling({});
+    planName = licence.name;
+    planSlug = licence.licenseSlug;
+    billingEmail = customer.billingEmail;
+    return reply(201, instanceBody(stored));
+  }
+
   // ---- The routes -----------------------------------------------------------
 
   const credentialOf = (request: Request): Call["credential"] => {
@@ -873,6 +1108,17 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
           );
     }
 
+    if (path === "/customers" || path.startsWith("/customers/") || path === "/instances") {
+      if (request.headers.get("authorization") !== `Bearer ${options.serverToken}`) {
+        return problem(401, "Auth.InvalidCredential", "unknown token", `/api${path}`);
+      }
+      if (key === "POST /customers") return createCustomer(body);
+      if (key === "POST /instances") return createInstance(body);
+      const deleting = /^\/customers\/([^/]+)$/.exec(path);
+      if (method === "DELETE" && deleting) return deleteCustomer(decodeURIComponent(deleting[1]!));
+      return problem(404, "NotFound", `no ${key}`);
+    }
+
     if (path.startsWith("/customer-sessions")) {
       if (request.headers.get("authorization") !== `Bearer ${options.serverToken}`) {
         return problem(401, "Auth.InvalidCredential", "unknown token", "/api/customer-sessions");
@@ -881,6 +1127,34 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
         const ttl = Number(body.ttlSeconds ?? 1800);
         if (!Number.isInteger(ttl) || ttl < 300 || ttl > 3600) {
           return problem(422, "CreateCustomerSession.InvalidTtl", "ttlSeconds is 300 to 3600");
+        }
+        // A visitor's account is what a sign-up made; a session is for nobody else.
+        if (signedUp) {
+          const customer = customers.find((each) => each.slug === body.customerSlug);
+          if (!customer) {
+            return problem(
+              404,
+              "CreateCustomerSession.CustomerNotFound",
+              `customer "${String(body.customerSlug)}" not found`,
+            );
+          }
+          if (body.instanceSlug) {
+            const instance = instances.find((each) => each.slug === body.instanceSlug);
+            if (!instance) {
+              return problem(
+                404,
+                "CreateCustomerSession.InstanceNotFound",
+                `instance "${String(body.instanceSlug)}" not found`,
+              );
+            }
+            if (instance.customerId !== customer.id) {
+              return problem(
+                422,
+                "CreateCustomerSession.InstanceNotOfCustomer",
+                "the instance belongs to another customer",
+              );
+            }
+          }
         }
         const stored: Stored = {
           id: randomUUID(),
@@ -1834,6 +2108,16 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
       quantity: each.quantity as number,
     })),
     card: card ? `${cardBrand(card.brand)} ${card.last4}` : null,
+    customers: customers.map((each) => ({
+      slug: each.slug,
+      name: each.name,
+      billingEmail: each.billingEmail,
+    })),
+    instances: instances.map((each) => ({
+      slug: each.slug,
+      customerSlug: each.customerSlug,
+      licenseSlug: each.licenseSlug,
+    })),
   });
 
   const route: Route = async (request) => {
@@ -1876,6 +2160,7 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
   return {
     route,
     reset,
+    signUp: () => signedUp,
     script,
     payment: (next) => {
       outcome = next;

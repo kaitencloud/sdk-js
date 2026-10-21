@@ -10,7 +10,13 @@
 import { randomUUID } from "node:crypto";
 
 import { KaitenClient, KaitenError, KaitenSessionClient } from "@kaitencloud/client";
-import { Billing, createKaitenClient, CustomerSessions } from "@kaitencloud/server";
+import {
+  Billing,
+  createKaitenClient,
+  CustomerSessions,
+  Customers,
+  Instances,
+} from "@kaitencloud/server";
 import { describe, expect, test } from "vite-plus/test";
 
 import type { Configuration } from "../../conformance/src/configuration.ts";
@@ -1614,5 +1620,288 @@ describe("the new controls, over HTTP", () => {
         })
       ).status,
     ).toBe(403);
+  });
+});
+
+describe("the stand-in as a Kaiten with no customer yet", () => {
+  const STARTER_LICENCE = "00000000-0000-4000-8000-000000000001";
+  const PRO_LICENCE = "00000000-0000-4000-8000-000000000002";
+  const SOON = "2026-10-21T10:00:00.000Z";
+  const LATER = "2029-10-21T10:00:00.000Z";
+
+  /** The stand-in as a visitor finds it: nothing in it until a sign-up makes something. */
+  function visitorWorld() {
+    const made = world();
+    made.double.reset({ signUp: true });
+    const instance = (customerId: string, slug?: string, licenseId = STARTER_LICENCE) =>
+      Instances.createInstance({
+        client: made.server,
+        throwOnError: true,
+        body: {
+          name: "Initech",
+          description: "Signed up on the storefront",
+          customerId,
+          licenseId,
+          startLicenseDate: SOON,
+          endLicenseDate: LATER,
+          ...(slug === undefined ? {} : { slug }),
+        },
+      });
+    const customer = (name = "Initech", extra: Record<string, unknown> = {}) =>
+      Customers.createCustomer({
+        client: made.server,
+        throwOnError: true,
+        body: { name, billingEmail: "billing@initech.test", ...extra },
+      });
+    return { ...made, instance, customer };
+  }
+
+  test("takes a visitor from a customer to a subscription, and every answer fits the contract", async () => {
+    const { double, recorder, server, customer, instance } = visitorWorld();
+    expect(double.signUp()).toBe(true);
+    expect(double.state()).toMatchObject({ customers: [], instances: [], subscribed: false });
+
+    const { data: made } = await customer("Initech", { slug: "initech-1a2b3c" });
+    expect(made).toMatchObject({
+      name: "Initech",
+      slug: "initech-1a2b3c",
+      billingEmail: "billing@initech.test",
+    });
+    expect(made.id).toBeTruthy();
+
+    const { data: started } = await instance(made.id, "initech-4d5e6f");
+    expect(started).toMatchObject({
+      slug: "initech-4d5e6f",
+      customerId: made.id,
+      customerSlug: "initech-1a2b3c",
+      licenseId: STARTER_LICENCE,
+      licenseSlug: "starter-v1",
+      startLicenseDate: SOON,
+      endLicenseDate: LATER,
+      status: "HEALTHY",
+    });
+    // Starting on the free plan is not a subscription: the instance holds the licence and nothing is billed.
+    expect(double.state()).toMatchObject({
+      subscribed: false,
+      plan: "starter-v1",
+      billingEmail: "billing@initech.test",
+      customers: [{ slug: "initech-1a2b3c", name: "Initech" }],
+      instances: [
+        { slug: "initech-4d5e6f", customerSlug: "initech-1a2b3c", licenseSlug: "starter-v1" },
+      ],
+    });
+
+    const { data: minted } = await CustomerSessions.createCustomerSession({
+      client: server,
+      throwOnError: true,
+      body: { customerSlug: "initech-1a2b3c", instanceSlug: "initech-4d5e6f", ttlSeconds: 900 },
+    });
+    const session = new KaitenSessionClient({
+      apiUrl: API,
+      fetch: recorder.fetch,
+      getCustomerSession: () => ({ token: minted.token, expiresAt: minted.expiresAt }),
+    });
+
+    const portal = await session.getPortal();
+    expect(portal.customer).toMatchObject({
+      slug: "initech-1a2b3c",
+      name: "Initech",
+      billingEmail: "billing@initech.test",
+    });
+    expect(portal.instance).toMatchObject({ slug: "initech-4d5e6f", licenseSlug: "starter-v1" });
+    expect(portal.subscription).toBeNull();
+    expect(portal.capabilities.checkout).toBe(true);
+
+    // The customer already has an address, so the checkout is not asked for one.
+    await expect(
+      session.checkout({ licensePriceId: PRO_MONTHLY, dryRun: true }),
+    ).resolves.toMatchObject({ status: "preview" });
+    await session.checkout({ licensePriceId: PRO_MONTHLY, returnUrl: `${ORIGIN}/checkout/pro-v2` });
+
+    await Customers.deleteCustomer({
+      client: server,
+      throwOnError: true,
+      path: { customerSlug: "initech-1a2b3c" },
+    });
+    expect(double.state()).toMatchObject({ customers: [], instances: [] });
+
+    expect(contractProblems(recorder)).toEqual([]);
+  });
+
+  test("generates a slug when none is sent, and takes the one that is", async () => {
+    const { customer, instance, recorder } = visitorWorld();
+    const { data: made } = await customer("Café Münster");
+    expect(made.slug).toMatch(/^cafe-munster-[0-9a-f]{6}$/);
+    const { data: started } = await instance(made.id);
+    expect(started.slug).toMatch(/^initech-[0-9a-f]{6}$/);
+    expect(contractProblems(recorder)).toEqual([]);
+  });
+
+  test("refuses what Kaiten refuses, with Kaiten's codes, and every refusal fits the contract", async () => {
+    const { double, recorder, customer, instance } = visitorWorld();
+    const { data: made } = await customer("Initech", { slug: "initech-aaaaaa" });
+    await instance(made.id, "initech-bbbbbb");
+
+    // A slug that is taken, for a customer and for an instance.
+    await expect(customer("Other", { slug: "initech-aaaaaa" })).rejects.toMatchObject({
+      status: 409,
+      code: "CreateCustomer.SlugConflict",
+    });
+    await expect(instance(made.id, "initech-bbbbbb")).rejects.toMatchObject({
+      status: 409,
+      code: "CreateInstance.SlugConflict",
+    });
+    // What is not a slug, an address, a name.
+    await expect(customer("Other", { slug: "-bad-" })).rejects.toMatchObject({
+      status: 422,
+      code: "CreateCustomer.InvalidSlug",
+    });
+    await expect(customer("Other", { billingEmail: "nope" })).rejects.toMatchObject({
+      status: 422,
+      code: "CreateCustomer.InvalidBillingEmail",
+    });
+    await expect(
+      customer("Other", { billingEmail: `${"x".repeat(250)}@a.co` }),
+    ).rejects.toMatchObject({
+      status: 422,
+      code: "CreateCustomer.InvalidBillingEmail",
+    });
+    await expect(customer("")).rejects.toMatchObject({ status: 422 });
+    // An instance of a customer that is not there, on a licence that is not there.
+    await expect(instance("nobody")).rejects.toMatchObject({
+      status: 404,
+      code: "CreateInstance.CustomerNotFound",
+    });
+    await expect(
+      instance(made.id, "initech-cccccc", "00000000-0000-4000-8000-0000000000ff"),
+    ).rejects.toMatchObject({ status: 404, code: "CreateInstance.LicenseNotFound" });
+
+    // Nothing that was refused was kept.
+    expect(double.state().customers).toHaveLength(1);
+    expect(double.state().instances).toHaveLength(1);
+    expect(contractProblems(recorder)).toEqual([]);
+  });
+
+  test("refuses a token it does not know, and a customer that is not there to delete", async () => {
+    const { recorder, server } = visitorWorld();
+    const stranger = createKaitenClient({
+      baseUrl: API,
+      token: `ksh_${"x".repeat(43)}`,
+      fetch: recorder.fetch,
+    });
+    await expect(
+      Customers.createCustomer({ client: stranger, throwOnError: true, body: { name: "Initech" } }),
+    ).rejects.toMatchObject({ status: 401, code: "Auth.InvalidCredential" });
+    await expect(
+      Instances.createInstance({
+        client: stranger,
+        throwOnError: true,
+        body: {
+          name: "x",
+          description: "x",
+          customerId: "x",
+          licenseId: STARTER_LICENCE,
+          startLicenseDate: SOON,
+          endLicenseDate: LATER,
+        },
+      }),
+    ).rejects.toMatchObject({ status: 401 });
+    await expect(
+      Customers.deleteCustomer({
+        client: stranger,
+        throwOnError: true,
+        path: { customerSlug: "x" },
+      }),
+    ).rejects.toMatchObject({ status: 401 });
+    await expect(
+      Customers.deleteCustomer({
+        client: server,
+        throwOnError: true,
+        path: { customerSlug: "nobody" },
+      }),
+    ).rejects.toMatchObject({ status: 404, code: "DeleteCustomer.NotFound" });
+    expect(contractProblems(recorder)).toEqual([]);
+  });
+
+  test("mints a session for the customer and instance that exist, and for no other", async () => {
+    const { double, recorder, server, customer, instance } = visitorWorld();
+    const mint = (customerSlug: string, instanceSlug?: string) =>
+      CustomerSessions.createCustomerSession({
+        client: server,
+        throwOnError: true,
+        body: {
+          customerSlug,
+          ...(instanceSlug === undefined ? {} : { instanceSlug }),
+          ttlSeconds: 900,
+        },
+      });
+
+    // Nobody has signed up: the demo customer is not there either.
+    await expect(mint("acme-customer", "acme-instance")).rejects.toMatchObject({
+      status: 404,
+      code: "CreateCustomerSession.CustomerNotFound",
+    });
+
+    const { data: initech } = await customer("Initech", { slug: "initech-aaaaaa" });
+    await instance(initech.id, "initech-bbbbbb");
+    const { data: globex } = await customer("Globex", { slug: "globex-aaaaaa" });
+    await instance(globex.id, "globex-bbbbbb");
+
+    await expect(mint("globex-aaaaaa", "globex-bbbbbb")).resolves.toBeTruthy();
+    await expect(mint("globex-aaaaaa")).resolves.toBeTruthy();
+    await expect(mint("globex-aaaaaa", "nothing-here")).rejects.toMatchObject({
+      status: 404,
+      code: "CreateCustomerSession.InstanceNotFound",
+    });
+    await expect(mint("globex-aaaaaa", "initech-bbbbbb")).rejects.toMatchObject({
+      status: 422,
+      code: "CreateCustomerSession.InstanceNotOfCustomer",
+    });
+    expect(double.state().minted).toBe(2);
+    expect(contractProblems(recorder)).toEqual([]);
+  });
+
+  test("plays one instance at a time: a new one starts the billing over on its own licence", async () => {
+    const { double, customer, instance } = visitorWorld();
+    const { data: first } = await customer("Initech", { slug: "initech-aaaaaa" });
+    await instance(first.id, "initech-bbbbbb");
+    expect(double.state().plan).toBe("starter-v1");
+
+    // The second customer starts on Pro's licence, with its own address and nothing of the first.
+    const { data: second } = await customer("Globex", {
+      slug: "globex-aaaaaa",
+      billingEmail: "ap@globex.test",
+    });
+    await instance(second.id, "globex-bbbbbb", PRO_LICENCE);
+
+    expect(double.state()).toMatchObject({
+      plan: "pro-v2",
+      planName: "Pro",
+      subscribed: false,
+      cardOnFile: false,
+      billingEmail: "ap@globex.test",
+      invoices: [],
+    });
+  });
+
+  test("a scripted answer is given to a sign-up's calls as to any other, and the next call is the stand-in's own", async () => {
+    const { double, customer, instance } = visitorWorld();
+    double.script("POST /instances", { status: 503, retryAfter: 3, body: { code: "x" } });
+    const { data: made } = await customer("Initech", { slug: "initech-aaaaaa" });
+    await expect(instance(made.id, "initech-bbbbbb")).rejects.toMatchObject({
+      status: 503,
+      retryAfterSeconds: 3,
+    });
+    expect(double.calls().filter((each) => each.path === "/customers")).toHaveLength(1);
+    await expect(instance(made.id, "initech-bbbbbb")).resolves.toBeTruthy();
+  });
+
+  test("a default reset is the demo customer again, and the sign-up scenario ignores the rest of a scenario", () => {
+    const { double } = visitorWorld();
+    expect(double.signUp()).toBe(true);
+    double.reset();
+    expect(double.signUp()).toBe(false);
+    double.reset({ signUp: true, subscribed: true, card: true });
+    expect(double.state()).toMatchObject({ subscribed: false, cardOnFile: false, customers: [] });
   });
 });
