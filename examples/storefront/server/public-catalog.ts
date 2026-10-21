@@ -46,22 +46,17 @@ export function catalogueReader(options: {
 }
 
 /**
- * The licence a new account's instance starts on, or `null` when there is none to give.
+ * The licence a new account's instance starts on: the catalogue's free plan, or `null` when it has none.
  *
- * The free plan when the catalogue has one: that is what Kaiten does for its own organizations, whose
- * instance starts on the free Starter version with no subscription, and leaves it through a checkout.
- * The instance then holds free entitlements only, until the visitor pays. Without a free plan, the
- * plan the visitor chose: the contract allows no instance without a licence, and a checkout moves the
- * instance to the plan it buys, so the licence it starts on does not limit what can be bought. Without
- * either, none: the visitor has to choose a plan first.
+ * That is what Kaiten does for its own organizations, whose instance starts on the free Starter version
+ * with no subscription, and leaves it through a checkout. The instance then holds free entitlements only,
+ * until the visitor pays.
+ *
+ * It is never a paid plan, and never one that the request names. `POST /instances` requires a licence,
+ * and an instance holds the entitlements of the one it starts on: letting a public, unauthenticated
+ * route start it on a plan of the caller's choice would give that plan away. Without a free plan there
+ * is no sign-up to offer: publish one.
  */
-export function licenceForNewAccount(
-  plans: readonly CataloguePlan[],
-  chosen?: string,
-): CataloguePlan | null {
-  return (
-    plans.find((plan) => plan.pricingType === "FREE") ??
-    plans.find((plan) => chosen !== undefined && plan.licenseSlug === chosen) ??
-    null
-  );
+export function licenceForNewAccount(plans: readonly CataloguePlan[]): CataloguePlan | null {
+  return plans.find((plan) => plan.pricingType === "FREE") ?? null;
 }

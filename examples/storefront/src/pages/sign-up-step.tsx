@@ -1,7 +1,7 @@
 // Copyright 2026 KAITEN INC
 // SPDX-License-Identifier: Apache-2.0
 
-import { useId, useRef, useState, type FormEvent } from "react";
+import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 
 import { useAccount } from "../account.tsx";
 import { signUp, type SignUpRefusal } from "../config.ts";
@@ -13,19 +13,28 @@ import { checkSignUp, FIELD_MESSAGES, type SignUpFields } from "../sign-up-field
  * are. Kaiten V1 has no anonymous checkout, so a checkout needs a customer, and the storefront's backend
  * makes one from this: a name and the e-mail the invoices go to.
  *
- * `plan` is the plan the visitor came to buy, if they did: the backend needs it when the catalogue has no
- * free plan to start the new account on.
+ * `plan` is the plan the visitor came to buy, if they did: it is named in the title, and the page goes on
+ * to its checkout once the account exists. It is not sent to the backend, which decides by itself what
+ * licence a new account starts on: a visitor does not get to choose that.
  */
 export function SignUpStep({ plan }: { plan?: { slug: string; name?: string } }) {
   const account = useAccount();
   const ids = { name: useId(), email: useId(), summary: useId() };
   const nameField = useRef<HTMLInputElement>(null);
   const emailField = useRef<HTMLInputElement>(null);
+  const alertBox = useRef<HTMLDivElement>(null);
 
   const [values, setValues] = useState({ name: "", email: "" });
   const [fields, setFields] = useState<SignUpFields>({});
   const [refusal, setRefusal] = useState<SignUpRefusal | null>(null);
   const [busy, setBusy] = useState(false);
+
+  // A refusal that is not about a field has nowhere to put the keyboard but its message: the submit button
+  // is disabled while the account is asked for, which drops the focus it held, and a keyboard or
+  // screen-reader user would otherwise have to tab in from the top of the page to try again.
+  useEffect(() => {
+    if (refusal) alertBox.current?.focus();
+  }, [refusal]);
 
   /** Shows what is wrong, and puts the keyboard on the first field that is. */
   const show = (next: SignUpFields, other: SignUpRefusal | null = null) => {
@@ -43,7 +52,7 @@ export function SignUpStep({ plan }: { plan?: { slug: string; name?: string } })
     setFields({});
     setRefusal(null);
     setBusy(true);
-    const outcome = await signUp({ name: checked.name, email: checked.email, plan: plan?.slug });
+    const outcome = await signUp({ name: checked.name, email: checked.email });
     if (outcome.ok) {
       // This form goes away with the account: nothing is left to un-busy.
       account.signedUp();
@@ -68,18 +77,20 @@ export function SignUpStep({ plan }: { plan?: { slug: string; name?: string } })
       </h1>
       <p className="lead signup-lead">
         {plan
-          ? "Your plan is held while we set you up: you carry on with it right after."
+          ? "You carry on with this plan right after."
           : "Plans are bought from an account. It takes a name and an e-mail."}
       </p>
 
       <form className="panel signup" onSubmit={submit} noValidate>
-        <div id={ids.summary} role="alert" className="signup-alert">
+        <div id={ids.summary} ref={alertBox} tabIndex={-1} role="alert" className="signup-alert">
           {summary ? <p className="notice error">{summary}</p> : null}
           {refusal ? <Refusal refusal={refusal} /> : null}
         </div>
 
         <div className="field">
-          <label htmlFor={ids.name}>Name</label>
+          <label htmlFor={ids.name}>
+            Name <span className="field-required">(required)</span>
+          </label>
           <p id={`${ids.name}-hint`} className="field-hint">
             Your company&rsquo;s name, or your own.
           </p>
@@ -89,6 +100,7 @@ export function SignUpStep({ plan }: { plan?: { slug: string; name?: string } })
             name="name"
             type="text"
             autoComplete="organization"
+            aria-required="true"
             value={values.name}
             onChange={(event) => setValues({ ...values, name: event.target.value })}
             aria-invalid={fields.name ? true : undefined}
@@ -104,7 +116,9 @@ export function SignUpStep({ plan }: { plan?: { slug: string; name?: string } })
         </div>
 
         <div className="field">
-          <label htmlFor={ids.email}>E-mail</label>
+          <label htmlFor={ids.email}>
+            E-mail <span className="field-required">(required)</span>
+          </label>
           <p id={`${ids.email}-hint`} className="field-hint">
             Invoices are sent here.
           </p>
@@ -115,6 +129,7 @@ export function SignUpStep({ plan }: { plan?: { slug: string; name?: string } })
             type="email"
             inputMode="email"
             autoComplete="email"
+            aria-required="true"
             value={values.email}
             onChange={(event) => setValues({ ...values, email: event.target.value })}
             aria-invalid={fields.email ? true : undefined}
@@ -147,12 +162,6 @@ export function SignUpStep({ plan }: { plan?: { slug: string; name?: string } })
 /** What the backend said that is not about a field. The first line is for the visitor, the second for a developer. */
 function Refusal({ refusal }: { refusal: SignUpRefusal }) {
   switch (refusal.kind) {
-    case "plan_required":
-      return (
-        <p className="notice error">
-          Choose a plan first. <Link to="/">See the plans</Link>
-        </p>
-      );
     case "rate_limited":
       return (
         <p className="notice error">
@@ -173,8 +182,8 @@ function Refusal({ refusal }: { refusal: SignUpRefusal }) {
           <p>Accounts can&rsquo;t be created right now.</p>
           <p className="signup-developer">
             For the developer: the server token does not hold <code>{refusal.scope}</code>. Sign-up
-            mode needs <code>write:customers</code>, <code>write:instances</code> and{" "}
-            <code>write:customer_sessions</code>.
+            mode needs the scopes write:customers, write:instances and write:customer_sessions on
+            it.
           </p>
         </div>
       );
@@ -184,6 +193,16 @@ function Refusal({ refusal }: { refusal: SignUpRefusal }) {
           <p>Accounts can&rsquo;t be created right now.</p>
           <p className="signup-developer">
             For the developer: your Kaiten organization reached its limit of customers or instances.
+          </p>
+        </div>
+      );
+    case "free_plan_required":
+      return (
+        <div className="notice error">
+          <p>Accounts can&rsquo;t be created right now.</p>
+          <p className="signup-developer">
+            For the developer: the catalogue has no free plan to start a new account on. Publish
+            one.
           </p>
         </div>
       );

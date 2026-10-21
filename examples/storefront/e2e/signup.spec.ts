@@ -60,9 +60,13 @@ test("a visitor signs up from the pricing table, buys a plan, and is still signe
 
   // Nothing is asked of Kaiten for a form that is not right.
   await createAccount(page).click();
-  await expect(page.getByText("Enter your name, or your company's.")).toBeVisible();
+  await expect(page.getByText("Enter your name, or your company\u2019s.")).toBeVisible();
   await expect(page.getByText("Enter an e-mail address.")).toBeVisible();
   await expect(page.getByLabel("Name")).toHaveAttribute("aria-invalid", "true");
+  // Both fields say they are required, to a screen reader and in words: the form is checked on submit.
+  await expect(page.getByLabel("Name")).toHaveAttribute("aria-required", "true");
+  await expect(page.getByLabel("E-mail")).toHaveAttribute("aria-required", "true");
+  await expect(page.getByText("(required)")).toHaveCount(2);
   await expect(page.getByRole("alert").filter({ hasText: "Check the fields" })).toBeVisible();
   await page.getByLabel("Name").fill("Initech");
   await page.getByLabel("E-mail").fill("nope");
@@ -212,6 +216,67 @@ test("an account the stand-in no longer knows is a visitor again, and a cookie i
   );
 });
 
+test("a copy of the cookie with anything added to its signature is ignored, and a whole one is not", async ({
+  page,
+  context,
+  baseURL,
+  standIn,
+}) => {
+  await standIn.reset({ signUp: true });
+  await page.goto("/portal");
+  await fillAndSubmit(page, "Initech", "billing@initech.test");
+  await expect(page.getByTestId("signed-in-as")).toBeVisible();
+  const whole = (await accountCookie(context))!.value;
+  const [version, payload, mac] = whole.split(".") as [string, string, string];
+
+  // Junk that a base64 decoder skips decodes to the very same signature: the server must not accept it.
+  for (const tampered of [
+    `${version}.${payload}.${mac.slice(0, 10)}*${mac.slice(10)}`,
+    `${version}.${payload}.${mac}!`,
+  ]) {
+    await context.clearCookies();
+    await context.addCookies([{ name: COOKIE, value: tampered, url: baseURL! }]);
+    await page.goto("/portal");
+    await expect(page.getByRole("heading", { name: "Create your account" })).toBeVisible();
+  }
+
+  // The cookie as the server wrote it is the account.
+  await context.clearCookies();
+  await context.addCookies([{ name: COOKIE, value: whole, url: baseURL! }]);
+  await page.goto("/portal");
+  await expect(page.getByTestId("signed-in-as")).toHaveText("Signed in as Initech");
+});
+
+test("a signed-up visitor can sign out from any page, and the Account page keeps its own button", async ({
+  page,
+  context,
+  standIn,
+}) => {
+  const pages = page.getByRole("navigation", { name: "Pages" });
+  await standIn.reset({ signUp: true });
+  await page.goto("/");
+  // A visitor has nothing to sign out of.
+  await expect(pages.getByRole("button", { name: "Sign out" })).toHaveCount(0);
+
+  await pages.getByRole("link", { name: "Account", exact: true }).click();
+  await fillAndSubmit(page, "Initech", "billing@initech.test");
+  await expect(page.getByTestId("signed-in-as")).toBeVisible();
+  // On Account, the button is beside the customer's name, and only there.
+  await expect(page.getByRole("button", { name: "Sign out" })).toHaveCount(1);
+  await expect(pages.getByRole("button", { name: "Sign out" })).toHaveCount(0);
+
+  await pages.getByRole("link", { name: "Pricing" }).click();
+  await expect(planCard(page, "Pro")).toBeVisible();
+  await pages.getByRole("button", { name: "Sign out" }).click();
+  await expect(page).toHaveURL(/\/$/);
+  await expect(pages.getByRole("button", { name: "Sign out" })).toHaveCount(0);
+  expect(await accountCookie(context)).toBeUndefined();
+
+  // A new visitor again: Select plan asks for an account.
+  await planCard(page, "Pro").getByRole("button", { name: "Select plan" }).click();
+  await expect(signUpHeading(page)).toBeVisible();
+});
+
 test("a refusal at sign-up is said in words a developer understands, and leaves nothing behind", async ({
   page,
   context,
@@ -240,13 +305,20 @@ test("a refusal at sign-up is said in words a developer understands, and leaves 
   expect(await standIn.state()).toMatchObject({ customers: [], instances: [] });
   expect(await accountCookie(context)).toBeUndefined();
 
-  // Kaiten asks to wait: the visitor is told for how long.
+  // The keyboard is on the message, not on a page that lost its button to the disabled state: a keyboard
+  // user can read it and tab straight back to the form.
+  await expect(page.locator(".signup-alert")).toBeFocused();
+
+  // Kaiten is unavailable and asks to wait (the contract's 503 with Retry-After for the creation of a
+  // customer): the visitor is told for how long.
   await standIn.script(
     "POST /customers",
-    refusal(429, "CreateCustomer.RateLimited", "slow down", 5),
+    refusal(503, "CreateCustomer.ProviderUnavailable", "later", 5),
   );
-  await createAccount(page).click();
+  await createAccount(page).focus();
+  await page.keyboard.press("Enter");
   await expect(page.getByRole("alert")).toContainText("Try again in 5 seconds");
+  await expect(page.locator(".signup-alert")).toBeFocused();
   expect(await accountCookie(context)).toBeUndefined();
 
   // An address Kaiten does not accept is said at the field.
@@ -284,7 +356,10 @@ test("the sign-up step has the storefront's look in every theme and colour mode,
 
         for (const label of ["Name", "E-mail"])
           await expect(page.getByLabel(label), where).toBeVisible();
-        await expect(page.getByText("Enter your name, or your company's."), where).toBeVisible();
+        await expect(
+          page.getByText("Enter your name, or your company\u2019s."),
+          where,
+        ).toBeVisible();
         await expect(page.getByText("Enter an e-mail address."), where).toBeVisible();
         await expect(createAccount(page), where).toBeVisible();
 

@@ -11,12 +11,23 @@ export const EMAIL_MAX = 254;
 
 /** What is wrong with each field, in a word; a field that is fine is not in it. */
 export interface SignUpFields {
-  name?: "required" | "too_long";
+  name?: "required" | "too_long" | "invalid";
   email?: "required" | "invalid" | "too_long";
 }
 
 /** A light check of an address: something, an @, something, a dot, something. Kaiten's is the one that counts. */
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/**
+ * Control characters (line breaks, tabs, NUL) and format characters (zero-width, bidirectional marks):
+ * nothing a person types on purpose into a name, and what a log, an invoice or an e-mail would show wrongly.
+ * The zero-width non-joiner and joiner are the exception: they are part of how Persian, several Indic
+ * scripts and emoji sequences are written, between letters that are visible.
+ */
+const HIDDEN = /(?![\u200C\u200D])[\p{Cc}\p{Cf}]/u;
+
+/** What is left of a name once the spaces and the joiners are taken out: nothing means nothing was typed. */
+const INVISIBLE = /[\p{Z}\u200C\u200D]/gu;
 
 /** The name and the e-mail address, trimmed, or what is wrong with them. */
 export function checkSignUp(
@@ -27,11 +38,12 @@ export function checkSignUp(
   const name = typeof body.name === "string" ? body.name.trim() : "";
   const email = typeof body.email === "string" ? body.email.trim() : "";
   const fields: SignUpFields = {};
-  if (name === "") fields.name = "required";
+  if (name.replace(INVISIBLE, "") === "") fields.name = "required";
   else if (name.length > NAME_MAX) fields.name = "too_long";
+  else if (HIDDEN.test(name)) fields.name = "invalid";
   if (email === "") fields.email = "required";
   else if (email.length > EMAIL_MAX) fields.email = "too_long";
-  else if (!EMAIL.test(email)) fields.email = "invalid";
+  else if (!EMAIL.test(email) || HIDDEN.test(email)) fields.email = "invalid";
   return fields.name || fields.email ? { ok: false, fields } : { ok: true, name, email };
 }
 
@@ -40,8 +52,9 @@ export const FIELD_MESSAGES: {
   [K in keyof SignUpFields]-?: Record<NonNullable<SignUpFields[K]>, string>;
 } = {
   name: {
-    required: "Enter your name, or your company's.",
+    required: "Enter your name, or your company\u2019s.",
     too_long: `Use ${NAME_MAX} characters or fewer.`,
+    invalid: "Use plain text: no line breaks or hidden characters.",
   },
   email: {
     required: "Enter an e-mail address.",

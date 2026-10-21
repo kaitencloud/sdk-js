@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { KaitenSessionClient } from "@kaitencloud/client";
 import { KaitenStyleRoot, KaitenProvider, type KaitenAppearance } from "@kaitencloud/react-ui";
 
-import { AccountContext, type Account } from "./account.tsx";
+import { AccountContext, useAccount, type Account } from "./account.tsx";
 import {
   fetchCustomerSession,
   loadAccount,
@@ -134,9 +134,10 @@ function Storefront({
 
   // A customer's session is minted as soon as that mode mounts, on every page. A visitor who has no
   // account has nobody to mint for: the pricing table is public, read with the publishable key
-  // alone, and the session starts once they have an account. The key changes the provider when it
-  // does; the provider keeps its place in the tree, so the page is not remounted under the visitor, and
-  // its scope, which the mode and the session client are part of, moves its cache to the new customer.
+  // alone, and the session starts once they have an account. The two branches render the same component
+  // type at the same position, so React keeps the provider and the page is not remounted under the
+  // visitor; the change of `mode` and of `sessionClient` is what moves the provider's scope, and with it
+  // its cache, to the new customer.
   return account.signedIn ? (
     <KaitenProvider
       mode="customer-session"
@@ -160,8 +161,28 @@ function Storefront({
   );
 }
 
+function HeaderSignOut() {
+  const { signOut } = useAccount();
+  const [leaving, setLeaving] = useState(false);
+  return (
+    <button
+      type="button"
+      className="site-nav-button"
+      disabled={leaving}
+      onClick={() => {
+        setLeaving(true);
+        // A failure leaves the visitor where they were, and the button to try again.
+        signOut().catch(() => setLeaving(false));
+      }}
+    >
+      Sign out
+    </button>
+  );
+}
+
 function Shell({ mode, sessionEnded }: { mode: StorefrontConfig["mode"]; sessionEnded: boolean }) {
   const { path } = useLocation();
+  const account = useAccount();
   const page = path.startsWith("/checkout/")
     ? "checkout"
     : path === "/portal"
@@ -195,6 +216,11 @@ function Shell({ mode, sessionEnded }: { mode: StorefrontConfig["mode"]; session
             <Link to="/journey" aria-current={page === "journey" ? "page" : undefined}>
               Journey
             </Link>
+            {/* Whoever made an account here can leave it from any page: a demo starts over from the home page.
+                The Account page has its own button, beside the customer's name. */}
+            {account.accounts === "sign-up" && account.signedIn && page !== "portal" ? (
+              <HeaderSignOut />
+            ) : null}
           </nav>
           <div className="site-controls">
             <PalettePicker />

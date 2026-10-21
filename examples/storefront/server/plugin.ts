@@ -60,6 +60,8 @@ function accountsBackend(options: {
   cookieSecret: string | undefined;
   readCatalogue: ReadCatalogue;
   signUp: () => boolean;
+  /** Whether the page is told what a developer needs to fix a refused sign-up (see `AccountRoutesOptions`). */
+  developerDetail: boolean;
   /** The fixed customer, for when `signUp` says no. */
   fixed: { customerSlug: string; instanceSlug: string } | undefined;
 }): Route[] {
@@ -72,6 +74,7 @@ function accountsBackend(options: {
       ledger,
       readCatalogue: options.readCatalogue,
       signUp: options.signUp,
+      developerDetail: options.developerDetail,
     }),
     sessionRoute({
       client: options.client,
@@ -82,8 +85,20 @@ function accountsBackend(options: {
   ];
 }
 
+export interface StorefrontRoutesOptions {
+  /**
+   * Whether the page is told which scope the token lacks, and the like, when a sign-up is refused: true
+   * under `vp dev`, where the visitor is the developer. A live `vp preview` keeps it to the log. The
+   * stand-in always tells: nothing of it is real.
+   */
+  developer?: boolean;
+}
+
 /** The routes of the storefront's backend for an environment, with the stand-in's when it is one. */
-export function storefrontRoutes(environment: Environment): Route[] {
+export function storefrontRoutes(
+  environment: Environment,
+  { developer = false }: StorefrontRoutesOptions = {},
+): Route[] {
   if (environment.mode === "live") {
     const config: StorefrontConfig = {
       mode: "live",
@@ -104,6 +119,7 @@ export function storefrontRoutes(environment: Environment): Route[] {
           publishableKey: environment.publishableKey,
         }),
         signUp: () => visitorsSignUp,
+        developerDetail: developer,
         fixed: visitorsSignUp
           ? undefined
           : { customerSlug: environment.customerSlug!, instanceSlug: environment.instanceSlug! },
@@ -150,6 +166,7 @@ export function storefrontRoutes(environment: Environment): Route[] {
         fetch: fetchDouble,
       }),
       signUp: () => double.signUp(),
+      developerDetail: true,
       fixed: { customerSlug: DOUBLE_CUSTOMER, instanceSlug: DOUBLE_INSTANCE },
     }),
     // The vendor's side of a plan change, for the journey page. Only against the stand-in.
@@ -185,28 +202,31 @@ function mount(middlewares: Connect.Server, routes: Route[]): void {
  * server: none of it reaches the page.
  */
 export function storefront(): Plugin {
-  const start = (server: {
-    config: {
-      mode: string;
-      envDir: string | false;
-      logger: { info: (message: string) => void };
-    };
-  }) => {
+  const start = (
+    developer: boolean,
+    server: {
+      config: {
+        mode: string;
+        envDir: string | false;
+        logger: { info: (message: string) => void };
+      };
+    },
+  ) => {
     const { mode, envDir } = server.config;
     // `envDir: false` is a project that turned the files off: the shell is all there is.
     const environment =
       envDir === false ? readEnvironment(process.env) : loadEnvironment(mode, envDir);
     for (const line of describeEnvironment(environment)) server.config.logger.info(`  ${line}`);
-    return storefrontRoutes(environment);
+    return storefrontRoutes(environment, { developer });
   };
 
   return {
     name: "storefront-backend",
     configureServer(server) {
-      mount(server.middlewares, start(server));
+      mount(server.middlewares, start(true, server));
     },
     configurePreviewServer(server) {
-      mount(server.middlewares, start(server));
+      mount(server.middlewares, start(false, server));
     },
   };
 }

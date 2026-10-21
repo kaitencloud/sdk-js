@@ -14,6 +14,7 @@ import {
   SessionLedger,
   sessionAccounts,
   SIGNOUT_PATH,
+  BODY_MAX_BYTES,
   SIGNUP_PATH,
 } from "../server/account-routes.ts";
 import {
@@ -34,12 +35,20 @@ const FREE_AND_PAID: CataloguePlan[] = [
   { licenseId: PRO, licenseSlug: "pro-v2", pricingType: "PAID" },
   { licenseId: STARTER, licenseSlug: "starter-v1", pricingType: "FREE" },
 ];
-const PAID_ONLY: CataloguePlan[] = [
-  { licenseId: PRO, licenseSlug: "pro-v2", pricingType: "PAID" },
+/** A catalogue with no free plan: a paid one, a bespoke one and a paid one that cannot be bought alone. */
+const PAID_ONLY: (CataloguePlan & { selfServe?: boolean })[] = [
+  { licenseId: PRO, licenseSlug: "pro-v2", pricingType: "PAID", selfServe: true },
   {
     licenseId: "00000000-0000-4000-8000-000000000005",
     licenseSlug: "enterprise-v1",
     pricingType: "CUSTOM",
+    selfServe: false,
+  },
+  {
+    licenseId: "00000000-0000-4000-8000-000000000006",
+    licenseSlug: "scale-v1",
+    pricingType: "PAID",
+    selfServe: false,
   },
 ];
 
@@ -112,6 +121,8 @@ function backend(
     script?: Record<string, Array<Response | Error>>;
     signUp?: boolean;
     secret?: string;
+    /** Whether the page is told what a developer needs; the tests are written as one by default. */
+    developerDetail?: boolean;
   } = {},
 ) {
   minted = 0;
@@ -150,6 +161,7 @@ function backend(
     cookie,
     ledger,
     signUp,
+    developerDetail: options.developerDetail ?? true,
     readCatalogue: async () => {
       const plans = options.plans ?? FREE_AND_PAID;
       if (plans instanceof Error) throw plans;
@@ -176,6 +188,9 @@ function backend(
         body: body === undefined ? undefined : JSON.stringify(body),
       }),
     ) as Promise<Response>;
+  /** A POST whose body and headers are exactly these: for what `post` would make right. */
+  const raw = (path: string, init: RequestInit) =>
+    accounts(new Request(`${ORIGIN}${path}`, { method: "POST", ...init })) as Promise<Response>;
 
   /** Signs a visitor up and returns the cookie header the browser would send next. */
   const signUpAs = async (name = "Initech", email = "billing@initech.test", plan?: string) => {
@@ -185,7 +200,7 @@ function backend(
     return { response, cookie: set.split(";")[0]! };
   };
 
-  return { sent, log, cookie, ledger, accounts, session, call, post, signUpAs };
+  return { sent, log, cookie, ledger, accounts, session, call, post, raw, signUpAs };
 }
 
 const withCookie = (cookie: string, init: RequestInit = {}) => ({
@@ -255,37 +270,55 @@ describe("signing a visitor up", () => {
     expect(set).not.toContain("billing@");
   });
 
-  test("starts the instance on the plan the visitor chose when the catalogue has no free one", async () => {
-    const { sent, post } = backend({ plans: PAID_ONLY });
+  test("starts the instance on the free plan, whatever plan the request names", async () => {
+    const { sent, post } = backend();
 
-    const response = await post(SIGNUP_PATH, { ...VISITOR, plan: "pro-v2" });
+    // A caller names the dearest plan, a bespoke one, one that is not on sale: none of it is read.
+    for (const plan of ["pro-v2", "enterprise-v1", "nothing-v1", 7, {}]) {
+      const response = await post(SIGNUP_PATH, { ...VISITOR, plan });
+      expect(response.status).toBe(201);
+    }
 
-    expect(response.status).toBe(201);
-    expect(sent[1]!.body.licenseId).toBe(PRO);
+    const instances = sent.filter((each) => each.path === "/instances");
+    expect(instances).toHaveLength(5);
+    for (const each of instances) expect(each.body.licenseId).toBe(STARTER);
   });
 
-  test.each([
-    ["no plan is named", undefined],
-    ["the plan named is not in the catalogue", "nothing-v1"],
-  ])(
-    "asks for a plan first when there is no free one and %s, and creates nothing",
-    async (_name, plan) => {
-      const { sent, post } = backend({ plans: PAID_ONLY });
+  test("with no free plan there is no sign-up, whatever plan the request names, and nothing is created", async () => {
+    const { sent, post, log } = backend({ plans: PAID_ONLY });
 
+    // The paid plan that can be bought alone, a bespoke one, one that cannot be bought alone, one that
+    // is not there, and none: Kaiten is asked for nothing, and no entitlement is given away.
+    for (const plan of ["pro-v2", "enterprise-v1", "scale-v1", "nothing-v1", undefined]) {
       const response = await post(SIGNUP_PATH, { ...VISITOR, plan });
 
       expect(response.status).toBe(422);
-      expect(await response.json()).toEqual({ error: "plan_required" });
+      expect(await response.json()).toEqual({ error: "free_plan_required" });
       expect(response.headers.get("set-cookie")).toBeNull();
-      expect(sent).toEqual([]);
-    },
-  );
+    }
+    expect(sent).toEqual([]);
+    expect(log.join()).toContain("no free plan");
+    expect(log.join()).toContain("publish a FREE plan");
+  });
 
-  test("the free plan wins over the one the visitor chose", () => {
-    expect(licenceForNewAccount(FREE_AND_PAID, "pro-v2")?.licenseId).toBe(STARTER);
+  test("a visitor is told nothing of the catalogue: only a developer hears that a free plan is missing", async () => {
+    const { sent, post, log } = backend({ plans: PAID_ONLY, developerDetail: false });
+
+    const response = await post(SIGNUP_PATH, { ...VISITOR, plan: "pro-v2" });
+
+    expect(response.status).toBe(502);
+    expect(await response.json()).toEqual({ error: "signup_unavailable" });
+    expect(sent).toEqual([]);
+    // The detail is for the log all the same.
+    expect(log.join()).toContain("publish a FREE plan");
+  });
+
+  test("the licence is the free plan's, and a paid, bespoke or unbuyable plan is never one", () => {
     expect(licenceForNewAccount(FREE_AND_PAID)?.licenseId).toBe(STARTER);
-    expect(licenceForNewAccount(PAID_ONLY, "pro-v2")?.licenseId).toBe(PRO);
     expect(licenceForNewAccount(PAID_ONLY)).toBeNull();
+    expect(licenceForNewAccount([])).toBeNull();
+    // Whichever order the catalogue lists them in.
+    expect(licenceForNewAccount([...FREE_AND_PAID].reverse())?.licenseId).toBe(STARTER);
   });
 
   test("reads the catalogue with the publishable key and no Origin", async () => {
@@ -351,12 +384,129 @@ describe("signing a visitor up", () => {
   });
 
   test("refuses a body that is not JSON the same way", async () => {
-    const { sent, accounts } = backend();
-    const response = await accounts(
-      new Request(`${ORIGIN}${SIGNUP_PATH}`, { method: "POST", body: "nope" }),
-    );
-    expect(response?.status).toBe(400);
+    const { sent, raw } = backend();
+    for (const body of ["nope", "", "[", "null", "42"]) {
+      const response = await raw(SIGNUP_PATH, {
+        headers: { "Content-Type": "application/json" },
+        body,
+      });
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject({ error: "invalid" });
+    }
     expect(sent).toEqual([]);
+  });
+
+  test.each([
+    ["no content type", undefined],
+    ["text", "text/plain"],
+    ["a form", "application/x-www-form-urlencoded"],
+    ["something that only starts like JSON", "application/jsonp"],
+  ])("takes JSON only: %s is a 415, and nothing is read or sent", async (_name, type) => {
+    const { sent, raw } = backend();
+
+    const response = await raw(SIGNUP_PATH, {
+      headers: type === undefined ? {} : { "Content-Type": type },
+      body: JSON.stringify(VISITOR),
+    });
+
+    expect(response.status).toBe(415);
+    expect(await response.json()).toEqual({ error: "unsupported_media_type" });
+    expect(sent).toEqual([]);
+  });
+
+  test("takes JSON with a charset, in any case", async () => {
+    const { raw } = backend();
+    const response = await raw(SIGNUP_PATH, {
+      headers: { "Content-Type": "Application/JSON; charset=utf-8" },
+      body: JSON.stringify(VISITOR),
+    });
+    expect(response.status).toBe(201);
+  });
+
+  test("refuses a body over the limit, whatever it declares, and stops reading it", async () => {
+    const { sent, raw } = backend();
+
+    // It says so: the declared length is enough.
+    const declared = await raw(SIGNUP_PATH, {
+      headers: { "Content-Type": "application/json", "Content-Length": String(BODY_MAX_BYTES + 1) },
+      body: JSON.stringify(VISITOR),
+    });
+    expect(declared.status).toBe(413);
+    expect(await declared.json()).toEqual({ error: "too_large" });
+
+    // It does not say so, or lies: what arrives is counted, and the stream is cancelled past the limit.
+    let pulled = 0;
+    let cancelled = false;
+    const chunk = new TextEncoder().encode("x".repeat(1024));
+    const endless = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        pulled += 1;
+        controller.enqueue(chunk);
+      },
+      cancel() {
+        cancelled = true;
+      },
+    });
+    const streamed = await raw(SIGNUP_PATH, {
+      headers: { "Content-Type": "application/json", "Content-Length": "10" },
+      body: endless,
+      duplex: "half",
+    } as RequestInit);
+    expect(streamed.status).toBe(413);
+    expect(cancelled).toBe(true);
+    // A few chunks past the limit at most, not the whole of an endless body.
+    expect(pulled).toBeLessThan(20);
+    expect(sent).toEqual([]);
+  });
+
+  test("takes a body at the limit", async () => {
+    const { raw } = backend();
+    const padding = "x".repeat(BODY_MAX_BYTES - JSON.stringify({ ...VISITOR, pad: "" }).length);
+    const body = JSON.stringify({ ...VISITOR, pad: padding });
+    expect(new TextEncoder().encode(body).byteLength).toBe(BODY_MAX_BYTES);
+    const response = await raw(SIGNUP_PATH, {
+      headers: { "Content-Type": "application/json" },
+      body,
+    });
+    expect(response.status).toBe(201);
+  });
+
+  test.each([
+    ["a line break", "Init\nech", { name: "invalid" }],
+    ["a tab", "Init\tech", { name: "invalid" }],
+    ["a NUL", "Init\u0000ech", { name: "invalid" }],
+    ["a zero-width space", "Init\u200Bech", { name: "invalid" }],
+    ["a bidirectional override", "Init\u202Eech", { name: "invalid" }],
+    ["nothing but a zero-width space", "\u200B", { name: "invalid" }],
+    ["a name that is blank once trimmed", " \u00A0 ", { name: "required" }],
+    ["a name that is only a joiner", "\u200C", { name: "required" }],
+  ])("refuses a name with %s before it asks Kaiten for anything", async (_name, name, fields) => {
+    const { sent, post } = backend();
+
+    const response = await post(SIGNUP_PATH, { name, email: "billing@initech.test" });
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: "invalid", fields });
+    expect(sent).toEqual([]);
+  });
+
+  test("refuses an address with a hidden character in it", async () => {
+    const { sent, post } = backend();
+    const response = await post(SIGNUP_PATH, {
+      name: "Initech",
+      email: "bill\u200Bing@initech.test",
+    });
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: "invalid", fields: { email: "invalid" } });
+    expect(sent).toEqual([]);
+  });
+
+  test("takes a name with letters of any script, an apostrophe, an ampersand and an emoji", async () => {
+    const { sent, post } = backend();
+    for (const name of ["Café Münster", "日本の会社", "O’Brien & Sons", "Pizza 🍕", "می‌خواهم"]) {
+      expect((await post(SIGNUP_PATH, { name, email: "a@b.co" })).status).toBe(201);
+    }
+    expect(sent.filter((each) => each.path === "/customers")).toHaveLength(5);
   });
 
   test("trims what the visitor typed", async () => {
@@ -524,6 +674,52 @@ describe("what a sign-up tells the page of Kaiten's refusals", () => {
     });
   });
 
+  test.each([
+    [
+      "a token without write:customers",
+      {
+        "POST /customers": [
+          problem(403, "Auth.MissingScope", "missing required scope: write:customers"),
+        ],
+      },
+      "does not hold write:customers",
+    ],
+    [
+      "a token without write:instances",
+      {
+        "POST /instances": [
+          problem(403, "Auth.MissingScope", "missing required scope: write:instances"),
+        ],
+      },
+      "does not hold write:instances",
+    ],
+    [
+      "a customer limit",
+      { "POST /customers": [problem(409, "CreateCustomer.EntitlementLimitReached")] },
+      "reached its customer limit",
+    ],
+    [
+      "an instance limit",
+      { "POST /instances": [problem(409, "CreateInstance.EntitlementLimitReached")] },
+      "reached its instance limit",
+    ],
+  ])(
+    "tells a visitor nothing of the configuration behind %s, and keeps it for the log",
+    async (_name, script, logged) => {
+      const { post, log } = backend({ script, developerDetail: false });
+
+      const response = await post(SIGNUP_PATH, VISITOR);
+
+      expect(response.status).toBe(502);
+      const text = await response.text();
+      expect(JSON.parse(text)).toEqual({ error: "signup_unavailable" });
+      expect(text).not.toContain("write:");
+      expect(text).not.toContain("scope");
+      expect(log.join()).toContain(logged);
+      expect(response.headers.get("set-cookie")).toBeNull();
+    },
+  );
+
   test("a scope that Kaiten does not name is the one the step needs", async () => {
     const { post } = backend({
       script: { "POST /instances": [problem(403, "Auth.MissingScope", "forbidden")] },
@@ -553,11 +749,13 @@ describe("what a sign-up tells the page of Kaiten's refusals", () => {
     expect(await response.json()).toEqual({ error: "invalid_email" });
   });
 
+  // The contract lists no 429 for these two operations (a 503 with Retry-After is what it documents), so this
+  // is a precaution for a gateway in front of Kaiten, and not a Kaiten behaviour.
   test.each([
     ["customers", "POST /customers", "CreateCustomer.RateLimited"],
     ["instances", "POST /instances", "CreateInstance.RateLimited"],
   ])(
-    "passes on the wait Kaiten asks for when it limits the creation of %s",
+    "passes on the wait a gateway asks for with a 429 on the creation of %s",
     async (_name, key, code) => {
       const { post } = backend({
         script: { [key]: [problem(429, code, "slow down", { "Retry-After": "7" })] },

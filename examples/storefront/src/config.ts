@@ -74,9 +74,9 @@ export type SignUpRefusal =
   | { kind: "invalid"; fields: SignUpFields }
   /** Kaiten does not accept the address. */
   | { kind: "invalid_email" }
-  /** The catalogue has no free plan, and none was chosen. */
-  | { kind: "plan_required" }
-  /** The server's token lacks a scope: a developer's problem, so the page says which. */
+  /** The catalogue has no free plan to start a new account on: a developer's problem, as is a missing scope. */
+  | { kind: "free_plan_required" }
+  /** The server's token lacks a scope: a developer's problem. The backend names it only to a developer (`vp dev`, the stand-in). */
   | { kind: "missing_scope"; scope: string }
   /** The Kaiten organization has no room for another customer or instance. */
   | { kind: "limit_reached" }
@@ -87,12 +87,11 @@ export type SignUpRefusal =
 
 export type SignUpOutcome = { ok: true } | { ok: false; refusal: SignUpRefusal };
 
-/** Asks the backend to make the visitor an account. `plan` is the slug of the plan they came to buy. */
-export async function signUp(input: {
-  name: string;
-  email: string;
-  plan?: string;
-}): Promise<SignUpOutcome> {
+/**
+ * Asks the backend to make the visitor an account. What it starts on is the backend's to decide: the
+ * plan the visitor came to buy is not part of the request.
+ */
+export async function signUp(input: { name: string; email: string }): Promise<SignUpOutcome> {
   let response: Response;
   try {
     response = await fetch("/storefront-api/signup", {
@@ -117,7 +116,7 @@ export async function signUp(input: {
     case "invalid":
       return { ok: false, refusal: { kind: "invalid", fields: body.fields ?? {} } };
     case "invalid_email":
-    case "plan_required":
+    case "free_plan_required":
     case "limit_reached":
       return { ok: false, refusal: { kind: body.error } };
     case "missing_scope":

@@ -209,7 +209,11 @@ describe("which Kaiten the storefront runs against", () => {
     expect(
       describeEnvironment(readEnvironment({ ...kaiten, STOREFRONT_COOKIE_SECRET: "s".repeat(32) })),
     ).toHaveLength(1);
-    expect(describeEnvironment(readEnvironment({}))[0]).toContain("stand-in for Kaiten");
+    const double = describeEnvironment(readEnvironment({}));
+    expect(double[0]).toContain("stand-in for Kaiten");
+    // The stand-in's accounts are as short-lived as a live storefront's without a secret, and it says so too.
+    expect(double[1]).toContain("forgotten when the server restarts");
+    expect(double).toHaveLength(2);
   });
 
   test("never repeats a value in the refusal", () => {

@@ -163,6 +163,7 @@ export function describeEnvironment(environment: Environment): string[] {
   if (environment.mode === "double") {
     return [
       "storefront: running against a stand-in for Kaiten (copy .env.example to .env and fill it, or set the same variables in your shell, to use yours)",
+      "storefront: the stand-in lives in this process: it, and any account a visitor makes in it, are forgotten when the server restarts",
     ];
   }
   if (environment.customerSlug !== undefined) {

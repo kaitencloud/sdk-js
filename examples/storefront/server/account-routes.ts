@@ -8,8 +8,8 @@
 // something the vendor creates. So when the visitor signs up, this backend
 //
 //   1. creates the Kaiten customer (`POST /customers`, scope `write:customers`),
-//   2. creates its instance (`POST /instances`, scope `write:instances`), on a licence the contract
-//      requires (see `licenceForNewAccount`),
+//   2. creates its instance (`POST /instances`, scope `write:instances`), on the licence the contract
+//      requires: the catalogue's free plan, never one the visitor names (see `licenceForNewAccount`),
 //   3. remembers the account in a signed cookie (`./account-cookie.ts`),
 //
 // and the session route (`./session-route.ts`) mints the customer's session for that cookie's account
@@ -40,6 +40,9 @@ type Client = ReturnType<typeof createKaitenClient>;
 export const ACCOUNT_PATH = "/storefront-api/account";
 export const SIGNUP_PATH = "/storefront-api/signup";
 export const SIGNOUT_PATH = "/storefront-api/signout";
+
+/** The most a sign-up request can weigh: a name and an address are a few hundred bytes. */
+export const BODY_MAX_BYTES = 4096;
 
 /** How many slugs are tried for a customer, and for an instance, when Kaiten says one is taken. */
 const SLUG_ATTEMPTS = 3;
@@ -85,6 +88,13 @@ export interface AccountRoutesOptions {
   ledger: SessionLedger;
   /** Whether visitors sign up, asked at each request. Default: yes. */
   signUp?: () => boolean;
+  /**
+   * Whether the page is told what a developer needs to fix a refusal: the scope the token lacks, that the
+   * organization is out of customers or instances, that the catalogue has no free plan. Those are
+   * configuration, and a visitor has no use for them: a site that is live says `signup_unavailable` and keeps
+   * the rest to its log. Default: no.
+   */
+  developerDetail?: boolean;
   /** Where a line about a refusal goes. Default: the console's error output. */
   log?: (message: string) => void;
   /** The clock, for the licence's dates. */
@@ -125,7 +135,14 @@ function missingScope(error: KaitenError, fallback: string): string {
 const SCOPES = "write:customers, write:instances and write:customer_sessions";
 
 export function accountRoutes(options: AccountRoutesOptions): Route {
-  const { client, cookie, readCatalogue, ledger, signUp = () => true } = options;
+  const {
+    client,
+    cookie,
+    readCatalogue,
+    ledger,
+    signUp = () => true,
+    developerDetail = false,
+  } = options;
   const log = options.log ?? ((message: string) => console.error(message));
   const now = options.now ?? (() => new Date());
   const suffix = options.suffix;
@@ -223,8 +240,12 @@ export function accountRoutes(options: AccountRoutesOptions): Route {
         `[storefront] ${failed}: KAITEN_API_TOKEN does not hold ${scope}. ` +
           `Sign-up mode needs ${SCOPES} on the server token.`,
       );
-      return new SignUpRefused(502, { error: "missing_scope", scope });
+      return developerDetail
+        ? new SignUpRefused(502, { error: "missing_scope", scope })
+        : new SignUpRefused(502, { error: "signup_unavailable" });
     }
+    // The contract lists no 429 for these two operations (it lists a 503 with `Retry-After`); a gateway
+    // in front of Kaiten can still send one, and a visitor is better told to wait than that it failed.
     if (error.status === 429) {
       log(`[storefront] ${failed}: Kaiten limits the rate (429 ${error.code}).`);
       return new SignUpRefused(
@@ -243,7 +264,9 @@ export function accountRoutes(options: AccountRoutesOptions): Route {
     }
     if (error.status === 409 && error.code?.endsWith(".EntitlementLimitReached")) {
       log(`[storefront] ${failed}: your Kaiten organization reached its ${what} limit.`);
-      return new SignUpRefused(409, { error: "limit_reached" });
+      return developerDetail
+        ? new SignUpRefused(409, { error: "limit_reached" })
+        : new SignUpRefused(502, { error: "signup_unavailable" });
     }
     if (error.status === 422 && error.code === "CreateCustomer.InvalidBillingEmail") {
       log(`[storefront] ${failed}: Kaiten does not accept the e-mail address (422 ${error.code}).`);
@@ -259,23 +282,60 @@ export function accountRoutes(options: AccountRoutesOptions): Route {
     return new SignUpRefused(502, { error: "signup_unavailable" });
   }
 
+  /** The request's JSON, or the answer to give instead: a body too big, or not JSON, is refused unread. */
+  async function readBody(
+    request: Request,
+  ): Promise<{ ok: true; value: unknown } | { ok: false; response: Response }> {
+    const type = request.headers.get("content-type")?.split(";")[0]?.trim().toLowerCase();
+    if (type !== "application/json") {
+      return { ok: false, response: json(415, { error: "unsupported_media_type" }) };
+    }
+    const tooBig = { ok: false as const, response: json(413, { error: "too_large" }) };
+    const declared = Number(request.headers.get("content-length") ?? 0);
+    if (declared > BODY_MAX_BYTES) return tooBig;
+
+    // The declared length is the client's word: count what arrives, and stop reading past the limit.
+    const chunks: Uint8Array[] = [];
+    let received = 0;
+    const reader = request.body?.getReader();
+    while (reader) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      received += value.byteLength;
+      if (received > BODY_MAX_BYTES) {
+        await reader.cancel().catch(() => {});
+        return tooBig;
+      }
+      chunks.push(value);
+    }
+    try {
+      return { ok: true, value: JSON.parse(Buffer.concat(chunks).toString("utf8")) as unknown };
+    } catch {
+      return { ok: true, value: null };
+    }
+  }
+
   async function signUpAccount(request: Request): Promise<Response> {
     if (cookie.read(request) !== null) return json(409, { error: "already_signed_in" });
 
-    const body: unknown = await request.json().catch(() => null);
-    const checked = checkSignUp(body);
+    const body = await readBody(request);
+    if (!body.ok) return body.response;
+    const checked = checkSignUp(body.value);
     if (!checked.ok) return json(400, { error: "invalid", fields: checked.fields });
-    const chosen =
-      typeof body === "object" &&
-      body !== null &&
-      typeof (body as { plan?: unknown }).plan === "string"
-        ? (body as { plan: string }).plan
-        : undefined;
 
     let licenseId: string;
     try {
-      const licence = licenceForNewAccount(await readCatalogue(), chosen);
-      if (licence === null) return json(422, { error: "plan_required" });
+      const licence = licenceForNewAccount(await readCatalogue());
+      if (licence === null) {
+        log(
+          "[storefront] The catalogue has no free plan, so no visitor can sign up: publish a FREE plan. " +
+            "An instance needs a licence and holds its entitlements, so the one a new account starts on is " +
+            "never the visitor's to choose.",
+        );
+        return developerDetail
+          ? json(422, { error: "free_plan_required" })
+          : json(502, { error: "signup_unavailable" });
+      }
       licenseId = licence.licenseId;
     } catch {
       log("[storefront] The public catalogue could not be read to sign a visitor up.");

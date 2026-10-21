@@ -190,7 +190,26 @@ h1[tabindex="-1"]:focus {
   white-space: nowrap;
 }
 
-.site-nav a:hover {
+/* "Sign out" is an action, not a page: a button, dressed like the links around it. */
+.site-nav-button {
+  padding: 0.375rem 0.75rem;
+  border: 0;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.9375rem;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.site-nav-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.site-nav a:hover,
+.site-nav-button:hover:not(:disabled) {
   color: var(--text);
   background: var(--bg);
 }
@@ -488,9 +507,29 @@ code {
   margin: 0;
 }
 
+/* The message that has the keyboard after a refusal: a ring around it, drawn off the notice's edge. */
+.signup-alert:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+/* A notice with two lines: the paragraphs are the notice's, and carry none of the browser's margins. */
+.signup-alert .notice p {
+  margin: 0;
+}
+
+.signup-alert .notice p + p {
+  margin-top: 0.375rem;
+}
+
 .signup-developer {
-  margin: 0.375rem 0 0;
   font-size: 0.8125rem;
+}
+
+/* A name in a sentence, not a chip: the padding of a code span would leave a gap before the stop. */
+.signup-developer code {
+  padding-inline: 0;
+  overflow-wrap: anywhere;
 }
 
 .signup-actions {
@@ -516,8 +555,13 @@ code {
   font-size: 0.8125rem;
 }
 
-.field-hint {
+.field-hint,
+.field-required {
   color: var(--text-muted);
+}
+
+.field-required {
+  font-weight: 400;
 }
 
 /* The error red, pulled toward the text colour: on a card of any theme it reads at 4.5:1 or more. */
@@ -875,6 +919,18 @@ code {
     overflow: hidden;
     clip-path: inset(50%);
     white-space: nowrap;
+  }
+
+  /* Four entries (Sign out, once there is an account) in 320px: tighter, so that none is cut. */
+  .site-nav {
+    gap: 0;
+    margin-inline: -1rem;
+    padding-inline: 0.25rem;
+  }
+
+  .site-nav a,
+  .site-nav-button {
+    padding-inline: 0.5rem;
   }
 }
 
