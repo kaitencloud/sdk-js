@@ -13,9 +13,18 @@ import { randomBytes } from "node:crypto";
 import { createKaitenClient } from "@kaitencloud/server";
 import type { Connect, Plugin } from "vite-plus";
 
+import { createAccountCookie } from "./account-cookie.ts";
+import { accountRoutes, SessionLedger, sessionAccounts } from "./account-routes.ts";
 import { createKaitenDouble, DOUBLE_PATH } from "./double/kaiten-double.ts";
-import { loadEnvironment, readEnvironment, type Environment } from "./environment.ts";
+import {
+  describeEnvironment,
+  loadEnvironment,
+  readEnvironment,
+  signsUp,
+  type Environment,
+} from "./environment.ts";
 import { sendResponse, toRequest, type Route } from "./http.ts";
+import { catalogueReader, type ReadCatalogue } from "./public-catalog.ts";
 import { sessionRoute } from "./session-route.ts";
 import { vendorRoute } from "./vendor-route.ts";
 
@@ -40,6 +49,39 @@ const json = (body: unknown) =>
     headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
   });
 
+/**
+ * The routes that know who the visitor is: whether they have an account, the sign-up and the sign-out
+ * (`account-routes.ts`), and the one that mints their session (`session-route.ts`). `signUp` says, at each
+ * request, whether visitors make accounts or the storefront has one customer; the stand-in answers it
+ * from its scenario, and a live storefront from its environment.
+ */
+function accountsBackend(options: {
+  client: ReturnType<typeof createKaitenClient>;
+  cookieSecret: string | undefined;
+  readCatalogue: ReadCatalogue;
+  signUp: () => boolean;
+  /** The fixed customer, for when `signUp` says no. */
+  fixed: { customerSlug: string; instanceSlug: string } | undefined;
+}): Route[] {
+  const cookie = createAccountCookie(options.cookieSecret);
+  const ledger = new SessionLedger();
+  return [
+    accountRoutes({
+      client: options.client,
+      cookie,
+      ledger,
+      readCatalogue: options.readCatalogue,
+      signUp: options.signUp,
+    }),
+    sessionRoute({
+      client: options.client,
+      ...options.fixed,
+      accounts: sessionAccounts(cookie, ledger),
+      signUp: options.signUp,
+    }),
+  ];
+}
+
 /** The routes of the storefront's backend for an environment, with the stand-in's when it is one. */
 export function storefrontRoutes(environment: Environment): Route[] {
   if (environment.mode === "live") {
@@ -48,15 +90,23 @@ export function storefrontRoutes(environment: Environment): Route[] {
       apiUrl: environment.apiUrl,
       publishableKey: environment.publishableKey,
     };
+    const visitorsSignUp = signsUp(environment);
     return [
       (request) => (new URL(request.url).pathname === CONFIG_PATH ? json(config) : undefined),
-      sessionRoute({
+      ...accountsBackend({
         client: createKaitenClient({
           baseUrl: environment.apiUrl,
           token: environment.serverToken,
         }),
-        customerSlug: environment.customerSlug,
-        instanceSlug: environment.instanceSlug,
+        cookieSecret: environment.cookieSecret,
+        readCatalogue: catalogueReader({
+          apiUrl: environment.apiUrl,
+          publishableKey: environment.publishableKey,
+        }),
+        signUp: () => visitorsSignUp,
+        fixed: visitorsSignUp
+          ? undefined
+          : { customerSlug: environment.customerSlug!, instanceSlug: environment.instanceSlug! },
       }),
     ];
   }
@@ -89,7 +139,19 @@ export function storefrontRoutes(environment: Environment): Route[] {
       };
       return json(config);
     },
-    sessionRoute({ client, customerSlug: DOUBLE_CUSTOMER, instanceSlug: DOUBLE_INSTANCE }),
+    // The stand-in plays either: one customer (its default), or a visitor who signs up (a scenario a
+    // test or the journey page starts it in), so the mode is asked at each request.
+    ...accountsBackend({
+      client,
+      cookieSecret: environment.cookieSecret,
+      readCatalogue: catalogueReader({
+        apiUrl: "http://kaiten-double.invalid",
+        publishableKey,
+        fetch: fetchDouble,
+      }),
+      signUp: () => double.signUp(),
+      fixed: { customerSlug: DOUBLE_CUSTOMER, instanceSlug: DOUBLE_INSTANCE },
+    }),
     // The vendor's side of a plan change, for the journey page. Only against the stand-in.
     vendorRoute({ client, instanceSlug: DOUBLE_INSTANCE }),
     double.route,
@@ -134,11 +196,7 @@ export function storefront(): Plugin {
     // `envDir: false` is a project that turned the files off: the shell is all there is.
     const environment =
       envDir === false ? readEnvironment(process.env) : loadEnvironment(mode, envDir);
-    server.config.logger.info(
-      environment.mode === "live"
-        ? `  storefront: running against the Kaiten at ${environment.apiUrl}`
-        : "  storefront: running against a stand-in for Kaiten (copy .env.example to .env and fill it, or set the same variables in your shell, to use yours)",
-    );
+    for (const line of describeEnvironment(environment)) server.config.logger.info(`  ${line}`);
     return storefrontRoutes(environment);
   };
 

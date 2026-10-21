@@ -32,6 +32,11 @@ export function toRequest(incoming: IncomingMessage): Request {
 /** Writes a standard response to a Node one. */
 export async function sendResponse(outgoing: ServerResponse, response: Response): Promise<void> {
   outgoing.statusCode = response.status;
-  response.headers.forEach((value, name) => outgoing.setHeader(name, value));
+  // `forEach` hands over every `Set-Cookie` separately, and `setHeader` would keep the last of them.
+  response.headers.forEach((value, name) => {
+    if (name !== "set-cookie") outgoing.setHeader(name, value);
+  });
+  const cookies = response.headers.getSetCookie();
+  if (cookies.length > 0) outgoing.setHeader("Set-Cookie", cookies);
   outgoing.end(Buffer.from(await response.arrayBuffer()));
 }

@@ -9,10 +9,12 @@ import { createServer, loadEnv, preview, resolveConfig, type UserConfigFnObject 
 import { afterEach, beforeEach, describe, expect, test } from "vite-plus/test";
 
 import {
+  describeEnvironment,
   LIVE_VARIABLES,
   loadEnvironment,
   loadEnvironmentVariables,
   readEnvironment,
+  signsUp,
 } from "../server/environment.ts";
 import { storefront } from "../server/plugin.ts";
 import config from "../vite.config.ts";
@@ -67,6 +69,147 @@ describe("which Kaiten the storefront runs against", () => {
     expect(() => readEnvironment({ KAITEN_API_URL: live.KAITEN_API_URL })).toThrow(
       /KAITEN_API_TOKEN, KAITEN_PUBLISHABLE_KEY, STOREFRONT_CUSTOMER_SLUG, STOREFRONT_INSTANCE_SLUG/,
     );
+  });
+
+  test("sign-up mode, when the Kaiten is named and no customer is: visitors make their own", () => {
+    const {
+      STOREFRONT_CUSTOMER_SLUG: _customer,
+      STOREFRONT_INSTANCE_SLUG: _instance,
+      ...kaiten
+    } = live;
+    const environment = readEnvironment(kaiten);
+    expect(environment).toEqual({
+      mode: "live",
+      apiUrl: "https://kaiten.test/api",
+      serverToken: "ksh_from_the_environment",
+      publishableKey: "pk_from_the_environment",
+    });
+    expect("customerSlug" in environment).toBe(false);
+    expect(signsUp(environment)).toBe(true);
+    expect(signsUp(readEnvironment(live))).toBe(false);
+    expect(signsUp(readEnvironment({}))).toBe(false);
+    // Empty slugs are no slugs, as everywhere.
+    expect(
+      signsUp(
+        readEnvironment({ ...kaiten, STOREFRONT_CUSTOMER_SLUG: " ", STOREFRONT_INSTANCE_SLUG: "" }),
+      ),
+    ).toBe(true);
+  });
+
+  test.each([
+    ["STOREFRONT_CUSTOMER_SLUG", "STOREFRONT_INSTANCE_SLUG"],
+    ["STOREFRONT_INSTANCE_SLUG", "STOREFRONT_CUSTOMER_SLUG"],
+  ])(
+    "a refusal that names the half of the pair that is missing, when only %s is set",
+    (given, missing) => {
+      const { KAITEN_API_URL, KAITEN_API_TOKEN, KAITEN_PUBLISHABLE_KEY } = live;
+      const variables = {
+        KAITEN_API_URL,
+        KAITEN_API_TOKEN,
+        KAITEN_PUBLISHABLE_KEY,
+        [given]: "initech",
+      };
+      expect(() => readEnvironment(variables)).toThrow(
+        new RegExp(`These are missing: ${missing}\\.`),
+      );
+      expect(() => readEnvironment(variables)).toThrow(
+        /STOREFRONT_CUSTOMER_SLUG and STOREFRONT_INSTANCE_SLUG go together: both to sign in as one customer, neither to let visitors sign up/,
+      );
+    },
+  );
+
+  test("a customer without a Kaiten is refused, naming the Kaiten", () => {
+    expect(() =>
+      readEnvironment({
+        STOREFRONT_CUSTOMER_SLUG: "initech",
+        STOREFRONT_INSTANCE_SLUG: "initech-lab",
+      }),
+    ).toThrow(/These are missing: KAITEN_API_URL, KAITEN_API_TOKEN, KAITEN_PUBLISHABLE_KEY\./);
+  });
+
+  test("a half Kaiten and half a customer is refused, naming both", () => {
+    expect(() =>
+      readEnvironment({ KAITEN_API_URL: live.KAITEN_API_URL, STOREFRONT_CUSTOMER_SLUG: "initech" }),
+    ).toThrow(
+      /These are missing: KAITEN_API_TOKEN, KAITEN_PUBLISHABLE_KEY, STOREFRONT_INSTANCE_SLUG\./,
+    );
+  });
+
+  test("a secret for the cookie is taken when it is long enough, in every mode", () => {
+    const secret = "s".repeat(32);
+    const {
+      STOREFRONT_CUSTOMER_SLUG: _customer,
+      STOREFRONT_INSTANCE_SLUG: _instance,
+      ...kaiten
+    } = live;
+    expect(readEnvironment({ ...kaiten, STOREFRONT_COOKIE_SECRET: secret })).toEqual({
+      mode: "live",
+      apiUrl: "https://kaiten.test/api",
+      serverToken: "ksh_from_the_environment",
+      publishableKey: "pk_from_the_environment",
+      cookieSecret: secret,
+    });
+    expect(readEnvironment({ ...live, STOREFRONT_COOKIE_SECRET: secret })).toMatchObject({
+      customerSlug: "initech",
+      cookieSecret: secret,
+    });
+    expect(readEnvironment({ STOREFRONT_COOKIE_SECRET: secret })).toEqual({
+      mode: "double",
+      cookieSecret: secret,
+    });
+    // Surrounding space is not part of a secret, and an empty one is none.
+    expect(readEnvironment({ STOREFRONT_COOKIE_SECRET: `  ${secret}\n` })).toMatchObject({
+      cookieSecret: secret,
+    });
+    expect(readEnvironment({ ...kaiten, STOREFRONT_COOKIE_SECRET: "" })).not.toHaveProperty(
+      "cookieSecret",
+    );
+  });
+
+  test("a secret that is too short is refused, by name, and never repeated", () => {
+    let message = "";
+    try {
+      readEnvironment({ ...live, STOREFRONT_COOKIE_SECRET: "tooshort-secret" });
+    } catch (error) {
+      message = (error as Error).message;
+    }
+    expect(message).toMatch(/STOREFRONT_COOKIE_SECRET must be at least 32 characters/);
+    expect(message).not.toContain("tooshort-secret");
+    // In the stand-in's mode too: a secret that is wrong is wrong wherever it is.
+    expect(() => readEnvironment({ STOREFRONT_COOKIE_SECRET: "short" })).toThrow(
+      /STOREFRONT_COOKIE_SECRET/,
+    );
+  });
+
+  test("the secret is not what tells the stand-in from a Kaiten", () => {
+    expect(readEnvironment({ STOREFRONT_COOKIE_SECRET: "" })).toEqual({ mode: "double" });
+    expect(() =>
+      readEnvironment({ ...live, KAITEN_API_TOKEN: "", STOREFRONT_COOKIE_SECRET: "s".repeat(40) }),
+    ).toThrow(/These are missing: KAITEN_API_TOKEN\./);
+  });
+
+  test("says at start what the storefront runs against, and what a sign-up needs", () => {
+    const {
+      STOREFRONT_CUSTOMER_SLUG: _customer,
+      STOREFRONT_INSTANCE_SLUG: _instance,
+      ...kaiten
+    } = live;
+
+    expect(describeEnvironment(readEnvironment(live))).toEqual([
+      "storefront: running against the Kaiten at https://kaiten.test/api, as the customer initech",
+    ]);
+    const signUp = describeEnvironment(readEnvironment(kaiten));
+    expect(signUp[0]).toBe(
+      "storefront: running against the Kaiten at https://kaiten.test/api; visitors sign up (KAITEN_API_TOKEN needs write:customers, write:instances and write:customer_sessions)",
+    );
+    // Without a secret the accounts are forgotten at each restart, and the log says so.
+    expect(signUp[1]).toContain("forgotten when the server restarts");
+    expect(signUp[1]).toContain("STOREFRONT_COOKIE_SECRET");
+    expect(signUp).toHaveLength(2);
+    expect(
+      describeEnvironment(readEnvironment({ ...kaiten, STOREFRONT_COOKIE_SECRET: "s".repeat(32) })),
+    ).toHaveLength(1);
+    expect(describeEnvironment(readEnvironment({}))[0]).toContain("stand-in for Kaiten");
   });
 
   test("never repeats a value in the refusal", () => {
@@ -191,6 +334,32 @@ describe("which Kaiten the storefront runs against, from the shell and the .env 
     });
   });
 
+  test("a .env file that names the Kaiten and no customer is a storefront whose visitors sign up", () => {
+    const {
+      STOREFRONT_CUSTOMER_SLUG: _customer,
+      STOREFRONT_INSTANCE_SLUG: _instance,
+      ...kaiten
+    } = live;
+    write(".env", { ...kaiten, STOREFRONT_COOKIE_SECRET: "f".repeat(40) });
+    expect(loadEnvironment("development", directory)).toEqual({
+      mode: "live",
+      apiUrl: "https://kaiten.test/api",
+      serverToken: "ksh_from_the_environment",
+      publishableKey: "pk_from_the_environment",
+      cookieSecret: "f".repeat(40),
+    });
+    // The shell wins here too, and an empty one takes the secret away.
+    process.env.STOREFRONT_COOKIE_SECRET = "";
+    expect(loadEnvironment("development", directory)).not.toHaveProperty("cookieSecret");
+  });
+
+  test("a .env file with half of a customer is refused", () => {
+    write(".env", { ...live, STOREFRONT_INSTANCE_SLUG: "" });
+    expect(() => loadEnvironment("development", directory)).toThrow(
+      /These are missing: STOREFRONT_INSTANCE_SLUG\./,
+    );
+  });
+
   test("the files are read the way Vite reads them: .env, .env.local, .env.[mode], .env.[mode].local", () => {
     write(".env", live);
     expect(loadEnvironment("development", directory)).toMatchObject({ customerSlug: "initech" });
@@ -228,7 +397,7 @@ describe("which Kaiten the storefront runs against, from the shell and the .env 
     }
   });
 
-  test("only the five variables are taken from the files", () => {
+  test("only the storefront's variables are taken from the files", () => {
     write(".env", { ...live, SOMETHING_ELSE: "x", VITE_PUBLIC: "y" });
     expect(Object.keys(loadEnvironmentVariables("development", directory)).sort()).toEqual(
       [...NAMES].sort(),
@@ -291,6 +460,40 @@ describe("which Kaiten the storefront runs against, from the shell and the .env 
       });
       await server.close();
       expect(lines.join("\n")).toContain("running against the Kaiten at https://kaiten.test/api");
+    });
+
+    test("the dev server says that visitors sign up, and what that needs, when no customer is named", async () => {
+      const {
+        STOREFRONT_CUSTOMER_SLUG: _customer,
+        STOREFRONT_INSTANCE_SLUG: _instance,
+        ...kaiten
+      } = live;
+      write(".env", kaiten);
+      const lines: string[] = [];
+      const server = await createServer({
+        root: directory,
+        configFile: false,
+        envDir: directory,
+        plugins: [storefront()],
+        server: { middlewareMode: true },
+        customLogger: {
+          info: (message) => lines.push(message),
+          warn: () => {},
+          warnOnce: () => {},
+          error: () => {},
+          clearScreen: () => {},
+          hasErrorLogged: () => false,
+          hasWarned: false,
+        },
+      });
+      await server.close();
+      const log = lines.join("\n");
+      expect(log).toContain(
+        "running against the Kaiten at https://kaiten.test/api; visitors sign up",
+      );
+      expect(log).toContain("write:customers, write:instances and write:customer_sessions");
+      expect(log).toContain("forgotten when the server restarts");
+      expect(log).not.toContain("as the customer");
     });
 
     test("so does the preview server, and a variable of the shell wins there too", async () => {
