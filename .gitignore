@@ -15,6 +15,11 @@ storybook-static
 *.local
 coverage
 
+# Local environment files (examples/storefront reads its Kaiten from them); .env.example is committed
+.env
+.env.local
+.env.*.local
+
 # Playwright (visual regression)
 playwright-report
 test-results

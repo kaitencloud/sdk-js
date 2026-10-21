@@ -336,8 +336,14 @@ with a message that says so, and a checkout subscribes at once instead of waitin
 
 ## Run it against your Kaiten
 
-Set all of these on the server that runs `vp dev` or `vp preview`, and it talks to your Kaiten
-instead:
+Copy `.env.example` to `.env` in this directory, fill in the five variables, and run `vp dev`
+(or `vp preview`): the storefront talks to your Kaiten instead of the stand-in.
+
+```bash
+cd examples/storefront
+cp .env.example .env     # then fill it in
+vp dev                   # http://localhost:5173
+```
 
 | Variable                   | Value                                                                                      |
 | -------------------------- | ------------------------------------------------------------------------------------------ |
@@ -347,9 +353,19 @@ instead:
 | `STOREFRONT_CUSTOMER_SLUG` | The customer the storefront signs in as                                                    |
 | `STOREFRONT_INSTANCE_SLUG` | One of that customer's instances: the one a checkout subscribes                            |
 
-With some of them and not all, the server refuses to start and says which are missing: a shell that
-kept one variable from another project must not give you a different storefront. The token is read
-by the backend and goes to Kaiten, and nowhere else.
+The files are read the way Vite reads them: `.env`, `.env.local`, `.env.[mode]` and
+`.env.[mode].local`, the last one winning. `.env`, `.env.local` and `.env.*.local` are git-ignored;
+`.env.example` is the committed template. Setting the same variables in your shell works too, and
+**a variable of the shell wins over the files, even when it is empty**: with the five set to empty
+in the shell, you are back on the stand-in whatever `.env` holds, which is how the end-to-end tests
+stay on it.
+
+With some of the variables and not all, the server refuses to start and says which are missing: a
+shell that kept one variable from another project must not give you a different storefront. The
+variables are read by the backend only. They have no `VITE_` prefix, so Vite never puts them in
+`import.meta.env` or in the page, and the token goes to Kaiten and nowhere else. If you serve the
+page on another port, add that origin (`http://localhost:<port>`) to the publishable key's allowed
+origins.
 
 Your Kaiten needs billing switched on, a public catalogue (a licence family made public, with a
 default flat-fee price), and an instance that has no subscription. What a customer can buy depends

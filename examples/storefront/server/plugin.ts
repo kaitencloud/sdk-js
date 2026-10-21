@@ -14,7 +14,7 @@ import { createKaitenClient } from "@kaitencloud/server";
 import type { Connect, Plugin } from "vite-plus";
 
 import { createKaitenDouble, DOUBLE_PATH } from "./double/kaiten-double.ts";
-import { readEnvironment, type Environment } from "./environment.ts";
+import { loadEnvironment, readEnvironment, type Environment } from "./environment.ts";
 import { sendResponse, toRequest, type Route } from "./http.ts";
 import { sessionRoute } from "./session-route.ts";
 import { vendorRoute } from "./vendor-route.ts";
@@ -117,14 +117,27 @@ function mount(middlewares: Connect.Server, routes: Route[]): void {
   });
 }
 
-/** The storefront's backend, for `vp dev` and `vp preview`. */
+/**
+ * The storefront's backend, for `vp dev` and `vp preview`. Which Kaiten it talks to comes from the
+ * shell and from the `.env` files of Vite's `envDir` (see `loadEnvironment`), read here on the
+ * server: none of it reaches the page.
+ */
 export function storefront(): Plugin {
-  const start = (server: { config: { logger: { info: (message: string) => void } } }) => {
-    const environment = readEnvironment();
+  const start = (server: {
+    config: {
+      mode: string;
+      envDir: string | false;
+      logger: { info: (message: string) => void };
+    };
+  }) => {
+    const { mode, envDir } = server.config;
+    // `envDir: false` is a project that turned the files off: the shell is all there is.
+    const environment =
+      envDir === false ? readEnvironment(process.env) : loadEnvironment(mode, envDir);
     server.config.logger.info(
       environment.mode === "live"
         ? `  storefront: running against the Kaiten at ${environment.apiUrl}`
-        : "  storefront: running against a stand-in for Kaiten (set KAITEN_API_URL and the other variables of the README to use yours)",
+        : "  storefront: running against a stand-in for Kaiten (copy .env.example to .env and fill it, or set the same variables in your shell, to use yours)",
     );
     return storefrontRoutes(environment);
   };

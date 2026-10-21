@@ -28,10 +28,14 @@ function palettes(): Plugin {
 
 // No React plugin: the build compiles JSX on its own, with the automatic runtime that
 // tsconfig.json asks for ("jsx": "react-jsx"). `storefront()` is the backend: see server/plugin.ts.
-export default defineConfig({
-  plugins: [storefront(), palettes()],
+//
+// `vp test` is Vitest, which starts a Vite server of its own from this file. It does not get the
+// backend: its tests build what they need, and a `.env` that names a Kaiten, or names half of one,
+// must neither make a unit run go live nor stop it.
+export default defineConfig(({ mode }) => ({
+  plugins: [...(mode === "test" ? [] : [storefront()]), palettes()],
   test: {
     // The Playwright specs in e2e/ are the runner's own, and import `@playwright/test`.
     include: ["tests/**/*.test.ts"],
   },
-});
+}));
