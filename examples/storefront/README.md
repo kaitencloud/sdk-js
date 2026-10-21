@@ -23,6 +23,12 @@ cd examples/storefront
 vp dev            # http://localhost:5173
 ```
 
+The stand-in starts as **one customer**, signed in, so that you land on a pricing table you can buy
+from. To see the path a **visitor who has no account** takes (a pricing table, a "Create your account"
+step, a checkout), open the **Journey** page and start **A visitor signs up and buys a plan**; the
+[section below](#visitors-who-sign-up) says what happens. Against your own Kaiten with no customer
+named, that is the mode you start in.
+
 ## The theme
 
 The header has two controls, and they are two separate choices: the **colour mode** (Light / Dark /
@@ -238,7 +244,7 @@ on your site:
   visitor picked, at the same address.
 
 ```
-page ──POST /storefront-api/signup {name, email, plan}──▶ backend
+page ──POST /storefront-api/signup {name, email}──────▶ backend
                           ──GET  /public/catalog (pk_)────────────────────────────▶ Kaiten  which licence to start on
                           ──POST /customers      (ksh_)────────────────────────────▶ Kaiten  write:customers
                           ──POST /instances      (ksh_)────────────────────────────▶ Kaiten  write:instances
@@ -252,15 +258,17 @@ What the backend creates, and why ([`server/account-routes.ts`](server/account-r
 - **The customer**: `name`, a slug of its own making (the name's slug and six random hexadecimal
   characters, Kaiten's own shape; a slug that is taken is tried again with another suffix, three times)
   and `billingEmail`. The checkout does not ask the customer for an address again.
-- **The instance**: `POST /instances` requires a licence, so there is no instance without one. It starts
-  on **the catalogue's free plan** when there is one, which is what Kaiten does for its own
-  organizations: a new one holds the free Starter version and has no subscription, and leaves it
-  through a checkout. A checkout moves the instance to the plan it buys, so the licence it starts on
-  does not limit what can be bought. Without a free plan, it starts on the plan the visitor picked, and
-  holds that plan's entitlements until the checkout completes: **publish a free plan** if that is not
-  what you want. From the Account entry with no plan picked and no free plan, the visitor is told to
-  choose a plan first. The licence runs three years from now, as Kaiten's registration of its own
-  instances does; billing does not read the dates.
+- **The instance**: `POST /instances` requires a licence, so there is no instance without one, and an
+  instance holds the entitlements of the licence it starts on. It starts on **the catalogue's free
+  plan**, which is what Kaiten does for its own organizations: a new one holds the free Starter version
+  and has no subscription, and leaves it through a checkout. A checkout moves the instance to the plan it
+  buys, so the licence it starts on does not limit what can be bought. **The visitor never chooses that
+  licence**: `POST /storefront-api/signup` is public, and a plan taken from its body would give any
+  caller, as often as they like, the entitlements of whichever plan they named. So **a catalogue with no
+  free plan has no sign-up**: the route creates nothing, logs that a free plan must be published, and the
+  page says that accounts can't be created right now. (The plan a visitor picks on the pricing table
+  only decides which checkout opens once the account exists.) The licence runs three years from now, as
+  Kaiten's registration of its own instances does; billing does not read the dates.
 - **A half-made account is taken back.** When the instance cannot be created, the customer just made is
   deleted (`DELETE /customers/{slug}`, covered by `write:customers`), so that a visitor who tries again
   leaves nothing behind.
@@ -269,18 +277,27 @@ The server token needs **`write:customers`**, **`write:instances`** and **`write
 The catalogue is read with the publishable key, which needs no scope. A token that lacks one is refused
 with a 403 `Auth.MissingScope`, and the storefront says which in words a developer understands: in the
 server's log (`KAITEN_API_TOKEN does not hold write:instances. Sign-up mode needs write:customers,
-write:instances and write:customer_sessions on the server token.`) and, because here the visitor is the
-developer, in a small line under the visitor's message. **A real site keeps that line to its logs.**
-The other refusals are handled too: a 409 slug conflict is retried; a customer or instance limit
-(`EntitlementLimitReached`, a 409) is logged and tells the visitor it cannot be done; a 422 on the address
-is said at the field; a 429 or a 503 passes Kaiten's `Retry-After` on to the visitor; anything else is "try
-again in a moment", with the status and code in the log and never the name or the address.
+write:instances and write:customer_sessions on the server token.`) and, while the visitor is the
+developer, in a small line under the visitor's message: **under `vp dev`, and against the stand-in**.
+Under `vp preview` against a Kaiten, which is closer to a live site, the page is only told that accounts
+can't be created right now, and the scope, the quota and the missing free plan stay in the log. The
+other refusals are handled too: a 409 slug conflict is retried; a customer or instance limit
+(`EntitlementLimitReached`, a 409) is logged, and said to a developer; a 422 on the address is said at
+the field; a 503 passes Kaiten's `Retry-After` on to the visitor; anything else is "try again in a
+moment", with the status and code in the log and never the name or the address. The contract documents
+a 503 with `Retry-After` for these two operations and no 429; a 429 from a gateway in front of Kaiten is
+handled the same way as a precaution, not as something Kaiten says.
+
+The request is checked before anything is sent to Kaiten: JSON only (`415` otherwise), 4 KiB at most
+(`413`, and the body is not read past the limit), a name and an address of the lengths the contract
+allows, and no control or invisible characters (line breaks, zero-width or bidirectional marks) in
+either.
 
 **The cookie** ([`server/account-cookie.ts`](server/account-cookie.ts)) is `storefront_account`:
 `HttpOnly`, `SameSite=Lax`, `Path=/`, 30 days, and `Secure` when the request arrived over https. It
-holds the customer's slug and the instance's, and nothing else: no name, no address, no id. It is
-signed with HMAC-SHA256, and a cookie that was altered, or not signed by this server, is ignored as if
-it were absent. The key is `STOREFRONT_COOKIE_SECRET` (32 characters or more; the server refuses to start
+holds the customer's slug and the instance's and the moment it stops being good, and nothing else:
+no name, no address, no id. It is signed with HMAC-SHA256, and a cookie that was altered in any way, not
+signed by this server, or past its 30 days, is ignored as if it were absent. The key is `STOREFRONT_COOKIE_SECRET` (32 characters or more; the server refuses to start
 with a shorter one). Without it a random key is made at each start, **the accounts are forgotten when the
 server restarts**, and the startup log says so. The session route mints for the cookie's customer, and a
 visitor with no valid cookie gets nothing minted. A cookie for a customer that Kaiten has forgotten (a
@@ -290,7 +307,10 @@ deleted customer, a stand-in that started over) is dropped, and the visitor is a
 for that customer (`CustomerSessions.revokeCustomerSession`), clears the cookie and loads the home page
 again, so that the next visitor starts clean. The cookie holds slugs only, so the ids of the sessions are
 kept in memory: after a restart there is nothing left to revoke, and a session ends by itself within an
-hour.
+hour. While someone is signed in, **Sign out** is also in the header of every page but Account. **Sign
+out ends the account on that browser, not a copy of its cookie**: there is no server-side store to tell
+that a value was cancelled, so a copy made earlier stays good until it expires or the secret changes. A
+real site keeps its sessions on the server.
 
 What this does **not** do, on purpose, and what a real site adds:
 
@@ -298,8 +318,8 @@ What this does **not** do, on purpose, and what a real site adds:
   and another browser starts as a new visitor. A real site has its own authentication, maps its user to
   the customer and instance slugs it stored, and mints for those.
 - There is **nothing against abuse** on `POST /storefront-api/signup`, a public route that creates
-  customers. Put e-mail confirmation, a CAPTCHA and a rate limit in front of it. Kaiten's 429 and its
-  customer quota are passed on, which is a floor and not a defence.
+  customers. Put e-mail confirmation, a CAPTCHA and a rate limit in front of it. Kaiten's own limits and
+  its customer quota apply, which is a floor and not a defence.
 - Behind a proxy that ends TLS, the request reaches the server as http and the cookie is not `Secure`:
   the server does not read `X-Forwarded-Proto`. This is an example, not something to put on the internet.
 
@@ -307,7 +327,9 @@ The stand-in plays this mode when it is started as a visitor: the journey page h
 (**A visitor signs up and buys a plan**), and a test does the same with `reset({ signUp: true })`. It
 implements `POST /customers`, `POST /instances` and `DELETE /customers/{slug}` as the contract has them,
 and plays **one instance at a time**: a new instance starts the billing state over, on the licence it was
-created with.
+created with, and replaces the account before it, which is then a visitor again (no session is minted for
+it, and the ones it held end). The stand-in lives in the server's memory, so it starts over at each
+restart, and with it every account.
 
 ## How the credentials move
 
