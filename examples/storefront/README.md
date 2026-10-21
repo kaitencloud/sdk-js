@@ -1,9 +1,9 @@
 # Storefront example
 
 A small shop on Kaiten billing: a **pricing table**, a **checkout** and a **customer portal**,
-in a Vite app, with the backend route that lets its page act for one customer. It is the whole
-way a customer takes through the React packages, from choosing a plan to managing it, and the
-code to read when you wire your own.
+in a Vite app, with the backend routes that let its page act for one customer, or for a visitor who
+signs up. It is the whole way a customer takes through the React packages, from choosing a plan to
+managing it, and the code to read when you wire your own.
 
 ```
 /                     PricingTable    the plans of the catalogue, from a publishable key
@@ -221,15 +221,103 @@ The vendor's scheduled plan change goes through
 tier change, here for the presenter's sake; a real storefront has no such route on its customer-facing
 server, and this one is mounted only against the stand-in.
 
+## Visitors who sign up
+
+A real shop has visitors who are not customers yet. **Kaiten V1 has no anonymous checkout** (spec D-49;
+an anonymous checkout is V1.1): a checkout is a customer's, and a customer is something the vendor's
+backend creates. So there are two modes, and the second is the path to copy when your visitors sign up
+on your site:
+
+- **One customer.** The backend signs every visitor in as the customer it is given. There are no
+  accounts: this is the mode of the stand-in's default, of `STOREFRONT_CUSTOMER_SLUG` and
+  `STOREFRONT_INSTANCE_SLUG`, and of `live.spec.ts`.
+- **Sign-up.** The pricing table is public, read with the publishable key alone. **Select plan**, and
+  the **Account** entry, lead a visitor who has no account to **Create your account**: a name (a company's
+  or their own) and the e-mail the invoices go to. The backend makes the account in Kaiten, remembers it
+  in a cookie, mints the customer's session, and the page goes on with the checkout of the plan the
+  visitor picked, at the same address.
+
+```
+page ──POST /storefront-api/signup {name, email, plan}──▶ backend
+                          ──GET  /public/catalog (pk_)────────────────────────────▶ Kaiten  which licence to start on
+                          ──POST /customers      (ksh_)────────────────────────────▶ Kaiten  write:customers
+                          ──POST /instances      (ksh_)────────────────────────────▶ Kaiten  write:instances
+page ◀── 201, Set-Cookie: storefront_account=… ───────┘
+page ──POST /storefront-api/session (cookie)────────────▶ backend ──POST /customer-sessions (ksh_)──▶ Kaiten
+page ──────────── Authorization: Bearer kst_… (the checkout, as for any customer) ───────────────────▶ Kaiten
+```
+
+What the backend creates, and why ([`server/account-routes.ts`](server/account-routes.ts)):
+
+- **The customer**: `name`, a slug of its own making (the name's slug and six random hexadecimal
+  characters, Kaiten's own shape; a slug that is taken is tried again with another suffix, three times)
+  and `billingEmail`. The checkout does not ask the customer for an address again.
+- **The instance**: `POST /instances` requires a licence, so there is no instance without one. It starts
+  on **the catalogue's free plan** when there is one, which is what Kaiten does for its own
+  organizations: a new one holds the free Starter version and has no subscription, and leaves it
+  through a checkout. A checkout moves the instance to the plan it buys, so the licence it starts on
+  does not limit what can be bought. Without a free plan, it starts on the plan the visitor picked, and
+  holds that plan's entitlements until the checkout completes: **publish a free plan** if that is not
+  what you want. From the Account entry with no plan picked and no free plan, the visitor is told to
+  choose a plan first. The licence runs three years from now, as Kaiten's registration of its own
+  instances does; billing does not read the dates.
+- **A half-made account is taken back.** When the instance cannot be created, the customer just made is
+  deleted (`DELETE /customers/{slug}`, covered by `write:customers`), so that a visitor who tries again
+  leaves nothing behind.
+
+The server token needs **`write:customers`**, **`write:instances`** and **`write:customer_sessions`**.
+The catalogue is read with the publishable key, which needs no scope. A token that lacks one is refused
+with a 403 `Auth.MissingScope`, and the storefront says which in words a developer understands: in the
+server's log (`KAITEN_API_TOKEN does not hold write:instances. Sign-up mode needs write:customers,
+write:instances and write:customer_sessions on the server token.`) and, because here the visitor is the
+developer, in a small line under the visitor's message. **A real site keeps that line to its logs.**
+The other refusals are handled too: a 409 slug conflict is retried; a customer or instance limit
+(`EntitlementLimitReached`, a 409) is logged and tells the visitor it cannot be done; a 422 on the address
+is said at the field; a 429 or a 503 passes Kaiten's `Retry-After` on to the visitor; anything else is "try
+again in a moment", with the status and code in the log and never the name or the address.
+
+**The cookie** ([`server/account-cookie.ts`](server/account-cookie.ts)) is `storefront_account`:
+`HttpOnly`, `SameSite=Lax`, `Path=/`, 30 days, and `Secure` when the request arrived over https. It
+holds the customer's slug and the instance's, and nothing else: no name, no address, no id. It is
+signed with HMAC-SHA256, and a cookie that was altered, or not signed by this server, is ignored as if
+it were absent. The key is `STOREFRONT_COOKIE_SECRET` (32 characters or more; the server refuses to start
+with a shorter one). Without it a random key is made at each start, **the accounts are forgotten when the
+server restarts**, and the startup log says so. The session route mints for the cookie's customer, and a
+visitor with no valid cookie gets nothing minted. A cookie for a customer that Kaiten has forgotten (a
+deleted customer, a stand-in that started over) is dropped, and the visitor is a visitor again.
+
+**Sign out**, on the Account page beside the customer's name, revokes the sessions this process minted
+for that customer (`CustomerSessions.revokeCustomerSession`), clears the cookie and loads the home page
+again, so that the next visitor starts clean. The cookie holds slugs only, so the ids of the sessions are
+kept in memory: after a restart there is nothing left to revoke, and a session ends by itself within an
+hour.
+
+What this does **not** do, on purpose, and what a real site adds:
+
+- There is **no sign-in**: no password, no link by e-mail. An account lives in the browser that made it,
+  and another browser starts as a new visitor. A real site has its own authentication, maps its user to
+  the customer and instance slugs it stored, and mints for those.
+- There is **nothing against abuse** on `POST /storefront-api/signup`, a public route that creates
+  customers. Put e-mail confirmation, a CAPTCHA and a rate limit in front of it. Kaiten's 429 and its
+  customer quota are passed on, which is a floor and not a defence.
+- Behind a proxy that ends TLS, the request reaches the server as http and the cookie is not `Secure`:
+  the server does not read `X-Forwarded-Proto`. This is an example, not something to put on the internet.
+
+The stand-in plays this mode when it is started as a visitor: the journey page has a scenario for it
+(**A visitor signs up and buys a plan**), and a test does the same with `reset({ signUp: true })`. It
+implements `POST /customers`, `POST /instances` and `DELETE /customers/{slug}` as the contract has them,
+and plays **one instance at a time**: a new instance starts the billing state over, on the licence it was
+created with.
+
 ## How the credentials move
 
 Three credentials are involved, and each one stays on its own routes:
 
-| Credential                | Held by             | Sent to                                                              |
-| ------------------------- | ------------------- | -------------------------------------------------------------------- |
-| a publishable key `pk_`   | the page            | `GET /public/catalog`, and nothing else                              |
-| a customer session `kst_` | the page, in memory | `/public/session/*`: the portal and the checkout of **one** customer |
-| a server token `ksh_`     | the backend only    | `POST /customer-sessions`, to mint the session                       |
+| Credential                | Held by             | Sent to                                                                                                 |
+| ------------------------- | ------------------- | ------------------------------------------------------------------------------------------------------- |
+| a publishable key `pk_`   | the page            | `GET /public/catalog`, and nothing else                                                                 |
+| a customer session `kst_` | the page, in memory | `/public/session/*`: the portal and the checkout of **one** customer                                    |
+| a server token `ksh_`     | the backend only    | `POST /customer-sessions`, to mint the session; in sign-up mode `POST /customers` and `POST /instances` |
 
 The page never holds the server token. It asks its own backend for a session, and the backend
 mints one with `CustomerSessions.createCustomerSession` of `@kaitencloud/server`:
@@ -247,19 +335,20 @@ this example's build for a token, the name of a secret variable and code of `@ka
 
 ## What is here
 
-| Path                                                 | What it is                                                                                                              |
-| ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| [`src/`](src)                                        | the page: provider, router, the screens, the journey page, the colour mode and theme controls, [the themes](src/themes) |
-| [`server/session-route.ts`](server/session-route.ts) | `POST /storefront-api/session`, the route to put behind your own sign-in                                                |
-| [`server/plugin.ts`](server/plugin.ts)               | mounts the backend on `vp dev` and `vp preview`; nothing in `src/` imports it                                           |
-| [`server/vendor-route.ts`](server/vendor-route.ts)   | the vendor's scheduled plan change, for the journey page; the stand-in only                                             |
-| [`server/environment.ts`](server/environment.ts)     | which Kaiten to talk to, read from the environment                                                                      |
-| [`server/double/`](server/double)                    | the stand-in for Kaiten                                                                                                 |
-| [`tests/`](tests)                                    | unit tests of the backend, of the stand-in and of the themes                                                            |
-| [`e2e/`](e2e)                                        | Playwright tests of the page in Chromium                                                                                |
+| Path                                                   | What it is                                                                                                                                       |
+| ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| [`src/`](src)                                          | the page: provider, router, the screens, the journey page, the colour mode and theme controls, [the themes](src/themes)                          |
+| [`server/session-route.ts`](server/session-route.ts)   | `POST /storefront-api/session`, the route to put behind your own sign-in                                                                         |
+| [`server/account-routes.ts`](server/account-routes.ts) | sign-up mode: `GET /storefront-api/account`, `POST …/signup`, `POST …/signout`; [`account-cookie.ts`](server/account-cookie.ts) signs the cookie |
+| [`server/plugin.ts`](server/plugin.ts)                 | mounts the backend on `vp dev` and `vp preview`; nothing in `src/` imports it                                                                    |
+| [`server/vendor-route.ts`](server/vendor-route.ts)     | the vendor's scheduled plan change, for the journey page; the stand-in only                                                                      |
+| [`server/environment.ts`](server/environment.ts)       | which Kaiten to talk to, read from the environment                                                                                               |
+| [`server/double/`](server/double)                      | the stand-in for Kaiten                                                                                                                          |
+| [`tests/`](tests)                                      | unit tests of the backend, of the stand-in and of the themes                                                                                     |
+| [`e2e/`](e2e)                                          | Playwright tests of the page in Chromium                                                                                                         |
 
-The route signs in one fixed customer, because the storefront has no accounts. In your own
-application it sits behind your sign-in, reads who the user is, and mints a session for that
+The route signs in one fixed customer, or, in sign-up mode, the customer of the visitor's cookie.
+In your own application it sits behind your sign-in, reads who the user is, and mints a session for that
 user's customer and instance. It refuses a request that comes from another origin, never repeats
 what Kaiten answered to the page, and never logs the token; keep those. Revoke a session
 (`CustomerSessions.revokeCustomerSession`) when the customer signs out.
@@ -336,8 +425,9 @@ with a message that says so, and a checkout subscribes at once instead of waitin
 
 ## Run it against your Kaiten
 
-Copy `.env.example` to `.env` in this directory, fill in the five variables, and run `vp dev`
-(or `vp preview`): the storefront talks to your Kaiten instead of the stand-in.
+Copy `.env.example` to `.env` in this directory, fill it in, and run `vp dev` (or `vp preview`): the
+storefront talks to your Kaiten instead of the stand-in. There are two modes, chosen by the two slug
+variables.
 
 ```bash
 cd examples/storefront
@@ -345,26 +435,35 @@ cp .env.example .env     # then fill it in
 vp dev                   # http://localhost:5173
 ```
 
-| Variable                   | Value                                                                                      |
-| -------------------------- | ------------------------------------------------------------------------------------------ |
-| `KAITEN_API_URL`           | Your API's URL, `/api` included                                                            |
-| `KAITEN_API_TOKEN`         | A `ksh_` token that holds `write:customer_sessions`                                        |
-| `KAITEN_PUBLISHABLE_KEY`   | A publishable key whose allowed origins include the storefront's (`http://localhost:5173`) |
-| `STOREFRONT_CUSTOMER_SLUG` | The customer the storefront signs in as                                                    |
-| `STOREFRONT_INSTANCE_SLUG` | One of that customer's instances: the one a checkout subscribes                            |
+| Variable                   | Value                                                                                                      |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `KAITEN_API_URL`           | Your API's URL, `/api` included                                                                            |
+| `KAITEN_API_TOKEN`         | A `ksh_` token: `write:customer_sessions`, and in sign-up mode `write:customers` and `write:instances` too |
+| `KAITEN_PUBLISHABLE_KEY`   | A publishable key whose allowed origins include the storefront's (`http://localhost:5173`)                 |
+| `STOREFRONT_CUSTOMER_SLUG` | Optional, with the next: the customer the storefront signs in as                                           |
+| `STOREFRONT_INSTANCE_SLUG` | Optional, with the previous: one of that customer's instances, the one a checkout subscribes               |
+| `STOREFRONT_COOKIE_SECRET` | Optional: 32 characters or more, to sign the account cookie of sign-up mode                                |
+
+- **Both slugs set**: the storefront signs in that one customer, as it always did. No sign-up, no sign
+  out.
+- **Neither set**: **sign-up mode**, [described above](#visitors-who-sign-up). The three first variables
+  are all it needs, with a token that holds the three scopes.
+- **One alone**: the server refuses to start and names the one that is missing, since a pair with a
+  half is a mistake in either direction.
 
 The files are read the way Vite reads them: `.env`, `.env.local`, `.env.[mode]` and
 `.env.[mode].local`, the last one winning. `.env`, `.env.local` and `.env.*.local` are git-ignored;
 `.env.example` is the committed template. Setting the same variables in your shell works too, and
-**a variable of the shell wins over the files, even when it is empty**: with the five set to empty
-in the shell, you are back on the stand-in whatever `.env` holds, which is how the end-to-end tests
-stay on it.
+**a variable of the shell wins over the files, even when it is empty**: with them set to empty in the
+shell, you are back on the stand-in whatever `.env` holds, which is how the end-to-end tests stay on it.
 
 Vite expands `$NAME` and `${NAME}` in the values of a file, so write a literal `$` as `\$` (a real
 `ksh_` token or slug has none).
 
-With some of the variables and not all, the server refuses to start and says which are missing: a
-shell that kept one variable from another project must not give you a different storefront. The
+With only some of the first three variables, or with one slug and not the other, the server
+refuses to start and says which are missing: a shell that kept one variable from another project must
+not give you a different storefront. `STOREFRONT_COOKIE_SECRET` is never counted as missing; if it is set,
+it must be long enough, and it is accepted in every mode. The
 variables are read by the backend only. They have no `VITE_` prefix, so Vite never puts them in
 `import.meta.env` or in the page, and the token goes to Kaiten and nowhere else. If you serve the
 page on another port, add that origin (`http://localhost:<port>`) to the publishable key's allowed
@@ -390,8 +489,8 @@ Playwright runs, and CI uses the Playwright image. `pnpm run test:e2e` serves th
 `vp preview` and runs two projects. Run it with `pnpm run`: `vp run` hides the shell's variables from
 a script, and the live project reads them.
 
-- **`stand-in`**, `checkout.spec.ts`, `failures.spec.ts`, `theme.spec.ts` and `journey.spec.ts`, against the
-  stand-in. It needs nothing,
+- **`stand-in`**, `checkout.spec.ts`, `failures.spec.ts`, `theme.spec.ts`, `journey.spec.ts` and
+  `signup.spec.ts`, against the stand-in. It needs nothing,
   so it runs everywhere, CI included (`storefront-e2e` in `.github/workflows/ci.yml`).
   - `checkout.spec.ts` is the customer's way: the pricing table, a plan taken to its checkout, a card
     saved on the provider's page in a popup and, when the browser blocks popups, in place of the
@@ -405,6 +504,10 @@ a script, and the live project reads them.
     the pricing table, the free subscription ended with no invoice, Change plan and where it leads, and
     scenarios driven through the page's own buttons (a trial ended into its invoice, a renewal that fails
     and is paid from the portal, a plan change the vendor schedules and the boundary applies).
+  - `signup.spec.ts` is a visitor who is not a customer yet: signing up from the pricing table and buying
+    a plan, coming back and still being signed in, signing out and becoming a new visitor, a customer
+    Kaiten has forgotten and a cookie that was not signed, a token that lacks a scope and a request to
+    wait, the step in every theme and colour mode down to 320px, and the one-customer mode left as it was.
   - `theme.spec.ts` is the colour mode and the theme: System following the operating system, a
     choice kept across a reload and applied before the first paint, Claude's and Neo Brutalism's
     values on the page and on the components in Light and in Dark, going back to Kaiten, and a header
