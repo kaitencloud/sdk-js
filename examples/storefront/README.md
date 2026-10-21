@@ -360,6 +360,9 @@ The files are read the way Vite reads them: `.env`, `.env.local`, `.env.[mode]` 
 in the shell, you are back on the stand-in whatever `.env` holds, which is how the end-to-end tests
 stay on it.
 
+Vite expands `$NAME` and `${NAME}` in the values of a file, so write a literal `$` as `\$` (a real
+`ksh_` token or slug has none).
+
 With some of the variables and not all, the server refuses to start and says which are missing: a
 shell that kept one variable from another project must not give you a different storefront. The
 variables are read by the backend only. They have no `VITE_` prefix, so Vite never puts them in

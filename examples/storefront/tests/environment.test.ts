@@ -212,6 +212,22 @@ describe("which Kaiten the storefront runs against, from the shell and the .env 
     });
   });
 
+  test("Vite expands $NAME in a file's values, and a backslash keeps a literal $", () => {
+    process.env.STOREFRONT_TEST_PREFIX = "ksh_expanded";
+    try {
+      writeFileSync(
+        join(directory, ".env"),
+        envFile({ ...live, KAITEN_API_TOKEN: "$STOREFRONT_TEST_PREFIX" }) +
+          "\nSTOREFRONT_CUSTOMER_SLUG=in\\$itech\n",
+      );
+      const variables = loadEnvironmentVariables("development", directory);
+      expect(variables.KAITEN_API_TOKEN).toBe("ksh_expanded");
+      expect(variables.STOREFRONT_CUSTOMER_SLUG).toBe("in$itech");
+    } finally {
+      delete process.env.STOREFRONT_TEST_PREFIX;
+    }
+  });
+
   test("only the five variables are taken from the files", () => {
     write(".env", { ...live, SOMETHING_ELSE: "x", VITE_PUBLIC: "y" });
     expect(Object.keys(loadEnvironmentVariables("development", directory)).sort()).toEqual(

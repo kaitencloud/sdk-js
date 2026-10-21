@@ -31,7 +31,8 @@ function palettes(): Plugin {
 //
 // `vp test` is Vitest, which starts a Vite server of its own from this file. It does not get the
 // backend: its tests build what they need, and a `.env` that names a Kaiten, or names half of one,
-// must neither make a unit run go live nor stop it.
+// must neither make a unit run go live nor stop it. Vitest runs in Vite's `test` mode, so that is
+// what the guard keys on: `vp dev --mode test` runs without the backend too, on the stand-in.
 export default defineConfig(({ mode }) => ({
   plugins: [...(mode === "test" ? [] : [storefront()]), palettes()],
   test: {
