@@ -467,6 +467,121 @@ code {
   color: var(--error-text);
 }
 
+/* The sign-up step: a form of two fields in a panel. It is built from the page's own tokens, so that it
+   follows every theme in both colour modes. A field's border is the muted text colour, not the
+   decorative --border: a control's edge has to be seen against the card it sits on. */
+
+.signup-lead {
+  margin-bottom: 1.25rem;
+}
+
+.signup {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.signup-alert:empty {
+  display: none;
+}
+
+.signup-alert > * {
+  margin: 0;
+}
+
+.signup-developer {
+  margin: 0.375rem 0 0;
+  font-size: 0.8125rem;
+}
+
+.signup-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.field {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.field label {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.field-hint,
+.field-error {
+  margin: 0;
+  font-size: 0.8125rem;
+}
+
+.field-hint {
+  color: var(--text-muted);
+}
+
+/* The error red, pulled toward the text colour: on a card of any theme it reads at 4.5:1 or more. */
+.field-error {
+  color: color-mix(in srgb, var(--error-text) 75%, var(--text));
+  font-weight: 500;
+}
+
+.field input {
+  width: 100%;
+  min-width: 0;
+  margin-top: 0.125rem;
+  padding: 0.5rem 0.75rem;
+  border: var(--theme-border-width, 1px) solid var(--text-muted);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 1rem;
+  line-height: 1.4;
+  box-shadow: var(--shadow-xs, none);
+}
+
+.field input::placeholder {
+  color: var(--text-muted);
+}
+
+.field input:hover {
+  border-color: var(--text);
+}
+
+.field input:focus-visible {
+  border-color: var(--focus);
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+.field input[aria-invalid="true"] {
+  border-color: var(--error-text);
+}
+
+/* The account page's heading, with who is signed in and the way out beside it. */
+
+.portal-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  column-gap: 1rem;
+}
+
+.portal-identity {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.portal-identity p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
 /* The journey: the scenarios in a column, the stand-in's state beside them. */
 
 .journey-layout {

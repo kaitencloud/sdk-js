@@ -37,6 +37,8 @@ export interface StandInState {
   scheduledChange: { plan: string; priceId: string; effectiveAt: string } | null;
   addOns: Array<{ slug: string; quantity: number }>;
   card: string | null;
+  customers: Array<{ slug: string; name: string; billingEmail: string | null }>;
+  instances: Array<{ slug: string; customerSlug: string; licenseSlug: string }>;
 }
 
 /** What Kaiten would have told the vendor. The stand-in delivers none of it. */
@@ -52,6 +54,8 @@ export interface StartingPoint {
   email?: boolean;
   subscribed?: boolean;
   free?: boolean;
+  /** A visitor with no account: the storefront's backend asks the visitor to sign up. */
+  signUp?: boolean;
 }
 
 /** A refusal, with the words the stand-in or Kaiten gave for it. */

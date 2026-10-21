@@ -71,6 +71,25 @@ export function chapters(catalogue: JourneyCatalogue): Chapter[] {
       title: "Buying a plan",
       scenarios: [
         {
+          id: "visitor",
+          title: "A visitor signs up and buys a plan",
+          lead: "Kaiten V1 has no anonymous checkout: the storefront's backend makes the customer and its instance when the visitor signs up, then mints their session.",
+          steps: [
+            {
+              text: "Start as a visitor: no account, no customer, no instance in Kaiten yet. The pricing table is public.",
+              actions: [start("Start as a visitor", { signUp: true }), go("Open the plans", "/")],
+            },
+            {
+              text: "Choose a plan. The checkout asks to create an account first: a name, and the e-mail the invoices go to. The backend creates the customer and an instance on the free plan, and the checkout carries on.",
+              actions: [go("Open Pro's checkout", "/checkout/pro-v2")],
+            },
+            {
+              text: "The account page names the customer. Sign out forgets the account, and the next visitor starts again.",
+              actions: [go("Open the account", "/portal")],
+            },
+          ],
+        },
+        {
           id: "trial",
           title: "Buy a plan with a trial",
           lead: "Growth starts with 14 days free. Nothing is due today, and the card is asked for anyway.",

@@ -5,14 +5,18 @@ import { useState } from "react";
 
 import { CheckoutFlow, usePlans } from "@kaitencloud/react-ui";
 
+import { useAccount, useTitleFocusAfterSignUp } from "../account.tsx";
 import { Link, navigate, useLocation } from "../router.tsx";
+import { SignUpStep } from "./sign-up-step.tsx";
 
 export function CheckoutPage({ slug }: { slug: string }) {
   const { data: plans, isLoading, error, refetch } = usePlans();
   const { search } = useLocation();
+  const account = useAccount();
   const [subscribed, setSubscribed] = useState(false);
 
   const plan = plans?.find((each) => each.slug === slug);
+  useTitleFocusAfterSignUp(plan !== undefined);
 
   if (isLoading && !plans) return <p>Loading the plan…</p>;
   if (error && !plans) {
@@ -29,6 +33,10 @@ export function CheckoutPage({ slug }: { slug: string }) {
       </p>
     );
   }
+
+  // A checkout is a customer's: a visitor makes an account first, and resumes this very page, with
+  // the plan and the price they picked still in its address.
+  if (!account.signedIn) return <SignUpStep plan={{ slug: plan.slug, name: plan.name }} />;
 
   return (
     <section aria-labelledby="checkout-title" className="page-narrow">

@@ -9,8 +9,9 @@ import { defineConfig, devices } from "@playwright/test";
  * Run them after `vp run -r build`, from this directory: `pnpm run test:e2e`. It is `pnpm run` and not `vp run` on purpose: `vp run` hides the shell's variables from a script, and the `live` project below reads them. They serve the
  * storefront's build (`vp preview`), which is the page, its backend, and a stand-in for Kaiten.
  *
- * - `stand-in` runs `checkout.spec.ts`, `failures.spec.ts`, `theme.spec.ts` and `journey.spec.ts` against that stand-in. It needs no
- *   Kaiten, no account and no network, so it runs everywhere, CI included.
+ * - `stand-in` runs `checkout.spec.ts`, `failures.spec.ts`, `theme.spec.ts`, `journey.spec.ts` and
+ *   `signup.spec.ts` against that stand-in. It needs no Kaiten, no account and no network, so it runs
+ *   everywhere, CI included.
  * - `live` runs `live.spec.ts` against a Kaiten of yours, and is skipped without the variables
  *   below. With some of them it fails, and says which are missing, so that a repository that lost
  *   a secret does not look like one that passed.
@@ -22,6 +23,13 @@ const LIVE = {
   STOREFRONT_CUSTOMER_SLUG: "STOREFRONT_LIVE_CUSTOMER_SLUG",
   STOREFRONT_INSTANCE_SLUG: "STOREFRONT_LIVE_INSTANCE_SLUG",
 } as const;
+
+/**
+ * Every variable the storefront's server reads, the ones above and the cookie secret. A server this
+ * file starts has all of them set, empty unless the project gives one: the shell, and a `.env` file,
+ * cannot reach it.
+ */
+const SERVER_VARIABLES = [...Object.keys(LIVE), "STOREFRONT_COOKIE_SECRET"];
 
 const given = Object.values(LIVE).filter((name) => (process.env[name] ?? "").trim() !== "");
 const live = given.length === Object.values(LIVE).length;
@@ -38,7 +46,7 @@ const LIVE_PORT = 4174;
 /** The environment of a storefront server: what the stand-in runs on, and nothing of the shell's. */
 const storefrontEnvironment = (values: Partial<Record<keyof typeof LIVE, string>>) =>
   Object.fromEntries(
-    Object.keys(LIVE).map((name) => [name, values[name as keyof typeof LIVE] ?? ""]),
+    SERVER_VARIABLES.map((name) => [name, values[name as keyof typeof LIVE] ?? ""]),
   );
 
 export default defineConfig({
@@ -62,7 +70,7 @@ export default defineConfig({
   projects: [
     {
       name: "stand-in",
-      testMatch: /(checkout|failures|theme|journey)\.spec\.ts/,
+      testMatch: /(checkout|failures|theme|journey|signup)\.spec\.ts/,
       use: { ...devices["Desktop Chrome"], baseURL: `http://127.0.0.1:${STAND_IN_PORT}` },
     },
     {

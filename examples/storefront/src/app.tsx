@@ -1,12 +1,20 @@
 // Copyright 2026 KAITEN INC
 // SPDX-License-Identifier: Apache-2.0
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { KaitenSessionClient } from "@kaitencloud/client";
 import { KaitenStyleRoot, KaitenProvider, type KaitenAppearance } from "@kaitencloud/react-ui";
 
-import { fetchCustomerSession, loadConfig, type StorefrontConfig } from "./config.ts";
+import { AccountContext, type Account } from "./account.tsx";
+import {
+  fetchCustomerSession,
+  loadAccount,
+  loadConfig,
+  signOut as signOutOfBackend,
+  type AccountState,
+  type StorefrontConfig,
+} from "./config.ts";
 import { PalettePicker } from "./components/palette-picker.tsx";
 import { ThemeSwitcher } from "./components/theme-switcher.tsx";
 import { CheckoutPage } from "./pages/checkout-page.tsx";
@@ -21,26 +29,35 @@ import { toAppearance } from "./themes/to-appearance.ts";
 import { useThemePreference } from "./theme.ts";
 
 export function App() {
-  const [config, setConfig] = useState<StorefrontConfig | Error | null>(null);
+  const [loaded, setLoaded] = useState<
+    { config: StorefrontConfig; account: AccountState } | Error | null
+  >(null);
 
   useEffect(() => {
-    loadConfig().then(setConfig, (error: unknown) =>
-      setConfig(error instanceof Error ? error : new Error(String(error))),
+    Promise.all([loadConfig(), loadAccount()]).then(
+      ([config, account]) => setLoaded({ config, account }),
+      (error: unknown) => setLoaded(error instanceof Error ? error : new Error(String(error))),
     );
   }, []);
 
-  if (config === null) return <main className="container status">Loading…</main>;
-  if (config instanceof Error) {
+  if (loaded === null) return <main className="container status">Loading…</main>;
+  if (loaded instanceof Error) {
     return (
       <main className="container status">
-        <p role="alert">The storefront could not start: {config.message}</p>
+        <p role="alert">The storefront could not start: {loaded.message}</p>
       </main>
     );
   }
-  return <Storefront config={config} />;
+  return <Storefront config={loaded.config} initialAccount={loaded.account} />;
 }
 
-function Storefront({ config }: { config: StorefrontConfig }) {
+function Storefront({
+  config,
+  initialAccount,
+}: {
+  config: StorefrontConfig;
+  initialAccount: AccountState;
+}) {
   const [sessionEnded, setSessionEnded] = useState(false);
   const [theme] = useThemePreference();
   const [palette] = usePalette();
@@ -50,34 +67,95 @@ function Storefront({ config }: { config: StorefrontConfig }) {
     return { baseTheme: theme, ...(themed ? toAppearance(themed) : {}) };
   }, [theme, palette]);
 
-  // Once: the provider's scope and its cache follow this object.
-  const [sessionClient] = useState(
+  const [account, setAccount] = useState(initialAccount);
+  const [justSignedUp, setJustSignedUp] = useState(false);
+
+  // The backend says the cookie's account is gone, or there never was one: a visitor again.
+  const signedOut = useCallback(() => {
+    setAccount((current) =>
+      current.accounts === "sign-up" ? { ...current, signedIn: false } : current,
+    );
+  }, []);
+
+  const newSessionClient = useCallback(
     () =>
       new KaitenSessionClient({
         apiUrl: config.apiUrl,
-        getCustomerSession: fetchCustomerSession,
+        getCustomerSession: () => fetchCustomerSession(signedOut),
         // The API refused a session that had just been renewed: the customer has to sign in again.
         onAuthError: () => setSessionEnded(true),
       }),
+    [config.apiUrl, signedOut],
+  );
+  // One per customer: the provider's scope and its cache follow this object, so the customer who
+  // signs up gets a client of their own.
+  const [sessionClient, setSessionClient] = useState(newSessionClient);
+
+  const signedUp = useCallback(() => {
+    setSessionClient(newSessionClient());
+    setAccount((current) => ({ ...current, signedIn: true }));
+    setJustSignedUp(true);
+  }, [newSessionClient]);
+
+  const reload = useCallback(async () => {
+    const next = await loadAccount().catch(() => null);
+    if (next === null) return;
+    if (next.accounts !== account.accounts || next.signedIn !== account.signedIn) {
+      setSessionClient(newSessionClient());
+      setAccount(next);
+    }
+  }, [account, newSessionClient]);
+
+  const signOut = useCallback(async () => {
+    await signOutOfBackend();
+    // A full load: it drops the session client and every cache the last customer filled.
+    window.location.assign("/");
+  }, []);
+
+  const context = useMemo<Account>(
+    () => ({ ...account, justSignedUp, signedUp, signOut, reload }),
+    [account, justSignedUp, signedUp, signOut, reload],
   );
 
-  return (
+  // The same Light / Dark / System as the page (see theme.ts): react-ui follows the system setting by
+  // itself while it is "system". The theme is the one of palette.ts, mapped to the components'
+  // appearance in one place (themes/to-appearance.ts).
+  const shell = (
+    <KaitenStyleRoot appearance={appearance}>
+      <AccountContext.Provider value={context}>
+        <Shell mode={config.mode} sessionEnded={sessionEnded} />
+      </AccountContext.Provider>
+    </KaitenStyleRoot>
+  );
+
+  // The portal's button for a plan change is worded "Upgrade version" by default; in V1 it is a
+  // commercial request (see change-plan.ts), and the specification calls it "Change plan".
+  const localization = { currentPlan: { upgradeVersion: "Change plan" } };
+
+  // A customer's session is minted as soon as that mode mounts, on every page. A visitor who has no
+  // account has nobody to mint for: the pricing table is public, read with the publishable key
+  // alone, and the session starts once they have an account. The key changes the provider when it
+  // does; the provider keeps its place in the tree, so the page is not remounted under the visitor, and
+  // its scope, which the mode and the session client are part of, moves its cache to the new customer.
+  return account.signedIn ? (
     <KaitenProvider
       mode="customer-session"
       sessionClient={sessionClient}
       // The catalogue is read beside the portal, with the publishable key.
       apiUrl={config.apiUrl}
       publishableKey={config.publishableKey}
-      // The portal's button for a plan change is worded "Upgrade version" by default; in V1 it is a
-      // commercial request (see change-plan.ts), and the specification calls it "Change plan".
-      localization={{ currentPlan: { upgradeVersion: "Change plan" } }}
+      localization={localization}
     >
-      {/* The same Light / Dark / System as the page (see theme.ts): react-ui follows the system
-          setting by itself while it is "system". The theme is the one of palette.ts, mapped to
-          the components' appearance in one place (themes/to-appearance.ts). */}
-      <KaitenStyleRoot appearance={appearance}>
-        <Shell mode={config.mode} sessionEnded={sessionEnded} />
-      </KaitenStyleRoot>
+      {shell}
+    </KaitenProvider>
+  ) : (
+    <KaitenProvider
+      mode="public"
+      apiUrl={config.apiUrl}
+      publishableKey={config.publishableKey}
+      localization={localization}
+    >
+      {shell}
     </KaitenProvider>
   );
 }

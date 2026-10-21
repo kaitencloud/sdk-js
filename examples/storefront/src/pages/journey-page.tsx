@@ -5,6 +5,7 @@ import { useState } from "react";
 
 import { usePlans, usePortal } from "@kaitencloud/react-ui";
 
+import { useAccount } from "../account.tsx";
 import { chapters, coming, type Action, type Scenario, type Step } from "../journey/scenarios.ts";
 import { StandInPanel } from "../journey/stand-in-panel.tsx";
 import { useStandIn } from "../journey/stand-in.ts";
@@ -24,6 +25,7 @@ export function JourneyPage({ mode }: { mode: "double" | "live" }) {
   const { state, events, failure, refresh } = useStandIn(double);
   const { data: plans } = usePlans();
   const portal = usePortal();
+  const account = useAccount();
   const growth = plans?.find((plan) => plan.slug === "growth-v1");
   const list = chapters({ growthPriceId: growth?.prices?.[0]?.id });
 
@@ -32,6 +34,8 @@ export function JourneyPage({ mode }: { mode: "double" | "live" }) {
   // the customer as they were. A host that changes a customer outside the SDK does the same.
   const afterAction = async () => {
     await refresh();
+    // The customer may have become a visitor, or the other way round: the page asks who it is again.
+    await account.reload();
     portal.refetch();
   };
 
