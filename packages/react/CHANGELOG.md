@@ -27,6 +27,14 @@ components are in `@kaitencloud/react-ui`, which depends on this package and re-
   `usePaymentMethodSession`, `useBillingPortal` and `useValidateVoucher`. Every amount they
   carry is the server's, from a checkout's `dryRun` or an invoice; none is added up in the
   browser.
+- **The anonymous checkout**, `useAnonymousCheckout` in the same entry, for a visitor with no
+  account, under a `public` or `static` provider given an `anonymousCheckoutClient`. It draws the
+  Cloudflare Turnstile check in the element you give it (the script is loaded once, the first time
+  a widget is drawn, and only by this entry), holds one token for each start, starts the checkout,
+  reviews what the server says is due, sends the visitor to the payment provider's page and
+  sees the checkout through when they are back, and names every refusal. It is available only
+  when the catalogue says the publishable key may start an anonymous checkout. It never starts a
+  second checkout for a page that came back without the session's token.
 - **Typed errors.** `QuotaExceededError`, `RateLimitedError`, `BoundaryPendingError`,
   `ProviderUnavailableError` and `TransactionIdReusedError` reach a hook's `error`, `onError`
   and rejections as the classes the client threw, with their fields.
@@ -46,7 +54,7 @@ error classes, follows semantic versioning from this release on. So does the bil
 meaning `mode="public"`, `mode="customer-session"` and the hooks of `@kaitencloud/react/billing`,
 which needs the first Kaiten release with billing. The refusals the billing hooks name, a
 checkout's steps, the way a checkout opened the provider's page, and the states of a voucher
-code, of a payment being waited on and of a payment-method page may gain a member in a minor
+code, of a payment being waited on, of a payment-method page and of the Turnstile widget may gain a member in a minor
 release, by the rules `STABILITY.md` sets out.
 The telemetry, `formatKaitenPrice` and the words of the styled components are experimental, and
 may change in a minor release, except in what a published `@kaitencloud/react-ui` imports:

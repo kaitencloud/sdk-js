@@ -84,8 +84,12 @@ export function clearKaitenParams(): void {
 // What the customer was doing, kept while they are on the provider's page
 // ---------------------------------------------------------------------------
 
-/** The two flows that send a customer to a setup page. */
-export type PendingKind = "checkout" | "payment-method";
+/**
+ * The flows that send a customer to a setup page. The anonymous checkout keeps nothing but the name
+ * its visitor typed, under the checkout session's id: everything else it needs, it reads from the
+ * session.
+ */
+export type PendingKind = "checkout" | "payment-method" | "anonymous-checkout";
 
 interface PendingRecord {
   sessionId: string;

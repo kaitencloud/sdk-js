@@ -7,6 +7,7 @@ import useSWR from "swr";
 import { KaitenClient } from "@kaitencloud/client";
 import type {
   AuthenticatedKaitenProviderConfig,
+  KaitenAnonymousCheckoutClientLike,
   KaitenClientLike,
   KaitenPollingConfig,
   KaitenPortal,
@@ -50,6 +51,8 @@ interface KaitenContextValue {
   client: KaitenClientLike;
   /** The customer-session client, under `mode="customer-session"` only. */
   sessionClient: KaitenSessionClientLike | null;
+  /** The anonymous checkout client, under `mode="public"` and `mode="static"` when the host gave one. */
+  anonymousCheckoutClient: KaitenAnonymousCheckoutClientLike | null;
   mode: KaitenProviderMode;
   apiUrl: string;
   customerId: string | null;
@@ -287,6 +290,26 @@ export interface CustomerSessionKaitenProviderConfig {
 }
 
 /**
+ * What a provider that sells to visitors takes: the client of the anonymous checkout. Only
+ * `mode="public"` and `mode="static"` take it, since a visitor with no account is who it is for.
+ */
+export interface KaitenAnonymousCheckoutProps {
+  /**
+   * The client of the anonymous checkout: a `KaitenAnonymousCheckoutClient` of
+   * `@kaitencloud/client`, built with the same publishable key, or a double implementing
+   * `KaitenAnonymousCheckoutClientLike` (`createMockKaitenAnonymousCheckoutClient` of
+   * `@kaitencloud/client/testing`). `useAnonymousCheckout` of `@kaitencloud/react/billing` and
+   * `AnonymousCheckoutFlow` of `@kaitencloud/react-ui` start a checkout through it, once the
+   * catalogue says the publishable key may (`capabilities.anonymousCheckout`).
+   *
+   * The provider takes the client rather than building one, as it does the customer-session
+   * client, so that a host that sells no plan to visitors does not ship its code. Create it once,
+   * outside render. Without it those hooks and components answer nothing.
+   */
+  anonymousCheckoutClient?: KaitenAnonymousCheckoutClientLike;
+}
+
+/**
  * What every mode takes. Nothing here draws: the provider renders no element of
  * its own, so it can sit at an app's root without joining its layout. The
  * styled components in `@kaitencloud/react-ui` get their scope element, tokens
@@ -355,9 +378,13 @@ interface KaitenProviderNetworkProps {
 }
 
 export type KaitenProviderProps =
-  | (KaitenProviderConfig & KaitenProviderSharedProps & KaitenProviderNetworkProps)
+  | (PublicKaitenProviderConfig &
+      KaitenAnonymousCheckoutProps &
+      KaitenProviderSharedProps &
+      KaitenProviderNetworkProps)
+  | (AuthenticatedKaitenProviderConfig & KaitenProviderSharedProps & KaitenProviderNetworkProps)
   | (CustomerSessionKaitenProviderConfig & KaitenProviderSharedProps & KaitenProviderNetworkProps)
-  | (StaticKaitenProviderConfig & KaitenProviderSharedProps);
+  | (StaticKaitenProviderConfig & KaitenAnonymousCheckoutProps & KaitenProviderSharedProps);
 
 export type KaitenScopeProviderProps = Pick<
   KaitenProviderProps,
@@ -367,7 +394,8 @@ export type KaitenScopeProviderProps = Pick<
    * Configuration used before the host application's user signs in: a public
    * catalog read, or a static catalog the host already holds.
    */
-  publicConfig: PublicKaitenProviderConfig | StaticKaitenProviderConfig;
+  publicConfig: (PublicKaitenProviderConfig | StaticKaitenProviderConfig) &
+    KaitenAnonymousCheckoutProps;
   /**
    * Configuration used once the host application's user has signed in: a
    * customer session, for a vendor's own customers, or the host's own
@@ -483,6 +511,10 @@ function KaitenProviderRoot(props: KaitenProviderProps) {
   const apiUrl = props.mode === "static" ? "" : (props.apiUrl ?? DEFAULT_API_URL);
   const sessionProps = props.mode === "customer-session" ? props : null;
   const sessionClient = sessionProps?.sessionClient ?? null;
+  const anonymousCheckoutClient =
+    props.mode === "public" || props.mode === "static"
+      ? (props.anonymousCheckoutClient ?? null)
+      : null;
   // A customer-session scope reads its catalog the way a public one does: with
   // a publishable key, from `/public/catalog`.
   const authScheme =
@@ -687,6 +719,7 @@ function KaitenProviderRoot(props: KaitenProviderProps) {
       scopeKey,
       client,
       sessionClient,
+      anonymousCheckoutClient,
       mode,
       apiUrl,
       customerId: authenticatedProps?.customerId ?? null,
@@ -704,6 +737,7 @@ function KaitenProviderRoot(props: KaitenProviderProps) {
       pollingConfig,
       scopeKey,
       sessionClient,
+      anonymousCheckoutClient,
     ],
   );
 

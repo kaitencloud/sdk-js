@@ -200,3 +200,46 @@ test("the server-side recipe: KaitenClient composes the catalog in Node, a stati
   // Rendering added no request of its own.
   expect(fetchMock).toHaveBeenCalledTimes(1);
 });
+
+test("an anonymous checkout renders on the server: a widget's place, nothing loaded and nothing written", async () => {
+  const { renderToString } = await import("react-dom/server");
+  const { useAnonymousCheckout } = await import("../src/billing.ts");
+  const { createMockKaitenAnonymousCheckoutClient } = await import("@kaitencloud/client/testing");
+  const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+  const client = createMockKaitenAnonymousCheckoutClient();
+
+  function Signup() {
+    const checkout = useAnonymousCheckout({ initial: { priceId: "price_growth_monthly" } });
+    return (
+      <form data-step={checkout.step} data-available={String(checkout.available)}>
+        <div ref={checkout.turnstile.ref} />
+        <button disabled={!checkout.canStart}>Continue</button>
+      </form>
+    );
+  }
+
+  const html = renderToString(
+    <KaitenProvider
+      mode="static"
+      catalog={{
+        plans: [],
+        capabilities: {
+          checkout: true,
+          paymentMethods: true,
+          anonymousCheckout: true,
+          turnstileSiteKey: "1x00000000000000000000AA",
+        },
+      }}
+      anonymousCheckoutClient={client}
+    >
+      <Signup />
+    </KaitenProvider>,
+  );
+
+  expect(html).toContain('data-step="selecting"');
+  expect(html).toContain('data-available="true"');
+  expect(html).toContain("disabled");
+  // A server draws no widget, loads no script and asks the API for nothing.
+  expect(client.calls).toEqual([]);
+  expect(errorSpy).not.toHaveBeenCalled();
+});

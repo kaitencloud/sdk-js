@@ -6,8 +6,9 @@
 /**
  * `@kaitencloud/react/billing` — the headless hooks of a customer's billing.
  *
- * What a checkout, an invoice list and a customer portal do, under `mode="customer-session"`,
- * without a line of markup: the selection and what it costs, the provider's page for a
+ * What a checkout, an invoice list and a customer portal do, under `mode="customer-session"`, and
+ * what an anonymous checkout does for a visitor with no account, under `mode="public"`, without a
+ * line of markup: the selection and what it costs, the provider's page for a
  * payment method and the return from it, the invoices of a payment that is still open, and
  * the changes a customer makes to their subscription. The server computes every amount, and
  * nothing here adds a price up.
@@ -20,6 +21,24 @@
  */
 
 export { isPlausibleEmail } from "./hooks/billing/checkout-selection.ts";
+export type { AnonymousCheckoutProblem } from "./hooks/billing/anonymous-refusals.ts";
+export {
+  useAnonymousCheckout,
+  type AnonymousCheckoutChange,
+  type AnonymousCheckoutOutcome,
+  type AnonymousCheckoutPayment,
+  type AnonymousCheckoutQuote,
+  type AnonymousCheckoutSelection,
+  type AnonymousCheckoutSetup,
+  type AnonymousCheckoutStep,
+  type UseAnonymousCheckoutOptions,
+  type UseAnonymousCheckoutResult,
+} from "./hooks/billing/use-anonymous-checkout.ts";
+export type {
+  TurnstileOptions,
+  TurnstileStatus,
+  TurnstileWidget,
+} from "./hooks/billing/use-turnstile.ts";
 export type {
   CheckoutPreviewSelection,
   CheckoutSelection,

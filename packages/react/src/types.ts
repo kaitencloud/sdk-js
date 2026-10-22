@@ -12,6 +12,7 @@ export type {
 
 export type {
   CustomerSessionKaitenProviderConfig,
+  KaitenAnonymousCheckoutProps,
   KaitenProviderMode,
   KaitenProviderProps,
   KaitenScopeProviderProps,
@@ -60,11 +61,28 @@ export type {
   VoucherValidation,
 } from "@kaitencloud/client";
 
+// The anonymous checkout of `@kaitencloud/client`, which `useAnonymousCheckout` reads and
+// `anonymousCheckoutClient` takes.
+export type {
+  CheckoutBillingPeriod,
+  CheckoutConfirmation,
+  CheckoutDueToday,
+  CheckoutSession,
+  CheckoutSessionOpened,
+  CheckoutSessionPreview,
+  CheckoutSessionStart,
+  CheckoutSessionStatus,
+  KaitenAnonymousCheckoutClientLike,
+  StartCheckoutInput,
+  TrialRefusedReason,
+} from "@kaitencloud/client";
+
 export type { KaitenApiError, KaitenThrownError } from "@kaitencloud/client";
 
 export type { SessionSnapshotMembers } from "./lib/portal-snapshot.ts";
 
 export type {
+  KaitenAnonymousCheckoutWords,
   KaitenCheckoutWords,
   KaitenPaymentMethodWords,
   KaitenPortalBillingWords,

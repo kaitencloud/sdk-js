@@ -118,6 +118,81 @@ export interface KaitenCheckoutWords {
 }
 
 /**
+ * What an anonymous checkout says that `KaitenCheckoutWords` does not: the form a visitor with no
+ * account fills in, the security check, the review of what is due, the end of the checkout, and
+ * each refusal. The words it shares with a customer's checkout (the cancel button, the payment
+ * provider's page, a payment being made) are `KaitenCheckoutWords`'. Dates are RAW ISO bounds,
+ * formatted by the pack.
+ */
+export interface KaitenAnonymousCheckoutWords {
+  /** The label of the field for the visitor's name, when the page asks for one. */
+  nameLabel: string;
+  emailLabel: string;
+  /** Said under the e-mail field: where the receipt and the next steps go. */
+  emailHint: string;
+  /** The name of the security check (Cloudflare Turnstile), for the group that holds its widget. */
+  humanCheck: string;
+  /** Said while the security check runs. */
+  checking: string;
+  /** Said when the security check passed. */
+  checked: string;
+  /** Said when the security check could not load or run, with what to try. */
+  checkFailed: string;
+  checkRetry: string;
+  /** Said by the button that starts the checkout while the security check has not passed. */
+  checkFirst: string;
+  /** The button that starts the checkout of a plan that is paid. */
+  continue: string;
+  /** The button that starts the checkout of a free plan. */
+  startFree: string;
+  /** The button that starts a free trial. */
+  startTrial: string;
+  /** The button that sends the visitor to the payment provider's page. */
+  continueToPayment: string;
+  /** Goes back to the choices, from the review of what is due. */
+  change: string;
+  /** Receives the e-mail address the order is for. */
+  reviewFor: (email: string) => string;
+  /** Said of a plan with no card to give: nothing is asked for a payment method. */
+  noCardNeeded: string;
+  /** Said when this e-mail already had the plan's trial: the first period is due today. */
+  trialAlreadyUsed: string;
+  /** Said when the amount due changed between what was shown and the confirm. Receives both amounts, formatted. */
+  amountChanged: (was: string, now: string) => string;
+  /** Said when the terms changed without the amount (the end of a trial, say). */
+  detailsChanged: string;
+  /** Said once the checkout completed: where the visitor hears from the vendor. Receives the e-mail address. */
+  checkEmail: (email: string) => string;
+  /** The link that goes on to the page the host gave for after the checkout. */
+  continueLink: string;
+  /** Said of a session that stayed open for 24 hours. */
+  closedAbandoned: string;
+  /** Said of a session whose payment never came. */
+  closedExpired: string;
+  startAgain: string;
+  /** Said when this browser holds no token for the checkout: it may have been paid for. */
+  lost: string;
+  /** What to do then: do not pay twice. */
+  lostAdvice: string;
+  /** The button that starts a new checkout from a lost one, which the visitor presses knowing it. */
+  startNew: string;
+  /** Receives the seconds to wait: "Try again in 30 seconds." */
+  tryAgainIn: (seconds: number) => string;
+  turnstileFailed: string;
+  turnstileUnavailable: string;
+  rateLimited: string;
+  notSelfServe: string;
+  planUnavailable: string;
+  addonRefused: string;
+  invalidEmail: string;
+  quotaReached: string;
+  notAvailable: string;
+  sessionClosed: string;
+  dueTodayChanged: string;
+  network: string;
+}
+
+/**
  * How a customer session's subscription is said: the status of `CurrentPlan` and
  * `BillingSummary`, the note on a `Paywall`. Dates are RAW ISO bounds, formatted by the pack, like
  * `currentPlan.renewsOn`.
@@ -499,6 +574,11 @@ export interface KaitenLocalization {
    * a host's override of one string is merged over the English the components hold.
    */
   checkoutFlow?: KaitenCheckoutWords;
+  /**
+   * What `AnonymousCheckoutFlow` says beside `checkoutFlow`. Optional and absent from the English
+   * defaults, like `checkoutFlow`: the English lives in `@kaitencloud/react-ui`.
+   */
+  anonymousCheckout?: KaitenAnonymousCheckoutWords;
   /**
    * What `CurrentPlan`, `BillingSummary` and `Paywall` say of a customer session's subscription.
    * Optional and absent from the English defaults, like `checkoutFlow`.

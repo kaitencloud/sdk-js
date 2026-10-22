@@ -35,6 +35,7 @@ const STYLED_SURFACE = [
   "UpgradeButton",
   "CheckoutSummary",
   "CheckoutFlow",
+  "AnonymousCheckoutFlow",
   "EntitlementStatusBar",
   "BillingSummary",
 ] as const;

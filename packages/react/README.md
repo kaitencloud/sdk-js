@@ -353,6 +353,7 @@ drawn.
 | `useCancelSubscription`, `useReactivateSubscription`, `useSetAddonQuantity` | A change to the subscription; the portal is read again before it resolves       |
 | `useBillingPortal`, `usePaymentMethodSession`                               | The provider's billing portal; a hosted page to add or replace a payment method |
 | `useValidateVoucher`                                                        | A voucher code checked on its own                                               |
+| `useAnonymousCheckout`                                                      | A visitor's checkout with no account, with the Turnstile check, under `public`  |
 
 ```tsx
 import { formatKaitenMoney } from "@kaitencloud/react";
@@ -437,6 +438,108 @@ function Checkout({ licensePriceId }: { licensePriceId: string }) {
   less, send the change once more, and say when in `retryAt`; the second answer is the
   answer. Nothing else is sent again by a hook: a checkout, a voucher check and a payment
   method session are made once.
+
+#### Anonymous checkout
+
+> **Served by Kaiten billing.** It needs the Kaiten release that ships the anonymous checkout
+> (`POST {apiUrl}/public/checkout-sessions`) and a publishable key that has it turned on, with a
+> [Cloudflare Turnstile](https://developers.cloudflare.com/turnstile/) site key and secret.
+
+`useAnonymousCheckout` is a checkout for a visitor your backend does not know yet: no account, no
+customer session. They choose a plan and give an e-mail, pass the Turnstile check, and the checkout
+creates the customer, the instance and the subscription when it completes. It is a hook of its own
+rather than a mode of `useCheckout`: it has other inputs (an e-mail and a Turnstile token), other steps
+(a session to start, review and confirm) and a provider mode of its own, `public` or `static`, so that
+neither hook's shape bends to the other's. `@kaitencloud/react-ui`'s `AnonymousCheckoutFlow` is this
+hook, drawn.
+
+```tsx
+import { KaitenAnonymousCheckoutClient } from "@kaitencloud/client";
+import { KaitenProvider, formatKaitenMoney } from "@kaitencloud/react";
+import { useAnonymousCheckout } from "@kaitencloud/react/billing";
+
+// Once, outside render: the provider's scope follows this object. The same publishable key as the provider's.
+const anonymousCheckoutClient = new KaitenAnonymousCheckoutClient({
+  apiUrl: "https://kaiten.example.com/api",
+  publishableKey: "pk_…",
+});
+
+<KaitenProvider
+  mode="public"
+  apiUrl="https://kaiten.example.com/api"
+  publishableKey="pk_…"
+  anonymousCheckoutClient={anonymousCheckoutClient}
+>
+  <Signup priceId="…" />
+</KaitenProvider>;
+
+function Signup({ priceId }: { priceId: string }) {
+  const checkout = useAnonymousCheckout({
+    initial: { priceId },
+    onComplete: ({ sessionId, clientReferenceId }) => linkTheBuyer(sessionId, clientReferenceId),
+  });
+  if (!checkout.available) return null; // the catalogue says this key cannot start one
+  if (checkout.step === "completed") return <p>Thank you: check your e-mail.</p>;
+  if (checkout.step === "review") {
+    const due = checkout.quote!.dueToday; // the server's total, never computed here
+    return (
+      <>
+        <p>{formatKaitenMoney(due.total, due.currencyCode)} today</p>
+        <button onClick={() => void checkout.confirm()}>Pay</button>
+      </>
+    );
+  }
+  return (
+    <>
+      <input value={checkout.selection.email} onChange={(e) => checkout.setEmail(e.target.value)} />
+      {/* Cloudflare draws its widget here; the token is held by the hook, never rendered. */}
+      <div ref={checkout.turnstile.ref} />
+      <button disabled={!checkout.canStart} onClick={() => void checkout.start()}>
+        Continue
+      </button>
+    </>
+  );
+}
+```
+
+- **Available only when the catalogue says so.** `available` is true when the provider was given an
+  `anonymousCheckoutClient` and the catalogue says the publishable key may start a checkout
+  (`capabilities.anonymousCheckout`), with the site key of its widget (`turnstile.siteKey`). A page that
+  is back from the payment provider goes on whether it is or not.
+- **A token for each start.** A Turnstile token is single-use, a `dryRun` included. The widget is drawn in
+  the element given to `turnstile.ref`; `canStart` is true once a token is in hand, and `start()` takes it
+  and has the widget produce the next. Nothing starts by itself, and `preview()` (a `dryRun`, which writes
+  nothing) is for a page that wants a price before it asks for an e-mail, never one to run on every
+  change. Cloudflare's script is loaded the first time a widget is drawn, once for the page, with
+  explicit rendering; a script the page already has is used, and one that fails to load is tried again
+  on `turnstile.retry()`. **Allow `https://challenges.cloudflare.com`** in the page's
+  `Content-Security-Policy`, for `script-src`, `frame-src` and `connect-src`, or the widget never
+  appears and `turnstile.status` is `failed`. Turnstile's published test keys
+  (`1x00000000000000000000AA` always passes) work for tests and staging; there is no bypass.
+- **The server prices.** `quote.dueToday` is the start's: its lines and its total, a trial's
+  `trialEndsAt` (or `null` with `trialRefusedReason: "ALREADY_CONSUMED"` when that e-mail already had
+  the plan's trial), and `requiresPaymentMethod`. If the confirm finds another amount, the step stays
+  `review` with `changed` (what the visitor was shown, and what it is now), and confirming again
+  accepts it. A free plan, and a trial that needs no payment method, complete at the first `confirm()`.
+- **A payment method first.** `confirm()` sends the visitor to the payment provider's page: in a popup,
+  or in place of the page when popups are blocked, as `useCheckout` does. The session's token stays in
+  the client, in memory and the tab's `sessionStorage`, never in a URL; the page they come back to
+  (`returnUrl`, this page by default, with `kaiten_checkout_session` added) confirms again and reads
+  the session until the payment settles (`payment`: `processing`, `requires_action` and
+  `failed` with `hostedInvoiceUrl`). **Mount the hook on the page they come back to.**
+- **A page that comes back without the token is `lost`.** Another browser, cleared storage, or a window of
+  more than 24 hours: the checkout may have been paid for and completed. The hook never starts
+  another by itself; the visitor decides (`reset()`).
+- **The name is yours.** Kaiten has no member for a buyer's name. `selection.name` is kept in the tab and
+  given to `onStarted` and `onComplete`, and is never sent to Kaiten. The vendor links the buyer to an
+  account through the checkout's events, with `clientReferenceId` or the e-mail.
+- **Refusals have names.** `problem` classifies what the last attempt was refused with:
+  `turnstile_failed`, `turnstile_unavailable` and `rate_limited` with their wait, `not_self_serve`,
+  `plan_not_available`, `not_payable_online`, `addon_refused`, `voucher_invalid`, `invalid_email`,
+  `quota_reached`, `session_closed`, `session_lost`, `due_today_changed`, `network`, `unavailable`,
+  `not_available` and `other`. Its steps, its refusals, the way it opened the payment provider's
+  page, how the payment is waited on and the state of the widget may gain a member in a minor
+  release: keep a `default` branch ([STABILITY.md](STABILITY.md#unions-that-grow)).
 
 #### Tokens that expire
 

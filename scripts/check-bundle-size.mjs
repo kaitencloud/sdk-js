@@ -141,12 +141,26 @@ const SCENARIOS = [
     unstyled: true,
   },
   {
+    // What a host that draws its own checkout for visitors ships: the hook, the loader of
+    // Cloudflare's script and the provider they read from. Nothing styled is in it, and none of the
+    // hooks of a customer's checkout.
+    // Measured at 29 792 bytes.
+    name: "billing · useAnonymousCheckout + KaitenProvider",
+    code: `import { KaitenProvider } from "@kaitencloud/react"; import { useAnonymousCheckout } from "@kaitencloud/react/billing"; console.log(KaitenProvider, useAnonymousCheckout);`,
+    budgetGzip: 29_900,
+    unstyled: true,
+  },
+  {
     // Measured at 18 001 bytes, up from 17 854: the kinds a refused change to an add-on's
     // quantity is named with.
     // Measured at 18 335 bytes, up from 18 035: the add-ons a refused checkout names, as above.
+    // Measured at 22 461 bytes, up from 18 335: the hook of the anonymous checkout, with the loader
+    // of Cloudflare's script, the widget, the refusals it names and the way back from the payment
+    // provider's page. A host that draws a customer's checkout and not a visitor's does not pay for
+    // it: the scenario above is where it is measured out.
     name: "billing · everything",
     code: `import * as all from "@kaitencloud/react/billing"; console.log(all);`,
-    budgetGzip: 18_450,
+    budgetGzip: 22_550,
     unstyled: true,
   },
   {

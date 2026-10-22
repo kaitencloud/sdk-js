@@ -121,12 +121,33 @@ the rest of the blessed path:
   does not reach for: `useCheckout`, `useCheckoutPreview`, `useInvoices`,
   `useInvoiceSettlement`, `useCancelSubscription`, `useReactivateSubscription`,
   `useSetAddonQuantity`, `useBillingPortal`, `usePaymentMethodSession`,
-  `useValidateVoucher` and `isPlausibleEmail`, the rule they apply to a billing email, with
-  the types of their options and results. They need `mode="customer-session"`. Every amount
-  they carry is the server's, from a checkout's `dryRun` or an invoice, and none is added up.
-  The refusals they name, a checkout's steps, and the states of a voucher code, of a payment
-  being waited on and of a payment-method page may gain a member in a minor release, by the
-  rules of [Unions that grow](#unions-that-grow).
+  `useValidateVoucher`, `useAnonymousCheckout` and `isPlausibleEmail`, the rule they apply
+  to a billing email, with the types of their options and results. All but
+  `useAnonymousCheckout` need `mode="customer-session"`. Every amount they carry is the
+  server's, from a checkout's `dryRun` or an invoice, and none is added up. The refusals they
+  name, a checkout's steps, and the states of a voucher code, of a payment being waited on and
+  of a payment-method page may gain a member in a minor release, by the rules of
+  [Unions that grow](#unions-that-grow).
+- **The anonymous checkout** — `useAnonymousCheckout`, a visitor's checkout with no account,
+  and the `anonymousCheckoutClient` prop (`KaitenAnonymousCheckoutProps`) of a `public` or
+  `static` provider, which takes the `KaitenAnonymousCheckoutClient` of
+  `@kaitencloud/client` (or a double implementing `KaitenAnonymousCheckoutClientLike`). The
+  hook is a headless checkout of its own and not a mode of `useCheckout`: it has other inputs (an
+  e-mail, a Turnstile token), other steps (a session to start, review and confirm), and runs
+  under another provider mode, so that neither hook's shape has to bend to the other's and a host
+  that sells to visitors and one that sells to customers each ship only theirs. It is `available`
+  only when the catalogue says the publishable key may start one
+  (`capabilities.anonymousCheckout`, with its `turnstileSiteKey`). It starts nothing by itself:
+  a start spends a Turnstile token, a `preview` too, and a page that comes back without the
+  session's token is `lost` and never starts another checkout, which would create a second
+  customer. The Turnstile widget (`turnstile`, with `TurnstileOptions` and `TurnstileWidget`)
+  is part of it: its script is loaded once, from Cloudflare, the first time a widget is
+  drawn, and only by this entry. Like the other billing hooks it needs the first Kaiten release
+  that has the anonymous checkout (`POST /public/checkout-sessions`). Its steps, its refusals
+  (`AnonymousCheckoutProblem`), the way it opened the payment provider's page, how a payment is
+  waited on and the state of the widget may gain a member in a minor release, by the rules of
+  [Unions that grow](#unions-that-grow). The `name` it holds is the page's own: Kaiten has no
+  member for it, and it is never sent.
 
 ## Subpath exports
 
@@ -157,8 +178,8 @@ Usable today, but **shape may change** in a minor release (treat as `@experiment
 the core lists here that `@kaitencloud/react-ui` imports only grows within a major (see
 [Compatibility with `@kaitencloud/react-ui`](#compatibility-with-kaitencloudreact-ui)): today
 `formatKaitenPrice`, `emitKaitenEvent`, `DEFAULT_CURRENCY_CODE`, and the types of words
-`KaitenCheckoutWords`, `KaitenPortalBillingWords`, `KaitenSubscriptionWords` and
-`KaitenPaymentMethodWords`.
+`KaitenCheckoutWords`, `KaitenAnonymousCheckoutWords`, `KaitenPortalBillingWords`,
+`KaitenSubscriptionWords` and `KaitenPaymentMethodWords`.
 
 - **What `@kaitencloud/react-ui` adds.** Its styled components (default,
   non-`unstyled` rendering): `CustomerPortal` (and its sections
@@ -212,6 +233,11 @@ the core lists here that `@kaitencloud/react-ui` imports only grows within a maj
   (`title`, `description`, `plan`, `addOn`, `total`, `proceedToPayment` and the interval
   names) are gone: they were the words of the previous `CheckoutSummary`, and the keys of the
   present one replace them.
+- **The words of an anonymous checkout**, `KaitenLocalization.anonymousCheckout` (typed
+  `KaitenAnonymousCheckoutWords`). Optional and carried whole by every language pack, like the
+  checkout's; the English is in `@kaitencloud/react-ui`. It says what a customer's checkout does
+  not (the form, the security check, the review, the end, each refusal) and leans on
+  `checkoutFlow` for the rest, so a host that overrides it overrides both.
 - **The words of the portal and of a subscription**, `KaitenLocalization.portalBilling` and
   `KaitenLocalization.subscription` (typed `KaitenPortalBillingWords` and
   `KaitenSubscriptionWords`), and `KaitenLocalization.paymentMethodCard`
@@ -270,7 +296,11 @@ each member to its own fields, and may still gain members:
   provider's page for a payment method stands;
 - `CheckoutSetup["opening"]` (`SetupPageOpening`), how a checkout opened the provider's page
   where the customer saves a payment method: `popup` or `redirect`, and `null` when the page was
-  only reloaded back to the checkout.
+  only reloaded back to the checkout;
+- of the anonymous checkout: `AnonymousCheckoutStep`, where it stands;
+  `AnonymousCheckoutProblem`, the refusals it names; `AnonymousCheckoutSetup["opening"]`, as
+  `CheckoutSetup["opening"]` is; `AnonymousCheckoutPayment["settlement"]`, how the wait on the
+  first payment stands; and `TurnstileStatus`, where the check's widget stands.
 
 For all of them:
 
@@ -288,6 +318,13 @@ For all of them:
   `polling` and then `gave_up` until it has a state of its own. A host that knows only the
   states of 1.0 never takes an unpaid invoice for paid, nor a payment method that was not
   saved for saved.
+- **The anonymous checkout follows the same rules.** A step it adds takes its case from the step
+  that held it: take one you do not know as a checkout still in progress, with nothing started
+  that the visitor has not confirmed, and rely on `canStart`, `quote`, `setup`, `payment` and
+  `outcome`. A refusal it adds comes out of `other`. A state of the wait on a payment takes its
+  case from `polling` and never from a completed checkout: `outcome` says it completed, and `check()` reads
+  the session again. A state of the widget takes its case from `solving`: `canStart` says
+  whether a token is in hand.
 - **A new way of opening the provider's page changes nothing else of the checkout.** The hook
   opens the page, waits for the customer and goes on by itself, whichever way it took, and the
   step is `awaiting_payment_method` all the same, with `setup.url` and `resume()`.

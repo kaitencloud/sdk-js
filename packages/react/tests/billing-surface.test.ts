@@ -14,6 +14,7 @@ import * as Core from "../src/index.ts";
 
 const BILLING_SURFACE = [
   "isPlausibleEmail",
+  "useAnonymousCheckout",
   "useBillingPortal",
   "useCancelSubscription",
   "useCheckout",
@@ -61,6 +62,11 @@ test("STABILITY.md names every export of the billing entry, and says it is stabl
     'InvoiceSettlement["status"]',
     'UsePaymentMethodSessionResult["status"]',
     'CheckoutSetup["opening"]',
+    "AnonymousCheckoutStep",
+    "AnonymousCheckoutProblem",
+    'AnonymousCheckoutSetup["opening"]',
+    'AnonymousCheckoutPayment["settlement"]',
+    "TurnstileStatus",
   ];
   const section = STABILITY.slice(STABILITY.indexOf("### Unions that grow"));
   const listed = section.slice(0, section.indexOf("For all of them:"));
