@@ -5,6 +5,7 @@
 // The amounts and totals are the server's, passed as they come.
 
 import type * as Api from "../core/index.ts";
+import { KaitenError } from "../core/runtime/errors.ts";
 import { billingInterval, list } from "./billing.ts";
 import { mapDueToday, mapInvoice } from "./session-mapping.ts";
 import type {
@@ -24,8 +25,25 @@ function mapQuote(raw: Api.CheckoutSessionStart | Api.CheckoutSession) {
 }
 
 /**
- * The answer of `POST /public/checkout-sessions`. The session token is not in the
- * result: the client keeps it, and this mapping does not read it.
+ * An answer whose status the client does not know, from a newer server. The unions
+ * are closed, so it is refused rather than handed to the host outside its type, and
+ * never with a token in it. The session, if there is one, can still be read.
+ */
+function unknownStatus(what: string, status: unknown, sessionId?: unknown): KaitenError {
+  return new KaitenError({
+    title: `Unknown ${what} status`,
+    status: 0,
+    detail:
+      `Kaiten: the API answered a ${what} status this client does not know (${String(status)}). ` +
+      (typeof sessionId === "string"
+        ? `The session ${sessionId} exists: read it with getCheckoutSession to see where it stands.`
+        : "Update @kaitencloud/client."),
+  });
+}
+
+/**
+ * The answer of `POST /public/checkout-sessions`. `token` is the session's `ksc_`
+ * of an open session only; the client has already kept it when this runs.
  */
 export function mapCheckoutSessionStart(raw: Api.CheckoutSessionStart): CheckoutSessionStart {
   switch (raw.status) {
@@ -35,13 +53,12 @@ export function mapCheckoutSessionStart(raw: Api.CheckoutSessionStart): Checkout
       return {
         status: "open",
         sessionId: raw.sessionId as string,
+        token: raw.token as string,
         expiresAt: raw.expiresAt as string,
         ...mapQuote(raw),
       };
     default:
-      // A status this client does not know, from a newer server: handed to the
-      // host as it came, which can at least read the status.
-      return raw as unknown as CheckoutSessionStart;
+      throw unknownStatus("checkout start", raw.status, raw.sessionId);
   }
 }
 
@@ -91,8 +108,6 @@ export function mapCheckoutConfirmation(raw: Api.CheckoutConfirmation): Checkout
     case "completed":
       return { status: "completed", session };
     default:
-      // A status this client does not know, from a newer server: handed to the
-      // host as it came, which can at least read the status.
-      return { ...raw, session } as unknown as CheckoutConfirmation;
+      throw unknownStatus("checkout confirmation", raw.status, session.sessionId);
   }
 }

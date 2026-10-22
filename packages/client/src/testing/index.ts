@@ -37,6 +37,7 @@ export {
 export type {
   MockAnonymousCheckoutCall,
   MockCheckoutPlan,
+  MockCheckoutScript,
   MockKaitenAnonymousCheckoutClient,
   MockKaitenAnonymousCheckoutClientOptions,
 } from "./mock-anonymous-checkout-client.ts";

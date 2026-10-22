@@ -198,10 +198,12 @@ A visitor your backend does not know yet can buy a self-serve plan from your own
 no account: the checkout creates the customer, the instance and the subscription when it
 completes. `KaitenAnonymousCheckoutClient` does it with a publishable key that has
 anonymous checkout turned on, and a [Cloudflare Turnstile](https://developers.cloudflare.com/turnstile/)
-token for each start:
+token for each start.
+
+**The start and the confirm**, on the page that sells the plan:
 
 ```ts
-import { KaitenAnonymousCheckoutClient, readCheckoutReturn } from "@kaitencloud/client";
+import { KaitenAnonymousCheckoutClient } from "@kaitencloud/client";
 
 const checkout = new KaitenAnonymousCheckoutClient({
   apiUrl: "https://kaiten.example.com/api",
@@ -209,6 +211,7 @@ const checkout = new KaitenAnonymousCheckoutClient({
 });
 
 // The site key is catalog.capabilities.turnstileSiteKey; the widget gives one token per start.
+// A dryRun first shows what is due (`status: "preview"`); it spends a token too.
 const started = await checkout.startCheckout({
   turnstileToken,
   licenseSlug: "growth-v1", // or priceId
@@ -217,18 +220,54 @@ const started = await checkout.startCheckout({
   returnUrl: "https://shop.example.com/welcome",
   clientReferenceId: "cart-42", // echoed on the checkout's events
 });
-if (started.status === "open") {
-  const confirmed = await checkout.confirmCheckout(started.sessionId);
-  if (confirmed.status === "requires_payment_method") location.assign(confirmed.setupUrl);
-}
+// `started` is an opened session: the type follows from asking for no dryRun.
+const confirmed = await checkout.confirmCheckout(started.sessionId);
 
-// Back on returnUrl, after the hosted page that saves the payment method:
+if (confirmed.status === "requires_payment_method") {
+  // The confirm re-checks the trial and may have changed what is due since the start.
+  // Compare what the visitor was shown with the session, and show the new amount
+  // (and let them agree to it) before sending them to the hosted page.
+  const { dueToday, trialEndsAt } = confirmed.session;
+  if (dueToday.total !== started.dueToday.total || trialEndsAt !== started.trialEndsAt) {
+    await askTheVisitorAgain(confirmed.session);
+  }
+  location.assign(confirmed.setupUrl);
+}
+// "completed": a free plan, or a trial that needs no payment method.
+```
+
+**The way back**, on `returnUrl`, after the hosted page that saves the payment method. Read
+the outcome first and clear the address only once you have it, so that a reload (or a failed
+request) can try again:
+
+```ts
+import {
+  CheckoutSessionClosedError,
+  KaitenNetworkError,
+  clearCheckoutReturn,
+  readCheckoutReturn,
+} from "@kaitencloud/client";
+
 const back = readCheckoutReturn(); // { sessionId, urlWithoutSession } | null
 if (back) {
-  history.replaceState(null, "", back.urlWithoutSession);
-  const confirmed = await checkout.confirmCheckout(back.sessionId);
-  // "awaiting_payment": read getCheckoutSession(back.sessionId) until it closes.
-  // "completed": the customer and the instance exist (confirmed.session.customerSlug).
+  try {
+    const confirmed = await checkout.confirmCheckout(back.sessionId);
+    // "awaiting_payment": read getCheckoutSession(back.sessionId) until it closes.
+    // "completed": the customer and the instance exist (confirmed.session.customerSlug).
+    showOutcome(confirmed.session);
+    clearCheckoutReturn(); // history.replaceState without kaiten_checkout_session
+  } catch (error) {
+    if (error instanceof CheckoutSessionClosedError) {
+      // Closed already: Kaiten completes a checkout whose visitor never came back, so
+      // this may well be a success. Read the session to tell which.
+      showOutcome(await checkout.getCheckoutSession(back.sessionId));
+      clearCheckoutReturn();
+    } else if (error instanceof KaitenNetworkError) {
+      showRetry(); // the address still names the session: confirm again, or read it. Never start over.
+    } else {
+      throw error;
+    }
+  }
 }
 ```
 
@@ -240,36 +279,84 @@ if (back) {
 | `holdsCheckoutSession(id)`  | none                                                 |                       |
 | `forgetCheckoutSession(id)` | none                                                 |                       |
 
+`startCheckout` is typed by what it asks for: `dryRun: true` gives a `CheckoutSessionPreview`
+and a start without it a `CheckoutSessionOpened`, so a page does not narrow what it already
+knows; when `dryRun` is a `boolean` the compiler cannot see, it is either (narrow on `status`).
+An answer of the other kind rejects with a `KaitenError`.
+
 **Two credentials, two routes.** The publishable key goes in `X-Kaiten-Publishable-Key` to the
-start and nowhere else. The start answers a session and the client keeps its `ksc_` token, which
-goes in `Authorization: Bearer ksc_…` to that session's own two routes and nowhere else. Neither is
-ever sent with the other, whatever `defaultHeaders` holds, and no cookie is sent. The token is not
-in what `startCheckout` returns: it stays with the client.
+start and nowhere else. The start answers a session and its `ksc_` token, which goes in
+`Authorization: Bearer ksc_…` to that session's own two routes and nowhere else. Neither is
+ever sent with the other, whatever `defaultHeaders` holds, and no cookie is sent. `started.token`
+is the same token the client already holds: read it only to keep it somewhere of your own (a
+server-side session, when the page that confirms is not this one), and treat it as a secret:
+never in a URL, in `localStorage` or in a log.
 
 **The token survives the redirect** to the hosted page that saves a payment method, which is a
 full-page navigation: it is kept in memory and in `sessionStorage`, under the session's id. It
-is never in a URL, never in `localStorage`, and it is dropped once the session closes (`COMPLETED`,
-`ABANDONED` or `EXPIRED`), when the API refuses it, or on `forgetCheckoutSession`. A closed
-session's last answer is kept in memory so that a second read, or a second effect run, still
-finds its outcome. Pass `storage` (the shape of `Storage`) to keep tokens somewhere else, or
-`storage: null` for memory alone. A page that comes back without the token (another tab or
-browser, cleared storage) gets a `CheckoutTokenMissingError` before any request, and starts a new
-checkout; `holdsCheckoutSession(id)` tells before asking.
+is never in a URL, never in `localStorage`. `sessionStorage` is used in a browser only; a server
+runtime has memory alone, since the `sessionStorage` some of them offer is shared by every
+visitor. The client keeps the token of a session that closed (`COMPLETED`, `ABANDONED` or
+`EXPIRED`) for the 24 hours the API still answers a read with it, so that a reload shows the
+outcome of a payment; it drops the token when the API refuses it, when that window is over,
+or on `forgetCheckoutSession`. A closed session's last answer is also kept in memory so that a
+second read, or a second effect run, finds its outcome without a request. Pass `storage` (the
+shape of `Storage`) to keep tokens somewhere else, or `storage: null` for memory alone.
+
+**A page that comes back without the token** (another tab or browser, cleared or blocked
+storage as in a private window, a window of more than 24 hours) gets a
+`CheckoutTokenMissingError` before any request. **Never start a new checkout because of it, and
+never automatically**: the session may have been paid for and completed while the visitor was
+away, and a second checkout for the same buyer creates a second customer, instance and
+subscription. Look the outcome up with your own events or the `clientReferenceId`, and let the
+visitor decide. `holdsCheckoutSession(id)` tells before asking.
+
+**`confirmCheckout` is safe to send again.** It answers the session's current state and never
+creates a second customer, instance or charge, so after a timeout (30 seconds unless you set
+`timeoutMs`; a confirm may open the payment provider's objects and pay inline) or a network
+failure, confirm again or read the session. The client does not replay it by itself.
 
 **Money and what is due** are the server's: `dueToday` is computed by the API from the start, a
 trial included (`trialEndsAt`, or `null` with `trialRefusedReason: "ALREADY_CONSUMED"` when the
 e-mail already had the plan's trial), and the client never sums a price. `requiresPaymentMethod`
 says whether the confirm sends the visitor to the hosted page. A free plan, and a trial that needs
-no payment method, complete at the first confirm.
+no payment method, complete at the first confirm. **The first confirm re-checks the trial**: when
+another checkout used it up meanwhile, the session loses `trialEndsAt` and `dueToday` is recomposed,
+and the confirm answers `requires_payment_method` with the new amount before any payment method is
+captured. Show it. A trial that is refused only after the payment method was saved is a
+`DueTodayChangedError`.
 
-**A Turnstile token is single-use**, a `dryRun` included. So the client refuses, before a request,
-an input the API would refuse for its shape (no token, both forms of the price, no e-mail or
-return URL on a real start, a reference over 255 characters): a `TypeError`, and the token is
-still good.
+**While the payment is made**, `awaiting_payment` and then `getCheckoutSession` carry
+`session.payment`: `processing` (wait and read again), `paid` (the session completes), `requires_action`
+(the visitor must go to `hostedInvoiceUrl` to authorise the payment, 3-D Secure for instance) and
+`failed` (the payment was refused: the same page lets them pay again). A session whose payment never
+comes reads `EXPIRED`, and one left open for 24 hours `ABANDONED`.
+
+**A Turnstile token is single-use**, a `dryRun` included, and **spent by any refusal of a start**
+that got as far as the API, Turnstile out of reach apart (`InvalidEmail`, `InvalidReturnUrl`, `VoucherInvalid`, a price that is
+not public, …): reset the widget and let the visitor pass it again before the next start. The client
+refuses, before any request, an input the API would refuse for its shape: a missing token, both
+forms of the price, no e-mail or return URL on a real start, a member of the wrong type, too long
+(the API counts characters, not UTF-16 units: an e-mail 254, a return URL 2048, a voucher 64, a
+plan 255, a reference 255, a Turnstile token 2048, at most 50 add-ons) or that the API does not know
+(`returnURL` for `returnUrl`). That is a `TypeError`, and the token is still good.
 
 A read is sent again after a network failure or a 5xx; **a write never is**, the start and the
 confirm included. The class is made for a browser, with the publishable key: it refuses any
 other kind of key, a `ksh_` included.
+
+**`onAuthError`** is called for a refused credential only: a 401, or a 403 `Auth.WrongCredentialKind`.
+A 403 that says anonymous checkout is turned off (`*.AnonymousCheckoutDisabled`) or that the origin is
+not allowed (`PublicAuth.OriginNotAllowed`) is a configuration to fix, not a credential to renew:
+the call rejects with its `KaitenError`, and the token is kept.
+
+**What a visitor reads is yours to write.** The messages of the errors are for developers (`error.message`
+and `detail` are English sentences about the API); map each class, and each `payment.status`, to your
+own text and language instead of displaying them.
+
+A cross-origin page reads `Retry-After` (the wait of a 429 or of `TurnstileUnavailable`) only if the
+API's CORS policy sends `Access-Control-Expose-Headers: Retry-After` on these routes; without it the
+client waits its default of 60 seconds, twice as long as the API asked for the Turnstile outage (30).
 
 ### Scopes
 
@@ -435,7 +522,9 @@ Every other refusal (`AlreadySubscribed`, `VoucherInvalid`, `SetupSessionIncompl
 anonymous checkout is a browser's, and the server has none for the rest.
 
 `CheckoutTokenMissingError` is raised by the anonymous checkout client itself, with status
-`0` and before any request, when it holds no token for the session you name.
+`0` and before any request, when it holds no token for the session you name. The session may
+have completed meanwhile: it is not a reason to start another checkout (see
+[Anonymous checkout](#anonymous-checkout)).
 
 **`retryAfterSeconds`** is the `Retry-After` the API sent, in seconds: a whole number, or
 an HTTP date read as the seconds from now. It is absent when there is none. On the four
@@ -561,8 +650,23 @@ const session = createMockKaitenSessionClient({
 the first confirm; any other asks for a payment method and then for a payment, which the test
 plays with `completeSetup(sessionId)` and `settlePayment(sessionId)`; `abandon(sessionId)`
 leaves a session open until it is abandoned. A second trial for the same e-mail is refused as the
-API refuses it, with `trialRefusedReason: "ALREADY_CONSUMED"`. It does not check the Turnstile
-token, and it models neither add-ons nor vouchers.
+API refuses it, with `trialRefusedReason: "ALREADY_CONSUMED"`.
+
+It checks the input as the client does (the same `TypeError`s: no token, no e-mail or return URL on
+a real start, both forms of the price, a bound passed, an unknown member), and keeps the token of a
+closed session until `forgetCheckoutSession`, after which every call on it rejects with a
+`CheckoutTokenMissingError`. What the visitor can meet and a test must be able to play:
+
+- `failPayment(id)` and `requireAction(id)`: the payment `failed`, or `requires_action`, with a
+  `hostedInvoiceUrl`; `expire(id)`: the session reads `EXPIRED`.
+- `consumeTrial(id)`: another checkout used up the trial. At the next confirm before the payment
+  method is saved the session loses its trial and the confirm asks for a card with the new amount;
+  after it, the confirm rejects with a `DueTodayChangedError`.
+- `fail: { startCheckout, getCheckoutSession, confirmCheckout }`: an `Error`, or `(call) => Error | void`,
+  to fail one method, or one call of it: the Turnstile token refused once, then accepted.
+
+It does not check the Turnstile token's value, and it models neither add-ons (a `KaitenError`, 422
+`AddonNotPublic`) nor vouchers.
 
 ### Fixtures
 

@@ -98,10 +98,12 @@ function problems(schema: Schema, value: unknown, path: string): string[] {
   }
 
   if (typeof value === "string") {
-    if (schema.minLength !== undefined && value.length < schema.minLength) {
+    // JSON Schema counts characters, that is code points, not UTF-16 units.
+    const length = Array.from(value).length;
+    if (schema.minLength !== undefined && length < schema.minLength) {
       found.push(`${path}: shorter than ${schema.minLength}`);
     }
-    if (schema.maxLength !== undefined && value.length > schema.maxLength) {
+    if (schema.maxLength !== undefined && length > schema.maxLength) {
       found.push(`${path}: longer than ${schema.maxLength}`);
     }
     if (schema.pattern && !new RegExp(schema.pattern).test(value)) {

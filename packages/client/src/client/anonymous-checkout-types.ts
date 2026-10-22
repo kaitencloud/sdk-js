@@ -92,17 +92,27 @@ export interface CheckoutSessionPreview extends CheckoutQuote {
 }
 
 /**
- * A session opened. Its token is kept by the client that opened it and sent to
- * its own session's routes, and to nowhere else; it is not returned.
+ * A session opened. `token` is the session's `ksc_`, which the API returns once. The
+ * client that opened the session keeps it already (in memory and in its `storage`)
+ * and sends it to that session's two routes, and to nowhere else: a host reads
+ * `token` only to keep it somewhere of its own, such as a server-side session when
+ * the page that confirms is not this one. It is a credential: never in a URL, in
+ * `localStorage` or in a log.
  */
 export interface CheckoutSessionOpened extends CheckoutQuote {
   status: "open";
   sessionId: string;
+  /** The session's `ksc_`. A secret: it reads and confirms this one session. */
+  token: string;
   /** When the session is abandoned if it is still open: 24 hours after the start. */
   expiresAt: string;
 }
 
-/** The answer of `startCheckout`: a preview of a `dryRun`, or the session opened. */
+/**
+ * The answer of `startCheckout`: a preview of a `dryRun`, or the session opened.
+ * A closed union: an answer of any other status rejects with a `KaitenError`
+ * instead of reaching the host outside the type.
+ */
 export type CheckoutSessionStart = CheckoutSessionPreview | CheckoutSessionOpened;
 
 /**
@@ -148,7 +158,13 @@ export interface CheckoutSession extends CheckoutQuote {
   completedAt: string | null;
 }
 
-/** A payment method has to be saved first: send the visitor to `setupUrl`, then confirm again. */
+/**
+ * A payment method has to be saved first: send the visitor to `setupUrl`, then confirm
+ * again. The confirm may have changed the session since the start (a trial another
+ * checkout used up meanwhile, which recomposes `session.dueToday`): compare
+ * `session.dueToday.total`, `currencyCode` and `trialEndsAt` with what the visitor was
+ * shown, and show the new amount before you send them away.
+ */
 export interface ConfirmationRequiresPaymentMethod {
   status: "requires_payment_method";
   setupUrl: string;
@@ -156,7 +172,12 @@ export interface ConfirmationRequiresPaymentMethod {
   session: CheckoutSession;
 }
 
-/** The setup is done and the first invoice is being paid: read the session until it closes. */
+/**
+ * The setup is done and the first invoice is being paid: read the session until it closes.
+ * Read `session.payment` meanwhile: `requires_action` means the visitor must go to
+ * `hostedInvoiceUrl` (3-D Secure, say) to authorise the payment, and `failed` that the
+ * payment was refused, with the same page to pay again.
+ */
 export interface ConfirmationAwaitingPayment {
   status: "awaiting_payment";
   session: CheckoutSession;
@@ -168,6 +189,10 @@ export interface ConfirmationCompleted {
   session: CheckoutSession;
 }
 
+/**
+ * The answer of `confirmCheckout`. A closed union: an answer of any other status
+ * rejects with a `KaitenError`, and `getCheckoutSession` tells where the session stands.
+ */
 export type CheckoutConfirmation =
   | ConfirmationRequiresPaymentMethod
   | ConfirmationAwaitingPayment

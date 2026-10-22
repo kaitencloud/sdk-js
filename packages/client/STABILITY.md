@@ -80,6 +80,31 @@ function mountBilling(client: KaitenClientLike, session?: KaitenSessionClientLik
 }
 ```
 
+## The anonymous checkout
+
+`KaitenAnonymousCheckoutClient` and `KaitenAnonymousCheckoutClientLike` are stable from the
+release that ships them, on the terms above. What that fixes:
+
+- **The token is returned.** An opened session (`CheckoutSessionOpened`) carries `token`, the
+  session's `ksc_`, as the API's `CheckoutSessionStart` does, and the client keeps it as well. A host
+  that confirms from another page keeps it where it likes; one that does not never reads it. The
+  member is part of the shape and is never removed.
+- **`startCheckout` is overloaded** on the interface and the class: `dryRun: true` gives a
+  `CheckoutSessionPreview`, no `dryRun` (or `false`) a `CheckoutSessionOpened`, and any other input
+  the union `CheckoutSessionStart`. An answer of the other kind rejects with a `KaitenError`.
+- **`CheckoutSessionStart["status"]` and `CheckoutConfirmation["status"]` are closed.** A status a
+  newer server adds rejects with a `KaitenError` (status `0`) instead of reaching the host outside its
+  type, with no token in it; a session it opened can still be read. A minor release that learns the
+  status adds it to the union.
+- **A closed session's token is held for the 24 hours the API reads it for**, in memory and in the
+  storage, so that a reload shows the outcome. `holdsCheckoutSession` is true during that window, and
+  a call without a token rejects with `CheckoutTokenMissingError`, which never means "start another
+  checkout".
+- **`onAuthError` is a refused credential**: a 401, or a 403 `Auth.WrongCredentialKind`; not a 403 for
+  a feature turned off or an origin not allowed.
+- **`readCheckoutReturn` reads and `clearCheckoutReturn` clears.** The second is for after the confirm
+  or the read has succeeded.
+
 ## How enumerations grow
 
 - **Closed unions** that 1.0 published stay as they are for all of 1.x:

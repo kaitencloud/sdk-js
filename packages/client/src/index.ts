@@ -68,6 +68,7 @@ export { KaitenSessionClient } from "./client/session-client.ts";
 export {
   CHECKOUT_RETURN_PARAM,
   KaitenAnonymousCheckoutClient,
+  clearCheckoutReturn,
   readCheckoutReturn,
 } from "./client/anonymous-checkout-client.ts";
 export type { KaitenAnonymousCheckoutClientLike } from "./client/anonymous-checkout-client.ts";

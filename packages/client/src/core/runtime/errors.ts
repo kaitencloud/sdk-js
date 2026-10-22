@@ -272,10 +272,17 @@ export class ProviderUnavailableError extends WaitError {
 
 /**
  * Thrown by a call on an anonymous checkout session when the client holds no
- * token for it, without sending anything: the page was reloaded in another tab
- * or browser, the token's storage was cleared, or the session had closed and its
- * token was dropped. There is nothing to confirm or read with; start a new
- * checkout. Status `0`, as for the other errors the client raises itself.
+ * token for it, without sending anything: the page was opened in another tab or
+ * browser, the token's storage was cleared or is blocked (a private window), the
+ * API refused the token, or the 24 hours a closed session can still be read for
+ * went by. The client cannot tell which, and the session may have been paid for
+ * and completed while the visitor was away.
+ *
+ * **Never start a new checkout because of it, and never automatically.** Another
+ * checkout for the same buyer creates a second customer, instance and
+ * subscription. Look the outcome up where you keep it (your own events, the
+ * `clientReferenceId` you gave the start), and let the visitor decide. Status `0`,
+ * as for the other errors the client raises itself.
  */
 export class CheckoutTokenMissingError extends KaitenError {
   /** The session the call named. */
@@ -286,8 +293,9 @@ export class CheckoutTokenMissingError extends KaitenError {
       title: "No token for this checkout session",
       status: 0,
       detail:
-        "Kaiten: this client holds no token for that checkout session. A token is kept in " +
-        "this tab's sessionStorage from the start, and dropped once the session closes; start a new checkout.",
+        "Kaiten: this client holds no token for that checkout session, which may already have " +
+        "completed. Check the outcome with your own events or the clientReferenceId before you " +
+        "start another checkout, and do not start one automatically.",
     });
     this.name = "CheckoutTokenMissingError";
     this.sessionId = sessionId;
@@ -314,7 +322,9 @@ export class TurnstileFailedError extends KaitenError {
  * code ending in `.SessionClosed`, such as `ConfirmCheckoutSession.SessionClosed`.
  * It was completed, abandoned or expired; `sessionStatus` says which (`COMPLETED`,
  * `ABANDONED` or `EXPIRED`). A closed session never reopens: read it with
- * `getCheckoutSession` to learn the outcome, or start a new one.
+ * `getCheckoutSession` to learn the outcome. Start a new one only when the visitor
+ * asks, and only if it was abandoned or expired: a completed one already created the
+ * customer.
  *
  * A `KaitenError`, so a handler that narrows on `instanceof KaitenError` or on
  * `status`/`code` keeps working.
@@ -338,8 +348,8 @@ export class CheckoutSessionClosedError extends KaitenError {
  * and the confirm that follows the payment method setup: HTTP 409 with a code
  * ending in `.DueTodayChanged`, such as `ConfirmCheckoutSession.DueTodayChanged`.
  * A discount, a price or a trial the visitor was shown no longer holds. Nothing
- * was charged. Show the visitor the new amount and start again, with a new
- * Turnstile token.
+ * was charged. Read the session (`getCheckoutSession`) for the new amount, show it
+ * to the visitor, and start again with a new Turnstile token if they agree.
  *
  * A `KaitenError`, so a handler that narrows on `instanceof KaitenError` or on
  * `status`/`code` keeps working.

@@ -110,6 +110,11 @@ export interface KaitenCheckoutCredential {
   sessionId: string;
   /** The `ksc_` token. */
   token: string;
+  /**
+   * When the client saw the session close (milliseconds since the epoch), absent while
+   * it is open. The token is dropped 24 hours later, when the API stops answering it.
+   */
+  closedAt?: number;
 }
 
 /**
@@ -138,14 +143,20 @@ export interface KaitenAnonymousCheckoutClientConfig {
   /** Optional per-request timeout in milliseconds. */
   timeoutMs?: number;
   /**
-   * Called when the API refuses the credential of a call (401, or 403). A refused
-   * checkout session token is forgotten first; there is nothing to renew it with.
+   * Called when the API refuses the credential of a call: a 401, or a 403
+   * `Auth.WrongCredentialKind`. A refused checkout session token is forgotten first;
+   * there is nothing to renew it with. A 403 that says the feature is off
+   * (`AnonymousCheckoutDisabled`) or the origin is not allowed is not a credential
+   * problem and does not call it: it rejects the call with a `KaitenError`, as any
+   * other refusal does.
    */
   onAuthError?: (error: KaitenAuthErrorInfo) => void;
   /**
    * Where the session tokens are kept across a page load. Defaults to
-   * `sessionStorage` when the runtime has one, else to memory alone; `null` keeps
-   * them in memory only, which a redirect to the setup page loses.
+   * `sessionStorage` in a browser that lets the page use it, else to memory alone
+   * (a server runtime's own `sessionStorage` is never used: it is shared by every
+   * visitor); `null` keeps them in memory only, which a redirect to the setup page
+   * loses.
    */
   storage?: KaitenCheckoutTokenStorage | null;
 }

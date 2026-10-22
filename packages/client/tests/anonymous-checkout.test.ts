@@ -17,12 +17,15 @@ import {
   RateLimitedError,
   TurnstileFailedError,
   TurnstileUnavailableError,
+  clearCheckoutReturn,
   isCheckoutSessionToken,
   readCheckoutReturn,
 } from "../src/index.ts";
 import type {
   CheckoutConfirmation,
   CheckoutSession,
+  CheckoutSessionOpened,
+  CheckoutSessionPreview,
   CheckoutSessionStart,
   KaitenAnonymousCheckoutClientConfig,
   KaitenAnonymousCheckoutClientLike,
@@ -195,7 +198,7 @@ describe("startCheckout", () => {
     });
   });
 
-  test("a session opened is the server's quote, in the SDK's money, and its token stays with the client", async () => {
+  test("a session opened is the server's quote, in the SDK's money, with its token, which the client keeps as well", async () => {
     const { client } = open(() =>
       json(startOpen({ trialEndsAt: "2026-11-05T10:00:00Z", trialRefusedReason: null }), 201),
     );
@@ -205,6 +208,7 @@ describe("startCheckout", () => {
     expect(result).toEqual({
       status: "open",
       sessionId: SESSION_ID,
+      token: KSC,
       expiresAt: "2026-10-23T10:00:00Z",
       dueToday: {
         currencyCode: "EUR",
@@ -240,7 +244,6 @@ describe("startCheckout", () => {
       trialRefusedReason: null,
       requiresPaymentMethod: true,
     });
-    expect(JSON.stringify(result)).not.toContain("ksc_");
     expect(client.holdsCheckoutSession(SESSION_ID)).toBe(true);
   });
 
@@ -301,13 +304,47 @@ describe("startCheckout", () => {
     });
   });
 
-  test("a status it does not know reaches the host as it came", async () => {
+  test("a status it does not know is refused, never handed to the host outside its type", async () => {
     const { client } = open(() => json({ ...startPreview(), status: "queued" }));
 
-    expect(await client.startCheckout({ ...START, dryRun: true })).toMatchObject({
-      status: "queued",
-    });
+    const error = await caught(client.startCheckout({ ...START, dryRun: true }));
+
+    expect(error).toBeInstanceOf(KaitenError);
+    expect(error).toMatchObject({ status: 0, message: "Unknown checkout start status" });
     // The contract knows no such status: that is the point of the test.
+    violations.length = 0;
+  });
+
+  test("a status it does not know, with a session, keeps the token out of the host's hands but in the client's", async () => {
+    const { client, requests } = open((request) =>
+      request.method === "POST"
+        ? json({ ...startOpen(), status: "queued" }, 201)
+        : json(checkoutSession()),
+    );
+
+    const error = await caught(client.startCheckout(START));
+
+    expect(error).toMatchObject({ status: 0 });
+    expect(JSON.stringify(error)).not.toContain("ksc_");
+    expect((error as KaitenError).detail).toContain(SESSION_ID);
+    expect(client.holdsCheckoutSession(SESSION_ID)).toBe(true);
+    await client.getCheckoutSession(SESSION_ID);
+    expect(requests[1]!.headers.get("Authorization")).toBe(`Bearer ${KSC}`);
+    violations.length = 0;
+  });
+
+  test("a real start answered with a preview, or a dryRun with a session, is refused", async () => {
+    const preview = open(() => json(startPreview()));
+    expect(await caught(preview.client.startCheckout(START))).toMatchObject({
+      message: "Unexpected checkout start",
+    });
+
+    const session = open(() => json(startOpen(), 201));
+    expect(await caught(session.client.startCheckout({ ...START, dryRun: true }))).toMatchObject({
+      message: "Unexpected checkout start",
+    });
+    // The session was opened all the same: the client keeps its token.
+    expect(session.client.holdsCheckoutSession(SESSION_ID)).toBe(true);
     violations.length = 0;
   });
 
@@ -345,6 +382,24 @@ describe("startCheckout", () => {
       ["no return URL", { ...START, returnUrl: undefined }],
       ["a reference over 255 characters", { ...START, clientReferenceId: "x".repeat(256) }],
       ["an empty voucher", { ...START, voucherCode: "" }],
+      ["a voucher over 64 characters", { ...START, voucherCode: "v".repeat(65) }],
+      ["an e-mail over 254 characters", { ...START, email: `${"a".repeat(250)}@b.test` }],
+      [
+        "a return URL over 2048 characters",
+        { ...START, returnUrl: `${RETURN_URL}/${"p".repeat(2048)}` },
+      ],
+      ["a plan over 255 characters", { ...START, licenseSlug: "l".repeat(256) }],
+      ["a Turnstile token over 2048 characters", { ...START, turnstileToken: "t".repeat(2049) }],
+      [
+        "more than 50 add-ons",
+        {
+          ...START,
+          addOns: Array.from({ length: 51 }, (_, i) => ({ addonSlug: `a${i}`, quantity: 1 })),
+        },
+      ],
+      ["a member the API does not know (returnURL)", { ...START, returnURL: RETURN_URL } as never],
+      ["a trial that is not a boolean", { ...START, trial: "no" } as never],
+      ["a dryRun that is not a boolean", { ...START, dryRun: 1 } as never],
       ["an add-on without a quantity", { ...START, addOns: [{ addonSlug: "s" } as never] }],
       ["an add-on of none", { ...START, addOns: [{ addonSlug: "s", quantity: 0 }] }],
       ["an add-on of half a unit", { ...START, addOns: [{ addonSlug: "s", quantity: 1.5 }] }],
@@ -355,6 +410,29 @@ describe("startCheckout", () => {
 
       expect(await caught(client.startCheckout(input))).toBeInstanceOf(TypeError);
       expect(requests).toHaveLength(0);
+    });
+
+    test("the API counts characters, not UTF-16 units: 255 emoji are 255 characters", async () => {
+      const { client, requests } = open(() => json(startOpen(), 201));
+
+      await client.startCheckout({ ...START, clientReferenceId: "😀".repeat(255) });
+      expect(
+        await caught(client.startCheckout({ ...START, clientReferenceId: "😀".repeat(256) })),
+      ).toBeInstanceOf(TypeError);
+
+      expect(requests).toHaveLength(1);
+    });
+
+    test("members left undefined are not members", async () => {
+      const { client, requests } = open(() => json(startOpen(), 201));
+
+      await client.startCheckout({
+        ...START,
+        voucherCode: undefined,
+        ["extra" as never]: undefined,
+      });
+
+      expect(Object.keys(await requests[0]!.json())).not.toContain("extra");
     });
 
     test("a reference of 255 characters and a dryRun without an e-mail go through", async () => {
@@ -497,7 +575,7 @@ describe("getCheckoutSession", () => {
   });
 
   test.each(["COMPLETED", "ABANDONED", "EXPIRED"] as const)(
-    "a %s session drops its token, and is answered from memory from then on",
+    "a %s session is answered from memory from then on, and keeps its token for the read window",
     async (status) => {
       const { client, requests, storage } = await started(() => json(completedSession({ status })));
 
@@ -507,8 +585,12 @@ describe("getCheckoutSession", () => {
       expect(first.status).toBe(status);
       expect(again).toEqual(first);
       expect(requests).toHaveLength(1);
-      expect(client.holdsCheckoutSession(SESSION_ID)).toBe(false);
-      expect(storage.items.size).toBe(0);
+      expect(client.holdsCheckoutSession(SESSION_ID)).toBe(true);
+      expect(JSON.parse(storage.items.get(`kaiten.checkout.${SESSION_ID}`)!)).toEqual({
+        sessionId: SESSION_ID,
+        token: KSC,
+        closedAt: expect.any(Number),
+      });
     },
   );
 
@@ -606,8 +688,8 @@ describe("confirmCheckout", () => {
     expect(client.holdsCheckoutSession(SESSION_ID)).toBe(true);
   });
 
-  test("completes with the customer and the instance created, and drops the token", async () => {
-    const { client, storage } = await started(() => json(confirmation()));
+  test("completes with the customer and the instance created, and keeps the token to read the outcome", async () => {
+    const { client } = await started(() => json(confirmation()));
 
     const result = await client.confirmCheckout(SESSION_ID);
 
@@ -621,8 +703,7 @@ describe("confirmCheckout", () => {
         completedAt: "2026-10-22T10:00:00Z",
       },
     });
-    expect(client.holdsCheckoutSession(SESSION_ID)).toBe(false);
-    expect(storage.items.size).toBe(0);
+    expect(client.holdsCheckoutSession(SESSION_ID)).toBe(true);
   });
 
   test("a session known to be closed is not confirmed: it answers as a closed session does", async () => {
@@ -680,7 +761,7 @@ describe("confirmCheckout", () => {
     expect(client.holdsCheckoutSession(SESSION_ID)).toBe(false);
   });
 
-  test("a disabled feature is a 403 the host hears of, and the token is kept", async () => {
+  test("a disabled feature is a refusal, not a credential to renew: the host is not told, and the token is kept", async () => {
     const onAuthError = vi.fn();
     const { client } = await started(
       () => json(problem(403, "ConfirmCheckoutSession.AnonymousCheckoutDisabled"), 403),
@@ -689,9 +770,37 @@ describe("confirmCheckout", () => {
 
     const error = await caught(client.confirmCheckout(SESSION_ID));
 
-    expect(error).toMatchObject({ status: 403 });
-    expect(onAuthError).toHaveBeenCalledWith(expect.objectContaining({ status: 403 }));
+    expect(error).toMatchObject({
+      status: 403,
+      code: "ConfirmCheckoutSession.AnonymousCheckoutDisabled",
+    });
+    expect(onAuthError).not.toHaveBeenCalled();
     expect(client.holdsCheckoutSession(SESSION_ID)).toBe(true);
+  });
+
+  test("a forbidden origin is not a credential to renew either", async () => {
+    const onAuthError = vi.fn();
+    const { client } = await started(() => json(problem(403, "PublicAuth.OriginNotAllowed"), 403), {
+      onAuthError,
+    });
+
+    await caught(client.getCheckoutSession(SESSION_ID));
+
+    expect(onAuthError).not.toHaveBeenCalled();
+    expect(client.holdsCheckoutSession(SESSION_ID)).toBe(true);
+  });
+
+  test("a credential of the wrong kind is a 403 the host hears of", async () => {
+    const onAuthError = vi.fn();
+    const { client } = await started(() => json(problem(403, "Auth.WrongCredentialKind"), 403), {
+      onAuthError,
+    });
+
+    await caught(client.confirmCheckout(SESSION_ID));
+
+    expect(onAuthError).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 403, operation: `confirmCheckout(${SESSION_ID})` }),
+    );
   });
 });
 
@@ -716,7 +825,96 @@ describe("the way back from the payment method setup", () => {
 
     expect(result.status).toBe("completed");
     expect(after.requests[0]!.headers.get("Authorization")).toBe(`Bearer ${KSC}`);
-    expect(shared.items.size).toBe(0);
+  });
+
+  describe("a page that is loaded again once the session closed", () => {
+    const WINDOW_MS = 24 * 60 * 60 * 1000;
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    /** A page that confirmed a paid session, and the storage it left behind. */
+    async function completed() {
+      const shared = new MemoryStorage();
+      const before = open(() => json(startOpen(), 201), { storage: shared });
+      await before.client.startCheckout(START);
+      const paid = open(() => json(confirmation()), { storage: shared });
+      expect((await paid.client.confirmCheckout(SESSION_ID)).status).toBe("completed");
+      return shared;
+    }
+
+    test("still reads the outcome, and a confirm learns from the API that it closed", async () => {
+      const shared = await completed();
+      const reloaded = open(
+        (request) =>
+          request.method === "GET"
+            ? json(completedSession())
+            : json(
+                problem(409, "ConfirmCheckoutSession.SessionClosed", {
+                  errors: [
+                    { location: "session", message: "closed", value: { status: "COMPLETED" } },
+                  ],
+                }),
+                409,
+              ),
+        { storage: shared },
+      );
+
+      expect(reloaded.client.holdsCheckoutSession(SESSION_ID)).toBe(true);
+      const read = await reloaded.client.getCheckoutSession(SESSION_ID);
+      expect(read).toMatchObject({ status: "COMPLETED", customerSlug: "ada-x7k2" });
+      expect(reloaded.requests[0]!.headers.get("Authorization")).toBe(`Bearer ${KSC}`);
+
+      // Seen closed now: a confirm is answered without the network.
+      expect(await caught(reloaded.client.confirmCheckout(SESSION_ID))).toMatchObject({
+        sessionStatus: "COMPLETED",
+      });
+      expect(reloaded.requests).toHaveLength(1);
+
+      // A page that goes to confirm first is told by the API.
+      const fresh = open(() => json(problem(409, "ConfirmCheckoutSession.SessionClosed"), 409), {
+        storage: shared,
+      });
+      expect(await caught(fresh.client.confirmCheckout(SESSION_ID))).toBeInstanceOf(
+        CheckoutSessionClosedError,
+      );
+      expect(fresh.requests).toHaveLength(1);
+    });
+
+    test("holds the token for the 24 hours the API reads for, and not past them", async () => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(new Date("2026-10-22T10:00:00Z"));
+      const shared = await completed();
+
+      vi.setSystemTime(new Date(Date.parse("2026-10-22T10:00:00Z") + WINDOW_MS - 1000));
+      expect(
+        open(() => json(completedSession()), { storage: shared }).client.holdsCheckoutSession(
+          SESSION_ID,
+        ),
+      ).toBe(true);
+
+      vi.setSystemTime(new Date(Date.parse("2026-10-22T10:00:00Z") + WINDOW_MS + 1000));
+      const late = open(() => json(completedSession()), { storage: shared });
+      expect(late.client.holdsCheckoutSession(SESSION_ID)).toBe(false);
+      expect(await caught(late.client.getCheckoutSession(SESSION_ID))).toBeInstanceOf(
+        CheckoutTokenMissingError,
+      );
+      expect(late.requests).toHaveLength(0);
+      expect(shared.items.size).toBe(0);
+    });
+
+    test("the API's 401 after the window drops the token", async () => {
+      const shared = await completed();
+      const reloaded = open(() => json(problem(401, "PublicAuth.InvalidCredential"), 401), {
+        storage: shared,
+      });
+
+      await caught(reloaded.client.getCheckoutSession(SESSION_ID));
+
+      expect(reloaded.client.holdsCheckoutSession(SESSION_ID)).toBe(false);
+      expect(shared.items.size).toBe(0);
+    });
   });
 
   test("without a storage, the redirect loses the token", async () => {
@@ -790,6 +988,15 @@ describe("readCheckoutReturn", () => {
     expect(readCheckoutReturn("http://")).toBeNull();
   });
 
+  test("a token missing is not told as a reason to start another checkout", async () => {
+    const { client } = open(() => json(checkoutSession()));
+
+    const error = (await caught(client.getCheckoutSession(SESSION_ID))) as KaitenError;
+
+    expect(error.detail).not.toContain("start a new checkout");
+    expect(error.detail).toContain("do not start one automatically");
+  });
+
   test("reads the page's own address when it is given none", () => {
     vi.stubGlobal("location", {
       href: `${RETURN_URL}?kaiten_checkout_session=${SESSION_ID}`,
@@ -800,6 +1007,35 @@ describe("readCheckoutReturn", () => {
       vi.unstubAllGlobals();
     }
     expect(readCheckoutReturn()).toBeNull();
+  });
+});
+
+describe("clearCheckoutReturn", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  test("takes the session out of the address bar, keeping the entry and its state", () => {
+    const replaceState = vi.fn();
+    vi.stubGlobal("location", {
+      href: `${RETURN_URL}?utm=mail&${CHECKOUT_RETURN_PARAM}=${SESSION_ID}#done`,
+    });
+    vi.stubGlobal("history", { state: { page: 3 }, replaceState });
+
+    expect(clearCheckoutReturn()).toBe(true);
+
+    expect(replaceState).toHaveBeenCalledWith({ page: 3 }, "", `${RETURN_URL}?utm=mail#done`);
+  });
+
+  test("does nothing when the address names no session, or outside a browser", () => {
+    const replaceState = vi.fn();
+    vi.stubGlobal("location", { href: RETURN_URL });
+    vi.stubGlobal("history", { state: null, replaceState });
+    expect(clearCheckoutReturn()).toBe(false);
+    expect(replaceState).not.toHaveBeenCalled();
+
+    vi.unstubAllGlobals();
+    expect(clearCheckoutReturn()).toBe(false);
   });
 });
 
@@ -920,11 +1156,15 @@ describe("where the token is kept", () => {
     return { session, local };
   }
 
+  /** A page: `window.document` exists, as isBrowserRuntime reads it. */
+  const stubBrowser = () => vi.stubGlobal("window", { document: {} });
+
   afterEach(() => {
     vi.unstubAllGlobals();
   });
 
-  test("by default in sessionStorage, and never in localStorage", async () => {
+  test("by default in a browser's sessionStorage, and never in localStorage", async () => {
+    stubBrowser();
     const { session, local } = stubStorages();
     const { fetch } = server(() => json(startOpen(), 201));
     const client = new KaitenAnonymousCheckoutClient({ apiUrl: API, publishableKey: PK, fetch });
@@ -935,7 +1175,20 @@ describe("where the token is kept", () => {
     expect(local.writes).toEqual([]);
   });
 
+  test("a server runtime's own sessionStorage is not used: it is shared by every visitor", async () => {
+    // Node 25 offers one, in memory, to the whole process: no window, so no browser.
+    const { session } = stubStorages();
+    const { fetch } = server(() => json(startOpen(), 201));
+    const client = new KaitenAnonymousCheckoutClient({ apiUrl: API, publishableKey: PK, fetch });
+
+    await client.startCheckout(START);
+
+    expect(session.writes).toEqual([]);
+    expect(client.holdsCheckoutSession(SESSION_ID)).toBe(true);
+  });
+
   test("storage: null keeps it in memory alone", async () => {
+    stubBrowser();
     const { session } = stubStorages();
     const { fetch } = server(() => json(startOpen(), 201));
     const client = new KaitenAnonymousCheckoutClient({
@@ -975,10 +1228,11 @@ describe("where the token is kept", () => {
     expect(client.holdsCheckoutSession(SESSION_ID)).toBe(true);
     expect((await client.getCheckoutSession(SESSION_ID)).status).toBe("OPEN");
     expect((await client.confirmCheckout(SESSION_ID)).status).toBe("completed");
-    expect(client.holdsCheckoutSession(SESSION_ID)).toBe(false);
+    expect(client.holdsCheckoutSession(SESSION_ID)).toBe(true);
   });
 
   test("a runtime whose sessionStorage throws on access has memory alone", async () => {
+    stubBrowser();
     vi.stubGlobal("sessionStorage", undefined);
     Object.defineProperty(globalThis, "sessionStorage", {
       configurable: true,
@@ -1177,7 +1431,26 @@ describe("the types", () => {
     expect(typeof read).toBe("function");
   });
 
-  test("the start does not hand the session's token to the host", () => {
-    expectTypeOf<CheckoutSessionStart>().not.toHaveProperty("token");
+  test("the start hands the session's token to the host, on an opened session only", () => {
+    expectTypeOf<CheckoutSessionOpened>().toHaveProperty("token").toBeString();
+    expectTypeOf<CheckoutSessionPreview>().not.toHaveProperty("token");
+  });
+
+  test("the start is typed by what it asks for: a dryRun a preview, a start an opened session", () => {
+    const base = { turnstileToken: "t", priceId: "p", email: "a@b.test", returnUrl: RETURN_URL };
+    const read = (client: KaitenAnonymousCheckoutClient | KaitenAnonymousCheckoutClientLike) => {
+      expectTypeOf(
+        client.startCheckout({ ...base, dryRun: true }),
+      ).resolves.toEqualTypeOf<CheckoutSessionPreview>();
+      expectTypeOf(client.startCheckout(base)).resolves.toEqualTypeOf<CheckoutSessionOpened>();
+      expectTypeOf(
+        client.startCheckout({ ...base, dryRun: false }),
+      ).resolves.toEqualTypeOf<CheckoutSessionOpened>();
+      // Not known at compile time: either.
+      expectTypeOf(
+        client.startCheckout({ ...base, dryRun: Math.random() > 0.5 }),
+      ).resolves.toEqualTypeOf<CheckoutSessionStart>();
+    };
+    expect(typeof read).toBe("function");
   });
 });

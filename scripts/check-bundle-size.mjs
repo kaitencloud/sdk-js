@@ -119,9 +119,12 @@ const SCENARIOS = [
     unstyled: true,
   },
   {
+    // Measured at 30 085 bytes: the anonymous checkout client it carries grew by the checks of
+    // a start's bounds and by the token it keeps to read a closed session, and the OFREP
+    // context names the instance.
     name: "core · everything",
     code: `import * as all from "@kaitencloud/react"; console.log(all);`,
-    budgetGzip: 30_000,
+    budgetGzip: 30_200,
     unstyled: true,
   },
   {
@@ -282,9 +285,14 @@ const SCENARIOS = [
   {
     // What a page that sells a plan to a visitor with no account ships: the anonymous checkout
     // client, which a host that offers none does not.
+    //
+    // Measured at 9 740 bytes, up from 9 174: the checks of every bound the API sets on a
+    // start (lengths counted in characters, the members it does not know), the token kept for
+    // the 24 hours a closed session can still be read, the refusal of an answer outside the
+    // closed unions, and `clearCheckoutReturn`.
     name: "client · KaitenAnonymousCheckoutClient alone",
     code: `import { KaitenAnonymousCheckoutClient } from "@kaitencloud/client"; console.log(KaitenAnonymousCheckoutClient);`,
-    budgetGzip: 9_300,
+    budgetGzip: 9_850,
     headless: true,
     resolveDir: FROM_NODE,
   },
