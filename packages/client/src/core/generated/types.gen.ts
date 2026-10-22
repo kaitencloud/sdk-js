@@ -22,6 +22,9 @@ export type Webhooks =
   | OnBillingProviderConnectedWebhookRequest
   | OnBillingProviderDisconnectedWebhookRequest
   | OnBillingProviderSyncFailedWebhookRequest
+  | OnCheckoutSessionAbandonedWebhookRequest
+  | OnCheckoutSessionCompletedWebhookRequest
+  | OnCheckoutSessionStartedWebhookRequest
   | OnComponentCreatedWebhookRequest
   | OnComponentDeletedWebhookRequest
   | OnComponentUpdatedWebhookRequest
@@ -67,6 +70,9 @@ export type Webhooks =
   | OnInstanceEntitlementUsageReportRejectedWebhookRequest
   | OnInstanceEntitlementUsageWarningThresholdReachedWebhookRequest
   | OnInstanceEntitlementValueGetWebhookRequest
+  | OnInstanceEntitlementExceptionCreatedWebhookRequest
+  | OnInstanceEntitlementExceptionExpiredWebhookRequest
+  | OnInstanceEntitlementExceptionRevokedWebhookRequest
   | OnInstanceInvoiceHandoffAcknowledgedWebhookRequest
   | OnInstanceInvoiceHeldWebhookRequest
   | OnInstanceInvoiceIssuedWebhookRequest
@@ -391,6 +397,15 @@ export type AuditTrail = {
    * When the event occurred
    */
   timestamp: string;
+};
+
+export type Authorization = {
+  externalOrganizationId: string;
+  kind: string;
+  organizationId: string;
+  scopes: Array<string>;
+  subject: string;
+  userId: string;
 };
 
 export type Basic = {
@@ -817,6 +832,134 @@ export type CancellationChange = {
   updatedAt: string;
 };
 
+export type CheckoutConfirmation = {
+  session: CheckoutSession;
+  /**
+   * requires_payment_method only
+   */
+  setupExpiresAt?: string;
+  /**
+   * requires_payment_method only: the hosted page that saves the payment method
+   */
+  setupUrl?: string;
+  status: "requires_payment_method" | "awaiting_payment" | "completed";
+};
+
+export type CheckoutPayment = {
+  hostedInvoiceUrl: string | null;
+  status: "paid" | "requires_action" | "failed" | "processing" | "not_required";
+};
+
+export type CheckoutSession = {
+  /**
+   * Once an ACTIVATION was issued
+   */
+  activationInvoice: SessionInvoice | null;
+  addOns: Array<SessionAddonSelection>;
+  billingPeriod: string;
+  clientReferenceId: string | null;
+  completedAt: string | null;
+  createdAt: string;
+  /**
+   * Set by the completion
+   */
+  customerSlug: string | null;
+  /**
+   * The voucher's discount shows as a line; the code itself is never echoed
+   */
+  dueToday: DueToday;
+  email: string;
+  expiresAt: string;
+  /**
+   * Set by the completion
+   */
+  instanceSlug: string | null;
+  licenseSlug: string;
+  payment: CheckoutPayment | null;
+  priceId: string;
+  requiresPaymentMethod: boolean;
+  sessionId: string;
+  /**
+   * A session still OPEN after expiresAt reads ABANDONED
+   */
+  status: "OPEN" | "AWAITING_PAYMENT" | "COMPLETED" | "ABANDONED" | "EXPIRED";
+  trialEndsAt: string | null;
+  trialRefusedReason: string | null;
+};
+
+export type CheckoutSessionDraft = {
+  addOns?: Array<SubscriptionAddon> | null;
+  /**
+   * MONTHLY, QUARTERLY, SEMI_ANNUAL or ANNUAL, with licenseSlug
+   */
+  billingPeriod?: string;
+  /**
+   * The vendor's opaque reference, echoed on the checkout_session events
+   */
+  clientReferenceId?: string;
+  /**
+   * Compute what would be due today, and write nothing
+   */
+  dryRun?: boolean;
+  /**
+   * The buyer's e-mail. It becomes the new customer's billing e-mail at completion. Required unless dryRun.
+   */
+  email?: string;
+  /**
+   * A public plan's version, with billingPeriod: its default ACTIVE FLAT_FEE price of that period
+   */
+  licenseSlug?: string;
+  /**
+   * A FLAT_FEE price of a public plan. Not with licenseSlug and billingPeriod.
+   */
+  priceId?: string;
+  /**
+   * Where the payment-method setup page sends the visitor back, with kaiten_checkout_session=<sessionId> appended: https, or http on localhost, on an origin the key allows. Required unless dryRun.
+   */
+  returnUrl?: string;
+  /**
+   * false declines the licence's trial
+   */
+  trial?: boolean;
+  /**
+   * The token the Turnstile widget gave the page. Single-use: a dryRun spends one too.
+   */
+  turnstileToken: string;
+  /**
+   * A code to apply; any refusal answers 422 .VoucherInvalid
+   */
+  voucherCode?: string;
+};
+
+export type CheckoutSessionStart = {
+  dueToday: DueToday;
+  /**
+   * open only: 24 h after the start
+   */
+  expiresAt?: string;
+  /**
+   * Whether the confirm will send the visitor to a payment-method setup page
+   */
+  requiresPaymentMethod: boolean;
+  /**
+   * open only
+   */
+  sessionId?: string;
+  status: "preview" | "open";
+  /**
+   * open only: the session's ksc_, returned once. Keep it in memory and sessionStorage, never in a URL.
+   */
+  token?: string;
+  /**
+   * The end of the trial the subscription would start with; null without one
+   */
+  trialEndsAt: string | null;
+  /**
+   * ALREADY_CONSUMED: a customer with this e-mail already had a trial of the family, so none is given; null otherwise
+   */
+  trialRefusedReason: string | null;
+};
+
 export type CloseBacklog = {
   count: number;
   oldestDueAt?: string;
@@ -1047,6 +1190,13 @@ export type ConnectorState = {
    * Registered connector version. Absent when the connector is not available.
    */
   version?: string;
+};
+
+export type CreateRole = {
+  description: string;
+  name: string;
+  permissions: Array<string>;
+  slug: string;
 };
 
 export type CreatedCustomerSession = {
@@ -1463,9 +1613,9 @@ export type Entitlement = {
    */
   name: string;
   /**
-   * Phase of the periodic usage window: CALENDAR (UTC calendar-aligned) or LICENSE_START (phased off the instance's license start date). Required exactly when resetPeriod is set; defaults to CALENDAR when omitted. Immutable once set.
+   * Phase of the periodic usage window: CALENDAR (UTC calendar-aligned), LICENSE_START (phased off the instance's license start date) or BILLING_PERIOD (phased off the instance's live subscription's billing anchor, LICENSE_START without one; with resetPeriod MONTH or YEAR only). Required exactly when resetPeriod is set; defaults to CALENDAR when omitted. Immutable once set.
    */
-  resetAnchor?: "CALENDAR" | "LICENSE_START";
+  resetAnchor?: "CALENDAR" | "LICENSE_START" | "BILLING_PERIOD";
   /**
    * Cadence at which usage automatically resets for this NUMBER entitlement. NULL means a lifetime counter (default). Immutable once set -- a full-replace PUT must echo back the stored value.
    */
@@ -1749,6 +1899,24 @@ export type EventHeaders = {
    */
   tracestate?: string;
   [key: string]: unknown;
+};
+
+export type ExceptionEvent = {
+  /**
+   * Null: no end
+   */
+  endsAt: string | null;
+  entitlementSlug: string;
+  id: string;
+  instanceSlug: string;
+  kind: "SET" | "ADD" | "UNLIMITED";
+  reason: string;
+  revokedAt: string | null;
+  startsAt: string;
+  /**
+   * The exception's value: a number for NUMBER and NUMBER_AI_CREDIT, a boolean for BOOLEAN, the CONFIG document as an object; null for UNLIMITED
+   */
+  value: unknown | null;
 };
 
 export type ExhaustedEvent = {
@@ -3254,6 +3422,25 @@ export type LicenseEntitlement = {
       } & ConfigEntitlementValue);
 };
 
+export type LicenseFamilyUpdate = {
+  /**
+   * Another FREE family of the organization (every version of it priced FREE), whose default PUBLISHED version an instance moves to when its subscription ends. "" removes the fallback. Anything else answers 422 .InvalidFallback, an unknown family included.
+   */
+  fallbackLicenseFamilySlug?: string;
+  /**
+   * List the family's default PUBLISHED version, with its ACTIVE prices, in the public catalogue
+   */
+  isPublic?: boolean;
+  /**
+   * CANCEL or CONVERT: what a trial charged automatically with a total above 0 becomes at its end when the customer has no ACTIVE payment method. CANCEL cancels it; CONVERT makes it ACTIVE, whose first charge then fails. Any other value answers 422 .InvalidTrialEndBehavior.
+   */
+  trialEndWithoutPaymentMethod?: string;
+  /**
+   * How many days before a trial's end trial_will_end fires, from 1 to 30, for the trials started after the change
+   */
+  trialReminderDays?: number;
+};
+
 export type LicenseFamilyView = {
   /**
    * Timestamp when this family was created
@@ -3263,6 +3450,10 @@ export type LicenseFamilyView = {
    * The version this read is about. By default the version the family resolves to: its default version if it has one, otherwise its highest-numbered PUBLISHED version. Under ?version=N it is the version asked for instead, whatever its lifecycle state. Absent when the family has no PUBLISHED version, which only a list or an include=versions read returns.
    */
   currentVersion?: License;
+  /**
+   * The FREE family whose default PUBLISHED version an instance of this family moves to when its subscription ends; null without one
+   */
+  fallbackLicenseFamilySlug: string | null;
   /**
    * Unique identifier for the license family
    */
@@ -3276,6 +3467,14 @@ export type LicenseFamilyView = {
    */
   slug: string;
   /**
+   * What a trial charged automatically with a total above 0 becomes at its end when the customer has no ACTIVE payment method: CANCEL (the default) or CONVERT
+   */
+  trialEndWithoutPaymentMethod: "CANCEL" | "CONVERT";
+  /**
+   * How many days before a trial's end trial_will_end fires, for the trials started after it was set. 3 by default.
+   */
+  trialReminderDays: number;
+  /**
    * Timestamp when a version was last added to this family, or when the family was created. Renames, lifecycle moves and default changes update the versions' own updatedAt, not this one.
    */
   readonly updatedAt: string;
@@ -3287,13 +3486,6 @@ export type LicenseFamilyView = {
    * Every version of the family, oldest first. Only returned when explicitly requested with include=versions, and then never null: a family always has at least one version.
    */
   versions?: Array<License>;
-};
-
-export type LicenseFamilyVisibility = {
-  /**
-   * List the family's default PUBLISHED version, with its ACTIVE prices, in the public catalogue
-   */
-  isPublic: boolean;
 };
 
 export type LicensePriceChanges = {
@@ -3486,6 +3678,15 @@ export type List = {
   unreadCount: number;
 };
 
+export type ManagedUser = {
+  authorization: UserAuthorization;
+  createdAt: string;
+  email: string | null;
+  externalId: string;
+  id: string;
+  name: string;
+};
+
 export type ManifestEnvelope = {
   flags: Array<ManifestFlag> | null;
 };
@@ -3507,6 +3708,14 @@ export type MarkReadResult = {
    * Notifications newly marked read
    */
   updated: number;
+};
+
+export type Me = {
+  availablePermissions: Array<string>;
+  availableRoles: Array<Role>;
+  organizationId: string;
+  scopes: Array<string>;
+  user: ManagedUser;
 };
 
 export type MetadataField = {
@@ -4107,6 +4316,18 @@ export type PageLicenseFamilyView = {
   nextCursor?: string;
 };
 
+export type PageManagedUser = {
+  /**
+   * Whether more rows exist beyond this page.
+   */
+  hasMore: boolean;
+  items: Array<ManagedUser>;
+  /**
+   * Opaque cursor for the next page. Absent when hasMore is false.
+   */
+  nextCursor?: string;
+};
+
 export type PageMetadataField = {
   /**
    * Whether more rows exist beyond this page.
@@ -4515,7 +4736,7 @@ export type PlanChangeTarget = {
 
 export type PortalCapabilities = {
   /**
-   * The instance has no live subscription, and its plan can be bought alone: POST /public/session/checkout
+   * POST /public/session/checkout: the instance has no live subscription and its plan can be bought alone, or its live subscription is free (a FREE licence family, no add-on price above 0) and the catalogue has a self-serve plan, which the checkout replaces it with
    */
   checkout: boolean;
   /**
@@ -4799,6 +5020,11 @@ export type Problem = {
   type?: string;
 };
 
+export type Profile = {
+  email: string;
+  name: string;
+};
+
 export type Provenance = {
   /**
    * The active add-on grants, in attachment order
@@ -5000,6 +5226,10 @@ export type PublicCatalog = {
 
 export type PublicCatalogCapabilities = {
   /**
+   * Whether this publishable key starts anonymous checkouts (POST /public/checkout-sessions): on, with a Turnstile site key and secret
+   */
+  anonymousCheckout: boolean;
+  /**
    * Whether a plan of the catalogue can be bought alone, through a customer session's checkout (POST /public/session/checkout)
    */
   checkout: boolean;
@@ -5007,6 +5237,10 @@ export type PublicCatalogCapabilities = {
    * Whether the organization's billing provider captures payment methods
    */
   paymentMethods: boolean;
+  /**
+   * The Turnstile site key the page renders its widget with; null unless anonymousCheckout
+   */
+  turnstileSiteKey: string | null;
 };
 
 export type PublicMeter = {
@@ -5140,6 +5374,10 @@ export type PublishableKey = {
    * Browser origins allowed to send the key. Empty: no browser origin may; requests without an Origin header (server-side rendering) still may.
    */
   allowedOrigins: Array<string>;
+  /**
+   * Whether the key may start an anonymous checkout (POST /public/checkout-sessions). Needs a Turnstile site key and secret.
+   */
+  anonymousCheckout: boolean;
   readonly createdAt: string;
   /**
    * Unique identifier of the key
@@ -5161,6 +5399,14 @@ export type PublishableKey = {
    * When the key was revoked; absent while it is live
    */
   readonly revokedAt?: string;
+  /**
+   * Whether a Turnstile secret is stored for the key. The secret itself is write-only.
+   */
+  readonly turnstileSecretConfigured: boolean;
+  /**
+   * The Turnstile site key the page renders its widget with; null without one. Public: the catalogue hands it to the page.
+   */
+  turnstileSiteKey: string | null;
   readonly updatedAt: string;
 };
 
@@ -5169,6 +5415,10 @@ export type PublishableKeyCreated = {
    * Browser origins allowed to send the key. Empty: no browser origin may; requests without an Origin header (server-side rendering) still may.
    */
   allowedOrigins: Array<string>;
+  /**
+   * Whether the key may start an anonymous checkout (POST /public/checkout-sessions). Needs a Turnstile site key and secret.
+   */
+  anonymousCheckout: boolean;
   readonly createdAt: string;
   /**
    * Unique identifier of the key
@@ -5194,6 +5444,14 @@ export type PublishableKeyCreated = {
    * When the key was revoked; absent while it is live
    */
   readonly revokedAt?: string;
+  /**
+   * Whether a Turnstile secret is stored for the key. The secret itself is write-only.
+   */
+  readonly turnstileSecretConfigured: boolean;
+  /**
+   * The Turnstile site key the page renders its widget with; null without one. Public: the catalogue hands it to the page.
+   */
+  turnstileSiteKey: string | null;
   readonly updatedAt: string;
 };
 
@@ -5203,13 +5461,26 @@ export type PublishableKeyDraft = {
    */
   allowedOrigins: Array<string>;
   /**
+   * Open POST /public/checkout-sessions to the key. Needs turnstileSiteKey and turnstileSecret, else 422 .TurnstileNotConfigured. False by default.
+   */
+  anonymousCheckout?: boolean;
+  /**
    * What the key is for
    */
   label: string;
+  /**
+   * The Turnstile secret the server verifies tokens with. Stored in Vault, never returned: reads say turnstileSecretConfigured. 422 .VaultNotConfigured on a deployment without Vault.
+   */
+  turnstileSecret?: string;
+  /**
+   * The Turnstile site key the page renders its widget with
+   */
+  turnstileSiteKey?: string;
 };
 
 export type PublishableKeyEvent = {
   allowedOrigins: Array<string>;
+  anonymousCheckout: boolean;
   id: string;
   /**
    * The last four characters of the key
@@ -5217,6 +5488,7 @@ export type PublishableKeyEvent = {
   keyHint: string;
   label: string;
   revokedAt?: string;
+  turnstileSiteKey: string | null;
 };
 
 export type PublishableKeyPatch = {
@@ -5225,9 +5497,21 @@ export type PublishableKeyPatch = {
    */
   allowedOrigins?: Array<string>;
   /**
+   * Open or close POST /public/checkout-sessions to the key. On only with a Turnstile site key and secret, else 422 .TurnstileNotConfigured.
+   */
+  anonymousCheckout?: boolean;
+  /**
    * What the key is for
    */
   label?: string;
+  /**
+   * The Turnstile secret, stored in Vault and never returned; "" deletes it. 422 .VaultNotConfigured on a deployment without Vault.
+   */
+  turnstileSecret?: string;
+  /**
+   * The Turnstile site key; "" clears it
+   */
+  turnstileSiteKey?: string;
 };
 
 export type PushFailedInvoice = {
@@ -5823,6 +6107,21 @@ export type RevocationReason = {
   reason: string;
 };
 
+export type Role = {
+  builtIn: boolean;
+  description: string;
+  isAdministrator: boolean;
+  name: string;
+  permissions: Array<string>;
+  slug: string;
+};
+
+export type RoleDefinition = {
+  description: string;
+  name: string;
+  permissions: Array<string>;
+};
+
 export type RolloutDate = {
   end: RolloutStep;
   start: RolloutStep;
@@ -5926,6 +6225,11 @@ export type SessionAddonQuantity = {
   quantity: number;
 };
 
+export type SessionAddonSelection = {
+  addonSlug: string;
+  quantity: number;
+};
+
 export type SessionBoost = {
   entitlementSlug: string;
   modifierType: "SET" | "ADD" | "MULTIPLY" | "UNLIMITED";
@@ -6024,6 +6328,32 @@ export type SessionDiscount = {
    * A percentage in (0, 100], or an amount in minor units of currency
    */
   value: string;
+};
+
+export type SessionEvent = {
+  billingPeriod: "MONTHLY" | "QUARTERLY" | "SEMI_ANNUAL" | "ANNUAL";
+  /**
+   * The vendor's opaque reference, as given at the start
+   */
+  clientReferenceId: string | null;
+  /**
+   * The customer the completion created; null before
+   */
+  customerSlug: string | null;
+  /**
+   * The address the visitor gave at the start
+   */
+  email: string;
+  /**
+   * The instance the completion created; null before
+   */
+  instanceSlug: string | null;
+  licenseSlug: string;
+  sessionId: string;
+  /**
+   * OPEN on started, COMPLETED on completed; on abandoned, ABANDONED (never completed, slugs null) or EXPIRED (its INCOMPLETE subscription expired or was canceled unpaid, slugs set)
+   */
+  status: "OPEN" | "COMPLETED" | "ABANDONED" | "EXPIRED";
 };
 
 export type SessionInvoice = {
@@ -6702,6 +7032,21 @@ export type User = {
    * Name of the user
    */
   name?: string;
+};
+
+export type UserAuthorization = {
+  enabled: boolean;
+  permissions: Array<string>;
+  roles: Array<string>;
+};
+
+export type UserEnablement = {
+  enabled: boolean;
+};
+
+export type UserRoleAssignments = {
+  permissions: Array<string>;
+  roles: Array<string>;
 };
 
 export type Validity = {
@@ -7590,9 +7935,9 @@ export type EntitlementWritable = {
    */
   name: string;
   /**
-   * Phase of the periodic usage window: CALENDAR (UTC calendar-aligned) or LICENSE_START (phased off the instance's license start date). Required exactly when resetPeriod is set; defaults to CALENDAR when omitted. Immutable once set.
+   * Phase of the periodic usage window: CALENDAR (UTC calendar-aligned), LICENSE_START (phased off the instance's license start date) or BILLING_PERIOD (phased off the instance's live subscription's billing anchor, LICENSE_START without one; with resetPeriod MONTH or YEAR only). Required exactly when resetPeriod is set; defaults to CALENDAR when omitted. Immutable once set.
    */
-  resetAnchor?: "CALENDAR" | "LICENSE_START";
+  resetAnchor?: "CALENDAR" | "LICENSE_START" | "BILLING_PERIOD";
   /**
    * Cadence at which usage automatically resets for this NUMBER entitlement. NULL means a lifetime counter (default). Immutable once set -- a full-replace PUT must echo back the stored value.
    */
@@ -8494,6 +8839,10 @@ export type LicenseFamilyViewWritable = {
    */
   currentVersion?: LicenseWritable;
   /**
+   * The FREE family whose default PUBLISHED version an instance of this family moves to when its subscription ends; null without one
+   */
+  fallbackLicenseFamilySlug: string | null;
+  /**
    * Whether the family's default PUBLISHED version is listed in the public catalogue. Private by default.
    */
   isPublic: boolean;
@@ -8501,6 +8850,14 @@ export type LicenseFamilyViewWritable = {
    * URL-friendly identifier of the family, unique per organization and stable across renames and new versions. Deleting the family's last version deletes the family and frees the slug.
    */
   slug: string;
+  /**
+   * What a trial charged automatically with a total above 0 becomes at its end when the customer has no ACTIVE payment method: CANCEL (the default) or CONVERT
+   */
+  trialEndWithoutPaymentMethod: "CANCEL" | "CONVERT";
+  /**
+   * How many days before a trial's end trial_will_end fires, for the trials started after it was set. 3 by default.
+   */
+  trialReminderDays: number;
   /**
    * Number of versions in this family, whatever their lifecycle state
    */
@@ -9056,9 +9413,17 @@ export type PublishableKeyWritable = {
    */
   allowedOrigins: Array<string>;
   /**
+   * Whether the key may start an anonymous checkout (POST /public/checkout-sessions). Needs a Turnstile site key and secret.
+   */
+  anonymousCheckout: boolean;
+  /**
    * What the key is for, to tell keys apart
    */
   label: string;
+  /**
+   * The Turnstile site key the page renders its widget with; null without one. Public: the catalogue hands it to the page.
+   */
+  turnstileSiteKey: string | null;
 };
 
 export type PublishableKeyCreatedWritable = {
@@ -9067,9 +9432,17 @@ export type PublishableKeyCreatedWritable = {
    */
   allowedOrigins: Array<string>;
   /**
+   * Whether the key may start an anonymous checkout (POST /public/checkout-sessions). Needs a Turnstile site key and secret.
+   */
+  anonymousCheckout: boolean;
+  /**
    * What the key is for, to tell keys apart
    */
   label: string;
+  /**
+   * The Turnstile site key the page renders its widget with; null without one. Public: the catalogue hands it to the page.
+   */
+  turnstileSiteKey: string | null;
 };
 
 export type RedemptionWritable = {
@@ -10717,6 +11090,39 @@ export type UnarchiveAddonResponses = {
 };
 
 export type UnarchiveAddonResponse = UnarchiveAddonResponses[keyof UnarchiveAddonResponses];
+
+export type GetAuthorizationData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/authorization";
+};
+
+export type GetAuthorizationErrors = {
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+};
+
+export type GetAuthorizationError = GetAuthorizationErrors[keyof GetAuthorizationErrors];
+
+export type GetAuthorizationResponses = {
+  /**
+   * OK
+   */
+  200: Authorization;
+};
+
+export type GetAuthorizationResponse = GetAuthorizationResponses[keyof GetAuthorizationResponses];
 
 export type GetBillingCapabilitiesData = {
   body?: never;
@@ -17014,7 +17420,7 @@ export type GetLicenseFamilyResponses = {
 export type GetLicenseFamilyResponse = GetLicenseFamilyResponses[keyof GetLicenseFamilyResponses];
 
 export type UpdateLicenseFamilyData = {
-  body: LicenseFamilyVisibility;
+  body: LicenseFamilyUpdate;
   path: {
     /**
      * License family slug
@@ -18122,6 +18528,55 @@ export type UnarchiveLicenseResponses = {
 
 export type UnarchiveLicenseResponse = UnarchiveLicenseResponses[keyof UnarchiveLicenseResponses];
 
+export type GetMeData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/me";
+};
+
+export type GetMeErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+};
+
+export type GetMeError = GetMeErrors[keyof GetMeErrors];
+
+export type GetMeResponses = {
+  /**
+   * OK
+   */
+  200: Me;
+};
+
+export type GetMeResponse = GetMeResponses[keyof GetMeResponses];
+
 export type ListMetadataFieldsData = {
   body?: never;
   path?: never;
@@ -18661,6 +19116,164 @@ export type GetPublicCatalogResponses = {
 };
 
 export type GetPublicCatalogResponse = GetPublicCatalogResponses[keyof GetPublicCatalogResponses];
+
+export type CreateCheckoutSessionData = {
+  body: CheckoutSessionDraft;
+  path?: never;
+  query?: never;
+  url: "/public/checkout-sessions";
+};
+
+export type CreateCheckoutSessionErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Too Many Requests
+   */
+  429: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type CreateCheckoutSessionError =
+  CreateCheckoutSessionErrors[keyof CreateCheckoutSessionErrors];
+
+export type CreateCheckoutSessionResponses = {
+  /**
+   * A preview (dryRun): nothing was written
+   */
+  200: CheckoutSessionStart;
+  /**
+   * Created
+   */
+  201: CheckoutSessionStart;
+};
+
+export type CreateCheckoutSessionResponse =
+  CreateCheckoutSessionResponses[keyof CreateCheckoutSessionResponses];
+
+export type GetCheckoutSessionData = {
+  body?: never;
+  path: {
+    /**
+     * The session the ksc_ was minted for; another one answers 401
+     */
+    sessionId: string;
+  };
+  query?: never;
+  url: "/public/checkout-sessions/{sessionId}";
+};
+
+export type GetCheckoutSessionErrors = {
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Too Many Requests
+   */
+  429: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+};
+
+export type GetCheckoutSessionError = GetCheckoutSessionErrors[keyof GetCheckoutSessionErrors];
+
+export type GetCheckoutSessionResponses = {
+  /**
+   * OK
+   */
+  200: CheckoutSession;
+};
+
+export type GetCheckoutSessionResponse =
+  GetCheckoutSessionResponses[keyof GetCheckoutSessionResponses];
+
+export type ConfirmCheckoutSessionData = {
+  body?: never;
+  path: {
+    /**
+     * The session the ksc_ was minted for; another one answers 401
+     */
+    sessionId: string;
+  };
+  query?: never;
+  url: "/public/checkout-sessions/{sessionId}/confirm";
+};
+
+export type ConfirmCheckoutSessionErrors = {
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Too Many Requests
+   */
+  429: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type ConfirmCheckoutSessionError =
+  ConfirmCheckoutSessionErrors[keyof ConfirmCheckoutSessionErrors];
+
+export type ConfirmCheckoutSessionResponses = {
+  /**
+   * OK
+   */
+  200: CheckoutConfirmation;
+};
+
+export type ConfirmCheckoutSessionResponse =
+  ConfirmCheckoutSessionResponses[keyof ConfirmCheckoutSessionResponses];
 
 export type SetSessionAddonQuantityData = {
   body: SessionAddonQuantity;
@@ -19645,6 +20258,206 @@ export type GetReleaseBySlugResponses = {
 
 export type GetReleaseBySlugResponse = GetReleaseBySlugResponses[keyof GetReleaseBySlugResponses];
 
+export type ListRolesData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/roles";
+};
+
+export type ListRolesErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+};
+
+export type ListRolesError = ListRolesErrors[keyof ListRolesErrors];
+
+export type ListRolesResponses = {
+  /**
+   * OK
+   */
+  200: Array<Role> | null;
+};
+
+export type ListRolesResponse = ListRolesResponses[keyof ListRolesResponses];
+
+export type CreateRoleData = {
+  body: CreateRole;
+  path?: never;
+  query?: never;
+  url: "/roles";
+};
+
+export type CreateRoleErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+};
+
+export type CreateRoleError = CreateRoleErrors[keyof CreateRoleErrors];
+
+export type CreateRoleResponses = {
+  /**
+   * Created
+   */
+  201: Role;
+};
+
+export type CreateRoleResponse = CreateRoleResponses[keyof CreateRoleResponses];
+
+export type DeleteRoleData = {
+  body?: never;
+  path: {
+    slug: string;
+  };
+  query?: never;
+  url: "/roles/{slug}";
+};
+
+export type DeleteRoleErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+};
+
+export type DeleteRoleError = DeleteRoleErrors[keyof DeleteRoleErrors];
+
+export type DeleteRoleResponses = {
+  /**
+   * No Content
+   */
+  204: void;
+};
+
+export type DeleteRoleResponse = DeleteRoleResponses[keyof DeleteRoleResponses];
+
+export type UpdateRoleData = {
+  body: RoleDefinition;
+  path: {
+    slug: string;
+  };
+  query?: never;
+  url: "/roles/{slug}";
+};
+
+export type UpdateRoleErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+};
+
+export type UpdateRoleError = UpdateRoleErrors[keyof UpdateRoleErrors];
+
+export type UpdateRoleResponses = {
+  /**
+   * OK
+   */
+  200: Role;
+};
+
+export type UpdateRoleResponse = UpdateRoleResponses[keyof UpdateRoleResponses];
+
 export type GetServiceAccountsData = {
   body?: never;
   path?: never;
@@ -20119,6 +20932,316 @@ export type ExportOrganizationUsageReportsResponses = {
 
 export type ExportOrganizationUsageReportsResponse =
   ExportOrganizationUsageReportsResponses[keyof ExportOrganizationUsageReportsResponses];
+
+export type ListUsersData = {
+  body?: never;
+  path?: never;
+  query?: {
+    limit?: number;
+    cursor?: string;
+  };
+  url: "/users";
+};
+
+export type ListUsersErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+};
+
+export type ListUsersError = ListUsersErrors[keyof ListUsersErrors];
+
+export type ListUsersResponses = {
+  /**
+   * OK
+   */
+  200: PageManagedUser;
+};
+
+export type ListUsersResponse = ListUsersResponses[keyof ListUsersResponses];
+
+export type GetUserData = {
+  body?: never;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: "/users/{id}";
+};
+
+export type GetUserErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+};
+
+export type GetUserError = GetUserErrors[keyof GetUserErrors];
+
+export type GetUserResponses = {
+  /**
+   * OK
+   */
+  200: ManagedUser;
+};
+
+export type GetUserResponse = GetUserResponses[keyof GetUserResponses];
+
+export type UpdateUserData = {
+  body: Profile;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: "/users/{id}";
+};
+
+export type UpdateUserErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+};
+
+export type UpdateUserError = UpdateUserErrors[keyof UpdateUserErrors];
+
+export type UpdateUserResponses = {
+  /**
+   * No Content
+   */
+  204: void;
+};
+
+export type UpdateUserResponse = UpdateUserResponses[keyof UpdateUserResponses];
+
+export type SetUserAssignmentsData = {
+  body: UserRoleAssignments;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: "/users/{id}/assignments";
+};
+
+export type SetUserAssignmentsErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+};
+
+export type SetUserAssignmentsError = SetUserAssignmentsErrors[keyof SetUserAssignmentsErrors];
+
+export type SetUserAssignmentsResponses = {
+  /**
+   * OK
+   */
+  200: UserAuthorization;
+};
+
+export type SetUserAssignmentsResponse =
+  SetUserAssignmentsResponses[keyof SetUserAssignmentsResponses];
+
+export type PutUserAuthorizationData = {
+  body: UserAuthorization;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: "/users/{id}/authorization";
+};
+
+export type PutUserAuthorizationErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+};
+
+export type PutUserAuthorizationError =
+  PutUserAuthorizationErrors[keyof PutUserAuthorizationErrors];
+
+export type PutUserAuthorizationResponses = {
+  /**
+   * OK
+   */
+  200: UserAuthorization;
+};
+
+export type PutUserAuthorizationResponse =
+  PutUserAuthorizationResponses[keyof PutUserAuthorizationResponses];
+
+export type SetUserEnabledData = {
+  body: UserEnablement;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: "/users/{id}/enabled";
+};
+
+export type SetUserEnabledErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+};
+
+export type SetUserEnabledError = SetUserEnabledErrors[keyof SetUserEnabledErrors];
+
+export type SetUserEnabledResponses = {
+  /**
+   * OK
+   */
+  200: UserAuthorization;
+};
+
+export type SetUserEnabledResponse = SetUserEnabledResponses[keyof SetUserEnabledResponses];
 
 export type GetNotificationPreferencesData = {
   body?: never;
@@ -21091,6 +22214,66 @@ export type OnBillingProviderSyncFailedWebhookRequest = {
   query?: never;
 };
 
+export type OnCheckoutSessionAbandonedWebhookPayload = {
+  data: SessionEvent;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "CHECKOUT_SESSION_ABANDONED";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.checkout_session.v1.abandoned";
+};
+
+export type OnCheckoutSessionAbandonedWebhookRequest = {
+  body: OnCheckoutSessionAbandonedWebhookPayload;
+  key: "com.kaiten.checkout_session.v1.abandoned";
+  path?: never;
+  query?: never;
+};
+
+export type OnCheckoutSessionCompletedWebhookPayload = {
+  data: SessionEvent;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "CHECKOUT_SESSION_COMPLETED";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.checkout_session.v1.completed";
+};
+
+export type OnCheckoutSessionCompletedWebhookRequest = {
+  body: OnCheckoutSessionCompletedWebhookPayload;
+  key: "com.kaiten.checkout_session.v1.completed";
+  path?: never;
+  query?: never;
+};
+
+export type OnCheckoutSessionStartedWebhookPayload = {
+  data: SessionEvent;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "CHECKOUT_SESSION_STARTED";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.checkout_session.v1.started";
+};
+
+export type OnCheckoutSessionStartedWebhookRequest = {
+  body: OnCheckoutSessionStartedWebhookPayload;
+  key: "com.kaiten.checkout_session.v1.started";
+  path?: never;
+  query?: never;
+};
+
 export type OnComponentCreatedWebhookPayload = {
   data: ComponentWritable;
   headers?: EventHeaders;
@@ -21987,6 +23170,66 @@ export type OnInstanceEntitlementValueGetWebhookPayload = {
 export type OnInstanceEntitlementValueGetWebhookRequest = {
   body: OnInstanceEntitlementValueGetWebhookPayload;
   key: "com.kaiten.instance.entitlement.v1.value_get";
+  path?: never;
+  query?: never;
+};
+
+export type OnInstanceEntitlementExceptionCreatedWebhookPayload = {
+  data: ExceptionEvent;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "INSTANCE_ENTITLEMENT_EXCEPTION_CREATED";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.instance.entitlement_exception.v1.created";
+};
+
+export type OnInstanceEntitlementExceptionCreatedWebhookRequest = {
+  body: OnInstanceEntitlementExceptionCreatedWebhookPayload;
+  key: "com.kaiten.instance.entitlement_exception.v1.created";
+  path?: never;
+  query?: never;
+};
+
+export type OnInstanceEntitlementExceptionExpiredWebhookPayload = {
+  data: ExceptionEvent;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "INSTANCE_ENTITLEMENT_EXCEPTION_EXPIRED";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.instance.entitlement_exception.v1.expired";
+};
+
+export type OnInstanceEntitlementExceptionExpiredWebhookRequest = {
+  body: OnInstanceEntitlementExceptionExpiredWebhookPayload;
+  key: "com.kaiten.instance.entitlement_exception.v1.expired";
+  path?: never;
+  query?: never;
+};
+
+export type OnInstanceEntitlementExceptionRevokedWebhookPayload = {
+  data: ExceptionEvent;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "INSTANCE_ENTITLEMENT_EXCEPTION_REVOKED";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.instance.entitlement_exception.v1.revoked";
+};
+
+export type OnInstanceEntitlementExceptionRevokedWebhookRequest = {
+  body: OnInstanceEntitlementExceptionRevokedWebhookPayload;
+  key: "com.kaiten.instance.entitlement_exception.v1.revoked";
   path?: never;
   query?: never;
 };

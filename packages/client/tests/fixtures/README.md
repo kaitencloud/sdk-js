@@ -29,6 +29,11 @@ scenario below with the route's own functions and writes
 `json.MarshalIndent(catalog, "", "  ")`, then format the file with `vp fmt`.
 Do not edit it by hand.
 
+One exception is recorded: when the contract added `capabilities.anonymousCheckout` and
+`capabilities.turnstileSiteKey` (anonymous checkout, off for this key), the two members were added here
+by hand, with the values the route gives a key that has not turned the feature on, rather than by a
+new run of Kaiten's code. The next regeneration replaces them with its own.
+
 The scenario, with the ids the tests name (`00000000-0000-4000-8000-` followed
 by twelve hex digits):
 

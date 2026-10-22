@@ -127,13 +127,27 @@ const CALLS: Record<
   },
 };
 
-const operations = publicOperations(CONTRACT);
+const publicRoutes = publicOperations(CONTRACT);
+// The three routes of an anonymous checkout, under /public/checkout-sessions, are held to the
+// contract by their own suite; this one covers the catalogue and the customer session.
+const operations = publicRoutes.filter(
+  (found) => !found.path.startsWith("/public/checkout-sessions"),
+);
 const operation = (operationId: string) =>
   operations.find((found) => found.operationId === operationId);
 const filled = (path: string, params: Record<string, string> = {}) =>
   path.replace(/\{(\w+)\}/g, (_, name: string) => params[name] ?? `{${name}}`);
 
 describe("the public operations of the contract", () => {
+  test("the anonymous checkout is the three routes under /public/checkout-sessions", () => {
+    expect(
+      publicRoutes
+        .filter((found) => found.path.startsWith("/public/checkout-sessions"))
+        .map((found) => found.operationId)
+        .sort(),
+    ).toEqual(["confirmCheckoutSession", "createCheckoutSession", "getCheckoutSession"]);
+  });
+
   test("are the catalogue and the ten calls of a session: eleven", () => {
     expect(operations).toHaveLength(11);
     expect(operations.map((found) => found.operationId).sort()).toEqual(

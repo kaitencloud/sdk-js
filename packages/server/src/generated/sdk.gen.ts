@@ -63,12 +63,18 @@ import type {
   CompleteSessionPaymentMethodSessionData,
   CompleteSessionPaymentMethodSessionErrors,
   CompleteSessionPaymentMethodSessionResponses,
+  ConfirmCheckoutSessionData,
+  ConfirmCheckoutSessionErrors,
+  ConfirmCheckoutSessionResponses,
   CreateAddonData,
   CreateAddonErrors,
   CreateAddonPriceData,
   CreateAddonPriceErrors,
   CreateAddonPriceResponses,
   CreateAddonResponses,
+  CreateCheckoutSessionData,
+  CreateCheckoutSessionErrors,
+  CreateCheckoutSessionResponses,
   CreateComponentData,
   CreateComponentErrors,
   CreateComponentResponses,
@@ -120,6 +126,9 @@ import type {
   CreateReleaseData,
   CreateReleaseErrors,
   CreateReleaseResponses,
+  CreateRoleData,
+  CreateRoleErrors,
+  CreateRoleResponses,
   CreateServiceAccountData,
   CreateServiceAccountErrors,
   CreateServiceAccountResponses,
@@ -183,6 +192,9 @@ import type {
   DeleteReleaseData,
   DeleteReleaseErrors,
   DeleteReleaseResponses,
+  DeleteRoleData,
+  DeleteRoleErrors,
+  DeleteRoleResponses,
   DeleteServiceAccountTokenData,
   DeleteServiceAccountTokenErrors,
   DeleteServiceAccountTokenResponses,
@@ -228,6 +240,9 @@ import type {
   GetAuditTrailsData,
   GetAuditTrailsErrors,
   GetAuditTrailsResponses,
+  GetAuthorizationData,
+  GetAuthorizationErrors,
+  GetAuthorizationResponses,
   GetBillingCapabilitiesData,
   GetBillingCapabilitiesErrors,
   GetBillingCapabilitiesResponses,
@@ -237,6 +252,9 @@ import type {
   GetBillingSettingsData,
   GetBillingSettingsErrors,
   GetBillingSettingsResponses,
+  GetCheckoutSessionData,
+  GetCheckoutSessionErrors,
+  GetCheckoutSessionResponses,
   GetComponentData,
   GetComponentErrors,
   GetComponentResponses,
@@ -324,6 +342,9 @@ import type {
   GetLicensesData,
   GetLicensesErrors,
   GetLicensesResponses,
+  GetMeData,
+  GetMeErrors,
+  GetMeResponses,
   GetNotificationPreferencesData,
   GetNotificationPreferencesErrors,
   GetNotificationPreferencesResponses,
@@ -354,6 +375,9 @@ import type {
   GetUpcomingInvoiceData,
   GetUpcomingInvoiceErrors,
   GetUpcomingInvoiceResponses,
+  GetUserData,
+  GetUserErrors,
+  GetUserResponses,
   GetVoucherData,
   GetVoucherErrors,
   GetVoucherResponses,
@@ -429,12 +453,18 @@ import type {
   ListReleasesData,
   ListReleasesErrors,
   ListReleasesResponses,
+  ListRolesData,
+  ListRolesErrors,
+  ListRolesResponses,
   ListSessionInvoicesData,
   ListSessionInvoicesErrors,
   ListSessionInvoicesResponses,
   ListUsageReportsData,
   ListUsageReportsErrors,
   ListUsageReportsResponses,
+  ListUsersData,
+  ListUsersErrors,
+  ListUsersResponses,
   ListVoucherRedemptionsData,
   ListVoucherRedemptionsErrors,
   ListVoucherRedemptionsResponses,
@@ -468,6 +498,9 @@ import type {
   PutNotificationPreferencesData,
   PutNotificationPreferencesErrors,
   PutNotificationPreferencesResponses,
+  PutUserAuthorizationData,
+  PutUserAuthorizationErrors,
+  PutUserAuthorizationResponses,
   ReactivateSessionSubscriptionData,
   ReactivateSessionSubscriptionErrors,
   ReactivateSessionSubscriptionResponses,
@@ -519,6 +552,12 @@ import type {
   SetSessionAddonQuantityData,
   SetSessionAddonQuantityErrors,
   SetSessionAddonQuantityResponses,
+  SetUserAssignmentsData,
+  SetUserAssignmentsErrors,
+  SetUserAssignmentsResponses,
+  SetUserEnabledData,
+  SetUserEnabledErrors,
+  SetUserEnabledResponses,
   SubscribeInstanceData,
   SubscribeInstanceErrors,
   SubscribeInstanceResponses,
@@ -606,9 +645,15 @@ import type {
   UpdatePublishableKeyData,
   UpdatePublishableKeyErrors,
   UpdatePublishableKeyResponses,
+  UpdateRoleData,
+  UpdateRoleErrors,
+  UpdateRoleResponses,
   UpdateServiceAccountData,
   UpdateServiceAccountErrors,
   UpdateServiceAccountResponses,
+  UpdateUserData,
+  UpdateUserErrors,
+  UpdateUserResponses,
   UpdateVoucherData,
   UpdateVoucherErrors,
   UpdateVoucherResponses,
@@ -1207,6 +1252,33 @@ export class Addons {
         },
       ],
       url: "/addons/{addonSlug}/unarchive",
+      ...options,
+    });
+  }
+}
+
+export class Identity {
+  /**
+   * Read current caller authorization
+   *
+   * Returns current stored grants for an active human or service-token caller, not JWT permissions. No permission is required. Credentials and token identifiers are never returned. Responses must not be cached.
+   */
+  public static getAuthorization<ThrowOnError extends boolean = false>(
+    options?: Options<GetAuthorizationData, ThrowOnError>,
+  ): RequestResult<GetAuthorizationResponses, GetAuthorizationErrors, ThrowOnError> {
+    return (options?.client ?? client).get<
+      GetAuthorizationResponses,
+      GetAuthorizationErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/authorization",
       ...options,
     });
   }
@@ -4724,7 +4796,7 @@ export class Licenses {
   /**
    * Update a license family
    *
-   * Lists the family in the public catalogue, or takes it out. Families are private until made public.
+   * Changes a family's own settings: whether the public catalogue lists it (families are private until made public), its fallback family, what a trial without a payment method becomes at its end, and the trial reminder's lead. An absent member keeps the stored value. 404 .NotFound; 422 .InvalidFallback, .InvalidTrialEndBehavior, .InvalidTrialReminderDays.
    */
   public static updateLicenseFamily<ThrowOnError extends boolean = false>(
     options: Options<UpdateLicenseFamilyData, ThrowOnError>,
@@ -5260,6 +5332,275 @@ export class Licenses {
   }
 }
 
+export class Users {
+  /**
+   * Read current user and effective authorization
+   *
+   * Available to every active human member, including members with no assigned roles or permissions.
+   */
+  public static getMe<ThrowOnError extends boolean = false>(
+    options?: Options<GetMeData, ThrowOnError>,
+  ): RequestResult<GetMeResponses, GetMeErrors, ThrowOnError> {
+    return (options?.client ?? client).get<GetMeResponses, GetMeErrors, ThrowOnError>({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/me",
+      ...options,
+    });
+  }
+
+  /**
+   * List organization roles
+   *
+   * Requires a live human member with stored read:users (write:users implies read). Lists immutable built-in templates and current organization roles.
+   */
+  public static listRoles<ThrowOnError extends boolean = false>(
+    options?: Options<ListRolesData, ThrowOnError>,
+  ): RequestResult<ListRolesResponses, ListRolesErrors, ThrowOnError> {
+    return (options?.client ?? client).get<ListRolesResponses, ListRolesErrors, ThrowOnError>({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/roles",
+      ...options,
+    });
+  }
+
+  /**
+   * Create a custom organization role
+   *
+   * Requires a live human member with stored write:users who covers current and proposed permissions. Built-in roles are immutable but assignable within caller authority; the last enabled administrator is protected.
+   */
+  public static createRole<ThrowOnError extends boolean = false>(
+    options: Options<CreateRoleData, ThrowOnError>,
+  ): RequestResult<CreateRoleResponses, CreateRoleErrors, ThrowOnError> {
+    return (options.client ?? client).post<CreateRoleResponses, CreateRoleErrors, ThrowOnError>({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/roles",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Delete an unassigned custom organization role
+   *
+   * Requires a live human member with stored write:users who covers current and proposed permissions. Built-in roles are immutable but assignable within caller authority; the last enabled administrator is protected.
+   */
+  public static deleteRole<ThrowOnError extends boolean = false>(
+    options: Options<DeleteRoleData, ThrowOnError>,
+  ): RequestResult<DeleteRoleResponses, DeleteRoleErrors, ThrowOnError> {
+    return (options.client ?? client).delete<DeleteRoleResponses, DeleteRoleErrors, ThrowOnError>({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/roles/{slug}",
+      ...options,
+    });
+  }
+
+  /**
+   * Replace a custom organization role
+   *
+   * Requires a live human member with stored write:users who covers current and proposed permissions. Built-in roles are immutable but assignable within caller authority; the last enabled administrator is protected.
+   */
+  public static updateRole<ThrowOnError extends boolean = false>(
+    options: Options<UpdateRoleData, ThrowOnError>,
+  ): RequestResult<UpdateRoleResponses, UpdateRoleErrors, ThrowOnError> {
+    return (options.client ?? client).put<UpdateRoleResponses, UpdateRoleErrors, ThrowOnError>({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/roles/{slug}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * List human users
+   *
+   * Requires a live human member with stored read:users (write:users implies read). Provider authorization claims are ignored.
+   */
+  public static listUsers<ThrowOnError extends boolean = false>(
+    options?: Options<ListUsersData, ThrowOnError>,
+  ): RequestResult<ListUsersResponses, ListUsersErrors, ThrowOnError> {
+    return (options?.client ?? client).get<ListUsersResponses, ListUsersErrors, ThrowOnError>({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/users",
+      ...options,
+    });
+  }
+
+  /**
+   * Get a human user
+   *
+   * Requires a live human member with stored read:users (write:users implies read). Provider authorization claims are ignored.
+   */
+  public static getUser<ThrowOnError extends boolean = false>(
+    options: Options<GetUserData, ThrowOnError>,
+  ): RequestResult<GetUserResponses, GetUserErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetUserResponses, GetUserErrors, ThrowOnError>({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/users/{id}",
+      ...options,
+    });
+  }
+
+  /**
+   * Update a human profile
+   *
+   * Requires a live human member with stored write:users who covers the target's current authority. Profile name and email are global across memberships and become locally managed.
+   */
+  public static updateUser<ThrowOnError extends boolean = false>(
+    options: Options<UpdateUserData, ThrowOnError>,
+  ): RequestResult<UpdateUserResponses, UpdateUserErrors, ThrowOnError> {
+    return (options.client ?? client).put<UpdateUserResponses, UpdateUserErrors, ThrowOnError>({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/users/{id}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Set user roles and direct scopes atomically
+   *
+   * Requires a live human member with stored write:users who covers current and proposed permissions. Built-in roles are immutable but assignable within caller authority; the last enabled administrator is protected.
+   */
+  public static setUserAssignments<ThrowOnError extends boolean = false>(
+    options: Options<SetUserAssignmentsData, ThrowOnError>,
+  ): RequestResult<SetUserAssignmentsResponses, SetUserAssignmentsErrors, ThrowOnError> {
+    return (options.client ?? client).patch<
+      SetUserAssignmentsResponses,
+      SetUserAssignmentsErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/users/{id}/assignments",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Replace user roles, permissions and enabled state
+   *
+   * Requires a live human member with stored write:users who covers current and proposed target authority. The last enabled administrator is protected. Provider authorization claims are ignored.
+   */
+  public static putUserAuthorization<ThrowOnError extends boolean = false>(
+    options: Options<PutUserAuthorizationData, ThrowOnError>,
+  ): RequestResult<PutUserAuthorizationResponses, PutUserAuthorizationErrors, ThrowOnError> {
+    return (options.client ?? client).put<
+      PutUserAuthorizationResponses,
+      PutUserAuthorizationErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/users/{id}/authorization",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Set user enabled state atomically
+   *
+   * Requires a live human member with stored write:users who covers current and proposed permissions. Built-in roles are immutable but assignable within caller authority; the last enabled administrator is protected.
+   */
+  public static setUserEnabled<ThrowOnError extends boolean = false>(
+    options: Options<SetUserEnabledData, ThrowOnError>,
+  ): RequestResult<SetUserEnabledResponses, SetUserEnabledErrors, ThrowOnError> {
+    return (options.client ?? client).patch<
+      SetUserEnabledResponses,
+      SetUserEnabledErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/users/{id}/enabled",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+}
+
 export class MetadataFields {
   /**
    * List metadata fields for a resource type
@@ -5560,6 +5901,79 @@ export class Public {
   }
 
   /**
+   * Start an anonymous checkout
+   *
+   * Starts a checkout for a visitor the vendor's backend does not know yet, with the publishable key and a Turnstile token. Writes one checkout session and nothing else: the customer, the instance and the subscription are created by the completion. Answers 201 status=open with the session's ksc_ token, returned once; with dryRun, 200 status=preview, writing and emitting nothing. dueToday is computed by the server. 403 .AnonymousCheckoutDisabled; 422 .TurnstileNotConfigured, .TurnstileFailed, .InvalidPriceSelection, .PriceNotPublic, .AddonNotPublic, .PriceNotFlatFee, .NotSelfServe, .ProviderCannotCapturePayment, .QuantityExceedsMax, .CurrencyMismatch, .InvalidEmail, .InvalidReturnUrl, .VoucherInvalid, .FallbackRequired; 503 .TurnstileUnavailable (Retry-After).
+   */
+  public static createCheckoutSession<ThrowOnError extends boolean = false>(
+    options: Options<CreateCheckoutSessionData, ThrowOnError>,
+  ): RequestResult<CreateCheckoutSessionResponses, CreateCheckoutSessionErrors, ThrowOnError> {
+    return (options.client ?? client).post<
+      CreateCheckoutSessionResponses,
+      CreateCheckoutSessionErrors,
+      ThrowOnError
+    >({
+      security: [{ name: "X-Kaiten-Publishable-Key", type: "apiKey" }],
+      url: "/public/checkout-sessions",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Read an anonymous checkout session
+   *
+   * The session its ksc_ was minted for: its status, what it bought and what is due, and, once completed, the customer and instance created. A session still OPEN after expiresAt reads ABANDONED. The token keeps reading it for 24 h after it closed, then answers 401 PublicAuth.InvalidCredential.
+   */
+  public static getCheckoutSession<ThrowOnError extends boolean = false>(
+    options: Options<GetCheckoutSessionData, ThrowOnError>,
+  ): RequestResult<GetCheckoutSessionResponses, GetCheckoutSessionErrors, ThrowOnError> {
+    return (options.client ?? client).get<
+      GetCheckoutSessionResponses,
+      GetCheckoutSessionErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "checkoutSession",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/public/checkout-sessions/{sessionId}",
+      ...options,
+    });
+  }
+
+  /**
+   * Confirm an anonymous checkout
+   *
+   * Completes the session when nothing has to be captured -- a FREE plan, a trial on a plan that needs no payment method, nothing due -- creating the customer, the instance and the subscription in one transaction: status=completed. Otherwise answers status=requires_payment_method with a hosted setup page, keeps the ksc_ across its redirect, and completes on the next confirm: awaiting_payment while the first invoice is charged, completed once paid. No body. 403 .AnonymousCheckoutDisabled; 409 .SessionClosed (errors[0].value.status), .DueTodayChanged, .EntitlementLimitReached; 422 .PriceNotPublic, .AddonNotPublic, .FallbackRequired, .ProviderCannotCapturePayment, .VoucherInvalid; 503 .ProviderUnavailable (Retry-After), Entitlement.VerificationUnavailable.
+   */
+  public static confirmCheckoutSession<ThrowOnError extends boolean = false>(
+    options: Options<ConfirmCheckoutSessionData, ThrowOnError>,
+  ): RequestResult<ConfirmCheckoutSessionResponses, ConfirmCheckoutSessionErrors, ThrowOnError> {
+    return (options.client ?? client).post<
+      ConfirmCheckoutSessionResponses,
+      ConfirmCheckoutSessionErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "checkoutSession",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/public/checkout-sessions/{sessionId}/confirm",
+      ...options,
+    });
+  }
+
+  /**
    * Set how many of an add-on the instance holds
    *
    * Attaches the add-on to the session's instance, changes its quantity, or removes it with 0. Entitlements change at once; the subscription bills the quantity held at each renewal, with no proration. Setting the quantity held changes nothing. 409 .OtherVersionAttached when another version of the same add-on is held, .BoundaryPending while the period that ended is being closed (Retry-After); 422 .AddonNotPublic, .Incompatible, .QuantityExceedsMax, .CurrencyMismatch, .InstanceRequired.
@@ -5748,7 +6162,7 @@ export class Public {
   /**
    * Check out
    *
-   * Subscribes the session's instance to a price of the public catalogue, with add-ons and a voucher, in one call. With dryRun, answers 200 status=preview and what would be billed today, changing nothing. When a payment method has to be saved first, answers 200 status=requires_payment_method with a setup page: send the customer there, then call again with its setupSessionId. Otherwise answers 201 status=subscribed: the invoice of the first period has been pushed and charged, and payment.status says how that went -- poll GET /public/session/invoices on processing or requires_action. Needs a session bound to an instance. 409 .AlreadySubscribed, .SetupSessionIncomplete (no payment method was saved on the setup page); 422 .InstanceRequired, .NotSelfServe, .PriceNotPublic, .PriceNotFlatFee, .BillingEmailRequired, .InvalidReturnUrl, .ProviderCannotCapturePayment, .VoucherInvalid, .AddonInvalid, .AddonNotPublic, .QuantityExceedsMax, .CurrencyMismatch, .QuotaExceeded (the instance uses more than the plan allows: errors[0].value.entitlementSlugs, location body.licensePriceId); 503 .ProviderUnavailable (Retry-After).
+   * Subscribes the session's instance to a price of the public catalogue, with add-ons and a voucher, in one call. With dryRun, answers 200 status=preview and what would be billed today, changing nothing. When a payment method has to be saved first, answers 200 status=requires_payment_method with a setup page: send the customer there, then call again with its setupSessionId. Otherwise answers 201 status=subscribed: the invoice of the first period has been pushed and charged, and payment.status says how that went -- poll GET /public/session/invoices on processing or requires_action. Needs a session bound to an instance. An instance whose live subscription is free (a FREE licence family, no add-on price above 0) is checked out too: that subscription is canceled at once, with no invoice, in the same transaction. 409 .AlreadySubscribed (any other live subscription), .SetupSessionIncomplete (no payment method was saved on the setup page); 422 .InstanceRequired, .NotSelfServe, .PriceNotPublic, .PriceNotFlatFee, .BillingEmailRequired, .InvalidReturnUrl, .ProviderCannotCapturePayment, .VoucherInvalid, .AddonInvalid, .AddonNotPublic, .QuantityExceedsMax, .CurrencyMismatch, .QuotaExceeded (the instance uses more than the plan allows: errors[0].value.entitlementSlugs, location body.licensePriceId); 503 .ProviderUnavailable (Retry-After).
    */
   public static createSessionCheckout<ThrowOnError extends boolean = false>(
     options: Options<CreateSessionCheckoutData, ThrowOnError>,
@@ -5883,7 +6297,7 @@ export class PublishableKeys {
   /**
    * Create a publishable key
    *
-   * Issues a pk_ key for a web page to read the organization's public catalogue (GET /api/public/catalog) and nothing else. The key is returned once; only its digest is stored. Requires billing to be enabled for the organization.
+   * Issues a pk_ key for a web page to read the organization's public catalogue (GET /api/public/catalog) and, with anonymousCheckout, to start anonymous checkouts (POST /api/public/checkout-sessions). The key is returned once; only its digest is stored. anonymousCheckout needs a Turnstile site key and secret (422 .TurnstileNotConfigured); the secret is stored in Vault (422 .VaultNotConfigured without one) and never returned. Requires billing to be enabled for the organization.
    */
   public static createPublishableKey<ThrowOnError extends boolean = false>(
     options: Options<CreatePublishableKeyData, ThrowOnError>,
@@ -5912,7 +6326,7 @@ export class PublishableKeys {
   /**
    * Update a publishable key
    *
-   * Changes a live key's label or allowed origins. A revoked key answers 409 UpdatePublishableKey.Revoked. Requires billing to be enabled for the organization.
+   * Changes a live key's label, allowed origins or anonymous checkout settings. An absent member keeps the stored value; an empty Turnstile value clears it. After the write, a key with anonymousCheckout must hold a Turnstile site key and secret, else 422 .TurnstileNotConfigured; a secret on a deployment without Vault answers 422 .VaultNotConfigured. A revoked key answers 409 UpdatePublishableKey.Revoked. Requires billing to be enabled for the organization.
    */
   public static updatePublishableKey<ThrowOnError extends boolean = false>(
     options: Options<UpdatePublishableKeyData, ThrowOnError>,
@@ -5941,7 +6355,7 @@ export class PublishableKeys {
   /**
    * Revoke a publishable key
    *
-   * The key stops authenticating on the next request. Idempotent; revocation is final. Requires billing to be enabled for the organization.
+   * The key stops authenticating on the next request, its Turnstile secret is deleted, and its anonymous checkout sessions stop authenticating. Idempotent; revocation is final. Requires billing to be enabled for the organization.
    */
   public static revokePublishableKey<ThrowOnError extends boolean = false>(
     options: Options<RevokePublishableKeyData, ThrowOnError>,

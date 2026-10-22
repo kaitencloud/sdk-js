@@ -310,10 +310,13 @@ type EntitlementPage {
 }
 
 """
-Phase of a periodic usage window: CALENDAR (UTC calendar-aligned) or
-LICENSE_START (phased off the instance's license start date).
+Phase of a periodic usage window: CALENDAR (UTC calendar-aligned),
+LICENSE_START (phased off the instance's license start date) or
+BILLING_PERIOD (phased off the instance's live subscription's billing anchor,
+LICENSE_START without one; with resetPeriod MONTH or YEAR only).
 """
 enum EntitlementResetAnchor {
+  BILLING_PERIOD
   CALENDAR
   LICENSE_START
 }
@@ -587,13 +590,18 @@ type LicenseEntitlement {
 
 """
 LicenseFamily is the product a license is a version of. It carries identity and
-nothing else: no display name, because the display name is the current version's
-own name. Renaming a version or publishing a new one never changes it, which is
+the family's own settings, no display name: the display name is the current
+version's own name. Renaming a version or publishing a new one never changes it, which is
 what makes its slug safe to put in a public pricing URL -- for as long as the
 family has a version: deleting its last version deletes the family and frees the
 slug.
 """
 type LicenseFamily {
+  """
+  The FREE family an instance of this family moves to when its subscription
+  ends; null without one.
+  """
+  fallbackLicenseFamilySlug: String
   id: UUID!
 
   """
@@ -601,6 +609,15 @@ type LicenseFamily {
   """
   isPublic: Boolean!
   slug: String!
+
+  """
+  What a trial charged automatically with a total above 0 becomes at its end
+  when the customer has no ACTIVE payment method.
+  """
+  trialEndWithoutPaymentMethod: TrialEndWithoutPaymentMethod!
+
+  """How many days before a trial's end trial_will_end fires (1 to 30)."""
+  trialReminderDays: Int!
 }
 
 """
@@ -618,6 +635,12 @@ type LicenseFamilyView {
   been archived.
   """
   currentVersion: License
+
+  """
+  The FREE family an instance of this family moves to when its subscription
+  ends; null without one.
+  """
+  fallbackLicenseFamilySlug: String
   id: UUID!
 
   """
@@ -625,6 +648,15 @@ type LicenseFamilyView {
   """
   isPublic: Boolean!
   slug: String!
+
+  """
+  What a trial charged automatically with a total above 0 becomes at its end
+  when the customer has no ACTIVE payment method.
+  """
+  trialEndWithoutPaymentMethod: TrialEndWithoutPaymentMethod!
+
+  """How many days before a trial's end trial_will_end fires (1 to 30)."""
+  trialReminderDays: Int!
 
   """Number of versions in this family, whatever their lifecycle state."""
   versionCount: Int!
@@ -958,6 +990,15 @@ type ReleasePage {
 
 """Custom scalar for timestamps"""
 scalar Time
+
+"""
+What a trial without an ACTIVE payment method becomes at its end: CANCEL it,
+or CONVERT it to ACTIVE.
+"""
+enum TrialEndWithoutPaymentMethod {
+  CANCEL
+  CONVERT
+}
 
 """Custom scalar for UUIDs"""
 scalar UUID

@@ -426,7 +426,12 @@ describe("a catalogue as the contract types it", () => {
         compatibleLicenseFamilies: ["pro"],
       },
     ],
-    capabilities: { checkout: false, paymentMethods: true },
+    capabilities: {
+      checkout: false,
+      paymentMethods: true,
+      anonymousCheckout: false,
+      turnstileSiteKey: null,
+    },
   } satisfies KaitenApi.PublicCatalog;
 
   const read = async () => {

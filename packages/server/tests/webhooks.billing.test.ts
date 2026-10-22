@@ -45,9 +45,9 @@ type EventsWithoutPayload = {
 }[KaitenWebhookType];
 
 describe("KaitenWebhookType", () => {
-  test("names the 110 events of the contract, one payload each", () => {
-    expectTypeOf<UnionToTuple<KaitenWebhookType>["length"]>().toEqualTypeOf<110>();
-    expectTypeOf<UnionToTuple<KaitenWebhookEvent>["length"]>().toEqualTypeOf<110>();
+  test("names the 116 events of the contract, one payload each", () => {
+    expectTypeOf<UnionToTuple<KaitenWebhookType>["length"]>().toEqualTypeOf<116>();
+    expectTypeOf<UnionToTuple<KaitenWebhookEvent>["length"]>().toEqualTypeOf<116>();
   });
 
   test("is a union of literals, not a string a typo can slip through", () => {

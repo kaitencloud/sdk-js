@@ -476,7 +476,9 @@
     }
   ],
   "capabilities": {
+    "anonymousCheckout": false,
     "checkout": true,
-    "paymentMethods": true
+    "paymentMethods": true,
+    "turnstileSiteKey": null
   }
 }

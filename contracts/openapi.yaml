@@ -514,6 +514,31 @@ components:
         - eventType
         - timestamp
       type: object
+    Authorization:
+      additionalProperties: false
+      properties:
+        externalOrganizationId:
+          type: string
+        kind:
+          type: string
+        organizationId:
+          type: string
+        scopes:
+          items:
+            type: string
+          type: array
+        subject:
+          type: string
+        userId:
+          type: string
+      required:
+        - kind
+        - userId
+        - organizationId
+        - externalOrganizationId
+        - subject
+        - scopes
+      type: object
     Basic:
       additionalProperties: false
       properties:
@@ -1367,6 +1392,238 @@ components:
         - createdAt
         - updatedAt
       type: object
+    CheckoutConfirmation:
+      additionalProperties: false
+      properties:
+        session:
+          $ref: "#/components/schemas/CheckoutSession"
+        setupExpiresAt:
+          description: requires_payment_method only
+          format: date-time
+          type: string
+        setupUrl:
+          description: "requires_payment_method only: the hosted page that saves the payment method"
+          type: string
+        status:
+          enum:
+            - requires_payment_method
+            - awaiting_payment
+            - completed
+          type: string
+      required:
+        - status
+        - session
+      type: object
+    CheckoutPayment:
+      additionalProperties: false
+      properties:
+        hostedInvoiceUrl:
+          type:
+            - string
+            - "null"
+        status:
+          enum:
+            - paid
+            - requires_action
+            - failed
+            - processing
+            - not_required
+          type: string
+      required:
+        - status
+        - hostedInvoiceUrl
+      type: object
+    CheckoutSession:
+      additionalProperties: false
+      properties:
+        activationInvoice:
+          description: Once an ACTIVATION was issued
+          oneOf:
+            - $ref: "#/components/schemas/SessionInvoice"
+            - enum:
+                - null
+              type: "null"
+        addOns:
+          items:
+            $ref: "#/components/schemas/SessionAddonSelection"
+          type: array
+        billingPeriod:
+          type: string
+        clientReferenceId:
+          type:
+            - string
+            - "null"
+        completedAt:
+          format: date-time
+          type:
+            - string
+            - "null"
+        createdAt:
+          format: date-time
+          type: string
+        customerSlug:
+          description: Set by the completion
+          type:
+            - string
+            - "null"
+        dueToday:
+          $ref: "#/components/schemas/DueToday"
+          description: The voucher's discount shows as a line; the code itself is never echoed
+        email:
+          type: string
+        expiresAt:
+          format: date-time
+          type: string
+        instanceSlug:
+          description: Set by the completion
+          type:
+            - string
+            - "null"
+        licenseSlug:
+          type: string
+        payment:
+          oneOf:
+            - $ref: "#/components/schemas/CheckoutPayment"
+            - enum:
+                - null
+              type: "null"
+        priceId:
+          type: string
+        requiresPaymentMethod:
+          type: boolean
+        sessionId:
+          type: string
+        status:
+          description: A session still OPEN after expiresAt reads ABANDONED
+          enum:
+            - OPEN
+            - AWAITING_PAYMENT
+            - COMPLETED
+            - ABANDONED
+            - EXPIRED
+          type: string
+        trialEndsAt:
+          format: date-time
+          type:
+            - string
+            - "null"
+        trialRefusedReason:
+          type:
+            - string
+            - "null"
+      required:
+        - sessionId
+        - status
+        - email
+        - clientReferenceId
+        - licenseSlug
+        - billingPeriod
+        - priceId
+        - addOns
+        - dueToday
+        - trialEndsAt
+        - trialRefusedReason
+        - requiresPaymentMethod
+        - expiresAt
+        - customerSlug
+        - instanceSlug
+        - activationInvoice
+        - payment
+        - createdAt
+        - completedAt
+      type: object
+    CheckoutSessionDraft:
+      additionalProperties: false
+      properties:
+        addOns:
+          items:
+            $ref: "#/components/schemas/SubscriptionAddon"
+          maxItems: 50
+          type:
+            - array
+            - "null"
+        billingPeriod:
+          description: MONTHLY, QUARTERLY, SEMI_ANNUAL or ANNUAL, with licenseSlug
+          type: string
+        clientReferenceId:
+          description: The vendor's opaque reference, echoed on the checkout_session events
+          maxLength: 255
+          minLength: 1
+          type: string
+        dryRun:
+          description: Compute what would be due today, and write nothing
+          type: boolean
+        email:
+          description: The buyer's e-mail. It becomes the new customer's billing e-mail at completion. Required unless dryRun.
+          maxLength: 254
+          type: string
+        licenseSlug:
+          description: "A public plan's version, with billingPeriod: its default ACTIVE FLAT_FEE price of that period"
+          maxLength: 255
+          type: string
+        priceId:
+          description: A FLAT_FEE price of a public plan. Not with licenseSlug and billingPeriod.
+          type: string
+        returnUrl:
+          description: "Where the payment-method setup page sends the visitor back, with kaiten_checkout_session=<sessionId> appended: https, or http on localhost, on an origin the key allows. Required unless dryRun."
+          maxLength: 2048
+          type: string
+        trial:
+          description: false declines the licence's trial
+          type: boolean
+        turnstileToken:
+          description: "The token the Turnstile widget gave the page. Single-use: a dryRun spends one too."
+          maxLength: 2048
+          minLength: 1
+          type: string
+        voucherCode:
+          description: A code to apply; any refusal answers 422 .VoucherInvalid
+          maxLength: 64
+          type: string
+      required:
+        - turnstileToken
+      type: object
+    CheckoutSessionStart:
+      additionalProperties: false
+      properties:
+        dueToday:
+          $ref: "#/components/schemas/DueToday"
+        expiresAt:
+          description: "open only: 24 h after the start"
+          format: date-time
+          type: string
+        requiresPaymentMethod:
+          description: Whether the confirm will send the visitor to a payment-method setup page
+          type: boolean
+        sessionId:
+          description: open only
+          type: string
+        status:
+          enum:
+            - preview
+            - open
+          type: string
+        token:
+          description: "open only: the session's ksc_, returned once. Keep it in memory and sessionStorage, never in a URL."
+          type: string
+        trialEndsAt:
+          description: The end of the trial the subscription would start with; null without one
+          format: date-time
+          type:
+            - string
+            - "null"
+        trialRefusedReason:
+          description: "ALREADY_CONSUMED: a customer with this e-mail already had a trial of the family, so none is given; null otherwise"
+          type:
+            - string
+            - "null"
+      required:
+        - status
+        - dueToday
+        - trialEndsAt
+        - trialRefusedReason
+        - requiresPaymentMethod
+      type: object
     CloseBacklog:
       additionalProperties: false
       properties:
@@ -1713,6 +1970,31 @@ components:
         - available
         - entitled
         - activated
+      type: object
+    CreateRole:
+      additionalProperties: false
+      properties:
+        description:
+          maxLength: 1000
+          type: string
+        name:
+          maxLength: 200
+          minLength: 1
+          type: string
+        permissions:
+          items:
+            type: string
+          type: array
+        slug:
+          maxLength: 64
+          minLength: 1
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          type: string
+      required:
+        - slug
+        - name
+        - description
+        - permissions
       type: object
     CreatedCustomerSession:
       additionalProperties: false
@@ -2358,10 +2640,11 @@ components:
           minLength: 1
           type: string
         resetAnchor:
-          description: "Phase of the periodic usage window: CALENDAR (UTC calendar-aligned) or LICENSE_START (phased off the instance's license start date). Required exactly when resetPeriod is set; defaults to CALENDAR when omitted. Immutable once set."
+          description: "Phase of the periodic usage window: CALENDAR (UTC calendar-aligned), LICENSE_START (phased off the instance's license start date) or BILLING_PERIOD (phased off the instance's live subscription's billing anchor, LICENSE_START without one; with resetPeriod MONTH or YEAR only). Required exactly when resetPeriod is set; defaults to CALENDAR when omitted. Immutable once set."
           enum:
             - CALENDAR
             - LICENSE_START
+            - BILLING_PERIOD
           examples:
             - CALENDAR
           type: string
@@ -2725,6 +3008,53 @@ components:
         tracestate:
           description: W3C trace state of that request, when it carried one
           type: string
+      type: object
+    ExceptionEvent:
+      additionalProperties: false
+      properties:
+        endsAt:
+          description: "Null: no end"
+          format: date-time
+          type:
+            - string
+            - "null"
+        entitlementSlug:
+          type: string
+        id:
+          type: string
+        instanceSlug:
+          type: string
+        kind:
+          enum:
+            - SET
+            - ADD
+            - UNLIMITED
+          type: string
+        reason:
+          type: string
+        revokedAt:
+          format: date-time
+          type:
+            - string
+            - "null"
+        startsAt:
+          format: date-time
+          type: string
+        value:
+          description: "The exception's value: a number for NUMBER and NUMBER_AI_CREDIT, a boolean for BOOLEAN, the CONFIG document as an object; null for UNLIMITED"
+          type:
+            - ""
+            - "null"
+      required:
+        - id
+        - instanceSlug
+        - entitlementSlug
+        - kind
+        - value
+        - startsAt
+        - endsAt
+        - reason
+        - revokedAt
       type: object
     ExhaustedEvent:
       additionalProperties: false
@@ -5311,6 +5641,24 @@ components:
         - updatedAt
         - value
       type: object
+    LicenseFamilyUpdate:
+      additionalProperties: false
+      properties:
+        fallbackLicenseFamilySlug:
+          description: Another FREE family of the organization (every version of it priced FREE), whose default PUBLISHED version an instance moves to when its subscription ends. "" removes the fallback. Anything else answers 422 .InvalidFallback, an unknown family included.
+          maxLength: 255
+          type: string
+        isPublic:
+          description: List the family's default PUBLISHED version, with its ACTIVE prices, in the public catalogue
+          type: boolean
+        trialEndWithoutPaymentMethod:
+          description: "CANCEL or CONVERT: what a trial charged automatically with a total above 0 becomes at its end when the customer has no ACTIVE payment method. CANCEL cancels it; CONVERT makes it ACTIVE, whose first charge then fails. Any other value answers 422 .InvalidTrialEndBehavior."
+          type: string
+        trialReminderDays:
+          description: How many days before a trial's end trial_will_end fires, from 1 to 30, for the trials started after the change
+          format: int32
+          type: integer
+      type: object
     LicenseFamilyView:
       additionalProperties: false
       properties:
@@ -5324,6 +5672,11 @@ components:
         currentVersion:
           $ref: "#/components/schemas/License"
           description: "The version this read is about. By default the version the family resolves to: its default version if it has one, otherwise its highest-numbered PUBLISHED version. Under ?version=N it is the version asked for instead, whatever its lifecycle state. Absent when the family has no PUBLISHED version, which only a list or an include=versions read returns."
+        fallbackLicenseFamilySlug:
+          description: The FREE family whose default PUBLISHED version an instance of this family moves to when its subscription ends; null without one
+          type:
+            - string
+            - "null"
         id:
           description: Unique identifier for the license family
           examples:
@@ -5338,6 +5691,20 @@ components:
           examples:
             - enterprise-license
           type: string
+        trialEndWithoutPaymentMethod:
+          description: "What a trial charged automatically with a total above 0 becomes at its end when the customer has no ACTIVE payment method: CANCEL (the default) or CONVERT"
+          enum:
+            - CANCEL
+            - CONVERT
+          type: string
+        trialReminderDays:
+          description: How many days before a trial's end trial_will_end fires, for the trials started after it was set. 3 by default.
+          examples:
+            - 3
+          format: int32
+          maximum: 30
+          minimum: 1
+          type: integer
         updatedAt:
           description: Timestamp when a version was last added to this family, or when the family was created. Renames, lifecycle moves and default changes update the versions' own updatedAt, not this one.
           examples:
@@ -5361,17 +5728,11 @@ components:
         - slug
         - versionCount
         - isPublic
+        - fallbackLicenseFamilySlug
+        - trialEndWithoutPaymentMethod
+        - trialReminderDays
         - createdAt
         - updatedAt
-      type: object
-    LicenseFamilyVisibility:
-      additionalProperties: false
-      properties:
-        isPublic:
-          description: List the family's default PUBLISHED version, with its ACTIVE prices, in the public catalogue
-          type: boolean
-      required:
-        - isPublic
       type: object
     LicensePriceChanges:
       additionalProperties: false
@@ -5708,6 +6069,32 @@ components:
         - nextCursor
         - unreadCount
       type: object
+    ManagedUser:
+      additionalProperties: false
+      properties:
+        authorization:
+          $ref: "#/components/schemas/UserAuthorization"
+        createdAt:
+          format: date-time
+          type: string
+        email:
+          type:
+            - string
+            - "null"
+        externalId:
+          type: string
+        id:
+          type: string
+        name:
+          type: string
+      required:
+        - id
+        - externalId
+        - name
+        - email
+        - createdAt
+        - authorization
+      type: object
     ManifestEnvelope:
       additionalProperties: false
       properties:
@@ -5751,6 +6138,32 @@ components:
       required:
         - updated
         - unreadCount
+      type: object
+    Me:
+      additionalProperties: false
+      properties:
+        availablePermissions:
+          items:
+            type: string
+          type: array
+        availableRoles:
+          items:
+            $ref: "#/components/schemas/Role"
+          type: array
+        organizationId:
+          type: string
+        scopes:
+          items:
+            type: string
+          type: array
+        user:
+          $ref: "#/components/schemas/ManagedUser"
+      required:
+        - user
+        - organizationId
+        - scopes
+        - availableRoles
+        - availablePermissions
       type: object
     MetadataField:
       additionalProperties: false
@@ -6688,6 +7101,23 @@ components:
         - items
         - hasMore
       type: object
+    PageManagedUser:
+      additionalProperties: false
+      properties:
+        hasMore:
+          description: Whether more rows exist beyond this page.
+          type: boolean
+        items:
+          items:
+            $ref: "#/components/schemas/ManagedUser"
+          type: array
+        nextCursor:
+          description: Opaque cursor for the next page. Absent when hasMore is false.
+          type: string
+      required:
+        - items
+        - hasMore
+      type: object
     PageMetadataField:
       additionalProperties: false
       properties:
@@ -7409,7 +7839,7 @@ components:
       additionalProperties: false
       properties:
         checkout:
-          description: "The instance has no live subscription, and its plan can be bought alone: POST /public/session/checkout"
+          description: "POST /public/session/checkout: the instance has no live subscription and its plan can be bought alone, or its live subscription is free (a FREE licence family, no add-on price above 0) and the catalogue has a self-serve plan, which the checkout replaces it with"
           type: boolean
         invoices:
           description: "Billing is on: GET /public/session/invoices lists the customer's"
@@ -7977,6 +8407,21 @@ components:
           format: uri
           type: string
       type: object
+    Profile:
+      additionalProperties: false
+      properties:
+        email:
+          format: email
+          maxLength: 320
+          type: string
+        name:
+          maxLength: 200
+          minLength: 1
+          type: string
+      required:
+        - name
+        - email
+      type: object
     Provenance:
       additionalProperties: false
       properties:
@@ -8411,15 +8856,25 @@ components:
     PublicCatalogCapabilities:
       additionalProperties: false
       properties:
+        anonymousCheckout:
+          description: "Whether this publishable key starts anonymous checkouts (POST /public/checkout-sessions): on, with a Turnstile site key and secret"
+          type: boolean
         checkout:
           description: Whether a plan of the catalogue can be bought alone, through a customer session's checkout (POST /public/session/checkout)
           type: boolean
         paymentMethods:
           description: Whether the organization's billing provider captures payment methods
           type: boolean
+        turnstileSiteKey:
+          description: The Turnstile site key the page renders its widget with; null unless anonymousCheckout
+          type:
+            - string
+            - "null"
       required:
         - checkout
         - paymentMethods
+        - anonymousCheckout
+        - turnstileSiteKey
       type: object
     PublicMeter:
       additionalProperties: false
@@ -8671,6 +9126,9 @@ components:
           items:
             type: string
           type: array
+        anonymousCheckout:
+          description: Whether the key may start an anonymous checkout (POST /public/checkout-sessions). Needs a Turnstile site key and secret.
+          type: boolean
         createdAt:
           format: date-time
           readOnly: true
@@ -8700,6 +9158,15 @@ components:
           format: date-time
           readOnly: true
           type: string
+        turnstileSecretConfigured:
+          description: Whether a Turnstile secret is stored for the key. The secret itself is write-only.
+          readOnly: true
+          type: boolean
+        turnstileSiteKey:
+          description: "The Turnstile site key the page renders its widget with; null without one. Public: the catalogue hands it to the page."
+          type:
+            - string
+            - "null"
         updatedAt:
           format: date-time
           readOnly: true
@@ -8709,6 +9176,9 @@ components:
         - label
         - keyHint
         - allowedOrigins
+        - anonymousCheckout
+        - turnstileSiteKey
+        - turnstileSecretConfigured
         - createdAt
         - updatedAt
       type: object
@@ -8722,6 +9192,9 @@ components:
           items:
             type: string
           type: array
+        anonymousCheckout:
+          description: Whether the key may start an anonymous checkout (POST /public/checkout-sessions). Needs a Turnstile site key and secret.
+          type: boolean
         createdAt:
           format: date-time
           readOnly: true
@@ -8757,6 +9230,15 @@ components:
           format: date-time
           readOnly: true
           type: string
+        turnstileSecretConfigured:
+          description: Whether a Turnstile secret is stored for the key. The secret itself is write-only.
+          readOnly: true
+          type: boolean
+        turnstileSiteKey:
+          description: "The Turnstile site key the page renders its widget with; null without one. Public: the catalogue hands it to the page."
+          type:
+            - string
+            - "null"
         updatedAt:
           format: date-time
           readOnly: true
@@ -8767,6 +9249,9 @@ components:
         - label
         - keyHint
         - allowedOrigins
+        - anonymousCheckout
+        - turnstileSiteKey
+        - turnstileSecretConfigured
         - createdAt
         - updatedAt
       type: object
@@ -8781,12 +9266,24 @@ components:
             type: string
           maxItems: 50
           type: array
+        anonymousCheckout:
+          description: Open POST /public/checkout-sessions to the key. Needs turnstileSiteKey and turnstileSecret, else 422 .TurnstileNotConfigured. False by default.
+          type: boolean
         label:
           description: What the key is for
           examples:
             - Marketing site
           maxLength: 100
           minLength: 1
+          type: string
+        turnstileSecret:
+          description: "The Turnstile secret the server verifies tokens with. Stored in Vault, never returned: reads say turnstileSecretConfigured. 422 .VaultNotConfigured on a deployment without Vault."
+          maxLength: 255
+          minLength: 1
+          type: string
+        turnstileSiteKey:
+          description: The Turnstile site key the page renders its widget with
+          pattern: ^[A-Za-z0-9_-]{1,255}$
           type: string
       required:
         - label
@@ -8799,6 +9296,8 @@ components:
           items:
             type: string
           type: array
+        anonymousCheckout:
+          type: boolean
         id:
           type: string
         keyHint:
@@ -8809,11 +9308,17 @@ components:
         revokedAt:
           format: date-time
           type: string
+        turnstileSiteKey:
+          type:
+            - string
+            - "null"
       required:
         - id
         - label
         - keyHint
         - allowedOrigins
+        - anonymousCheckout
+        - turnstileSiteKey
       type: object
     PublishableKeyPatch:
       additionalProperties: false
@@ -8824,10 +9329,21 @@ components:
             type: string
           maxItems: 50
           type: array
+        anonymousCheckout:
+          description: Open or close POST /public/checkout-sessions to the key. On only with a Turnstile site key and secret, else 422 .TurnstileNotConfigured.
+          type: boolean
         label:
           description: What the key is for
           maxLength: 100
           minLength: 1
+          type: string
+        turnstileSecret:
+          description: The Turnstile secret, stored in Vault and never returned; "" deletes it. 422 .VaultNotConfigured on a deployment without Vault.
+          maxLength: 255
+          type: string
+        turnstileSiteKey:
+          description: The Turnstile site key; "" clears it
+          pattern: ^[A-Za-z0-9_-]{0,255}$
           type: string
       type: object
     PushFailedInvoice:
@@ -9847,6 +10363,50 @@ components:
       required:
         - reason
       type: object
+    Role:
+      additionalProperties: false
+      properties:
+        builtIn:
+          type: boolean
+        description:
+          type: string
+        isAdministrator:
+          type: boolean
+        name:
+          type: string
+        permissions:
+          items:
+            type: string
+          type: array
+        slug:
+          type: string
+      required:
+        - slug
+        - name
+        - description
+        - permissions
+        - builtIn
+        - isAdministrator
+      type: object
+    RoleDefinition:
+      additionalProperties: false
+      properties:
+        description:
+          maxLength: 1000
+          type: string
+        name:
+          maxLength: 200
+          minLength: 1
+          type: string
+        permissions:
+          items:
+            type: string
+          type: array
+      required:
+        - name
+        - description
+        - permissions
+      type: object
     RolloutDate:
       additionalProperties: false
       properties:
@@ -10092,6 +10652,18 @@ components:
       required:
         - quantity
       type: object
+    SessionAddonSelection:
+      additionalProperties: false
+      properties:
+        addonSlug:
+          type: string
+        quantity:
+          format: int32
+          type: integer
+      required:
+        - addonSlug
+        - quantity
+      type: object
     SessionBoost:
       additionalProperties: false
       properties:
@@ -10228,6 +10800,56 @@ components:
         - type
         - value
         - appliesTo
+      type: object
+    SessionEvent:
+      additionalProperties: false
+      properties:
+        billingPeriod:
+          enum:
+            - MONTHLY
+            - QUARTERLY
+            - SEMI_ANNUAL
+            - ANNUAL
+          type: string
+        clientReferenceId:
+          description: The vendor's opaque reference, as given at the start
+          type:
+            - string
+            - "null"
+        customerSlug:
+          description: The customer the completion created; null before
+          type:
+            - string
+            - "null"
+        email:
+          description: The address the visitor gave at the start
+          type: string
+        instanceSlug:
+          description: The instance the completion created; null before
+          type:
+            - string
+            - "null"
+        licenseSlug:
+          type: string
+        sessionId:
+          type: string
+        status:
+          description: OPEN on started, COMPLETED on completed; on abandoned, ABANDONED (never completed, slugs null) or EXPIRED (its INCOMPLETE subscription expired or was canceled unpaid, slugs set)
+          enum:
+            - OPEN
+            - COMPLETED
+            - ABANDONED
+            - EXPIRED
+          type: string
+      required:
+        - sessionId
+        - email
+        - clientReferenceId
+        - licenseSlug
+        - billingPeriod
+        - customerSlug
+        - instanceSlug
+        - status
       type: object
     SessionInvoice:
       additionalProperties: false
@@ -11446,6 +12068,47 @@ components:
       required:
         - id
       type: object
+    UserAuthorization:
+      additionalProperties: false
+      properties:
+        enabled:
+          type: boolean
+        permissions:
+          items:
+            type: string
+          type: array
+        roles:
+          items:
+            type: string
+          type: array
+      required:
+        - enabled
+        - roles
+        - permissions
+      type: object
+    UserEnablement:
+      additionalProperties: false
+      properties:
+        enabled:
+          type: boolean
+      required:
+        - enabled
+      type: object
+    UserRoleAssignments:
+      additionalProperties: false
+      properties:
+        permissions:
+          items:
+            type: string
+          type: array
+        roles:
+          items:
+            type: string
+          type: array
+      required:
+        - roles
+        - permissions
+      type: object
     Validity:
       additionalProperties: false
       properties:
@@ -11918,7 +12581,7 @@ components:
   securitySchemes:
     bearerAuth:
       bearerFormat: JWT
-      description: "A JWT verified by the proxy in front of this API, or a Kaiten access token (`ksh_...`) — send either as `Authorization: Bearer <token>`. The scopes listed on each operation are the ones the token must carry; `write:<module>` implies `read:<module>`, and `read:*` / `write:*` are wildcards over every module. `x-kaiten-scopes` lists every scope such a token can carry, including those enforced by a service in front of this API rather than by one of its operations."
+      description: "A JWT verified by the proxy in front of this API, or a Kaiten access token (`ksh_...`) — send either as `Authorization: Bearer <token>`. The scopes listed on each operation are checked server-side against current stored user assignments or stored service-token permissions, never JWT claims; `write:<module>` implies `read:<module>`, and `read:*` / `write:*` are wildcards over every module. `x-kaiten-scopes` lists every scope such a token can carry, including those enforced by a service in front of this API rather than by one of its operations."
       scheme: bearer
       type: http
       x-kaiten-scopes:
@@ -11935,9 +12598,11 @@ components:
         - read:metadata_fields
         - read:notifications
         - read:organizations
+        - read:profile
         - read:publishable_keys
         - read:releases
         - read:tokens
+        - read:users
         - read:voucher_redemptions
         - read:vouchers
         - read:webhooks
@@ -11954,12 +12619,19 @@ components:
         - write:metadata_fields
         - write:notifications
         - write:organizations
+        - write:profile
         - write:publishable_keys
         - write:releases
         - write:tokens
+        - write:users
         - write:voucher_redemptions
         - write:vouchers
         - write:webhooks
+    checkoutSession:
+      bearerFormat: ksc_
+      description: "An anonymous checkout session (`ksc_...`), returned once by POST /public/checkout-sessions and sent as `Authorization: Bearer ksc_...`. It reads and confirms that one session, at /public/checkout-sessions/{sessionId}, and nothing else; another session's id answers 401. A browser request must come from an origin of the publishable key that started the session."
+      scheme: bearer
+      type: http
     customerSession:
       bearerFormat: kst_
       description: "A customer session (`kst_...`), minted by the vendor's backend with POST /customer-sessions and sent as `Authorization: Bearer kst_...`. It acts for one customer -- and one of its instances, when bound -- on the /public/session routes and nowhere else. A browser request must come from an origin one of the organization's publishable keys allows."
@@ -13780,6 +14452,44 @@ paths:
       summary: Unarchive an add-on version
       tags:
         - addons
+  /authorization:
+    get:
+      description: Returns current stored grants for an active human or service-token caller, not JWT permissions. No permission is required. Credentials and token identifiers are never returned. Responses must not be cached.
+      operationId: GetAuthorization
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Authorization"
+          description: OK
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+      security:
+        - bearerAuth: []
+      summary: Read current caller authorization
+      tags:
+        - identity
   /billing/capabilities:
     get:
       description: Whether billing is enabled for the organization, and if not why; who can collect its invoices; and which parts of billing this release ships, so a client shows only what works. Answers even when billing is disabled.
@@ -22417,7 +23127,7 @@ paths:
       tags:
         - license-families
     patch:
-      description: Lists the family in the public catalogue, or takes it out. Families are private until made public.
+      description: "Changes a family's own settings: whether the public catalogue lists it (families are private until made public), its fallback family, what a trial without a payment method becomes at its end, and the trial reminder's lead. An absent member keeps the stored value. 404 .NotFound; 422 .InvalidFallback, .InvalidTrialEndBehavior, .InvalidTrialReminderDays."
       operationId: updateLicenseFamily
       parameters:
         - description: License family slug
@@ -22433,7 +23143,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/LicenseFamilyVisibility"
+              $ref: "#/components/schemas/LicenseFamilyUpdate"
         required: true
       responses:
         "200":
@@ -23916,6 +24626,65 @@ paths:
       summary: Unarchive a license version
       tags:
         - licenses
+  /me:
+    get:
+      description: Available to every active human member, including members with no assigned roles or permissions.
+      operationId: GetMe
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Me"
+          description: OK
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+      security:
+        - bearerAuth:
+            - read:profile
+      summary: Read current user and effective authorization
+      tags:
+        - users
   /metadata-fields:
     get:
       description: "Returns a cursor-paginated page of the metadata fields declared for the org and the given resource type, ordered by displayOrder then createdAt. Only active fields are listed, unless includeArchived is set: an archived field's id is what unarchive-metadata-field takes."
@@ -24634,6 +25403,247 @@ paths:
       summary: Get the public catalogue
       tags:
         - public
+  /public/checkout-sessions:
+    post:
+      description: "Starts a checkout for a visitor the vendor's backend does not know yet, with the publishable key and a Turnstile token. Writes one checkout session and nothing else: the customer, the instance and the subscription are created by the completion. Answers 201 status=open with the session's ksc_ token, returned once; with dryRun, 200 status=preview, writing and emitting nothing. dueToday is computed by the server. 403 .AnonymousCheckoutDisabled; 422 .TurnstileNotConfigured, .TurnstileFailed, .InvalidPriceSelection, .PriceNotPublic, .AddonNotPublic, .PriceNotFlatFee, .NotSelfServe, .ProviderCannotCapturePayment, .QuantityExceedsMax, .CurrencyMismatch, .InvalidEmail, .InvalidReturnUrl, .VoucherInvalid, .FallbackRequired; 503 .TurnstileUnavailable (Retry-After)."
+      operationId: createCheckoutSession
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CheckoutSessionDraft"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CheckoutSessionStart"
+          description: "A preview (dryRun): nothing was written"
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CheckoutSessionStart"
+          description: Created
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+            Vary:
+              schema:
+                type: string
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too Many Requests
+          headers:
+            Retry-After:
+              description: Seconds to wait before the next attempt
+              schema:
+                minimum: 0
+                type: integer
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+        "503":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Service Unavailable
+          headers:
+            Retry-After:
+              description: Seconds to wait before retrying, when a dependency (a payment provider) could not be reached
+              schema:
+                minimum: 0
+                type: integer
+      security:
+        - publishableKey: []
+      summary: Start an anonymous checkout
+      tags:
+        - public
+  /public/checkout-sessions/{sessionId}:
+    get:
+      description: "The session its ksc_ was minted for: its status, what it bought and what is due, and, once completed, the customer and instance created. A session still OPEN after expiresAt reads ABANDONED. The token keeps reading it for 24 h after it closed, then answers 401 PublicAuth.InvalidCredential."
+      operationId: getCheckoutSession
+      parameters:
+        - description: The session the ksc_ was minted for; another one answers 401
+          in: path
+          name: sessionId
+          required: true
+          schema:
+            description: The session the ksc_ was minted for; another one answers 401
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CheckoutSession"
+          description: OK
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+            Vary:
+              schema:
+                type: string
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too Many Requests
+          headers:
+            Retry-After:
+              description: Seconds to wait before the next attempt
+              schema:
+                minimum: 0
+                type: integer
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+      security:
+        - checkoutSession: []
+      summary: Read an anonymous checkout session
+      tags:
+        - public
+  /public/checkout-sessions/{sessionId}/confirm:
+    post:
+      description: "Completes the session when nothing has to be captured -- a FREE plan, a trial on a plan that needs no payment method, nothing due -- creating the customer, the instance and the subscription in one transaction: status=completed. Otherwise answers status=requires_payment_method with a hosted setup page, keeps the ksc_ across its redirect, and completes on the next confirm: awaiting_payment while the first invoice is charged, completed once paid. No body. 403 .AnonymousCheckoutDisabled; 409 .SessionClosed (errors[0].value.status), .DueTodayChanged, .EntitlementLimitReached; 422 .PriceNotPublic, .AddonNotPublic, .FallbackRequired, .ProviderCannotCapturePayment, .VoucherInvalid; 503 .ProviderUnavailable (Retry-After), Entitlement.VerificationUnavailable."
+      operationId: confirmCheckoutSession
+      parameters:
+        - description: The session the ksc_ was minted for; another one answers 401
+          in: path
+          name: sessionId
+          required: true
+          schema:
+            description: The session the ksc_ was minted for; another one answers 401
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CheckoutConfirmation"
+          description: OK
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+            Vary:
+              schema:
+                type: string
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too Many Requests
+          headers:
+            Retry-After:
+              description: Seconds to wait before the next attempt
+              schema:
+                minimum: 0
+                type: integer
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+        "503":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Service Unavailable
+          headers:
+            Retry-After:
+              description: Seconds to wait before retrying, when a dependency (a payment provider) could not be reached
+              schema:
+                minimum: 0
+                type: integer
+      security:
+        - checkoutSession: []
+      summary: Confirm an anonymous checkout
+      tags:
+        - public
   /public/session/addons/{addonSlug}:
     put:
       description: Attaches the add-on to the session's instance, changes its quantity, or removes it with 0. Entitlements change at once; the subscription bills the quantity held at each renewal, with no proration. Setting the quantity held changes nothing. 409 .OtherVersionAttached when another version of the same add-on is held, .BoundaryPending while the period that ended is being closed (Retry-After); 422 .AddonNotPublic, .Incompatible, .QuantityExceedsMax, .CurrencyMismatch, .InstanceRequired.
@@ -25172,7 +26182,7 @@ paths:
         - public
   /public/session/checkout:
     post:
-      description: "Subscribes the session's instance to a price of the public catalogue, with add-ons and a voucher, in one call. With dryRun, answers 200 status=preview and what would be billed today, changing nothing. When a payment method has to be saved first, answers 200 status=requires_payment_method with a setup page: send the customer there, then call again with its setupSessionId. Otherwise answers 201 status=subscribed: the invoice of the first period has been pushed and charged, and payment.status says how that went -- poll GET /public/session/invoices on processing or requires_action. Needs a session bound to an instance. 409 .AlreadySubscribed, .SetupSessionIncomplete (no payment method was saved on the setup page); 422 .InstanceRequired, .NotSelfServe, .PriceNotPublic, .PriceNotFlatFee, .BillingEmailRequired, .InvalidReturnUrl, .ProviderCannotCapturePayment, .VoucherInvalid, .AddonInvalid, .AddonNotPublic, .QuantityExceedsMax, .CurrencyMismatch, .QuotaExceeded (the instance uses more than the plan allows: errors[0].value.entitlementSlugs, location body.licensePriceId); 503 .ProviderUnavailable (Retry-After)."
+      description: "Subscribes the session's instance to a price of the public catalogue, with add-ons and a voucher, in one call. With dryRun, answers 200 status=preview and what would be billed today, changing nothing. When a payment method has to be saved first, answers 200 status=requires_payment_method with a setup page: send the customer there, then call again with its setupSessionId. Otherwise answers 201 status=subscribed: the invoice of the first period has been pushed and charged, and payment.status says how that went -- poll GET /public/session/invoices on processing or requires_action. Needs a session bound to an instance. An instance whose live subscription is free (a FREE licence family, no add-on price above 0) is checked out too: that subscription is canceled at once, with no invoice, in the same transaction. 409 .AlreadySubscribed (any other live subscription), .SetupSessionIncomplete (no payment method was saved on the setup page); 422 .InstanceRequired, .NotSelfServe, .PriceNotPublic, .PriceNotFlatFee, .BillingEmailRequired, .InvalidReturnUrl, .ProviderCannotCapturePayment, .VoucherInvalid, .AddonInvalid, .AddonNotPublic, .QuantityExceedsMax, .CurrencyMismatch, .QuotaExceeded (the instance uses more than the plan allows: errors[0].value.entitlementSlugs, location body.licensePriceId); 503 .ProviderUnavailable (Retry-After)."
       operationId: createSessionCheckout
       requestBody:
         content:
@@ -25553,7 +26563,7 @@ paths:
       tags:
         - publishable-keys
     post:
-      description: Issues a pk_ key for a web page to read the organization's public catalogue (GET /api/public/catalog) and nothing else. The key is returned once; only its digest is stored. Requires billing to be enabled for the organization.
+      description: Issues a pk_ key for a web page to read the organization's public catalogue (GET /api/public/catalog) and, with anonymousCheckout, to start anonymous checkouts (POST /api/public/checkout-sessions). The key is returned once; only its digest is stored. anonymousCheckout needs a Turnstile site key and secret (422 .TurnstileNotConfigured); the secret is stored in Vault (422 .VaultNotConfigured without one) and never returned. Requires billing to be enabled for the organization.
       operationId: createPublishableKey
       requestBody:
         content:
@@ -25618,7 +26628,7 @@ paths:
         - publishable-keys
   /publishable-keys/{keyId}:
     patch:
-      description: Changes a live key's label or allowed origins. A revoked key answers 409 UpdatePublishableKey.Revoked. Requires billing to be enabled for the organization.
+      description: Changes a live key's label, allowed origins or anonymous checkout settings. An absent member keeps the stored value; an empty Turnstile value clears it. After the write, a key with anonymousCheckout must hold a Turnstile site key and secret, else 422 .TurnstileNotConfigured; a secret on a deployment without Vault answers 422 .VaultNotConfigured. A revoked key answers 409 UpdatePublishableKey.Revoked. Requires billing to be enabled for the organization.
       operationId: updatePublishableKey
       parameters:
         - description: Publishable key id
@@ -25703,7 +26713,7 @@ paths:
         - publishable-keys
   /publishable-keys/{keyId}/revoke:
     post:
-      description: The key stops authenticating on the next request. Idempotent; revocation is final. Requires billing to be enabled for the organization.
+      description: The key stops authenticating on the next request, its Turnstile secret is deleted, and its anonymous checkout sessions stop authenticating. Idempotent; revocation is final. Requires billing to be enabled for the organization.
       operationId: revokePublishableKey
       parameters:
         - description: Publishable key id
@@ -26036,6 +27046,264 @@ paths:
       summary: Get a release by slug
       tags:
         - deploymentZones
+  /roles:
+    get:
+      description: Requires a live human member with stored read:users (write:users implies read). Lists immutable built-in templates and current organization roles.
+      operationId: ListRoles
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: "#/components/schemas/Role"
+                type:
+                  - array
+                  - "null"
+          description: OK
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+      security:
+        - bearerAuth:
+            - read:users
+      summary: List organization roles
+      tags:
+        - users
+    post:
+      description: Requires a live human member with stored write:users who covers current and proposed permissions. Built-in roles are immutable but assignable within caller authority; the last enabled administrator is protected.
+      operationId: CreateRole
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateRole"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Role"
+          description: Created
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+      security:
+        - bearerAuth:
+            - write:users
+      summary: Create a custom organization role
+      tags:
+        - users
+  /roles/{slug}:
+    delete:
+      description: Requires a live human member with stored write:users who covers current and proposed permissions. Built-in roles are immutable but assignable within caller authority; the last enabled administrator is protected.
+      operationId: DeleteRole
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: No Content
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+      security:
+        - bearerAuth:
+            - write:users
+      summary: Delete an unassigned custom organization role
+      tags:
+        - users
+    put:
+      description: Requires a live human member with stored write:users who covers current and proposed permissions. Built-in roles are immutable but assignable within caller authority; the last enabled administrator is protected.
+      operationId: UpdateRole
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RoleDefinition"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Role"
+          description: OK
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+      security:
+        - bearerAuth:
+            - write:users
+      summary: Replace a custom organization role
+      tags:
+        - users
   /service-accounts:
     get:
       description: Returns a cursor-paginated page of service accounts (machine users) for the current organization.
@@ -26670,6 +27938,429 @@ paths:
       summary: Export the organization's usage reports
       tags:
         - instances
+  /users:
+    get:
+      description: Requires a live human member with stored read:users (write:users implies read). Provider authorization claims are ignored.
+      operationId: ListUsers
+      parameters:
+        - explode: false
+          in: query
+          name: limit
+          schema:
+            default: 50
+            format: int32
+            maximum: 200
+            minimum: 1
+            type: integer
+        - explode: false
+          in: query
+          name: cursor
+          schema:
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PageManagedUser"
+          description: OK
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+      security:
+        - bearerAuth:
+            - read:users
+      summary: List human users
+      tags:
+        - users
+  /users/{id}:
+    get:
+      description: Requires a live human member with stored read:users (write:users implies read). Provider authorization claims are ignored.
+      operationId: GetUser
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ManagedUser"
+          description: OK
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+      security:
+        - bearerAuth:
+            - read:users
+      summary: Get a human user
+      tags:
+        - users
+    put:
+      description: Requires a live human member with stored write:users who covers the target's current authority. Profile name and email are global across memberships and become locally managed.
+      operationId: UpdateUser
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Profile"
+        required: true
+      responses:
+        "204":
+          description: No Content
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+      security:
+        - bearerAuth:
+            - write:users
+      summary: Update a human profile
+      tags:
+        - users
+  /users/{id}/assignments:
+    patch:
+      description: Requires a live human member with stored write:users who covers current and proposed permissions. Built-in roles are immutable but assignable within caller authority; the last enabled administrator is protected.
+      operationId: SetUserAssignments
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserRoleAssignments"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserAuthorization"
+          description: OK
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+      security:
+        - bearerAuth:
+            - write:users
+      summary: Set user roles and direct scopes atomically
+      tags:
+        - users
+  /users/{id}/authorization:
+    put:
+      description: Requires a live human member with stored write:users who covers current and proposed target authority. The last enabled administrator is protected. Provider authorization claims are ignored.
+      operationId: PutUserAuthorization
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserAuthorization"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserAuthorization"
+          description: OK
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+      security:
+        - bearerAuth:
+            - write:users
+      summary: Replace user roles, permissions and enabled state
+      tags:
+        - users
+  /users/{id}/enabled:
+    patch:
+      description: Requires a live human member with stored write:users who covers current and proposed permissions. Built-in roles are immutable but assignable within caller authority; the last enabled administrator is protected.
+      operationId: SetUserEnabled
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserEnablement"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserAuthorization"
+          description: OK
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+      security:
+        - bearerAuth:
+            - write:users
+      summary: Set user enabled state atomically
+      tags:
+        - users
   /v1/notification-preferences:
     get:
       description: "Every notifiable event, with this user's effective value per channel: their own choice where they made one, the catalog default otherwise. Events absent from the catalog of an installation never appear, which is what keeps high-volume system events out of the feed."
@@ -28225,6 +29916,129 @@ webhooks:
       tags:
         - webhooks
         - billing
+  com.kaiten.checkout_session.v1.abandoned:
+    post:
+      description: "Triggered when an anonymous checkout ends unpaid: still OPEN 24 h after its start (status ABANDONED), or its INCOMPLETE subscription expired or was canceled (status EXPIRED, with the customer and instance to clean up)."
+      operationId: onCheckoutSessionAbandoned
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                data:
+                  $ref: "#/components/schemas/SessionEvent"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
+                name:
+                  description: Event name
+                  enum:
+                    - CHECKOUT_SESSION_ABANDONED
+                  examples:
+                    - CHECKOUT_SESSION_ABANDONED
+                  type: string
+                type:
+                  description: Event type
+                  enum:
+                    - com.kaiten.checkout_session.v1.abandoned
+                  examples:
+                    - com.kaiten.checkout_session.v1.abandoned
+                  type: string
+              required:
+                - name
+                - type
+                - data
+              type: object
+        required: true
+      responses:
+        "200":
+          description: Webhook processed successfully
+      summary: Checkout Session Abandoned Webhook
+      tags:
+        - webhooks
+        - checkout-sessions
+  com.kaiten.checkout_session.v1.completed:
+    post:
+      description: "Triggered when an anonymous checkout completes: its ACTIVATION invoice is paid, or nothing was due. Carries the customer and instance it created; provision on this event, never on instance.v1.created."
+      operationId: onCheckoutSessionCompleted
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                data:
+                  $ref: "#/components/schemas/SessionEvent"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
+                name:
+                  description: Event name
+                  enum:
+                    - CHECKOUT_SESSION_COMPLETED
+                  examples:
+                    - CHECKOUT_SESSION_COMPLETED
+                  type: string
+                type:
+                  description: Event type
+                  enum:
+                    - com.kaiten.checkout_session.v1.completed
+                  examples:
+                    - com.kaiten.checkout_session.v1.completed
+                  type: string
+              required:
+                - name
+                - type
+                - data
+              type: object
+        required: true
+      responses:
+        "200":
+          description: Webhook processed successfully
+      summary: Checkout Session Completed Webhook
+      tags:
+        - webhooks
+        - checkout-sessions
+  com.kaiten.checkout_session.v1.started:
+    post:
+      description: Triggered when an anonymous checkout starts (POST /public/checkout-sessions). A dryRun emits nothing.
+      operationId: onCheckoutSessionStarted
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                data:
+                  $ref: "#/components/schemas/SessionEvent"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
+                name:
+                  description: Event name
+                  enum:
+                    - CHECKOUT_SESSION_STARTED
+                  examples:
+                    - CHECKOUT_SESSION_STARTED
+                  type: string
+                type:
+                  description: Event type
+                  enum:
+                    - com.kaiten.checkout_session.v1.started
+                  examples:
+                    - com.kaiten.checkout_session.v1.started
+                  type: string
+              required:
+                - name
+                - type
+                - data
+              type: object
+        required: true
+      responses:
+        "200":
+          description: Webhook processed successfully
+      summary: Checkout Session Started Webhook
+      tags:
+        - webhooks
+        - checkout-sessions
   com.kaiten.component.v1.created:
     post:
       description: Triggered when a new component is created.
@@ -30070,6 +31884,129 @@ webhooks:
       tags:
         - webhooks
         - instances
+  com.kaiten.instance.entitlement_exception.v1.created:
+    post:
+      description: Triggered when an exception is created on one entitlement of an instance. Emitted whether or not billing is enabled.
+      operationId: onInstanceEntitlementExceptionCreated
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                data:
+                  $ref: "#/components/schemas/ExceptionEvent"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
+                name:
+                  description: Event name
+                  enum:
+                    - INSTANCE_ENTITLEMENT_EXCEPTION_CREATED
+                  examples:
+                    - INSTANCE_ENTITLEMENT_EXCEPTION_CREATED
+                  type: string
+                type:
+                  description: Event type
+                  enum:
+                    - com.kaiten.instance.entitlement_exception.v1.created
+                  examples:
+                    - com.kaiten.instance.entitlement_exception.v1.created
+                  type: string
+              required:
+                - name
+                - type
+                - data
+              type: object
+        required: true
+      responses:
+        "200":
+          description: Webhook processed successfully
+      summary: Instance Entitlement Exception Created Webhook
+      tags:
+        - webhooks
+        - entitlement-exceptions
+  com.kaiten.instance.entitlement_exception.v1.expired:
+    post:
+      description: Triggered once per exception, when its endsAt passes; never for a revoked one.
+      operationId: onInstanceEntitlementExceptionExpired
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                data:
+                  $ref: "#/components/schemas/ExceptionEvent"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
+                name:
+                  description: Event name
+                  enum:
+                    - INSTANCE_ENTITLEMENT_EXCEPTION_EXPIRED
+                  examples:
+                    - INSTANCE_ENTITLEMENT_EXCEPTION_EXPIRED
+                  type: string
+                type:
+                  description: Event type
+                  enum:
+                    - com.kaiten.instance.entitlement_exception.v1.expired
+                  examples:
+                    - com.kaiten.instance.entitlement_exception.v1.expired
+                  type: string
+              required:
+                - name
+                - type
+                - data
+              type: object
+        required: true
+      responses:
+        "200":
+          description: Webhook processed successfully
+      summary: Instance Entitlement Exception Expired Webhook
+      tags:
+        - webhooks
+        - entitlement-exceptions
+  com.kaiten.instance.entitlement_exception.v1.revoked:
+    post:
+      description: Triggered when an exception is revoked. Revoking one already revoked or ended emits nothing.
+      operationId: onInstanceEntitlementExceptionRevoked
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                data:
+                  $ref: "#/components/schemas/ExceptionEvent"
+                headers:
+                  $ref: "#/components/schemas/EventHeaders"
+                name:
+                  description: Event name
+                  enum:
+                    - INSTANCE_ENTITLEMENT_EXCEPTION_REVOKED
+                  examples:
+                    - INSTANCE_ENTITLEMENT_EXCEPTION_REVOKED
+                  type: string
+                type:
+                  description: Event type
+                  enum:
+                    - com.kaiten.instance.entitlement_exception.v1.revoked
+                  examples:
+                    - com.kaiten.instance.entitlement_exception.v1.revoked
+                  type: string
+              required:
+                - name
+                - type
+                - data
+              type: object
+        required: true
+      responses:
+        "200":
+          description: Webhook processed successfully
+      summary: Instance Entitlement Exception Revoked Webhook
+      tags:
+        - webhooks
+        - entitlement-exceptions
   com.kaiten.instance.invoice.v1.handoff_acknowledged:
     post:
       description: Triggered when the organization's accounting system acknowledges an invoice from the handoff queue, or the invoice is marked paid while still waiting there.

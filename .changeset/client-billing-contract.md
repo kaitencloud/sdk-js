@@ -2,7 +2,7 @@
 "@kaitencloud/client": minor
 ---
 
-The generated REST API under `KaitenApi` follows Kaiten's billing contract: 316 operations, up from 162, with their request and response types.
+The generated REST API under `KaitenApi` follows Kaiten's billing contract: 337 operations, up from 162, with their request and response types.
 
 - `KaitenApi.EntitlementUsage` now requires `source` (`license` or `addon`), as the contract does; the client's own `EntitlementUsage` keeps it optional, so a usage row built against 1.0 still compiles.
 - Lists of add-ons, vouchers, voucher redemptions and publishable keys answer a page (`items`, `hasMore`, `nextCursor`). Members that have no value are `null`, nullable objects included (a subscription's `scheduledChange`, a portal's `paymentMethod`), and the generated types say `X | null` for them.
@@ -10,4 +10,7 @@ The generated REST API under `KaitenApi` follows Kaiten's billing contract: 316 
 - An invoice says whether it is `overdue` when read, the grace period of automatic collection included, which is what the list's `overdue` filter selects; the answers of writes and the event payloads carry `false`. A draft may be held because its provider cannot take that many lines (`holdReason: "PROVIDER_ITEM_LIMIT"`) as well as for its usage journal.
 - The usage report of `KaitenApi` takes its idempotency key in the `Idempotency-Key` header, and its answer, `ReportedEntitlementUsage`, echoes the key as `transactionId`.
 - The list of metadata fields takes `includeArchived` (`KaitenApi.ListMetadataFieldsData`), as the server's does.
+- The catalogue's `capabilities` says whether the publishable key starts anonymous checkouts (`anonymousCheckout`) and the Turnstile site key the page renders its widget with (`turnstileSiteKey`, `null` unless the first is on). The three calls of an anonymous checkout, `createCheckoutSession`, `getCheckoutSession` and `confirmCheckoutSession`, and the types of their answers (`CheckoutSessionStart`, `CheckoutSession`, `CheckoutConfirmation`) are generated.
+- A licence family can name the free family its instances fall back to, what a trial charged automatically becomes at its end when the customer has no payment method, and how many days before the end the reminder is sent; the quota windows of an entitlement can be anchored on the billing date (`BILLING_PERIOD`).
+- The contract also gains the routes of the organization's users, roles and authorization (`/me`, `/authorization`, `/users`, `/roles`).
 - `KaitenApi` follows the contract and is outside the stability guarantee of 1.x; the curated surface does not move with it.

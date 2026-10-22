@@ -73,9 +73,11 @@ function operations(yaml: string): Operation[] {
   return found;
 }
 
-/** The generator's name for an operation: `list-customers` is `listCustomers`. */
+/** The generator's name for an operation: `list-customers` and `ListCustomers` are `listCustomers`. */
 const methodName = (operationId: string) =>
-  operationId.replace(/[-_ ]+(.)/g, (_, next: string) => next.toUpperCase());
+  operationId
+    .replace(/[-_ ]+(.)/g, (_, next: string) => next.toUpperCase())
+    .replace(/^[A-Z]/, (first) => first.toLowerCase());
 
 /** The resource classes the package exports: the exports with static methods. */
 function resourceClasses() {
@@ -211,7 +213,7 @@ describe("the classes of the billing routes", () => {
     ]);
   });
 
-  test("the public surface is the catalogue and the ten calls of a customer session", () => {
+  test("the public surface is the catalogue, the ten calls of a customer session and the three of an anonymous checkout", () => {
     const publicOperations = ALL.filter((operation) => operation.tags.includes("public"));
 
     expect(
@@ -219,8 +221,11 @@ describe("the classes of the billing routes", () => {
     ).toEqual(
       [
         "GET /public/catalog",
+        "GET /public/checkout-sessions/{sessionId}",
         "GET /public/session/invoices",
         "GET /public/session/portal",
+        "POST /public/checkout-sessions",
+        "POST /public/checkout-sessions/{sessionId}/confirm",
         "POST /public/session/billing/cancel",
         "POST /public/session/billing/payment-method-session",
         "POST /public/session/billing/payment-method-session/{sessionId}/complete",
