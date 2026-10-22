@@ -149,6 +149,47 @@ export function apiErrorOf(body: unknown, response: Response): KaitenError {
   return error;
 }
 
+/**
+ * One request to a route of the public surface, and its answer: the JSON body of
+ * a success, or the `KaitenError` of a refusal. The public routes neither read
+ * nor set a cookie, so none is sent. The caller builds the headers, credential
+ * included; a body that is not `undefined` is sent as JSON.
+ */
+export async function sendPublic<T>(
+  fetchImpl: KaitenFetch,
+  url: string,
+  options: { method: string; headers: Headers; body?: unknown; timeoutMs?: number },
+  label: string,
+): Promise<T> {
+  const { method, headers, body, timeoutMs } = options;
+  if (body !== undefined) headers.set("Content-Type", "application/json");
+
+  let response: Response;
+  try {
+    response = await fetchImpl(
+      new Request(url, {
+        method,
+        headers,
+        credentials: "omit",
+        body: body === undefined ? undefined : JSON.stringify(body),
+        signal: AbortSignal.timeout(timeoutMs ?? DEFAULT_TIMEOUT_MS),
+      }),
+    );
+  } catch (error) {
+    throw new KaitenNetworkError(`Network error during ${label}`, error);
+  }
+
+  const text = await response.text();
+  let parsed: unknown = text;
+  try {
+    parsed = text ? JSON.parse(text) : undefined;
+  } catch {
+    // Not JSON: an error body from a proxy, kept as text.
+  }
+  if (!response.ok) throw apiErrorOf(parsed, response);
+  return parsed as T;
+}
+
 /** Refuses a secret credential in a browser, before anything is sent. */
 export function assertNoSecretInBrowser(token: string | undefined): void {
   // A secret credential must never leave a browser, whatever the auth scheme.

@@ -36,8 +36,12 @@ to send a `ksh_`, `ksm_` or `sk_` credential.
 
 A browser has a credential of its own for the public catalog: a publishable key (`pk_`),
 which reads it and nothing else. For a signed-in customer it uses a customer session
-(`kst_`), described [below](#customer-sessions). It needs a Kaiten server that serves the public routes
-(`/api/public/*`): see [Kaiten version](#kaiten-version).
+(`kst_`), described [below](#customer-sessions). For a visitor who has no account yet,
+a publishable key starts an anonymous checkout and gets in return the token of that
+one checkout (`ksc_`), described [below](#anonymous-checkout). The three are different
+classes: the API refuses one presented on the routes of another, and so does this client.
+It needs a Kaiten server that serves the public routes (`/api/public/*`): see
+[Kaiten version](#kaiten-version).
 
 A publishable key is `pk_` followed by 43 letters, digits, `-` or `_`.
 `assertPublishableKeyShape(key)` throws for anything else (a key cut short by a paste,
@@ -115,6 +119,12 @@ of this catalog can be bought alone. It is read from the response, not worked ou
 the plans. When it is `false`, show each plan's `selfServeCtaUrl` instead of a
 purchase button.
 
+`catalog.capabilities.anonymousCheckout` says whether this publishable key can start a
+checkout for a visitor with no account, and `turnstileSiteKey` is the site key of the
+Turnstile widget that checkout needs. They go together: `anonymousCheckout` is `true` only
+with a site key, and `turnstileSiteKey` is `null` otherwise, also on a Kaiten that
+predates the feature.
+
 ### Customer sessions
 
 A browser acting for one signed-in customer — a customer portal, a checkout — uses a
@@ -175,12 +185,91 @@ does not apply and, for one that does, how long it lasts (`duration`: `ONE_TIME`
 `modifierValue` are decimal strings. The code goes in the request body only.
 
 A refused call rejects with a `KaitenError` carrying the API's `status` and `code`, such
-as `CreateSessionCheckout.AlreadySubscribed`; four refusals have a class of their own,
+as `CreateSessionCheckout.AlreadySubscribed`; some refusals have a class of their own,
 described in [Errors and retries](#errors-and-retries). Reads are retried after a network
 failure or a 5xx; **a write never is**, whatever the answer, since a checkout can subscribe
 the customer and nobody knows whether the first attempt took effect. The one exception is a
 session the API refused with a 401, which did nothing: it is renewed and the request sent
 once more.
+
+### Anonymous checkout
+
+A visitor your backend does not know yet can buy a self-serve plan from your own pages, with
+no account: the checkout creates the customer, the instance and the subscription when it
+completes. `KaitenAnonymousCheckoutClient` does it with a publishable key that has
+anonymous checkout turned on, and a [Cloudflare Turnstile](https://developers.cloudflare.com/turnstile/)
+token for each start:
+
+```ts
+import { KaitenAnonymousCheckoutClient, readCheckoutReturn } from "@kaitencloud/client";
+
+const checkout = new KaitenAnonymousCheckoutClient({
+  apiUrl: "https://kaiten.example.com/api",
+  publishableKey: "pk_…",
+});
+
+// The site key is catalog.capabilities.turnstileSiteKey; the widget gives one token per start.
+const started = await checkout.startCheckout({
+  turnstileToken,
+  licenseSlug: "growth-v1", // or priceId
+  billingPeriod: "MONTHLY",
+  email: "ada@example.com",
+  returnUrl: "https://shop.example.com/welcome",
+  clientReferenceId: "cart-42", // echoed on the checkout's events
+});
+if (started.status === "open") {
+  const confirmed = await checkout.confirmCheckout(started.sessionId);
+  if (confirmed.status === "requires_payment_method") location.assign(confirmed.setupUrl);
+}
+
+// Back on returnUrl, after the hosted page that saves the payment method:
+const back = readCheckoutReturn(); // { sessionId, urlWithoutSession } | null
+if (back) {
+  history.replaceState(null, "", back.urlWithoutSession);
+  const confirmed = await checkout.confirmCheckout(back.sessionId);
+  // "awaiting_payment": read getCheckoutSession(back.sessionId) until it closes.
+  // "completed": the customer and the instance exist (confirmed.session.customerSlug).
+}
+```
+
+| Call                        | Route                                                | Credential            |
+| --------------------------- | ---------------------------------------------------- | --------------------- |
+| `startCheckout(input)`      | `POST /public/checkout-sessions`                     | the publishable key   |
+| `getCheckoutSession(id)`    | `GET /public/checkout-sessions/{sessionId}`          | that session's `ksc_` |
+| `confirmCheckout(id)`       | `POST /public/checkout-sessions/{sessionId}/confirm` | that session's `ksc_` |
+| `holdsCheckoutSession(id)`  | none                                                 |                       |
+| `forgetCheckoutSession(id)` | none                                                 |                       |
+
+**Two credentials, two routes.** The publishable key goes in `X-Kaiten-Publishable-Key` to the
+start and nowhere else. The start answers a session and the client keeps its `ksc_` token, which
+goes in `Authorization: Bearer ksc_…` to that session's own two routes and nowhere else. Neither is
+ever sent with the other, whatever `defaultHeaders` holds, and no cookie is sent. The token is not
+in what `startCheckout` returns: it stays with the client.
+
+**The token survives the redirect** to the hosted page that saves a payment method, which is a
+full-page navigation: it is kept in memory and in `sessionStorage`, under the session's id. It
+is never in a URL, never in `localStorage`, and it is dropped once the session closes (`COMPLETED`,
+`ABANDONED` or `EXPIRED`), when the API refuses it, or on `forgetCheckoutSession`. A closed
+session's last answer is kept in memory so that a second read, or a second effect run, still
+finds its outcome. Pass `storage` (the shape of `Storage`) to keep tokens somewhere else, or
+`storage: null` for memory alone. A page that comes back without the token (another tab or
+browser, cleared storage) gets a `CheckoutTokenMissingError` before any request, and starts a new
+checkout; `holdsCheckoutSession(id)` tells before asking.
+
+**Money and what is due** are the server's: `dueToday` is computed by the API from the start, a
+trial included (`trialEndsAt`, or `null` with `trialRefusedReason: "ALREADY_CONSUMED"` when the
+e-mail already had the plan's trial), and the client never sums a price. `requiresPaymentMethod`
+says whether the confirm sends the visitor to the hosted page. A free plan, and a trial that needs
+no payment method, complete at the first confirm.
+
+**A Turnstile token is single-use**, a `dryRun` included. So the client refuses, before a request,
+an input the API would refuse for its shape (no token, both forms of the price, no e-mail or
+return URL on a real start, a reference over 255 characters): a `TypeError`, and the token is
+still good.
+
+A read is sent again after a network failure or a 5xx; **a write never is**, the start and the
+confirm included. The class is made for a browser, with the publishable key: it refuses any
+other kind of key, a `ksh_` included.
 
 ### Scopes
 
@@ -305,15 +394,19 @@ A call the API refuses rejects with a `KaitenError`: its `status`, the problem's
 report a problem) and, when the API sent a `Retry-After`, `retryAfterSeconds`. A request that
 never reached the API rejects with a `KaitenNetworkError`.
 
-Four refusals call for a reaction of their own. Each is a class that extends `KaitenError`,
+Some refusals call for a reaction of their own. Each is a class that extends `KaitenError`,
 so `instanceof KaitenError`, `status` and `code` keep working:
 
-| Class                      | The API refused with                                                                                                          | It carries                                 |
-| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
-| `QuotaExceededError`       | 422 `*.QuotaExceeded`: the instance already uses more than the plan a checkout would move it to allows, on a `dryRun` as well | `entitlementSlugs`, the ones over the plan |
-| `RateLimitedError`         | 429 `*.RateLimited`                                                                                                           | `retryAfterSeconds`                        |
-| `BoundaryPendingError`     | 409 `*.BoundaryPending`: the billing period that just ended is still being closed                                             | `retryAfterSeconds`                        |
-| `ProviderUnavailableError` | 503 `*.ProviderUnavailable`: the payment provider could not be reached                                                        | `retryAfterSeconds`                        |
+| Class                        | The API refused with                                                                                                          | It carries                                 |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| `QuotaExceededError`         | 422 `*.QuotaExceeded`: the instance already uses more than the plan a checkout would move it to allows, on a `dryRun` as well | `entitlementSlugs`, the ones over the plan |
+| `RateLimitedError`           | 429 `*.RateLimited`                                                                                                           | `retryAfterSeconds`                        |
+| `BoundaryPendingError`       | 409 `*.BoundaryPending`: the billing period that just ended is still being closed                                             | `retryAfterSeconds`                        |
+| `ProviderUnavailableError`   | 503 `*.ProviderUnavailable`: the payment provider could not be reached                                                        | `retryAfterSeconds`                        |
+| `TurnstileFailedError`       | 422 `*.TurnstileFailed`: a Turnstile token that is invalid, expired, already used or from another host                        |                                            |
+| `TurnstileUnavailableError`  | 503 `*.TurnstileUnavailable`: Turnstile's verification could not be reached from Kaiten                                       | `retryAfterSeconds`                        |
+| `CheckoutSessionClosedError` | 409 `*.SessionClosed`: an anonymous checkout confirmed after it closed                                                        | `sessionStatus`: how it closed             |
+| `DueTodayChangedError`       | 409 `*.DueTodayChanged`: the amount due changed since the visitor was shown it                                                |                                            |
 
 ```ts
 import { KaitenError, QuotaExceededError } from "@kaitencloud/client";
@@ -336,12 +429,16 @@ try {
 ```
 
 Every other refusal (`AlreadySubscribed`, `VoucherInvalid`, `SetupSessionIncomplete`,
-`OtherVersionAttached`, …) is a plain `KaitenError`, read by its `code`. The same four are
-recognized in [`@kaitencloud/server`](../server) by predicates (`isQuotaExceeded` and the
-others).
+`OtherVersionAttached`, `AnonymousCheckoutDisabled`, `FallbackRequired`, …) is a plain
+`KaitenError`, read by its `code`. The first four are recognized in
+[`@kaitencloud/server`](../server) by predicates (`isQuotaExceeded` and the others); the
+anonymous checkout is a browser's, and the server has none for the rest.
+
+`CheckoutTokenMissingError` is raised by the anonymous checkout client itself, with status
+`0` and before any request, when it holds no token for the session you name.
 
 **`retryAfterSeconds`** is the `Retry-After` the API sent, in seconds: a whole number, or
-an HTTP date read as the seconds from now. It is absent when there is none. On the three
+an HTTP date read as the seconds from now. It is absent when there is none. On the four
 classes made to be waited out it is always a number, **60 when the response carries no
 `Retry-After` the client can read**. A browser that calls another origin only sees that
 header if the API's CORS policy exposes it (`Access-Control-Expose-Headers: Retry-After`);
@@ -438,7 +535,7 @@ with its status and code, as a `KaitenError`. `checkout` scripts an outcome the 
 not cover (a trial, add-ons), `setPortal` swaps the scenario, and `calls` records what was
 called.
 
-To drive a screen into one of the [four refusals](#errors-and-retries) that have a class of
+To drive a screen into one of the [refusals](#errors-and-retries) that have a class of
 their own, throw it from `checkout`:
 
 ```ts

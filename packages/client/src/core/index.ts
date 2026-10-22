@@ -11,6 +11,9 @@ export type { CreateClientConfig } from "./generated/client.gen.ts";
 
 export {
   BoundaryPendingError,
+  CheckoutSessionClosedError,
+  CheckoutTokenMissingError,
+  DueTodayChangedError,
   InvalidTransactionIdError,
   KaitenError,
   KaitenNetworkError,
@@ -18,6 +21,8 @@ export {
   QuotaExceededError,
   RateLimitedError,
   TransactionIdReusedError,
+  TurnstileFailedError,
+  TurnstileUnavailableError,
 } from "./runtime/errors.ts";
 export type {
   KaitenApiError,
@@ -27,6 +32,8 @@ export type {
 export {
   assertPublishableKey,
   assertPublishableKeyShape,
+  CHECKOUT_SESSION_TOKEN_PREFIX,
+  isCheckoutSessionToken,
   isPublishableKey,
   isPublishableKeyShape,
 } from "./runtime/keys.ts";
@@ -35,8 +42,11 @@ export type { RetryOptions } from "./runtime/retry.ts";
 
 export type {
   AuthenticatedKaitenProviderConfig,
+  KaitenAnonymousCheckoutClientConfig,
   KaitenAuthErrorInfo,
   KaitenAuthScheme,
+  KaitenCheckoutCredential,
+  KaitenCheckoutTokenStorage,
   KaitenClientConfig,
   KaitenCustomerSession,
   KaitenCustomerSessionProvider,

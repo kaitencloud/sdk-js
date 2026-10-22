@@ -9,14 +9,13 @@
 
 import type { KaitenCustomerSession, KaitenSessionClientConfig } from "../core/config.ts";
 import {
-  apiErrorOf,
-  DEFAULT_TIMEOUT_MS,
   resolveApiBaseUrl,
   resolveFetchImplementation,
   retryable,
   retryAfterDelay,
+  sendPublic,
 } from "../core/http.ts";
-import { KaitenError, KaitenNetworkError } from "../core/runtime/errors.ts";
+import { KaitenError } from "../core/runtime/errors.ts";
 import { retry } from "../core/runtime/retry.ts";
 import {
   mapCheckout,
@@ -283,7 +282,7 @@ export class KaitenSessionClient implements KaitenSessionClientLike {
     return error;
   }
 
-  private async send<T>(
+  private send<T>(
     method: string,
     route: string,
     label: string,
@@ -292,33 +291,12 @@ export class KaitenSessionClient implements KaitenSessionClientLike {
   ): Promise<T> {
     const headers = new Headers(this.config.defaultHeaders);
     headers.set("Authorization", `Bearer ${token}`);
-    if (body !== undefined) headers.set("Content-Type", "application/json");
-
-    let response: Response;
-    try {
-      response = await this.fetchImpl(
-        new Request(`${this.baseUrl}/public/session/${route}`, {
-          method,
-          headers,
-          // The public routes neither read nor set a cookie.
-          credentials: "omit",
-          body: body === undefined ? undefined : JSON.stringify(body),
-          signal: AbortSignal.timeout(this.config.timeoutMs ?? DEFAULT_TIMEOUT_MS),
-        }),
-      );
-    } catch (error) {
-      throw new KaitenNetworkError(`Network error during ${label}`, error);
-    }
-
-    const text = await response.text();
-    let parsed: unknown = text;
-    try {
-      parsed = text ? JSON.parse(text) : undefined;
-    } catch {
-      // Not JSON: an error body from a proxy, kept as text.
-    }
-    if (!response.ok) throw apiErrorOf(parsed, response);
-    return parsed as T;
+    return sendPublic<T>(
+      this.fetchImpl,
+      `${this.baseUrl}/public/session/${route}`,
+      { method, headers, body, timeoutMs: this.config.timeoutMs },
+      label,
+    );
   }
 
   /**

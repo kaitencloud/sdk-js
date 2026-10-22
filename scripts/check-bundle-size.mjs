@@ -130,9 +130,11 @@ const SCENARIOS = [
     // above, which is the point of the entry.
     // Measured at 28 817 bytes, up from 28 518: the add-ons a refused checkout names, held or
     // ordered, and why the price cannot bill them.
+    // Measured at 29 032 bytes, up from 28 817: what every client of the package reads its
+    // refusals through grew by the four of an anonymous checkout, as in the session client.
     name: "billing · useCheckout + KaitenProvider",
     code: `import { KaitenProvider } from "@kaitencloud/react"; import { useCheckout } from "@kaitencloud/react/billing"; console.log(KaitenProvider, useCheckout);`,
-    budgetGzip: 28_950,
+    budgetGzip: 29_100,
     unstyled: true,
   },
   {
@@ -196,16 +198,18 @@ const SCENARIOS = [
     // for its first payment, and the words of its English.
     // Measured at 66 391 bytes, up from 66 216: what a customer back at the checkout of such a
     // subscription is told, the invoice it offers to pay, and the wait on it.
+    // Measured at 66 625 bytes, up from 66 391: the refusals of an anonymous checkout, as above.
     name: "react-ui · CheckoutFlow + KaitenProvider + KaitenStyleRoot",
     code: `import { CheckoutFlow, KaitenProvider, KaitenStyleRoot } from "@kaitencloud/react-ui"; console.log(CheckoutFlow, KaitenProvider, KaitenStyleRoot);`,
-    budgetGzip: 66_550,
+    budgetGzip: 66_700,
   },
   {
     // What a host that shows a customer how they pay ships: the card, the billing hooks that add or
     // replace a payment method and open the provider's portal, and the words of its English.
+    // Measured at 46 058 bytes: the refusals of an anonymous checkout, as above.
     name: "react-ui · PaymentMethodCard + KaitenProvider + KaitenStyleRoot",
     code: `import { PaymentMethodCard, KaitenProvider, KaitenStyleRoot } from "@kaitencloud/react-ui"; console.log(PaymentMethodCard, KaitenProvider, KaitenStyleRoot);`,
-    budgetGzip: 46_050,
+    budgetGzip: 46_150,
   },
   {
     // What a host that offers a customer portal ships: the sections, the billing hooks they
@@ -232,9 +236,10 @@ const SCENARIOS = [
     // first payment, what the plan card says of it, and the words of its English.
     // Measured at 62 593 bytes, up from 62 537: what cancelling a subscription that ends at once
     // says, and the words of its English.
+    // Measured at 62 833 bytes, up from 62 593: the refusals of an anonymous checkout, as above.
     name: "react-ui · CustomerPortal + KaitenProvider + KaitenStyleRoot",
     code: `import { CustomerPortal, KaitenProvider, KaitenStyleRoot } from "@kaitencloud/react-ui"; console.log(CustomerPortal, KaitenProvider, KaitenStyleRoot);`,
-    budgetGzip: 62_750,
+    budgetGzip: 62_950,
   },
   {
     // Measured at 93 302 bytes, up from 79 688: Base UI's radio group, as in the checkout (12.4 KB),
@@ -251,9 +256,10 @@ const SCENARIOS = [
     // for a subscription that waits for its first payment, as above.
     // Measured at 97 714 bytes, up from 97 507: what the checkout and the customer portal grew by
     // for a cancellation that ends at once and a customer back at the checkout, as above.
+    // Measured at 97 923 bytes, up from 97 714: the refusals of an anonymous checkout, as above.
     name: "react-ui · everything",
     code: `import * as all from "@kaitencloud/react-ui"; console.log(all);`,
-    budgetGzip: 97_850,
+    budgetGzip: 98_050,
   },
   {
     name: "client · KaitenClient alone",
@@ -264,9 +270,21 @@ const SCENARIOS = [
   },
   {
     // What a customer portal or a checkout ships: the customer-session client.
+    // Measured at 9 751 bytes, up from 9 585: the four refusals of an anonymous checkout
+    // the errors tell apart (a Turnstile token refused or out of reach, a session closed, a due
+    // amount changed), which every client of the package reads its refusals through.
     name: "client · KaitenSessionClient alone",
     code: `import { KaitenSessionClient } from "@kaitencloud/client"; console.log(KaitenSessionClient);`,
-    budgetGzip: 9_700,
+    budgetGzip: 9_850,
+    headless: true,
+    resolveDir: FROM_NODE,
+  },
+  {
+    // What a page that sells a plan to a visitor with no account ships: the anonymous checkout
+    // client, which a host that offers none does not.
+    name: "client · KaitenAnonymousCheckoutClient alone",
+    code: `import { KaitenAnonymousCheckoutClient } from "@kaitencloud/client"; console.log(KaitenAnonymousCheckoutClient);`,
+    budgetGzip: 9_300,
     headless: true,
     resolveDir: FROM_NODE,
   },

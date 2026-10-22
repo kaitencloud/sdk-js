@@ -24,7 +24,7 @@ API extends — grow without breaking anyone.
 - Add **optional** members to the types the SDK returns (`Plan`, `PlanPrice`,
   `ResolvedEntitlement`, …) and to the types you pass in (`KaitenClientConfig`,
   `ReportUsageInput`, …).
-- Add methods to `KaitenClient` and `KaitenSessionClient`, and to the server's
+- Add methods to `KaitenClient`, `KaitenSessionClient` and `KaitenAnonymousCheckoutClient`, and to the server's
   `KaitenBilling`, `KaitenHandoffQueue` and `KaitenInvoices`. You never implement
   those classes: their private fields make them nominal.
 - Add an **optional** last parameter to a method, `KaitenClientLike`'s included.
@@ -32,7 +32,7 @@ API extends — grow without breaking anyone.
   and an implementation written against 1.0, which takes none, still satisfies
   the interface.
 - Add members to the **open** unions described below.
-- Give a refusal a class of its own. It extends `KaitenError`, as the four in
+- Give a refusal a class of its own. It extends `KaitenError`, as the ones in
   [Errors and retries](#errors-and-retries) do.
 
 ## What it never does
@@ -62,11 +62,14 @@ consumer call a method an implementation silently lacks.
 
 A new capability is a **separate interface** instead, implemented by whichever
 client provides it. The first is `KaitenSessionClientLike`, the customer-session
-calls (`getPortal`, `checkout`, …), which `KaitenSessionClient` implements. An
-implementation of your own opts into a capability by implementing its whole
-interface, and code that needs the capability takes that interface. The fake
-`createMockKaitenSessionClient`, of `@kaitencloud/client/testing`, is such an
-implementation:
+calls (`getPortal`, `checkout`, …), which `KaitenSessionClient` implements. The
+second is `KaitenAnonymousCheckoutClientLike`, the anonymous checkout of a visitor
+with no account (`startCheckout`, `getCheckoutSession`, `confirmCheckout`, and
+`holdsCheckoutSession` and `forgetCheckoutSession` for the token it keeps), which
+`KaitenAnonymousCheckoutClient` implements. An implementation of your own opts into a
+capability by implementing its whole interface, and code that needs the capability
+takes that interface. The fake `createMockKaitenSessionClient`, of
+`@kaitencloud/client/testing`, is such an implementation:
 
 ```ts
 import type { KaitenClientLike, KaitenSessionClientLike } from "@kaitencloud/client";
@@ -91,9 +94,12 @@ function mountBilling(client: KaitenClientLike, session?: KaitenSessionClientLik
   completes the known values, and a minor release may add one. Handle a value
   you do not know — skip it, or render it neutrally — rather than assuming the
   list is exhaustive. Every enumeration added after 1.0 is open unless it is a
-  discriminant, such as `CheckoutResult["status"]`. The `source` of a usage row
-  (`EntitlementUsage.source`, `license` or `addon` today) is open for that reason, while
-  `ResolvedEntitlement.source`, which 1.0 published, stays closed.
+  discriminant, such as `CheckoutResult["status"]`, `CheckoutSessionStart["status"]` and
+  `CheckoutConfirmation["status"]`. `CheckoutSession["status"]`,
+  `CheckoutSession["trialRefusedReason"]` and `CheckoutBillingPeriod` are open. The
+  `source` of a usage row (`EntitlementUsage.source`, `license` or `addon` today) is
+  open for that reason, while `ResolvedEntitlement.source`, which 1.0 published, stays
+  closed.
 
 ## Prices
 
@@ -109,28 +115,39 @@ not a whole number of minor units. New price shapes will arrive there, never in
 ## Errors and retries
 
 A call the API refuses rejects with a `KaitenError`, which carries `status`, `code`,
-`detail`, `errorId` and, when the API sent a `Retry-After`, `retryAfterSeconds`. Four
+`detail`, `errorId` and, when the API sent a `Retry-After`, `retryAfterSeconds`. Eight
 refusals are a **subclass of `KaitenError`**, so `instanceof KaitenError`, `status` and
-`code` keep working. `@kaitencloud/client` exports the classes and `@kaitencloud/server`
-a predicate for each, which narrows to its own `KaitenError`:
+`code` keep working. `@kaitencloud/client` exports the classes, and `@kaitencloud/server`
+a predicate for each of the first four, which narrows to its own `KaitenError`. The other
+four are refusals of the anonymous checkout, a browser's: the server has no predicate for them.
 
-| Client class               | Server predicate        | Status and end of the code  | It carries          |
-| -------------------------- | ----------------------- | --------------------------- | ------------------- |
-| `QuotaExceededError`       | `isQuotaExceeded`       | 422 `*.QuotaExceeded`       | `entitlementSlugs`  |
-| `RateLimitedError`         | `isRateLimited`         | 429 `*.RateLimited`         | `retryAfterSeconds` |
-| `BoundaryPendingError`     | `isBoundaryPending`     | 409 `*.BoundaryPending`     | `retryAfterSeconds` |
-| `ProviderUnavailableError` | `isProviderUnavailable` | 503 `*.ProviderUnavailable` | `retryAfterSeconds` |
+| Client class                 | Server predicate        | Status and end of the code   | It carries          |
+| ---------------------------- | ----------------------- | ---------------------------- | ------------------- |
+| `QuotaExceededError`         | `isQuotaExceeded`       | 422 `*.QuotaExceeded`        | `entitlementSlugs`  |
+| `RateLimitedError`           | `isRateLimited`         | 429 `*.RateLimited`          | `retryAfterSeconds` |
+| `BoundaryPendingError`       | `isBoundaryPending`     | 409 `*.BoundaryPending`      | `retryAfterSeconds` |
+| `ProviderUnavailableError`   | `isProviderUnavailable` | 503 `*.ProviderUnavailable`  | `retryAfterSeconds` |
+| `TurnstileFailedError`       |                         | 422 `*.TurnstileFailed`      |                     |
+| `TurnstileUnavailableError`  |                         | 503 `*.TurnstileUnavailable` | `retryAfterSeconds` |
+| `CheckoutSessionClosedError` |                         | 409 `*.SessionClosed`        | `sessionStatus`     |
+| `DueTodayChangedError`       |                         | 409 `*.DueTodayChanged`      |                     |
 
 `QuotaExceededError` is the refusal of `CreateSessionCheckout.QuotaExceeded`, on a
 `dryRun` as on a checkout; `entitlementSlugs` is read from the first entry of the
-problem's `errors`. Every other refusal (`AlreadySubscribed`, `VoucherInvalid`,
-`SetupSessionIncomplete`, `OtherVersionAttached`, …) stays a plain `KaitenError`, read by
+problem's `errors`. `CheckoutSessionClosedError.sessionStatus` is read from the first entry
+of the problem's `errors` too, and is absent when the problem does not name it. Every other
+refusal (`AlreadySubscribed`, `VoucherInvalid`, `SetupSessionIncomplete`,
+`OtherVersionAttached`, `AnonymousCheckoutDisabled`, …) stays a plain `KaitenError`, read by
 its `code`. A later minor release may give another refusal a class; it will extend
-`KaitenError` too, and the four above are never removed or retyped.
+`KaitenError` too, and the eight above are never removed or retyped.
+
+`KaitenAnonymousCheckoutClient` also raises `CheckoutTokenMissingError`, a `KaitenError`
+with status `0` and no `code`, before any request, when it holds no token for the session
+a call names.
 
 - **`retryAfterSeconds`** is the `Retry-After` the API sent: a whole number of seconds,
   or an HTTP date, read as the seconds from now. It is absent when there is none. On
-  the three classes made to be waited out it is always a number, **60 when the response
+  the four classes made to be waited out it is always a number, **60 when the response
   carries no `Retry-After` the client can read**. That is the case of a browser calling
   another origin whose CORS policy does not expose the header; the 60 is a default, not
   the API's word. `@kaitencloud/server` always sees the header and invents nothing.

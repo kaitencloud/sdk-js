@@ -316,7 +316,7 @@ export type WireCheckout =
   | (Checkout & { status: "subscribed" } & Required<Pick<Checkout, "subscription" | "payment">>);
 
 /** What a checkout bills today: the server's totals, and the lines they come from. */
-function mapDueToday(raw: Api.DueToday): CheckoutPreview["dueToday"] {
+export function mapDueToday(raw: Api.DueToday): CheckoutPreview["dueToday"] {
   return {
     currencyCode: raw.currency,
     subtotal: raw.subtotal,

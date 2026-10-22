@@ -43,9 +43,10 @@ export class KaitenError extends Error {
    * Absent when the response carried no readable one, which in a browser
    * includes a response whose CORS policy does not expose the header.
    *
-   * {@link RateLimitedError}, {@link BoundaryPendingError} and
-   * {@link ProviderUnavailableError}, which are refusals made to be waited
-   * out, always have it: 60 when the header could not be read.
+   * {@link RateLimitedError}, {@link BoundaryPendingError},
+   * {@link ProviderUnavailableError} and {@link TurnstileUnavailableError},
+   * which are refusals made to be waited out, always have it: 60 when the
+   * header could not be read.
    */
   public readonly retryAfterSeconds?: number;
 
@@ -178,8 +179,8 @@ export class InvalidTransactionIdError extends KaitenError {
 }
 
 /**
- * What {@link RateLimitedError}, {@link BoundaryPendingError} and
- * {@link ProviderUnavailableError} say to wait, in seconds, when the response
+ * What {@link RateLimitedError}, {@link BoundaryPendingError},
+ * {@link ProviderUnavailableError} and {@link TurnstileUnavailableError} say to wait, in seconds, when the response
  * has no `Retry-After` the client can read. A browser calling another origin
  * only sees that header if the API's CORS policy exposes it.
  */
@@ -270,6 +271,98 @@ export class ProviderUnavailableError extends WaitError {
 }
 
 /**
+ * Thrown by a call on an anonymous checkout session when the client holds no
+ * token for it, without sending anything: the page was reloaded in another tab
+ * or browser, the token's storage was cleared, or the session had closed and its
+ * token was dropped. There is nothing to confirm or read with; start a new
+ * checkout. Status `0`, as for the other errors the client raises itself.
+ */
+export class CheckoutTokenMissingError extends KaitenError {
+  /** The session the call named. */
+  public readonly sessionId: string;
+
+  constructor(sessionId: string) {
+    super({
+      title: "No token for this checkout session",
+      status: 0,
+      detail:
+        "Kaiten: this client holds no token for that checkout session. A token is kept in " +
+        "this tab's sessionStorage from the start, and dropped once the session closes; start a new checkout.",
+    });
+    this.name = "CheckoutTokenMissingError";
+    this.sessionId = sessionId;
+  }
+}
+
+/**
+ * Thrown when a Turnstile token is refused at the start of an anonymous checkout:
+ * HTTP 422 with a code ending in `.TurnstileFailed`, such as
+ * `CreateCheckoutSession.TurnstileFailed`. The token is invalid, expired, already
+ * used, or from another host. A token is single-use, so the retry needs a new one:
+ * reset the widget, let the visitor pass it again, and start again. Nothing was
+ * written.
+ *
+ * A `KaitenError`, so a handler that narrows on `instanceof KaitenError` or on
+ * `status`/`code` keeps working.
+ */
+export class TurnstileFailedError extends KaitenError {
+  override name = "TurnstileFailedError";
+}
+
+/**
+ * Thrown when a checkout session is confirmed after it closed: HTTP 409 with a
+ * code ending in `.SessionClosed`, such as `ConfirmCheckoutSession.SessionClosed`.
+ * It was completed, abandoned or expired; `sessionStatus` says which (`COMPLETED`,
+ * `ABANDONED` or `EXPIRED`). A closed session never reopens: read it with
+ * `getCheckoutSession` to learn the outcome, or start a new one.
+ *
+ * A `KaitenError`, so a handler that narrows on `instanceof KaitenError` or on
+ * `status`/`code` keeps working.
+ */
+export class CheckoutSessionClosedError extends KaitenError {
+  /** The status the session closed with, as the API names it in the problem's first `errors` entry. */
+  public readonly sessionStatus?: string;
+
+  override name = "CheckoutSessionClosedError";
+
+  constructor(apiError: KaitenApiError, options?: { retryAfterSeconds?: number }) {
+    super(apiError, options);
+    const value = apiError.errors?.[0]?.value;
+    const status = isRecord(value) ? value["status"] : undefined;
+    if (typeof status === "string") this.sessionStatus = status;
+  }
+}
+
+/**
+ * Thrown when the amount due changed between the start of an anonymous checkout
+ * and the confirm that follows the payment method setup: HTTP 409 with a code
+ * ending in `.DueTodayChanged`, such as `ConfirmCheckoutSession.DueTodayChanged`.
+ * A discount, a price or a trial the visitor was shown no longer holds. Nothing
+ * was charged. Show the visitor the new amount and start again, with a new
+ * Turnstile token.
+ *
+ * A `KaitenError`, so a handler that narrows on `instanceof KaitenError` or on
+ * `status`/`code` keeps working.
+ */
+export class DueTodayChangedError extends KaitenError {
+  override name = "DueTodayChangedError";
+}
+
+/**
+ * Thrown when Turnstile's verification could not be reached from the Kaiten API:
+ * HTTP 503 with a code ending in `.TurnstileUnavailable`, such as
+ * `CreateCheckoutSession.TurnstileUnavailable`. The start was neither carried out
+ * nor refused on its merits, and the token may not have been spent.
+ *
+ * `retryAfterSeconds` is how long to wait, 30 from the API; when the response
+ * carries no `Retry-After` the client can read, it is 60. The client does not
+ * send the call again.
+ */
+export class TurnstileUnavailableError extends WaitError {
+  override name = "TurnstileUnavailableError";
+}
+
+/**
  * The error for a failed response. The refusals a host acts on, told apart by
  * status and code, are their own classes; every other one is a `KaitenError`
  * with its `status` and `code`.
@@ -288,6 +381,18 @@ export function kaitenErrorOf(apiError: KaitenApiError, retryAfterSeconds?: numb
   }
   if (status === 503 && code.endsWith(".ProviderUnavailable")) {
     return new ProviderUnavailableError(apiError, { retryAfterSeconds });
+  }
+  if (status === 422 && code.endsWith(".TurnstileFailed")) {
+    return new TurnstileFailedError(apiError, { retryAfterSeconds });
+  }
+  if (status === 409 && code.endsWith(".SessionClosed")) {
+    return new CheckoutSessionClosedError(apiError, { retryAfterSeconds });
+  }
+  if (status === 409 && code.endsWith(".DueTodayChanged")) {
+    return new DueTodayChangedError(apiError, { retryAfterSeconds });
+  }
+  if (status === 503 && code.endsWith(".TurnstileUnavailable")) {
+    return new TurnstileUnavailableError(apiError, { retryAfterSeconds });
   }
   return new KaitenError(apiError, { retryAfterSeconds });
 }

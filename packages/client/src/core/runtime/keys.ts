@@ -4,6 +4,14 @@
 const PUBLISHABLE_KEY_PREFIX = "pk_";
 
 /**
+ * The prefix of a checkout session token, the credential of one anonymous
+ * checkout. A third class beside the publishable key (`pk_`) and the customer
+ * session (`kst_`): the three are disjoint, and the API refuses one presented on
+ * the routes of another.
+ */
+export const CHECKOUT_SESSION_TOKEN_PREFIX = "ksc_";
+
+/**
  * Credential prefixes that must never reach a browser.
  *
  * - `ksh_` — an organization-scoped access token. It was missing once,
@@ -26,6 +34,21 @@ const PUBLISHABLE_KEY_PREFIX = "pk_";
  * this far has to be rotated, not caught.
  */
 const SECRET_KEY_PREFIXES = ["sk_", "ksh_", "ksm_"] as const;
+
+/**
+ * True for a checkout session token (`ksc_…`), the credential `startCheckout`
+ * obtains for one anonymous checkout. It is not a secret: it reads and confirms
+ * that one session and nothing else. But it is not a publishable key or a
+ * customer session either, and none of the three is accepted where another is
+ * expected.
+ */
+export function isCheckoutSessionToken(token: unknown): token is string {
+  return (
+    typeof token === "string" &&
+    token.startsWith(CHECKOUT_SESSION_TOKEN_PREFIX) &&
+    token.length > CHECKOUT_SESSION_TOKEN_PREFIX.length
+  );
+}
 
 export function isPublishableKey(key: string = ""): boolean {
   return key.startsWith(PUBLISHABLE_KEY_PREFIX);

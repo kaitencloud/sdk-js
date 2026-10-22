@@ -36,6 +36,7 @@ type Schema = {
 };
 
 type Operation = {
+  requestBody?: { content?: Record<string, { schema?: Schema }> };
   responses?: Record<string, { content?: Record<string, { schema?: Schema }> }>;
 };
 
@@ -190,6 +191,26 @@ export function responseProblems(
     Object.values(media)[0]
   )?.schema;
   if (!schema) return [];
+  if (value === undefined) return [`${where}: the contract declares a body, and none was sent`];
+  return problems(schema, value, where);
+}
+
+/**
+ * What is wrong with `value` as the JSON body of a request to `method path`, by the
+ * request body the contract declares for that operation; empty when it fits. `path`
+ * is below the API's own prefix, the query left out. A body where the contract
+ * declares none is a problem, and so is a missing one where it declares one.
+ */
+export function requestProblems(method: string, path: string, value: unknown): string[] {
+  const where = `${method.toUpperCase()} ${path} request`;
+  const match = PATH_PATTERNS.find(({ pattern }) => pattern.test(path));
+  const operation = match && contract.paths[match.template]?.[method.toLowerCase()];
+  if (!operation) return [`${where}: the contract has no such operation`];
+
+  const schema = operation.requestBody?.content?.["application/json"]?.schema;
+  if (!schema) {
+    return value === undefined ? [] : [`${where}: the contract declares no body, and one was sent`];
+  }
   if (value === undefined) return [`${where}: the contract declares a body, and none was sent`];
   return problems(schema, value, where);
 }

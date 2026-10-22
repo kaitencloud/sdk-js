@@ -100,6 +100,56 @@ export interface KaitenSessionClientConfig {
   onAuthError?: (error: KaitenAuthErrorInfo) => void;
 }
 
+/**
+ * The credential of one anonymous checkout: the `ksc_` token `startCheckout`
+ * obtained for a session. It reads and confirms that session and nothing else.
+ * The client keeps it, in memory and in the storage below; it is never in a URL.
+ */
+export interface KaitenCheckoutCredential {
+  /** The checkout session the token was minted for. */
+  sessionId: string;
+  /** The `ksc_` token. */
+  token: string;
+}
+
+/**
+ * Where the client keeps the checkout session tokens it obtained, so that the
+ * page that comes back from the payment method setup (a full-page redirect) can
+ * still confirm the session. The shape of `Storage`, which `sessionStorage` is.
+ * A host that passes its own keeps the tokens out of `localStorage` and out of any
+ * place another origin or another tab can read.
+ */
+export interface KaitenCheckoutTokenStorage {
+  getItem: (key: string) => string | null;
+  setItem: (key: string, value: string) => void;
+  removeItem: (key: string) => void;
+}
+
+export interface KaitenAnonymousCheckoutClientConfig {
+  /** Your Kaiten API's URL, `/api` included. */
+  apiUrl: string;
+  /**
+   * A publishable key (`pk_…`) that has anonymous checkout turned on. It is sent in
+   * `X-Kaiten-Publishable-Key` to the route that starts a checkout and nowhere else.
+   */
+  publishableKey: string;
+  defaultHeaders?: Record<string, string>;
+  fetch?: KaitenFetch;
+  /** Optional per-request timeout in milliseconds. */
+  timeoutMs?: number;
+  /**
+   * Called when the API refuses the credential of a call (401, or 403). A refused
+   * checkout session token is forgotten first; there is nothing to renew it with.
+   */
+  onAuthError?: (error: KaitenAuthErrorInfo) => void;
+  /**
+   * Where the session tokens are kept across a page load. Defaults to
+   * `sessionStorage` when the runtime has one, else to memory alone; `null` keeps
+   * them in memory only, which a redirect to the setup page loses.
+   */
+  storage?: KaitenCheckoutTokenStorage | null;
+}
+
 export interface KaitenAuthErrorInfo {
   status: 401 | 403;
   /** The operation that was rejected, e.g. `POST /graphql`. */
