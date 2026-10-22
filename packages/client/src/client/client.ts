@@ -799,12 +799,21 @@ export class KaitenClient implements KaitenClientLike {
   // dropped. The rollout `percentage` isn't available from evaluation alone (it
   // lives on the flag definition), so it is left null — FlagsSummary renders the
   // rollout badge only when it's a number.
-  private async resolveSnapshotFlags(targetingKey: string): Promise<ResolvedFeatureFlag[]> {
+  private async resolveSnapshotFlags(
+    targetingKey: string,
+    instanceSlug?: string,
+  ): Promise<ResolvedFeatureFlag[]> {
     // A targeting key is required or OFREP returns PROVIDER_FATAL ("missing
     // targeting key") for any flag whose rules reference the subject — so scope
     // the evaluation to this customer. Rules that don't match fall back to the
     // flag's default variant.
-    const { flags } = await this.evaluateFlags({ targetingKey });
+    // `kaiten.instanceSlug` is sent when the host named the instance, so that a flag
+    // granted on that instance applies. An instance the SDK picked on its own is
+    // not named: the flags of the customer are all it can claim.
+    const { flags } = await this.evaluateFlags({
+      targetingKey,
+      ...(instanceSlug ? { kaiten: { instanceSlug } } : {}),
+    });
     return flags.filter(isEvaluationSuccess).map((flag) => ({
       key: flag.key,
       enabled: typeof flag.value === "boolean" ? flag.value : flag.reason !== "DISABLED",
@@ -848,7 +857,7 @@ export class KaitenClient implements KaitenClientLike {
   // against an older API without the schema — also when the customer is absent,
   // so the not-found error keeps its canonical REST shape.
   async getLicensingSnapshot(customerId: string, instanceId?: string): Promise<LicensingSnapshot> {
-    const flagsPromise = this.resolveSnapshotFlags(customerId).catch(
+    const flagsPromise = this.resolveSnapshotFlags(customerId, instanceId).catch(
       (): ResolvedFeatureFlag[] => [],
     );
 

@@ -270,6 +270,7 @@ function installFetchMock(snapshot: LicensingSnapshot = baseSnapshot) {
 function authenticatedWrapper(options?: {
   snapshot?: LicensingSnapshot;
   telemetryTransport?: (event: unknown) => void;
+  instanceId?: string;
 }) {
   installFetchMock(options?.snapshot);
   const customerId = nextCustomerId();
@@ -280,6 +281,7 @@ function authenticatedWrapper(options?: {
         mode="authenticated"
         accessToken="tmp_hooks"
         customerId={customerId}
+        instanceId={options?.instanceId}
         polling={{ enabled: false }}
         telemetry={{ transport: options?.telemetryTransport }}
       >
@@ -458,6 +460,35 @@ test("useFeatureFlag and useFeatureFlags evaluate live via OFREP when a context 
   // The hooks evaluate live via the client, forwarding the provided context.
   expect(kaitenClientMock.evaluateFlag).toHaveBeenCalledWith("gradual-rollout", context);
   expect(kaitenClientMock.evaluateFlags).toHaveBeenCalledWith(context);
+});
+
+test("a flag evaluated live names the instance the provider is bound to, without overwriting the host's context", async () => {
+  const wrapper = authenticatedWrapper({ instanceId: "prod-instance" });
+  kaitenClientMock.evaluateFlag.mockClear();
+  kaitenClientMock.evaluateFlags.mockClear();
+  const context = { plan: "pro", kaiten: { team: "fe" } };
+  const own = { kaiten: { instanceSlug: "the-hosts" } };
+
+  const { result } = renderHook(
+    () => ({
+      flag: useFeatureFlag("gradual-rollout", context),
+      flags: useFeatureFlags(context),
+      own: useFeatureFlag("gradual-rollout", own),
+    }),
+    { wrapper },
+  );
+
+  await waitFor(() => {
+    expect(result.current.flag.data?.reason).toBe("targeting_match");
+    expect(result.current.own.data?.reason).toBe("targeting_match");
+    expect(result.current.flags.data?.flags).toHaveLength(1);
+  });
+  const named = { plan: "pro", kaiten: { team: "fe", instanceSlug: "prod-instance" } };
+  expect(kaitenClientMock.evaluateFlag).toHaveBeenCalledWith("gradual-rollout", named);
+  expect(kaitenClientMock.evaluateFlags).toHaveBeenCalledWith(named);
+  expect(kaitenClientMock.evaluateFlag).toHaveBeenCalledWith("gradual-rollout", own);
+  // The host's own objects are not touched.
+  expect(context).toEqual({ plan: "pro", kaiten: { team: "fe" } });
 });
 
 test("useKaitenQuery supports enabled, disabled, and manual refetch flows", async () => {

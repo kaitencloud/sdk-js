@@ -6,6 +6,7 @@ import * as React from "react";
 import type { FeatureFlagEvaluation } from "../types.ts";
 import { useTrackHook } from "../telemetry/context.tsx";
 import { useKaitenContext } from "../providers/kaiten-provider.tsx";
+import { withInstanceSlug } from "./flag-context.ts";
 import { kaitenKeys } from "./query-keys.ts";
 import { useFlags } from "./use-kaiten-flags.ts";
 import { useKaitenQuery, type UseKaitenQueryResult } from "./use-kaiten-query.ts";
@@ -20,14 +21,22 @@ export function useFeatureFlag<T = unknown>(
 ): UseKaitenQueryResult<FeatureFlagEvaluation<T>> {
   useTrackHook("useFeatureFlag");
 
-  const { client, scopeKey } = useKaitenContext();
+  const { client, scopeKey, instanceId } = useKaitenContext();
   const flags = useFlags();
 
-  // With a custom context, the embedded snapshot is not enough: evaluate live via OFREP.
-  const contextKey = React.useMemo(() => (context ? JSON.stringify(context) : null), [context]);
+  // With a custom context, the embedded snapshot is not enough: evaluate live via OFREP,
+  // as the instance the provider is bound to, unless the host's context says otherwise.
+  const evaluated = React.useMemo(
+    () => (context ? withInstanceSlug(context, instanceId) : undefined),
+    [context, instanceId],
+  );
+  const contextKey = React.useMemo(
+    () => (evaluated ? JSON.stringify(evaluated) : null),
+    [evaluated],
+  );
   const evaluation = useKaitenQuery<FeatureFlagEvaluation<T>>({
     queryKey: [...kaitenKeys.featureFlag.detail(scopeKey, key), contextKey],
-    queryFn: () => client.evaluateFlag(key, context) as Promise<FeatureFlagEvaluation<T>>,
+    queryFn: () => client.evaluateFlag(key, evaluated) as Promise<FeatureFlagEvaluation<T>>,
     enabled: contextKey !== null,
   });
 

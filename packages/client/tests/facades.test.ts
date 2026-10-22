@@ -639,6 +639,13 @@ describe("KaitenClient.getLicensingSnapshot", () => {
       reason: "DISABLED",
       percentage: null,
     });
+
+    // The host named the instance, so the evaluation names it too: a flag granted
+    // on that instance applies.
+    const evaluation = findRequest(fetchMock, "/ofrep/v1/evaluate/flags", "POST");
+    expect(JSON.parse(await evaluation!.clone().text())).toEqual({
+      context: { targetingKey: "cust-1", kaiten: { instanceSlug: "inst-1" } },
+    });
   });
 
   test("resolves the customer's first instance when no instanceId is given", async () => {
@@ -668,6 +675,7 @@ describe("KaitenClient.getLicensingSnapshot", () => {
       }),
       "GET /licenses/pro/entitlements": () => [],
       "GET /instances/demo/entitlements/usage": () => [],
+      "POST /ofrep/v1/evaluate/flags": () => ({ flags: [] }),
     });
     vi.stubGlobal("fetch", fetchMock);
     const client = makeClient(fetchMock);
@@ -676,6 +684,11 @@ describe("KaitenClient.getLicensingSnapshot", () => {
 
     expect(snapshot.instance).toMatchObject({ slug: "demo", customerSlug: "cust-1" });
     expect(snapshot.license).toMatchObject({ slug: "pro" });
+    // An instance the SDK picked itself is not one the host named: nothing is claimed for it.
+    const evaluation = findRequest(fetchMock, "/ofrep/v1/evaluate/flags", "POST");
+    expect(JSON.parse(await evaluation!.clone().text())).toEqual({
+      context: { targetingKey: "cust-1" },
+    });
   });
 
   test("rejects when the explicit instance does not belong to the customer", async () => {
