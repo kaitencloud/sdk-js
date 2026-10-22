@@ -151,6 +151,115 @@ const STORIES: Array<{ name: string; storyId: string }> = [
   { name: "checkout-flow (card declined)", storyId: "flows-checkoutflow--card-declined" },
   { name: "checkout-flow (already subscribed)", storyId: "flows-checkoutflow--already-subscribed" },
   { name: "checkout-flow (over quota)", storyId: "flows-checkoutflow--over-quota" },
+  // A visitor's checkout with no account, in every state a visitor meets: the form with its security
+  // check (the widest thing it draws, a frame of 300px), the review, the paths with no payment method,
+  // the payment and its ends, and each refusal. Each draws the widest line it can.
+  { name: "anonymous-checkout-flow (default)", storyId: "flows-anonymouscheckoutflow--default" },
+  {
+    name: "anonymous-checkout-flow (waiting-for-the-security-check)",
+    storyId: "flows-anonymouscheckoutflow--waiting-for-the-security-check",
+  },
+  {
+    name: "anonymous-checkout-flow (interactive-security-check)",
+    storyId: "flows-anonymouscheckoutflow--interactive-security-check",
+  },
+  {
+    name: "anonymous-checkout-flow (security-check-blocked)",
+    storyId: "flows-anonymouscheckoutflow--security-check-blocked",
+  },
+  { name: "anonymous-checkout-flow (review)", storyId: "flows-anonymouscheckoutflow--review" },
+  {
+    name: "anonymous-checkout-flow (changing-the-choices)",
+    storyId: "flows-anonymouscheckoutflow--changing-the-choices",
+  },
+  {
+    name: "anonymous-checkout-flow (saving-a-payment-method)",
+    storyId: "flows-anonymouscheckoutflow--saving-a-payment-method",
+  },
+  {
+    name: "anonymous-checkout-flow (payment-method-not-saved-yet)",
+    storyId: "flows-anonymouscheckoutflow--payment-method-not-saved-yet",
+  },
+  { name: "anonymous-checkout-flow (bought)", storyId: "flows-anonymouscheckoutflow--bought" },
+  {
+    name: "anonymous-checkout-flow (bought-with-nothing-to-continue-to)",
+    storyId: "flows-anonymouscheckoutflow--bought-with-nothing-to-continue-to",
+  },
+  {
+    name: "anonymous-checkout-flow (free-plan)",
+    storyId: "flows-anonymouscheckoutflow--free-plan",
+  },
+  {
+    name: "anonymous-checkout-flow (free-trial)",
+    storyId: "flows-anonymouscheckoutflow--free-trial",
+  },
+  {
+    name: "anonymous-checkout-flow (trial-already-used)",
+    storyId: "flows-anonymouscheckoutflow--trial-already-used",
+  },
+  {
+    name: "anonymous-checkout-flow (trial-that-asks-for-a-card)",
+    storyId: "flows-anonymouscheckoutflow--trial-that-asks-for-a-card",
+  },
+  {
+    name: "anonymous-checkout-flow (amount-changed)",
+    storyId: "flows-anonymouscheckoutflow--amount-changed",
+  },
+  {
+    name: "anonymous-checkout-flow (waiting-for-the-payment)",
+    storyId: "flows-anonymouscheckoutflow--waiting-for-the-payment",
+  },
+  {
+    name: "anonymous-checkout-flow (payment-to-confirm)",
+    storyId: "flows-anonymouscheckoutflow--payment-to-confirm",
+  },
+  {
+    name: "anonymous-checkout-flow (card-declined)",
+    storyId: "flows-anonymouscheckoutflow--card-declined",
+  },
+  {
+    name: "anonymous-checkout-flow (payment-never-came)",
+    storyId: "flows-anonymouscheckoutflow--payment-never-came",
+  },
+  {
+    name: "anonymous-checkout-flow (left-open-too-long)",
+    storyId: "flows-anonymouscheckoutflow--left-open-too-long",
+  },
+  {
+    name: "anonymous-checkout-flow (back-without-the-session)",
+    storyId: "flows-anonymouscheckoutflow--back-without-the-session",
+  },
+  {
+    name: "anonymous-checkout-flow (turnstile-refused)",
+    storyId: "flows-anonymouscheckoutflow--turnstile-refused",
+  },
+  {
+    name: "anonymous-checkout-flow (rate-limited)",
+    storyId: "flows-anonymouscheckoutflow--rate-limited",
+  },
+  {
+    name: "anonymous-checkout-flow (plan-not-for-sale)",
+    storyId: "flows-anonymouscheckoutflow--plan-not-for-sale",
+  },
+  {
+    name: "anonymous-checkout-flow (plan-refused-by-the-server)",
+    storyId: "flows-anonymouscheckoutflow--plan-refused-by-the-server",
+  },
+  {
+    name: "anonymous-checkout-flow (quota-reached)",
+    storyId: "flows-anonymouscheckoutflow--quota-reached",
+  },
+  {
+    name: "anonymous-checkout-flow (with-a-name)",
+    storyId: "flows-anonymouscheckoutflow--with-a-name",
+  },
+  { name: "anonymous-checkout-flow (unstyled)", storyId: "flows-anonymouscheckoutflow--unstyled" },
+  { name: "anonymous-checkout-flow (french)", storyId: "flows-anonymouscheckoutflow--french" },
+  { name: "anonymous-checkout-flow (dark)", storyId: "flows-anonymouscheckoutflow--dark" },
+  {
+    name: "anonymous-checkout-flow (dark-review)",
+    storyId: "flows-anonymouscheckoutflow--dark-review",
+  },
   // How a customer session pays: its labels, a badge, the sentence under it and the actions that
   // wrap; and the summary and the walls that say where its subscription stands.
   { name: "payment-method-card", storyId: "flows-paymentmethodcard--default" },

@@ -129,29 +129,30 @@ Storybook uses mocked Kaiten scenarios and the scoped Kaiten design system adapt
 
 ## Components
 
-| Component                  | Description                                                               |
-| -------------------------- | ------------------------------------------------------------------------- |
-| `<KaitenStyleRoot />`      | The `.kaiten` scope root: tokens, colour mode, portal container           |
-| `<PricingTable />`         | Public pricing table with annual toggle, add-ons, and feature comparison  |
-| `<FeatureComparison />`    | Standalone feature-by-feature comparison table                            |
-| `<CustomerPortal />`       | Authenticated licensing portal composed from modular elements             |
-| `<CurrentPlan />`          | Current plan, renewal info, credits, and portal action buttons            |
-| `<IncludedFeatures />`     | The plan's feature catalog (limit + status); unlimited rows are collapsed |
-| `<UsageMeters />`          | Finite, metered quotas with live usage and the console's usage states     |
-| `<AddOns />`               | Available and active add-ons plus credit balances                         |
-| `<FlagsSummary />`         | Customer feature flags and rollout status                                 |
-| `<InvoiceList />`          | A customer session's invoices, to pay and to download                     |
-| `<VoucherEntry />`         | A field that checks a voucher code, which a checkout redeems              |
-| `<PaymentMethodCard />`    | The payment method a customer session pays with, to add or replace        |
-| `<Paywall />`              | Paywall aware of both entitlements and feature flags                      |
-| `<PlanBadge />`            | Compact badge showing the customer's current plan                         |
-| `<UpgradeButton />`        | Button wired to the recommended upgrade action                            |
-| `<CheckoutFlow />`         | A customer's checkout of a plan: choices, what is due, payment, outcome   |
-| `<CheckoutSummary />`      | What is due today for a selection: the server's lines and total           |
-| `<EntitlementStatusBar />` | Compact quota bar that warns before a metered quota reaches its ceiling   |
-| `<FeatureCatalog />`       | Searchable catalog of what each plan grants, with lifecycle stage badges  |
-| `<BillingSummary />`       | The subscription (or licence term) and current-cycle usage, plus billing  |
-| `<KaitenBranding />`       | Shared branding footer with capability-aware hiding                       |
+| Component                   | Description                                                               |
+| --------------------------- | ------------------------------------------------------------------------- |
+| `<KaitenStyleRoot />`       | The `.kaiten` scope root: tokens, colour mode, portal container           |
+| `<PricingTable />`          | Public pricing table with annual toggle, add-ons, and feature comparison  |
+| `<FeatureComparison />`     | Standalone feature-by-feature comparison table                            |
+| `<CustomerPortal />`        | Authenticated licensing portal composed from modular elements             |
+| `<CurrentPlan />`           | Current plan, renewal info, credits, and portal action buttons            |
+| `<IncludedFeatures />`      | The plan's feature catalog (limit + status); unlimited rows are collapsed |
+| `<UsageMeters />`           | Finite, metered quotas with live usage and the console's usage states     |
+| `<AddOns />`                | Available and active add-ons plus credit balances                         |
+| `<FlagsSummary />`          | Customer feature flags and rollout status                                 |
+| `<InvoiceList />`           | A customer session's invoices, to pay and to download                     |
+| `<VoucherEntry />`          | A field that checks a voucher code, which a checkout redeems              |
+| `<PaymentMethodCard />`     | The payment method a customer session pays with, to add or replace        |
+| `<Paywall />`               | Paywall aware of both entitlements and feature flags                      |
+| `<PlanBadge />`             | Compact badge showing the customer's current plan                         |
+| `<UpgradeButton />`         | Button wired to the recommended upgrade action                            |
+| `<CheckoutFlow />`          | A customer's checkout of a plan: choices, what is due, payment, outcome   |
+| `<AnonymousCheckoutFlow />` | A visitor's checkout, with no account: e-mail, security check, payment    |
+| `<CheckoutSummary />`       | What is due today for a selection: the server's lines and total           |
+| `<EntitlementStatusBar />`  | Compact quota bar that warns before a metered quota reaches its ceiling   |
+| `<FeatureCatalog />`        | Searchable catalog of what each plan grants, with lifecycle stage badges  |
+| `<BillingSummary />`        | The subscription (or licence term) and current-cycle usage, plus billing  |
+| `<KaitenBranding />`        | Shared branding footer with capability-aware hiding                       |
 
 `Gate`, `Show`, `KaitenLoaded`/`Loading`/`Failed` and `KaitenErrorBoundary` are
 the core's control primitives, re-exported here. They render only what you give
@@ -160,6 +161,7 @@ them, so they need no style root.
 ### Component notes
 
 - `CustomerPortal` accepts `elements` as the current composition API. Under `mode="customer-session"` it is the customer's own portal: the plan with the controls to cancel the subscription at the end of its period and to withdraw that, the limits with a note on where each comes from, the add-ons it holds with a panel to change them, the invoices and a voucher check. See [Known limitations](#known-limitations).
+- `AnonymousCheckoutFlow` sells a plan to a visitor with no account, under a `mode="public"` or `mode="static"` provider given an `anonymousCheckoutClient`, and draws nothing unless the catalogue says the publishable key may start an anonymous checkout. It is a component of its own rather than a mode of `CheckoutFlow`, which is a customer's and needs a session. The visitor chooses the billing period, gives an email (and a name, with `collectName`, which only your `onStarted` and `onComplete` get), passes the Cloudflare Turnstile check, and sees what the server says is due before they confirm; a free plan starts with one button. The payment method is saved on the provider's page, in a popup or in place of the page, and the page the visitor comes back to (mount the flow there; `returnUrl` is the current page by default) sees the checkout through. At the end the visitor is sent to your `successUrl` or told to check their email. Allow `https://challenges.cloudflare.com` in your Content-Security-Policy (`script-src`, `frame-src`, `connect-src`), or the check never appears. See `useAnonymousCheckout` in [`@kaitencloud/react`](../react/README.md#anonymous-checkout).
 - For declarative gating use `<Show entitlement="…" fallback={…}>` (conditional render) or `usePaywallTrigger` for the raw decision; `Paywall` is the overlay/upsell component.
 - `Paywall` renders hard mode as an accessible modal: the native `<dialog>` element opened with `showModal()`, in the top layer above any z-index the host uses, with focus held inside and Escape as the exit. Target it as `dialog[data-slot="dialog-content"]`; its overlay is the `::backdrop`. The SDK ships no Radix, and Base UI only for the radio group that draws `CheckoutFlow`'s billing periods; unstyled, they are native radios.
 - `hideBranding` (on the provider) only removes branding when the backend returns `branding.removable = true`. `useKaitenBranding()` from the core is the same rule, for a host rendering its own footer.

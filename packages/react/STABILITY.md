@@ -184,7 +184,8 @@ the core lists here that `@kaitencloud/react-ui` imports only grows within a maj
 - **What `@kaitencloud/react-ui` adds.** Its styled components (default,
   non-`unstyled` rendering): `CustomerPortal` (and its sections
   `CurrentPlan`/`IncludedFeatures`/`UsageMeters`/`AddOns`/`FlagsSummary`/`InvoiceList`/`VoucherEntry`/`PaymentMethodCard`),
-  `PricingTable`, `FeatureComparison`, `CheckoutSummary`, `CheckoutFlow`, `Paywall`, `PlanBadge`,
+  `PricingTable`, `FeatureComparison`, `CheckoutSummary`, `CheckoutFlow`, `AnonymousCheckoutFlow`,
+  `Paywall`, `PlanBadge`,
   `UpgradeButton`, `EntitlementStatusBar`, `FeatureCatalog`, `BillingSummary`,
   `KaitenBranding`. The names it re-exports from the core keep the core's
   guarantee. What it draws from billing needs the first Kaiten release with billing
@@ -198,6 +199,15 @@ the core lists here that `@kaitencloud/react-ui` imports only grows within a maj
     `CheckoutItem`, the type of those items, left the exports with them. A pricing table also draws a
     plan's boolean or configuration grant as an included feature (a check and its name) where it
     drew the word "boolean", and omits a boolean that is off.
+  - **`AnonymousCheckoutFlow`** (`@kaitencloud/react-ui`), `useAnonymousCheckout` drawn, for a
+    visitor with no account, under a `public` or `static` provider given an
+    `anonymousCheckoutClient`: the plan and its billing period, an e-mail, the Turnstile check, what
+    is due as the server computed it at the start, the payment provider's page for a payment
+    method and the way back from it, the payment, and what happens next (an e-mail to check, or a
+    page the host gives). It is a component of its own and not a `mode` of `CheckoutFlow`, which is
+    a customer's and needs a session, so that a host that sells to one kind of buyer ships
+    only that flow. It renders nothing unless the catalogue says the publishable key may start an
+    anonymous checkout.
   - **The billing sections of `CustomerPortal`** (`@kaitencloud/react-ui`), under `mode="customer-session"`:
     `InvoiceList` (the customer's invoices, newest first as the API serves them, a link to pay an
     open one and to the PDF of those that have one), `VoucherEntry` (a field that only checks a code,

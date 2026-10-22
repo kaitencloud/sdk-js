@@ -28,6 +28,13 @@ re-exports: an app that draws with Kaiten's components imports everything from h
   unavailable). `CheckoutSummary` shows what is due today. The server prices every selection and
   no total is computed in the browser. A voucher code is never left in the page, an address or a
   log.
+- **Anonymous checkout.** `AnonymousCheckoutFlow` sells a plan to a visitor with no account: the
+  billing period, an email (and a name, if the page asks), the Turnstile security check, what the
+  server says is due, a free plan started with one button, the payment provider's page and the way
+  back from it, the payment, and what happens next (an email to check, or a page of the host's).
+  It draws nothing unless the catalogue says the publishable key may start one, and every refusal
+  has words in English, French, Spanish and German. It is a component of its own rather than a mode
+  of `CheckoutFlow`, which is a customer's.
 - **Summaries.** `BillingSummary`, `CurrentPlan` and `Paywall` say where a subscription stands
   (running, in its trial, canceled and ending, past due, over, or waiting for the first payment of
   its checkout, whose plan starts once the payment is confirmed), as the portal says it. Billing

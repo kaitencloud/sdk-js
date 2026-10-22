@@ -272,6 +272,72 @@ export const STORIES: Array<{ name: string; storyId: string }> = [
     name: "paywall-session--cancellation-scheduled",
     storyId: "flows-paywall-session--cancellation-scheduled",
   },
+  // AnonymousCheckoutFlow — a visitor's checkout with no account: the form and its security check,
+  // the review of what is due, the paths without a payment method, the payment provider's page and
+  // what became of the payment, the ends a checkout can have, and every refusal that has words.
+  { name: "anonymous-checkout-flow--default", storyId: "flows-anonymouscheckoutflow--default" },
+  { name: "anonymous-checkout-flow--review", storyId: "flows-anonymouscheckoutflow--review" },
+  { name: "anonymous-checkout-flow--free-plan", storyId: "flows-anonymouscheckoutflow--free-plan" },
+  {
+    name: "anonymous-checkout-flow--free-trial",
+    storyId: "flows-anonymouscheckoutflow--free-trial",
+  },
+  {
+    name: "anonymous-checkout-flow--trial-already-used",
+    storyId: "flows-anonymouscheckoutflow--trial-already-used",
+  },
+  {
+    name: "anonymous-checkout-flow--amount-changed",
+    storyId: "flows-anonymouscheckoutflow--amount-changed",
+  },
+  {
+    name: "anonymous-checkout-flow--saving-a-payment-method",
+    storyId: "flows-anonymouscheckoutflow--saving-a-payment-method",
+  },
+  { name: "anonymous-checkout-flow--bought", storyId: "flows-anonymouscheckoutflow--bought" },
+  {
+    name: "anonymous-checkout-flow--bought-with-nothing-to-continue-to",
+    storyId: "flows-anonymouscheckoutflow--bought-with-nothing-to-continue-to",
+  },
+  {
+    name: "anonymous-checkout-flow--payment-to-confirm",
+    storyId: "flows-anonymouscheckoutflow--payment-to-confirm",
+  },
+  {
+    name: "anonymous-checkout-flow--card-declined",
+    storyId: "flows-anonymouscheckoutflow--card-declined",
+  },
+  {
+    name: "anonymous-checkout-flow--payment-never-came",
+    storyId: "flows-anonymouscheckoutflow--payment-never-came",
+  },
+  {
+    name: "anonymous-checkout-flow--back-without-the-session",
+    storyId: "flows-anonymouscheckoutflow--back-without-the-session",
+  },
+  {
+    name: "anonymous-checkout-flow--turnstile-refused",
+    storyId: "flows-anonymouscheckoutflow--turnstile-refused",
+  },
+  {
+    name: "anonymous-checkout-flow--security-check-blocked",
+    storyId: "flows-anonymouscheckoutflow--security-check-blocked",
+  },
+  {
+    name: "anonymous-checkout-flow--plan-not-for-sale",
+    storyId: "flows-anonymouscheckoutflow--plan-not-for-sale",
+  },
+  {
+    name: "anonymous-checkout-flow--with-a-name",
+    storyId: "flows-anonymouscheckoutflow--with-a-name",
+  },
+  { name: "anonymous-checkout-flow--unstyled", storyId: "flows-anonymouscheckoutflow--unstyled" },
+  { name: "anonymous-checkout-flow--french", storyId: "flows-anonymouscheckoutflow--french" },
+  { name: "anonymous-checkout-flow--dark", storyId: "flows-anonymouscheckoutflow--dark" },
+  {
+    name: "anonymous-checkout-flow--dark-review",
+    storyId: "flows-anonymouscheckoutflow--dark-review",
+  },
   // Paywall — modal chrome that previously had a11y/focus issues.
   { name: "paywall--soft-near-limit", storyId: "flows-paywall--soft-near-limit" },
   { name: "paywall--hard-over-limit", storyId: "flows-paywall--hard-over-limit" },

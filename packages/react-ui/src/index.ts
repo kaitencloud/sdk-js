@@ -95,6 +95,10 @@ export {
 } from "./components/checkout-flow/checkout-summary.tsx";
 export { CheckoutFlow, type CheckoutFlowProps } from "./components/checkout-flow/checkout-flow.tsx";
 export {
+  AnonymousCheckoutFlow,
+  type AnonymousCheckoutFlowProps,
+} from "./components/anonymous-checkout/anonymous-checkout-flow.tsx";
+export {
   EntitlementStatusBar,
   type EntitlementStatusBarProps,
 } from "./components/entitlement-status-bar/entitlement-status-bar.tsx";
