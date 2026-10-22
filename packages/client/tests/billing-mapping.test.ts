@@ -312,7 +312,12 @@ describe("add-ons and capabilities", () => {
   });
 
   test("capabilities are read as booleans, and an empty catalogue is empty", () => {
-    expect(catalog.capabilities).toEqual({ checkout: true, paymentMethods: true });
+    expect(catalog.capabilities).toEqual({
+      checkout: true,
+      paymentMethods: true,
+      anonymousCheckout: false,
+      turnstileSiteKey: null,
+    });
     expect(mapPublicCatalog({ plans: [], addOns: [], capabilities: {} })).toMatchObject({
       plans: [],
       addOns: [],

@@ -760,6 +760,20 @@ export interface BillingCapabilities {
   invoices: boolean;
   unsubscribe: boolean;
   checkout: boolean;
+  /**
+   * Whether a visitor with no account can check out anonymously with the
+   * publishable key the catalogue was read with: the key has the feature on, with
+   * its Turnstile values. Read on a catalogue with a publishable key; absent
+   * elsewhere. Always paired with `turnstileSiteKey`: when it is true, that is a
+   * site key.
+   */
+  anonymousCheckout?: boolean;
+  /**
+   * The Turnstile site key to render the widget with, whose token `startCheckout`
+   * takes. `null` when `anonymousCheckout` is false. Absent where the catalogue was
+   * not read with a publishable key.
+   */
+  turnstileSiteKey?: string | null;
 }
 
 export interface KaitenBrandingCapability {
@@ -789,9 +803,14 @@ export interface KaitenCatalog {
   /**
    * What the organization offers to self-serve customers, on a catalog read
    * with a publishable key: `checkout` when at least one plan is self-serve,
-   * `paymentMethods` when its billing provider can capture a payment method.
+   * `paymentMethods` when its billing provider can capture a payment method,
+   * `anonymousCheckout` when the publishable key can start a checkout for a visitor
+   * with no account, and then `turnstileSiteKey` is the site key of its widget.
    */
-  capabilities?: Pick<BillingCapabilities, "checkout" | "paymentMethods">;
+  capabilities?: Pick<
+    BillingCapabilities,
+    "checkout" | "paymentMethods" | "anonymousCheckout" | "turnstileSiteKey"
+  >;
 }
 
 /**

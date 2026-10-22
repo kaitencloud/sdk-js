@@ -218,12 +218,21 @@ export function mapPublicCatalog(payload: unknown): KaitenCatalog {
     typeof payload === "object" && payload !== null ? payload : {}
   ) as Partial<PublicCatalog>;
 
+  // The widget needs its site key: an anonymous checkout offered without one could
+  // not be started, so the two travel together, and a server that predates the
+  // feature says neither.
+  const siteKey = raw.capabilities?.turnstileSiteKey;
+  const anonymousCheckout =
+    raw.capabilities?.anonymousCheckout === true && typeof siteKey === "string" && siteKey !== "";
+
   return {
     plans: list(raw.plans).map(mapPlan),
     addOns: list(raw.addOns).map(mapAddon),
     capabilities: {
       checkout: raw.capabilities?.checkout === true,
       paymentMethods: raw.capabilities?.paymentMethods === true,
+      anonymousCheckout,
+      turnstileSiteKey: anonymousCheckout ? (siteKey as string) : null,
     },
     branding: normalizeBrandingCapability(undefined),
   };

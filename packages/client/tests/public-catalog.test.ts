@@ -287,7 +287,7 @@ describe("capabilities come from the payload", () => {
     // not derived from `selfServe` on the plans, so the two can differ.
     const open = await publicClient(vi.fn(async () => json(CATALOG))).client.getCatalog();
     expect(open.plans.some((plan) => plan.selfServe)).toBe(true);
-    expect(open.capabilities).toEqual({ checkout: true, paymentMethods: true });
+    expect(open.capabilities).toMatchObject({ checkout: true, paymentMethods: true });
 
     for (const capabilities of [
       { checkout: false, paymentMethods: true },
@@ -297,7 +297,7 @@ describe("capabilities come from the payload", () => {
       const fetch = vi.fn(async () => json(withCapabilities(capabilities)));
       const catalog = await publicClient(fetch).client.getCatalog();
 
-      expect(catalog.capabilities).toEqual(capabilities);
+      expect(catalog.capabilities).toMatchObject(capabilities);
       expect(catalog.plans.some((plan) => plan.selfServe)).toBe(true);
     }
   });
@@ -306,7 +306,60 @@ describe("capabilities come from the payload", () => {
     const { capabilities: _omitted, ...bare } = CATALOG;
     const catalog = await publicClient(vi.fn(async () => json(bare))).client.getCatalog();
 
-    expect(catalog.capabilities).toEqual({ checkout: false, paymentMethods: false });
+    expect(catalog.capabilities).toEqual({
+      checkout: false,
+      paymentMethods: false,
+      anonymousCheckout: false,
+      turnstileSiteKey: null,
+    });
+  });
+});
+
+describe("the anonymous checkout and its Turnstile site key come from the payload", () => {
+  const SITE_KEY = "0x4AAAAAAABkMYinukE8nzYS";
+  const read = async (capabilities: object) => {
+    const fetch = vi.fn(async () => json({ ...CATALOG, capabilities }));
+    return (await publicClient(fetch).client.getCatalog()).capabilities;
+  };
+  const base = { checkout: true, paymentMethods: true };
+
+  test("a key that has it on says so, with the site key the widget is rendered with", async () => {
+    expect(await read({ ...base, anonymousCheckout: true, turnstileSiteKey: SITE_KEY })).toEqual({
+      ...base,
+      anonymousCheckout: true,
+      turnstileSiteKey: SITE_KEY,
+    });
+  });
+
+  test("a key that has it off says so, and has no site key", async () => {
+    expect(await read({ ...base, anonymousCheckout: false, turnstileSiteKey: null })).toEqual({
+      ...base,
+      anonymousCheckout: false,
+      turnstileSiteKey: null,
+    });
+  });
+
+  test("an anonymous checkout with no site key cannot render its widget, so it is not offered", async () => {
+    for (const turnstileSiteKey of [null, "", undefined]) {
+      expect(await read({ ...base, anonymousCheckout: true, turnstileSiteKey })).toMatchObject({
+        anonymousCheckout: false,
+        turnstileSiteKey: null,
+      });
+    }
+  });
+
+  test("a site key on a key that has the feature off is not passed on", async () => {
+    expect(
+      await read({ ...base, anonymousCheckout: false, turnstileSiteKey: SITE_KEY }),
+    ).toMatchObject({ anonymousCheckout: false, turnstileSiteKey: null });
+  });
+
+  test("a server that predates the feature says neither, and offers none", async () => {
+    expect(await read(base)).toEqual({
+      ...base,
+      anonymousCheckout: false,
+      turnstileSiteKey: null,
+    });
   });
 });
 
@@ -455,7 +508,12 @@ describe("a catalogue as the contract types it", () => {
       selfServe: true,
       trialPeriodDays: 14,
     });
-    expect(catalog.capabilities).toEqual({ checkout: false, paymentMethods: true });
+    expect(catalog.capabilities).toEqual({
+      checkout: false,
+      paymentMethods: true,
+      anonymousCheckout: false,
+      turnstileSiteKey: null,
+    });
   });
 
   test("a quarterly fee is months with a count, and a 1.0 reader never sees it", async () => {
