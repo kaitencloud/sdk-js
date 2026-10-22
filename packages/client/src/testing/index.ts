@@ -6,7 +6,8 @@
  *
  * Build and test a Kaiten integration with no Kaiten account and no reachable
  * API. Anything that takes a `KaitenClientLike` accepts the fake, and anything
- * that takes a `KaitenSessionClientLike` accepts the session fake.
+ * that takes a `KaitenSessionClientLike` accepts the session fake, and anything that
+ * takes a `KaitenAnonymousCheckoutClientLike` the anonymous checkout fake.
  *
  * ```ts
  * import { createMockKaitenClient, demoSnapshot } from "@kaitencloud/client/testing";
@@ -28,6 +29,17 @@ export type {
   MockKaitenSessionClientOptions,
   MockSessionCall,
 } from "./mock-session-client.ts";
+
+export {
+  createMockKaitenAnonymousCheckoutClient,
+  demoAnonymousCheckoutPlans,
+} from "./mock-anonymous-checkout-client.ts";
+export type {
+  MockAnonymousCheckoutCall,
+  MockCheckoutPlan,
+  MockKaitenAnonymousCheckoutClient,
+  MockKaitenAnonymousCheckoutClientOptions,
+} from "./mock-anonymous-checkout-client.ts";
 
 export {
   DEMO_SESSION_NOW,

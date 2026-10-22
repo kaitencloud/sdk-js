@@ -68,8 +68,9 @@ with no account (`startCheckout`, `getCheckoutSession`, `confirmCheckout`, and
 `holdsCheckoutSession` and `forgetCheckoutSession` for the token it keeps), which
 `KaitenAnonymousCheckoutClient` implements. An implementation of your own opts into a
 capability by implementing its whole interface, and code that needs the capability
-takes that interface. The fake `createMockKaitenSessionClient`, of
-`@kaitencloud/client/testing`, is such an implementation:
+takes that interface. The fakes `createMockKaitenSessionClient` and
+`createMockKaitenAnonymousCheckoutClient`, of `@kaitencloud/client/testing`, are such
+implementations:
 
 ```ts
 import type { KaitenClientLike, KaitenSessionClientLike } from "@kaitencloud/client";

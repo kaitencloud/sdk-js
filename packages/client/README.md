@@ -554,6 +554,16 @@ const session = createMockKaitenSessionClient({
 });
 ```
 
+### The anonymous checkout client
+
+`createMockKaitenAnonymousCheckoutClient()` plays an anonymous checkout: anything typed
+`KaitenAnonymousCheckoutClientLike` takes it. A free plan and a trial with no card complete at
+the first confirm; any other asks for a payment method and then for a payment, which the test
+plays with `completeSetup(sessionId)` and `settlePayment(sessionId)`; `abandon(sessionId)`
+leaves a session open until it is abandoned. A second trial for the same e-mail is refused as the
+API refuses it, with `trialRefusedReason: "ALREADY_CONSUMED"`. It does not check the Turnstile
+token, and it models neither add-ons nor vouchers.
+
 ### Fixtures
 
 `demoCustomer` · `demoInstance` · `demoLicense` · `demoPlans` ·
