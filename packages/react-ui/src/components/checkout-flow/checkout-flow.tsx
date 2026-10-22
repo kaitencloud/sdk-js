@@ -26,14 +26,15 @@ import { useMergedAppearance } from "../../appearance/context.tsx";
 import type { KaitenAppearance } from "../../appearance/types.ts";
 import { cn } from "../../lib/utils.ts";
 import { useAssertWrappedByKaitenProvider } from "../../style-root/kaiten-style-root.tsx";
-import { addonFeeFor, attachableTo, monthsOf, saleOfPrice } from "../shared/addon-fee.ts";
+import { addonFeeFor, attachableTo, saleOfPrice } from "../shared/addon-fee.ts";
 import { Action, Message as FeedbackMessage } from "../shared/feedback.tsx";
 import { useFocusScope } from "../shared/focus.ts";
 import { KaitenBranding } from "../shared/kaiten-branding.tsx";
+import { PeriodChoice } from "../shared/period-choice.tsx";
+import { initialPrice, purchasablePrices } from "../shared/purchasable-prices.ts";
 import { Badge } from "../ui/badge.tsx";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "../ui/card.tsx";
 import { Input } from "../ui/input.tsx";
-import { RadioGroup, RadioGroupItem } from "../ui/radio-group.tsx";
 import { Skeleton } from "../ui/skeleton.tsx";
 import { CheckoutSummaryBody, useProblemText } from "./checkout-summary.tsx";
 import { useCheckoutWords } from "./words.ts";
@@ -43,33 +44,6 @@ type Words = KaitenCheckoutWords;
 // ---------------------------------------------------------------------------
 // What can be chosen
 // ---------------------------------------------------------------------------
-
-/**
- * The prices a customer can buy a plan at: the flat fees of its billing periods that the catalog
- * calls the default of their period, shortest first, and the one the host asks for if it is
- * another. A usage price is never bought on its own, and a fee with no amount cannot be named.
- */
-function purchasablePrices(plan: Plan, chosen: string | undefined): BillingPrice[] {
-  return (plan.billingPrices ?? [])
-    .filter(
-      (price) =>
-        price.billingModel === "FLAT_FEE" &&
-        price.amount !== undefined &&
-        price.interval !== undefined &&
-        (price.isDefault || price.id === chosen),
-    )
-    .sort((a, b) => monthsOf(a) - monthsOf(b));
-}
-
-/** The price a checkout starts at: the one asked for, else the monthly fee, else the shortest period. */
-function initialPrice(prices: BillingPrice[], chosen: string | undefined): BillingPrice | null {
-  return (
-    prices.find((price) => price.id === chosen) ??
-    prices.find((price) => monthsOf(price) === 1) ??
-    prices[0] ??
-    null
-  );
-}
 
 /**
  * Whether an add-on can be bought beside a price: Kaiten attaches it to the subscription that
@@ -772,91 +746,6 @@ function Outcome({ checkout, unstyled }: { checkout: UseCheckoutResult; unstyled
 /** A sentence of the checkout, found by its slot. */
 function Message(props: Omit<React.ComponentProps<typeof FeedbackMessage>, "slot">) {
   return <FeedbackMessage slot="checkout-flow-message" {...props} />;
-}
-
-function PeriodChoice({
-  unstyled,
-  legend,
-  prices,
-  selected,
-  disabled,
-  unavailable,
-  note,
-  onSelect,
-  label,
-}: {
-  unstyled: boolean;
-  legend: string;
-  prices: BillingPrice[];
-  selected: string | null;
-  disabled: boolean;
-  /** The ids of the prices that cannot be chosen: they cannot bill what the instance holds. */
-  unavailable: ReadonlySet<string>;
-  /** What says why some cannot be chosen. */
-  note: string | null;
-  onSelect: (id: string) => void;
-  label: (price: BillingPrice) => string;
-}) {
-  const name = React.useId();
-  const legendId = React.useId();
-  const noteId = React.useId();
-  return (
-    <fieldset
-      data-slot="checkout-flow-period"
-      className={cn("ktn-own", unstyled ? undefined : "flex flex-col gap-2")}
-      disabled={disabled}
-    >
-      <legend id={legendId} className={unstyled ? undefined : "mb-2 text-sm font-medium"}>
-        {legend}
-      </legend>
-      {/* Unstyled, the choices stay native radios, the markup that rendering promises;
-          styled, they are drawn by the radio group the console's controls are made of. */}
-      {unstyled ? (
-        <div>
-          {prices.map((price) => (
-            <label key={price.id}>
-              <input
-                type="radio"
-                name={name}
-                checked={selected === price.id}
-                disabled={unavailable.has(price.id)}
-                aria-describedby={unavailable.has(price.id) && note ? noteId : undefined}
-                onChange={() => onSelect(price.id)}
-              />
-              {label(price)}
-            </label>
-          ))}
-        </div>
-      ) : (
-        <RadioGroup
-          aria-labelledby={legendId}
-          value={selected}
-          onValueChange={(id: string) => onSelect(id)}
-          disabled={disabled}
-          className="flex flex-wrap gap-2"
-        >
-          {prices.map((price) => (
-            <label
-              key={price.id}
-              className="group/field-label flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm has-data-checked:border-ktn-primary has-data-checked:ring-2 has-data-checked:ring-ktn-primary/20 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ktn-primary/50 has-disabled:cursor-not-allowed"
-            >
-              <RadioGroupItem
-                value={price.id}
-                disabled={unavailable.has(price.id)}
-                aria-describedby={unavailable.has(price.id) && note ? noteId : undefined}
-              />
-              {label(price)}
-            </label>
-          ))}
-        </RadioGroup>
-      )}
-      {note ? (
-        <p id={noteId} className={unstyled ? undefined : "text-xs text-ktn-muted-foreground"}>
-          {note}
-        </p>
-      ) : null}
-    </fieldset>
-  );
 }
 
 function AddOnSteppers({
