@@ -221,6 +221,61 @@ export const de: KaitenLocalization = {
       `Sie haben bereits ${names}. Die Menge können Sie ändern, sobald Ihr Abonnement begonnen hat.`,
     addOnRefused: (names) => `Dieser Tarif kann ${names} nicht abrechnen.`,
   },
+  anonymousCheckout: {
+    nameLabel: "Name",
+    emailLabel: "E-Mail",
+    emailHint: "Ihr Beleg und die nächsten Schritte werden an diese Adresse gesendet.",
+    humanCheck: "Sicherheitsprüfung",
+    checking: "Sicherheitsprüfung läuft …",
+    checked: "Sicherheitsprüfung bestanden.",
+    checkFailed:
+      "Die Sicherheitsprüfung konnte nicht geladen werden. Falls ein Inhaltsblocker oder eine Firewall sie verhindert, erlauben Sie challenges.cloudflare.com und versuchen Sie es erneut.",
+    checkRetry: "Prüfung wiederholen",
+    checkFirst: "Die Schaltfläche ist verfügbar, sobald die Sicherheitsprüfung bestanden ist.",
+    continue: "Weiter",
+    startFree: "Kostenlos starten",
+    startTrial: "Kostenlose Testphase starten",
+    continueToPayment: "Weiter zur Zahlung",
+    change: "Meine Auswahl ändern",
+    reviewFor: (email) => `Für ${email}`,
+    noCardNeeded: "Es wird keine Zahlungsmethode verlangt.",
+    trialAlreadyUsed:
+      "Diese E-Mail-Adresse hat die Testphase dieses Tarifs bereits genutzt, daher wird die erste Periode heute fällig.",
+    amountChanged: (was, now) =>
+      `Der fällige Betrag hat sich von ${was} auf ${now} geändert. Prüfen Sie ihn, bevor Sie fortfahren.`,
+    detailsChanged:
+      "Die Bedingungen Ihrer Bestellung haben sich geändert. Prüfen Sie sie, bevor Sie fortfahren.",
+    checkEmail: (email) =>
+      `Sehen Sie in ${email} nach: Dort melden wir uns mit den nächsten Schritten.`,
+    continueLink: "Weiter",
+    closedAbandoned:
+      "Dieser Abschluss war zu lange offen und wurde geschlossen. Es wurde nichts abgebucht.",
+    closedExpired:
+      "Die Zahlung ist nicht rechtzeitig eingegangen, daher wurde dieser Abschluss geschlossen.",
+    startAgain: "Neu beginnen",
+    lost: "Wir finden diesen Abschluss in diesem Browser nicht.",
+    lostAdvice:
+      "Wenn Sie bereits bezahlt haben, müssen Sie nichts tun: Prüfen Sie Ihre E-Mails auf die Bestätigung oder kontaktieren Sie uns, bevor Sie erneut zahlen.",
+    startNew: "Neuen Abschluss beginnen",
+    tryAgainIn: (seconds) =>
+      `Versuchen Sie es in ${seconds < 90 ? `${seconds} Sekunde${seconds === 1 ? "" : "n"}` : `${Math.ceil(seconds / 60)} Minuten`} erneut.`,
+    turnstileFailed:
+      "Wir konnten die Sicherheitsprüfung nicht bestätigen. Bestehen Sie sie bitte erneut.",
+    turnstileUnavailable: "Die Sicherheitsprüfung ist im Moment nicht erreichbar.",
+    rateLimited: "Zu viele Versuche.",
+    notSelfServe:
+      "Dieser Tarif wird nicht online verkauft. Kontaktieren Sie uns, um ihn zu erhalten.",
+    planUnavailable: "Dieser Tarif kann im Moment nicht gekauft werden.",
+    addonRefused: "Eine der gewählten Optionen kann mit diesem Tarif nicht gekauft werden.",
+    invalidEmail: "Diese E-Mail-Adresse ist nicht gültig.",
+    quotaReached: "Wir können im Moment keine neuen Anmeldungen annehmen. Kontaktieren Sie uns.",
+    notAvailable: "Die Online-Anmeldung ist im Moment nicht verfügbar.",
+    sessionClosed: "Dieser Abschluss ist bereits geschlossen.",
+    dueTodayChanged:
+      "Der fällige Betrag hat sich geändert, nachdem Ihre Zahlungsmethode gespeichert wurde. Es wurde nichts abgebucht. Beginnen Sie neu, um den neuen Betrag zu sehen.",
+    network:
+      "Wir konnten den Server nicht erreichen. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
+  },
   subscription: {
     trial: "Testphase",
     active: "Aktiv",

@@ -173,9 +173,12 @@ const SCENARIOS = [
     // the instance holds, and the add-ons it refuses.
     // Measured at 5 185 bytes, up from 5 155: what cancelling a subscription that ends at once
     // says, a trial's or a checkout's that waits for its first payment.
+    // Measured at 6 142 bytes, up from 5 185: the section of an anonymous checkout, which every
+    // language pack carries whole (the form, the security check, the review, the end, and each
+    // refusal).
     name: "locales · fr alone",
     code: `import { fr } from "@kaitencloud/react/locales"; console.log(fr);`,
-    budgetGzip: 5_300,
+    budgetGzip: 6_250,
     unstyled: true,
   },
   {

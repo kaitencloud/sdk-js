@@ -219,6 +219,56 @@ export const fr: KaitenLocalization = {
       `Vous avez déjà ${names}. Vous pourrez en changer la quantité une fois votre abonnement commencé.`,
     addOnRefused: (names) => `Cette offre ne peut pas facturer ${names}.`,
   },
+  anonymousCheckout: {
+    nameLabel: "Nom",
+    emailLabel: "E-mail",
+    emailHint: "Votre reçu et les prochaines étapes sont envoyés à cette adresse.",
+    humanCheck: "Contrôle de sécurité",
+    checking: "Contrôle de sécurité en cours…",
+    checked: "Contrôle de sécurité réussi.",
+    checkFailed:
+      "Le contrôle de sécurité n'a pas pu se charger. Si un bloqueur de contenu ou un pare-feu l'en empêche, autorisez challenges.cloudflare.com, puis réessayez.",
+    checkRetry: "Relancer le contrôle",
+    checkFirst: "Le bouton est disponible une fois le contrôle de sécurité réussi.",
+    continue: "Continuer",
+    startFree: "Commencer gratuitement",
+    startTrial: "Démarrer l'essai gratuit",
+    continueToPayment: "Continuer vers le paiement",
+    change: "Modifier mes choix",
+    reviewFor: (email) => `Pour ${email}`,
+    noCardNeeded: "Aucun moyen de paiement n'est demandé.",
+    trialAlreadyUsed:
+      "Cet e-mail a déjà bénéficié de l'essai de cette offre\u00a0: la première période est due aujourd'hui.",
+    amountChanged: (was, now) =>
+      `Le montant dû est passé de ${was} à ${now}. Vérifiez-le avant de continuer.`,
+    detailsChanged: "Les conditions de votre commande ont changé. Vérifiez-les avant de continuer.",
+    checkEmail: (email) => `Consultez ${email}\u00a0: nous vous y écrirons pour la suite.`,
+    continueLink: "Continuer",
+    closedAbandoned:
+      "Cette souscription est restée ouverte trop longtemps et a été fermée. Rien n'a été prélevé.",
+    closedExpired: "Le paiement n'est pas arrivé à temps, cette souscription a donc été fermée.",
+    startAgain: "Recommencer",
+    lost: "Nous ne retrouvons pas cette souscription dans ce navigateur.",
+    lostAdvice:
+      "Si vous avez déjà payé, vous n'avez rien à faire\u00a0: consultez vos e-mails pour la confirmation, ou contactez-nous avant de payer à nouveau.",
+    startNew: "Commencer une nouvelle souscription",
+    tryAgainIn: (seconds) =>
+      `Réessayez dans ${seconds < 90 ? `${seconds} seconde${seconds === 1 ? "" : "s"}` : `${Math.ceil(seconds / 60)} minutes`}.`,
+    turnstileFailed: "Nous n'avons pas pu valider le contrôle de sécurité. Passez-le à nouveau.",
+    turnstileUnavailable: "Le contrôle de sécurité est injoignable pour le moment.",
+    rateLimited: "Trop de tentatives.",
+    notSelfServe: "Cette offre n'est pas vendue en ligne. Contactez-nous pour l'obtenir.",
+    planUnavailable: "Cette offre ne peut pas être achetée pour le moment.",
+    addonRefused: "Une des options choisies ne peut pas être achetée avec cette offre.",
+    invalidEmail: "Cette adresse e-mail n'est pas valide.",
+    quotaReached:
+      "Nous ne pouvons pas accepter de nouvelle inscription pour le moment. Contactez-nous.",
+    notAvailable: "L'inscription en ligne n'est pas disponible pour le moment.",
+    sessionClosed: "Cette souscription est déjà fermée.",
+    dueTodayChanged:
+      "Le montant dû a changé après l'enregistrement de votre moyen de paiement. Rien n'a été prélevé. Recommencez pour voir le nouveau montant.",
+    network: "Nous n'avons pas pu joindre le serveur. Vérifiez votre connexion et réessayez.",
+  },
   subscription: {
     trial: "Essai",
     active: "Actif",
