@@ -6,6 +6,8 @@
 // script instead, which defines `window.turnstile` and plays the site key the stand-in for Kaiten hands the
 // page, Cloudflare's published test key that always passes: the widget solves itself, with no challenge, and
 // gives a token. Whether Kaiten accepts the token is the stand-in for Kaiten's to say (`standIn.turnstile`).
+// Every token is a new one, in every page and every load of it: a token is single-use, and the stand-in for
+// Kaiten refuses one it has seen, as Cloudflare does.
 
 import type { BrowserContext } from "@playwright/test";
 
@@ -18,11 +20,12 @@ const SCRIPT = `
   const drawn = new Map();
   let widgets = 0;
   let tokens = 0;
+  const load = Math.random().toString(36).slice(2, 10);
   const solve = (id) => {
     const widget = drawn.get(id);
     if (!widget) return;
     widget.frame.textContent = "Success!";
-    setTimeout(() => widget.parameters.callback && widget.parameters.callback("XXXX.DUMMY.TOKEN." + (++tokens)), 0);
+    setTimeout(() => widget.parameters.callback && widget.parameters.callback("XXXX.DUMMY.TOKEN." + load + "." + (++tokens)), 0);
   };
   window.turnstile = {
     render(container, parameters) {

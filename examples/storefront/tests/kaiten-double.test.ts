@@ -1968,7 +1968,9 @@ describe("the stand-in as a Kaiten with no customer yet", () => {
 
 describe("the anonymous checkout, against the stand-in", () => {
   const RETURN_URL = `${ORIGIN}/checkout/pro-v2`;
-  const TOKEN = "XXXX.DUMMY.TOKEN.XXXX";
+  // A Turnstile token is single-use: every start spends one of its own, as the widget gives a new one.
+  let minted = 0;
+  const token = () => `XXXX.DUMMY.TOKEN.${++minted}`;
   const STARTER_PRICE = STARTER_MONTHLY;
   const LITE_FAMILY_PRICE = LITE_MONTHLY;
 
@@ -1984,7 +1986,7 @@ describe("the anonymous checkout, against the stand-in", () => {
     });
     const start = (priceId: string, extra: Record<string, unknown> = {}) =>
       checkout.startCheckout({
-        turnstileToken: TOKEN,
+        turnstileToken: token(),
         priceId,
         email: "ada@acme.test",
         returnUrl: RETURN_URL,
@@ -2022,7 +2024,7 @@ describe("the anonymous checkout, against the stand-in", () => {
     const refused = await raw("/public/checkout-sessions", {
       method: "POST",
       headers: { "X-Kaiten-Publishable-Key": PUBLISHABLE_KEY },
-      json: { turnstileToken: TOKEN, priceId: STARTER_PRICE, dryRun: true },
+      json: { turnstileToken: token(), priceId: STARTER_PRICE, dryRun: true },
     });
     expect(refused.status).toBe(403);
     expect(await refused.json()).toMatchObject({
@@ -2112,7 +2114,7 @@ describe("the anonymous checkout, against the stand-in", () => {
     // (The client keeps what it saw of a closed session, so the two calls after the close never left.)
     expect(kinds).toEqual(["POST pk_", "POST ksc_"]);
     // Neither the Turnstile token nor the ksc_ is in the log.
-    expect(JSON.stringify(double.calls())).not.toContain(TOKEN);
+    expect(JSON.stringify(double.calls())).not.toContain("XXXX.DUMMY");
     expect(JSON.stringify(double.calls())).not.toContain("ksc_" + "c");
     expect(contractProblems(recorder)).toEqual([]);
   });
@@ -2368,16 +2370,61 @@ describe("the anonymous checkout, against the stand-in", () => {
     }
     double.turnstile("pass");
     await expect(
-      checkout.startCheckout({ turnstileToken: TOKEN, priceId: STARTER_PRICE, dryRun: true }),
+      checkout.startCheckout({ turnstileToken: token(), priceId: STARTER_PRICE, dryRun: true }),
     ).resolves.toMatchObject({ status: "preview" });
     expect(double.state().turnstileChecks).toBe(6);
+    expect(contractProblems(recorder)).toEqual([]);
+  });
+
+  test("takes a Turnstile token once, a preview's included, as Cloudflare does", async () => {
+    const { double, recorder, checkout } = visitorShop();
+    const spent = token();
+    // A preview spends the token like a start: the page that previews and then starts needs two.
+    await expect(
+      checkout.startCheckout({ turnstileToken: spent, priceId: PRO_MONTHLY, dryRun: true }),
+    ).resolves.toMatchObject({ status: "preview" });
+    await expect(
+      checkout.startCheckout({
+        turnstileToken: spent,
+        priceId: PRO_MONTHLY,
+        email: "ada@acme.test",
+        returnUrl: RETURN_URL,
+      }),
+    ).rejects.toMatchObject({ status: 422, code: "CreateCheckoutSession.TurnstileFailed" });
+    expect(double.state().checkoutSessions).toEqual([]);
+    expect(double.state().turnstileReused).toBe(1);
+
+    // A token the check refused is spent too, and a new one goes through.
+    double.turnstile("fail", 1);
+    const refused = token();
+    await expect(
+      checkout.startCheckout({ turnstileToken: refused, priceId: PRO_MONTHLY, dryRun: true }),
+    ).rejects.toMatchObject({ code: "CreateCheckoutSession.TurnstileFailed" });
+    await expect(
+      checkout.startCheckout({ turnstileToken: refused, priceId: PRO_MONTHLY, dryRun: true }),
+    ).rejects.toMatchObject({ code: "CreateCheckoutSession.TurnstileFailed" });
+    expect(double.state().turnstileReused).toBe(2);
+    await expect(
+      checkout.startCheckout({ turnstileToken: token(), priceId: PRO_MONTHLY, dryRun: true }),
+    ).resolves.toMatchObject({ status: "preview" });
+
+    // A check that could not be made spends nothing: the same token goes through once it can.
+    double.turnstile("unavailable", 1);
+    const waited = token();
+    await expect(
+      checkout.startCheckout({ turnstileToken: waited, priceId: PRO_MONTHLY, dryRun: true }),
+    ).rejects.toMatchObject({ status: 503 });
+    await expect(
+      checkout.startCheckout({ turnstileToken: waited, priceId: PRO_MONTHLY, dryRun: true }),
+    ).resolves.toMatchObject({ status: "preview" });
+    expect(double.state().turnstileReused).toBe(2);
     expect(contractProblems(recorder)).toEqual([]);
   });
 
   test("prices a preview and writes nothing, and takes a plan by its version and period", async () => {
     const { double, recorder, checkout } = visitorShop();
     const preview = await checkout.startCheckout({
-      turnstileToken: TOKEN,
+      turnstileToken: token(),
       licenseSlug: "pro-v2",
       billingPeriod: "ANNUAL",
       dryRun: true,
@@ -2395,15 +2442,21 @@ describe("the anonymous checkout, against the stand-in", () => {
   test("refuses what Kaiten refuses at the start, with its codes, and every refusal fits the contract", async () => {
     const { double, recorder, start, raw } = visitorShop();
     const post = async (json: unknown, headers: Record<string, string> = {}) => {
+      const spends =
+        typeof json === "object" &&
+        json !== null &&
+        typeof (json as { turnstileToken?: unknown }).turnstileToken === "string" &&
+        (json as { turnstileToken: string }).turnstileToken !== "";
       const response = await raw("/public/checkout-sessions", {
         method: "POST",
         headers: { "X-Kaiten-Publishable-Key": PUBLISHABLE_KEY, ...headers },
-        json,
+        // A body that is refused for something other than its token is not refused for a spent one.
+        json: spends ? { ...(json as object), turnstileToken: token() } : json,
       });
       return { status: response.status, body: (await response.json()) as any };
     };
     const valid = {
-      turnstileToken: TOKEN,
+      turnstileToken: token(),
       priceId: PRO_MONTHLY,
       email: "ada@acme.test",
       returnUrl: RETURN_URL,
@@ -2422,6 +2475,23 @@ describe("the anonymous checkout, against the stand-in", () => {
       expect(refused.status).toBe(422);
       expect(refused.body).toMatchObject({ code: "CreateCheckoutSession.InvalidBody" });
     }
+    // The contract asks for a token and a reference that are not empty, and for no more: an empty
+    // e-mail or price fits the schema, and is refused for what it is.
+    await expect(post({ ...valid, clientReferenceId: "" })).resolves.toMatchObject({
+      status: 422,
+      body: { code: "CreateCheckoutSession.InvalidBody" },
+    });
+    await expect(post({ ...valid, email: "" })).resolves.toMatchObject({
+      status: 422,
+      body: { code: "CreateCheckoutSession.InvalidEmail" },
+    });
+    await expect(post({ ...valid, priceId: "" })).resolves.toMatchObject({
+      status: 422,
+      body: { code: "CreateCheckoutSession.InvalidPriceSelection" },
+    });
+    await expect(post({ ...valid, voucherCode: "" })).resolves.not.toMatchObject({
+      body: { code: "CreateCheckoutSession.InvalidBody" },
+    });
     // The price.
     await expect(post({ ...valid, priceId: undefined })).resolves.toMatchObject({
       status: 422,
@@ -2525,7 +2595,7 @@ describe("the anonymous checkout, against the stand-in", () => {
   test("is sent bodies that fit the contract's draft by its own client", async () => {
     const { double, checkout } = visitorShop();
     await checkout.startCheckout({
-      turnstileToken: TOKEN,
+      turnstileToken: token(),
       licenseSlug: "pro-v2",
       billingPeriod: "MONTHLY",
       addOns: [{ addonSlug: "extra-seats-v1", quantity: 1 }],
@@ -2534,7 +2604,7 @@ describe("the anonymous checkout, against the stand-in", () => {
       returnUrl: RETURN_URL,
       clientReferenceId: "cart-9",
     });
-    await checkout.startCheckout({ turnstileToken: TOKEN, priceId: PRO_MONTHLY, dryRun: true });
+    await checkout.startCheckout({ turnstileToken: token(), priceId: PRO_MONTHLY, dryRun: true });
     const starts = double.calls().filter((each) => each.path === "/public/checkout-sessions");
     expect(starts).toHaveLength(2);
     for (const call of starts) {

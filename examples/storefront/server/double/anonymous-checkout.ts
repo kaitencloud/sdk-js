@@ -85,19 +85,24 @@ export interface Draft {
   dryRun: boolean;
 }
 
-/** The members of the body of a start, with the longest each string may be. The API refuses any other. */
-const MEMBERS: Record<string, number | undefined> = {
-  turnstileToken: 2048,
-  priceId: undefined,
-  licenseSlug: 255,
-  billingPeriod: undefined,
-  addOns: undefined,
-  voucherCode: 64,
-  trial: undefined,
-  email: 254,
-  returnUrl: 2048,
-  clientReferenceId: 255,
-  dryRun: undefined,
+/**
+ * The members of the body of a start, with the longest each string may be and whether it may be
+ * empty. The API refuses any other member. The contract sets `minLength: 1` on the Turnstile token and
+ * the reference and on nothing else, so an empty e-mail or price is a body that fits the schema: Kaiten
+ * answers it with `InvalidEmail` or `InvalidPriceSelection` once it looks at it, and so does the stand-in.
+ */
+const MEMBERS: Record<string, { max?: number; empty: boolean }> = {
+  turnstileToken: { max: 2048, empty: false },
+  priceId: { empty: true },
+  licenseSlug: { max: 255, empty: true },
+  billingPeriod: { empty: true },
+  addOns: { empty: true },
+  voucherCode: { max: 64, empty: true },
+  trial: { empty: true },
+  email: { max: 254, empty: true },
+  returnUrl: { max: 2048, empty: true },
+  clientReferenceId: { max: 255, empty: false },
+  dryRun: { empty: true },
 };
 
 /** The characters of a string as the API counts them: code points. */
@@ -108,8 +113,8 @@ const invalid = (detail: string, errors: Array<{ location: string; message: stri
 
 /**
  * The body of a start as the contract's `CheckoutSessionDraft` has it: nothing but its members, the
- * Turnstile token present, strings that are not empty and not longer than they may be, booleans that
- * are booleans, add-ons of a slug and a quantity of 1 or more. Anything else is a 422, as the API
+ * Turnstile token present, strings that are not longer than they may be (and not empty, where the
+ * contract says so), booleans that are booleans, add-ons of a slug and a quantity of 1 or more. Anything else is a 422, as the API
  * answers a body that does not fit its schema.
  */
 export function readDraft(body: unknown): { draft: Draft } | { refusal: Response } {
@@ -127,7 +132,7 @@ export function readDraft(body: unknown): { draft: Draft } | { refusal: Response
       errors.push({ location: `body.${name}`, message: "unexpected property" });
     }
   }
-  for (const [name, limit] of Object.entries(MEMBERS)) {
+  for (const [name, { max: limit, empty }] of Object.entries(MEMBERS)) {
     const value = given[name];
     if (value === undefined) continue;
     if (name === "trial" || name === "dryRun") {
@@ -151,8 +156,11 @@ export function readDraft(body: unknown): { draft: Draft } | { refusal: Response
           message: "expected at most 50 add-ons of a slug and a quantity of 1 or more",
         });
       }
-    } else if (typeof value !== "string" || value === "") {
-      errors.push({ location: `body.${name}`, message: "expected a string that is not empty" });
+    } else if (typeof value !== "string" || (value === "" && !empty)) {
+      errors.push({
+        location: `body.${name}`,
+        message: empty ? "expected a string" : "expected a string that is not empty",
+      });
     } else if (limit !== undefined && characters(value) > limit) {
       errors.push({ location: `body.${name}`, message: `expected at most ${limit} characters` });
     }

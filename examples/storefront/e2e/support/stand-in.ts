@@ -113,6 +113,8 @@ export interface StandIn {
       payment: "paid" | "requires_action" | "failed" | "processing" | null;
     }>;
     turnstileChecks: number;
+    /** How many times a Turnstile token that had been spent was sent again. */
+    turnstileReused: number;
   }>;
 }
 

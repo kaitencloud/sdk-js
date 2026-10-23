@@ -231,6 +231,8 @@ export interface DoubleState {
   }>;
   /** How many Turnstile tokens it was asked to verify. Never what they were. */
   turnstileChecks: number;
+  /** How many times a token that had been verified was sent again, and refused for it. */
+  turnstileReused: number;
 }
 
 /** How the customer starts. */
@@ -358,6 +360,10 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
   let anonymousOn: boolean;
   let verdict: { value: TurnstileVerdict; remaining: number };
   let verified: number;
+  /** The Turnstile tokens Cloudflare has been asked about: each is good for one verification. */
+  let spentTokens: Set<string>;
+  /** How many times a token that was spent came back. */
+  let tokenReuses: number;
   let checkouts: Map<string, StoredCheckout>;
   /** The trials an address consumed, by family (see `trialKey`). */
   let trialsTaken: Set<string>;
@@ -455,6 +461,8 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
     anonymousOn = scenario.anonymousCheckout === true;
     verdict = { value: "pass", remaining: Infinity };
     verified = 0;
+    spentTokens = new Set();
+    tokenReuses = 0;
     checkouts = new Map();
     trialsTaken = new Set();
     // A visitor with no account has nothing of the billing a scenario describes.
@@ -1731,7 +1739,13 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
     verdict = { value, remaining: times };
   }
 
-  function verifyTurnstile(instance: string): Response | null {
+  /**
+   * What Kaiten answers a Turnstile token. A token is single-use, a `dryRun` included: Cloudflare
+   * refuses one it has seen (`timeout-or-duplicate`), and Kaiten answers that as it answers a token that
+   * does not pass. A token Cloudflare could not be asked about, or that the key has no secret for, is
+   * not spent.
+   */
+  function verifyTurnstile(instance: string, token: string): Response | null {
     verified += 1;
     const current = verdict.value;
     if (verdict.remaining !== Infinity) {
@@ -1756,6 +1770,7 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
           { "Retry-After": String(TURNSTILE_RETRY_SECONDS) },
         );
       case "fail":
+        spentTokens.add(token);
         return problem(
           422,
           `${START}.TurnstileFailed`,
@@ -1763,6 +1778,16 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
           instance,
         );
       default:
+        if (spentTokens.has(token)) {
+          tokenReuses += 1;
+          return problem(
+            422,
+            `${START}.TurnstileFailed`,
+            "the challenge was not passed: solve it again",
+            instance,
+          );
+        }
+        spentTokens.add(token);
         return null;
     }
   }
@@ -1788,13 +1813,17 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
         path,
       );
     }
-    const refused = verifyTurnstile(path);
+    const refused = verifyTurnstile(path, draft.turnstileToken);
     if (refused) return refused;
 
     // The price: by its id, or by a plan's version and a billing period, one of the two.
     const byPrice = draft.priceId !== undefined;
     const byPlan = draft.licenseSlug !== undefined || draft.billingPeriod !== undefined;
-    if (byPrice === byPlan || (byPlan && (!draft.licenseSlug || !draft.billingPeriod))) {
+    if (
+      byPrice === byPlan ||
+      draft.priceId === "" ||
+      (byPlan && (!draft.licenseSlug || !draft.billingPeriod))
+    ) {
       return problem(
         422,
         `${START}.InvalidPriceSelection`,
@@ -2632,7 +2661,12 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
     }
     if (request.method === "POST" && path === "/control/checkout-sessions/expire") {
       const expired = expireCheckout();
-      return expired.ok ? reply(200, expired) : reply(409, expired);
+      return expired.ok
+        ? reply(200, expired)
+        : reply(409, {
+            ...expired,
+            detail: "No checkout is waiting: open a plan's checkout first.",
+          });
     }
     const boundary = /^\/control\/(advance|trial\/end)$/.exec(path);
     if (request.method === "POST" && boundary) {
@@ -2716,6 +2750,7 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
       payment: each.payment,
     })),
     turnstileChecks: verified,
+    turnstileReused: tokenReuses,
   });
 
   const route: Route = async (request) => {
