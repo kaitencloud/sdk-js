@@ -92,6 +92,12 @@ export interface AnonymousCheckoutSelection {
    * Kaiten. The hook keeps it for the page, which gets it in `onStarted` and `onSubscribed`.
    */
   name: string;
+  /**
+   * The buyer's company, if the page asks for one. Like `name`, Kaiten has no member for it: it is
+   * never sent to Kaiten, and the hook keeps it for the page, which gets it in `onStarted` and
+   * `onSubscribed`.
+   */
+  company: string;
 }
 
 /** What the start computed, and the confirm may have changed: what a visitor is shown before they pay. */
@@ -159,6 +165,8 @@ export interface AnonymousCheckoutOutcome {
   session: CheckoutSession;
   /** The name the visitor typed, kept in this tab since the start. `null` when none was typed or it was lost. */
   name: string | null;
+  /** The company the visitor typed, kept in this tab since the start. `null` when none was typed or it was lost. */
+  company: string | null;
 }
 
 export interface UseAnonymousCheckoutOptions {
@@ -191,9 +199,14 @@ export interface UseAnonymousCheckoutOptions {
   giveUpAfterMs?: number;
   /**
    * Called once when a checkout is started, with its id, before the visitor is sent anywhere: the
-   * place to record the name they typed against the session if the page keeps it.
+   * place to record the name and the company they typed against the session if the page keeps them.
    */
-  onStarted?: (started: { sessionId: string; email: string; name: string | null }) => void;
+  onStarted?: (started: {
+    sessionId: string;
+    email: string;
+    name: string | null;
+    company: string | null;
+  }) => void;
   /** Called once when the checkout completes, in this window, whether the visitor paid here or came back. */
   onSubscribed?: (outcome: AnonymousCheckoutOutcome) => void;
 }
@@ -213,6 +226,7 @@ export interface UseAnonymousCheckoutResult {
   selectPrice: (licensePriceId: string | null) => void;
   setEmail: (email: string) => void;
   setName: (name: string) => void;
+  setCompany: (company: string) => void;
   /** Sets the voucher code, `""` for none. */
   setVoucherCode: (code: string) => void;
   /** Sets how many units of an add-on are wanted; `0` is none. */
@@ -337,6 +351,7 @@ export function emptyAnonymousSelection(
     skipTrial: initial.skipTrial ?? false,
     email: initial.email ?? "",
     name: initial.name ?? "",
+    company: initial.company ?? "",
   };
 }
 
@@ -493,6 +508,7 @@ export function useAnonymousCheckout(
   );
   const setEmail = React.useCallback((email: string) => select({ email }), [select]);
   const setName = React.useCallback((name: string) => select({ name }), [select]);
+  const setCompany = React.useCallback((company: string) => select({ company }), [select]);
   const setVoucherCode = React.useCallback(
     (voucherCode: string) => select({ voucherCode }),
     [select],
@@ -521,13 +537,17 @@ export function useAnonymousCheckout(
   /** The session is over, or settled: the step it is in. */
   const settle = React.useCallback((session: CheckoutSession) => {
     if (session.status === "COMPLETED") {
-      const kept = readPending<{ name?: string }>("anonymous-checkout", session.sessionId);
+      const kept = readPending<{ name?: string; company?: string }>(
+        "anonymous-checkout",
+        session.sessionId,
+      );
       clearPending("anonymous-checkout");
       const outcome: AnonymousCheckoutOutcome = {
         sessionId: session.sessionId,
         clientReferenceId: session.clientReferenceId,
         session,
         name: kept?.name ?? null,
+        company: kept?.company ?? null,
       };
       setFlow((previous) => ({
         ...previous,
@@ -677,16 +697,25 @@ export function useAnonymousCheckout(
     const token = takeToken();
     if (token === null) return null;
     const name = chosen.name.trim();
+    const company = chosen.company.trim();
     setFlow({ ...SELECTING, step: "starting" });
     try {
       const opened = await api.startCheckout({ ...request, turnstileToken: token });
       const quote = quoteOf(opened, email);
-      if (name) savePending("anonymous-checkout", opened.sessionId, { name }, opened.expiresAt);
+      if (name || company) {
+        savePending(
+          "anonymous-checkout",
+          opened.sessionId,
+          { ...(name ? { name } : {}), ...(company ? { company } : {}) },
+          opened.expiresAt,
+        );
+      }
       setFlow({ ...SELECTING, step: "review", sessionId: opened.sessionId, quote });
       current.onStarted?.({
         sessionId: opened.sessionId,
         email: quote.email,
         name: name || null,
+        company: company || null,
       });
       return quote;
     } catch (thrown) {
@@ -1007,6 +1036,7 @@ export function useAnonymousCheckout(
     selectPrice,
     setEmail,
     setName,
+    setCompany,
     setVoucherCode,
     setAddonQuantity,
     setSkipTrial,

@@ -86,7 +86,7 @@ export function clearKaitenParams(): void {
 
 /**
  * The flows that send a customer to a setup page. The anonymous checkout keeps nothing but the name
- * its visitor typed, under the checkout session's id: everything else it needs, it reads from the
+ * and the company its visitor typed, under the checkout session's id: everything else it needs, it reads from the
  * session.
  */
 export type PendingKind = "checkout" | "payment-method" | "anonymous-checkout";

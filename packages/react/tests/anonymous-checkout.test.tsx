@@ -529,6 +529,7 @@ test("a free plan completes at the first confirm, and the page is told once, wit
   const client = doubleOf();
   const probe = await mount(client, { onSubscribed, onStarted, clientReferenceId: "cart-42" });
   act(() => probe.now.setName("  Ada Lovelace "));
+  act(() => probe.now.setCompany("  Analytical Engines Ltd "));
   await started(probe, STARTER);
 
   expect(probe.now.step).toBe("review");
@@ -537,6 +538,7 @@ test("a free plan completes at the first confirm, and the page is told once, wit
     sessionId: "chk_mock_1",
     email: EMAIL,
     name: "Ada Lovelace",
+    company: "Analytical Engines Ltd",
   });
 
   await act(async () => {
@@ -549,6 +551,7 @@ test("a free plan completes at the first confirm, and the page is told once, wit
     sessionId: "chk_mock_1",
     clientReferenceId: "cart-42",
     name: "Ada Lovelace",
+    company: "Analytical Engines Ltd",
     session: { status: "COMPLETED", customerSlug: "customer-chk_mock_1" },
   });
   expect(onSubscribed).toHaveBeenCalledTimes(1);
@@ -692,6 +695,8 @@ test("a blocked popup sends this page itself, and the page loaded back goes on f
   const navigate = vi.fn();
   const client = doubleOf();
   const first = await mount(client, { navigate });
+  act(() => first.now.setName("Ada Lovelace"));
+  act(() => first.now.setCompany("Analytical Engines"));
   await started(first);
   await act(async () => {
     await first.now.confirm();
@@ -722,6 +727,10 @@ test("a blocked popup sends this page itself, and the page loaded back goes on f
   await settle(5_000);
   expect(back.now.step).toBe("completed");
   expect(onSubscribed).toHaveBeenCalledTimes(1);
+  // The name and the company went through the provider's page with the visitor, in this tab.
+  expect(onSubscribed).toHaveBeenCalledWith(
+    expect.objectContaining({ name: "Ada Lovelace", company: "Analytical Engines" }),
+  );
 });
 
 test("a page loaded back shows the wait at once: no form, and no security check drawn for nothing", async () => {
@@ -1118,22 +1127,62 @@ test("the token of the checkout is in no URL and no storage this hook writes", a
   const client = doubleOf();
   const probe = await mount(client);
   act(() => probe.now.setName("Ada"));
+  act(() => probe.now.setCompany("Analytical Engines"));
   await started(probe);
   expect(everythingStored()).not.toContain("ksc_");
   expect(window.location.href).not.toContain("ksc_");
-  // What it does write is the name, under the session, for the page that asked for it.
+  // What it does write is the name and the company, under the session, for the page that asked for them.
   expect(
     JSON.parse(window.sessionStorage.getItem("kaiten:pending:anonymous-checkout")!),
   ).toMatchObject({
     sessionId: "chk_mock_1",
-    data: { name: "Ada" },
+    data: { name: "Ada", company: "Analytical Engines" },
   });
 });
 
-test("a name left empty is not kept", async () => {
+test("a name and a company left empty are not kept", async () => {
   const probe = await mount(doubleOf());
+  act(() => probe.now.setName("   "));
+  act(() => probe.now.setCompany(""));
   await started(probe);
   expect(window.sessionStorage.getItem("kaiten:pending:anonymous-checkout")).toBeNull();
+});
+
+test("a company alone is kept, and the name is null", async () => {
+  const onStarted = vi.fn();
+  const probe = await mount(doubleOf(), { onStarted });
+  act(() => probe.now.setCompany(" Analytical Engines "));
+  await started(probe);
+  expect(onStarted).toHaveBeenCalledWith({
+    sessionId: "chk_mock_1",
+    email: EMAIL,
+    name: null,
+    company: "Analytical Engines",
+  });
+  expect(
+    JSON.parse(window.sessionStorage.getItem("kaiten:pending:anonymous-checkout")!),
+  ).toMatchObject({ data: { company: "Analytical Engines" } });
+  expect(
+    JSON.parse(window.sessionStorage.getItem("kaiten:pending:anonymous-checkout")!).data,
+  ).not.toHaveProperty("name");
+});
+
+test("the company is never sent to Kaiten, whatever the start carries", async () => {
+  const client = doubleOf();
+  const probe = await mount(client);
+  act(() => probe.now.setName("Ada"));
+  act(() => probe.now.setCompany("Analytical Engines"));
+  await started(probe);
+  const sent = JSON.stringify(callsTo(client, "startCheckout"));
+  expect(sent).not.toContain("Analytical Engines");
+  expect(sent).not.toContain("Ada");
+});
+
+test("an initial company fills the selection, and an empty one is the default", async () => {
+  const probe = await mount(doubleOf(), { initial: { company: "Analytical Engines" } });
+  expect(probe.now.selection.company).toBe("Analytical Engines");
+  const bare = await mount(doubleOf());
+  expect(bare.now.selection.company).toBe("");
 });
 
 // ---------------------------------------------------------------------------
@@ -1354,9 +1403,10 @@ test("a page loaded back after the setup, where the amount changed, reads the se
 // What the hook keeps, and tells once
 // ---------------------------------------------------------------------------
 
-test("starting over forgets the name that was kept for the checkout given up", async () => {
+test("starting over forgets the name and the company that were kept for the checkout given up", async () => {
   const probe = await mount(doubleOf());
   act(() => probe.now.setName("Ada"));
+  act(() => probe.now.setCompany("Analytical Engines"));
   await started(probe);
   expect(window.sessionStorage.getItem("kaiten:pending:anonymous-checkout")).not.toBeNull();
 

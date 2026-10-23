@@ -559,8 +559,11 @@ function Signup({ licensePriceId }: { licensePriceId: string }) {
 - **A page that comes back without the token is `lost`.** Another browser, cleared storage, or a window of
   more than 24 hours: the checkout may have been paid for and completed. The hook never starts
   another by itself; the visitor decides (`reset()`).
-- **The name is yours.** Kaiten has no member for a buyer's name. `selection.name` is kept in the tab and
-  given to `onStarted` and `onSubscribed`, and is never sent to Kaiten. The vendor links the buyer to an
+- **The name and the company are yours.** Kaiten has no member for a buyer's name or company.
+  `selection.name` and `selection.company` (`setName`, `setCompany`) are kept in the tab, across the
+  payment provider's page too, and given to `onStarted` and `onSubscribed` (`null` when none was typed),
+  and are never sent to Kaiten: the vendor's backend names the customer from them, after checking the
+  customer the completion created. The vendor links the buyer to an
   account through the checkout's signed events (`checkout_session.v1.completed`), with `clientReferenceId`
   or the e-mail. `onSubscribed`, the outcome and a `clientReferenceId` read in the browser are the visitor's
   to change: use them for the screen only, and give `clientReferenceId` a value of your own, never one
