@@ -56,12 +56,21 @@ async function typeEmail(canvas: ReturnType<typeof within>, email = EMAIL) {
   await userEvent.type(await canvas.findByLabelText("Email"), email);
 }
 
+/**
+ * The button that starts the checkout waits on the form and on the security check without leaving
+ * the keyboard: it is dimmed with `aria-disabled`, and `disabled` is for what is in flight.
+ */
+const unavailable = (button: HTMLElement) =>
+  expect(button).toHaveAttribute("aria-disabled", "true");
+const available = (button: HTMLElement) =>
+  waitFor(() => expect(button).not.toHaveAttribute("aria-disabled"), SLOW);
+
 /** Fills the form in and presses the button that starts the checkout. */
 async function start(canvasElement: HTMLElement, button: string | RegExp = "Continue") {
   const canvas = await checked(canvasElement);
   await typeEmail(canvas);
   const go = canvas.getByRole("button", { name: button });
-  await waitFor(() => expect(go).toBeEnabled(), SLOW);
+  await available(go);
   await userEvent.click(go);
   return canvas;
 }
@@ -84,9 +93,9 @@ export const Default: Story = {
     await expect(canvas.getByRole("group", { name: "Security check" })).toBeInTheDocument();
     await expect(canvas.queryByLabelText("Name")).toBeNull();
     const go = canvas.getByRole("button", { name: "Continue" });
-    await expect(go).toBeDisabled();
+    await unavailable(go);
     await typeEmail(canvas);
-    await waitFor(() => expect(go).toBeEnabled(), SLOW);
+    await available(go);
   },
 };
 
@@ -97,7 +106,7 @@ export const WaitingForTheSecurityCheck: Story = {
     const canvas = within(canvasElement);
     await typeEmail(canvas);
     await expect(await canvas.findByText("Running the security check...")).toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: "Continue" })).toBeDisabled();
+    await unavailable(canvas.getByRole("button", { name: "Continue" }));
     await expect(
       canvas.getByText("The button is available once the security check passes."),
     ).toBeInTheDocument();
@@ -111,12 +120,12 @@ export const InteractiveSecurityCheck: Story = {
     const canvas = within(canvasElement);
     await typeEmail(canvas);
     const go = canvas.getByRole("button", { name: "Continue" });
-    await expect(go).toBeDisabled();
+    await unavailable(go);
     await userEvent.click(
       await canvas.findByRole("button", { name: "Verify you are human" }, SLOW),
     );
     await expect(await canvas.findByText("Security check passed.", {}, SLOW)).toBeInTheDocument();
-    await waitFor(() => expect(go).toBeEnabled(), SLOW);
+    await available(go);
   },
 };
 
@@ -129,7 +138,7 @@ export const SecurityCheckBlocked: Story = {
       await canvas.findByText(/The security check could not load/, {}, SLOW),
     ).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Try the check again" })).toBeEnabled();
-    await expect(canvas.getByRole("button", { name: "Continue" })).toBeDisabled();
+    await unavailable(canvas.getByRole("button", { name: "Continue" }));
   },
 };
 
@@ -201,18 +210,18 @@ export const Bought: Story = {
     await userEvent.click(canvas.getByRole("button", { name: "Continue to payment" }));
     await expect(await canvas.findByText("You're subscribed", {}, SLOW)).toBeInTheDocument();
     await expect(canvas.getByText("Payment received.")).toBeInTheDocument();
-    // The host's page for after the checkout, and no instruction to check an email that one replaces.
+    // The host's page for after the checkout, and no sentence about the order that one replaces.
     await expect(canvas.getByRole("link", { name: "Continue" })).toHaveAttribute(
       "href",
       "https://shop.example.test/welcome",
     );
-    await expect(canvas.queryByText(/Check ada@example.com/)).toBeNull();
+    await expect(canvas.queryByText(/registered for ada@example.com/)).toBeNull();
     await waitFor(() => expect(args.onComplete).toHaveBeenCalledTimes(1), SLOW);
   },
 };
 
 export const BoughtWithNothingToContinueTo: Story = {
-  name: "Bought, told to check the email",
+  name: "Bought, with the order registered and nowhere to go on to",
   args: { successUrl: undefined },
   decorators: [anonymousCheckoutDecorator({ visitor: "saves", payment: "paid" })],
   play: async ({ canvasElement }) => {
@@ -220,7 +229,7 @@ export const BoughtWithNothingToContinueTo: Story = {
     await userEvent.click(canvas.getByRole("button", { name: "Continue to payment" }));
     await expect(await canvas.findByText("You're subscribed", {}, SLOW)).toBeInTheDocument();
     await expect(
-      canvas.getByText("Check ada@example.com: we'll write to you there with what to do next."),
+      canvas.getByText("Your order is registered for ada@example.com."),
     ).toBeInTheDocument();
     await expect(canvas.queryByRole("link", { name: "Continue" })).toBeNull();
   },
@@ -283,6 +292,10 @@ export const TrialThatAsksForACard: Story = {
   play: async ({ canvasElement }) => {
     const canvas = await reviewed(canvasElement);
     await expect(await canvas.findByText("$0.00 today", {}, SLOW)).toBeInTheDocument();
+    // What the card is for: the catalogue's price, from the day the trial ends.
+    await expect(
+      canvas.getByText(/^Then \$49\.00\/month from .+, unless you cancel before\.$/),
+    ).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Continue to payment" })).toBeEnabled();
   },
 };
@@ -351,6 +364,8 @@ export const CardDeclined: Story = {
     const canvas = await reviewed(canvasElement);
     await userEvent.click(canvas.getByRole("button", { name: "Continue to payment" }));
     await expect(await canvas.findByText("Your card was declined.", {}, SLOW)).toBeInTheDocument();
+    // Still read on a schedule, but not said: "waiting" under "declined" would contradict it.
+    await expect(canvas.queryByText("Waiting for your payment...")).toBeNull();
     await expect(canvas.getByRole("link", { name: "Pay invoice" })).toBeInTheDocument();
   },
 };
@@ -400,7 +415,7 @@ export const BackWithoutTheSession: Story = {
       await canvas.findByText("We can't find this checkout in this browser.", {}, SLOW),
     ).toBeInTheDocument();
     await expect(
-      canvas.getByText(/If you already paid, there is nothing more to do/),
+      canvas.getByText(/If you already paid, please don't pay again/),
     ).toBeInTheDocument();
     // The visitor decides to start again: the flow never does it for them.
     await expect(canvas.getByRole("button", { name: "Start a new checkout" })).toBeEnabled();
@@ -543,9 +558,9 @@ export const WithAName: Story = {
     await typeEmail(canvas);
     const go = canvas.getByRole("button", { name: "Start for free" });
     // The name is asked for, so the button waits for it.
-    await expect(go).toBeDisabled();
+    await unavailable(go);
     await userEvent.type(canvas.getByLabelText("Name"), "Ada Lovelace");
-    await waitFor(() => expect(go).toBeEnabled(), SLOW);
+    await available(go);
     await userEvent.click(go);
     await expect(await canvas.findByText("You're subscribed", {}, SLOW)).toBeInTheDocument();
     // Kaiten has no member for a name: the page gets it, and nothing else does.

@@ -128,8 +128,13 @@ export interface KaitenAnonymousCheckoutWords {
   /** The label of the field for the visitor's name, when the page asks for one. */
   nameLabel: string;
   emailLabel: string;
-  /** Said under the e-mail field: where the receipt and the next steps go. */
+  /**
+   * Said under the e-mail field. The default makes no promise about mail: Kaiten sends none to the
+   * buyers of a vendor, which the vendor and the payment provider do, if they do.
+   */
   emailHint: string;
+  /** Said under the name field of a visitor who pressed the button without giving one. */
+  nameRequired: string;
   /** The name of the security check (Cloudflare Turnstile), for the group that holds its widget. */
   humanCheck: string;
   /** Said while the security check runs. */
@@ -161,8 +166,18 @@ export interface KaitenAnonymousCheckoutWords {
   amountChanged: (was: string, now: string) => string;
   /** Said when the terms changed without the amount (the end of a trial, say). */
   detailsChanged: string;
-  /** Said once the checkout completed: where the visitor hears from the vendor. Receives the e-mail address. */
-  checkEmail: (email: string) => string;
+  /**
+   * Said in the review of a trial that asks for a payment method: what is billed when it ends and
+   * how often, from the plan's catalogue price. Receives that price with its period, formatted
+   * ("$49.00 / month"), and the RAW ISO date the trial ends on.
+   */
+  thenPrice: (price: string, isoDate: string) => string;
+  /**
+   * Said once the checkout completed, when the host gave no page to go on to. Receives the e-mail
+   * address the order is for. The default promises no e-mail, since Kaiten sends none: a host that
+   * sends one says so here, for instance "Check {email} for what to do next."
+   */
+  completedFor: (email: string) => string;
   /** The link that goes on to the page the host gave for after the checkout. */
   continueLink: string;
   /** Said of a session that stayed open for 24 hours. */
@@ -172,11 +187,11 @@ export interface KaitenAnonymousCheckoutWords {
   startAgain: string;
   /** Said when this browser holds no token for the checkout: it may have been paid for. */
   lost: string;
-  /** What to do then: do not pay twice. */
+  /** What to do then: do not pay twice. Promises no e-mail, since Kaiten sends none to a buyer. */
   lostAdvice: string;
   /** The button that starts a new checkout from a lost one, which the visitor presses knowing it. */
   startNew: string;
-  /** Receives the seconds to wait: "Try again in 30 seconds." */
+  /** Receives the seconds to wait: "Try again in 30 seconds." Under two seconds it says "in a moment", never "in 0 seconds". */
   tryAgainIn: (seconds: number) => string;
   turnstileFailed: string;
   turnstileUnavailable: string;

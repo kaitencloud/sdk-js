@@ -78,6 +78,12 @@ export interface ActionProps {
   href?: string;
   /** A link to the provider's page, in a tab of its own that has no handle on this one. */
   external?: boolean;
+  /**
+   * Not available yet, and says so: `aria-disabled` and dimmed, yet still focusable and still
+   * pressable, so that a press can say what is missing instead of doing nothing. For a button
+   * that waits on something the customer can supply, such as a field to fill in.
+   */
+  unavailable?: boolean;
   /** Takes the width it is given. */
   fill?: boolean;
   /** Default `default`; `sm` for an action in a row. */
@@ -106,6 +112,7 @@ export function Action({
   size = "default",
   label,
   busy,
+  unavailable,
   focusKey,
 }: ActionProps) {
   if (href !== undefined) {
@@ -131,7 +138,7 @@ export function Action({
     <button
       type="button"
       disabled={disabled}
-      aria-disabled={busy || undefined}
+      aria-disabled={busy || unavailable || undefined}
       aria-label={label}
       data-focus={focusKey}
       onClick={press}
@@ -143,7 +150,7 @@ export function Action({
       variant={variant}
       size={size}
       disabled={disabled}
-      aria-disabled={busy || undefined}
+      aria-disabled={busy || unavailable || undefined}
       aria-label={label}
       data-focus={focusKey}
       onClick={press}

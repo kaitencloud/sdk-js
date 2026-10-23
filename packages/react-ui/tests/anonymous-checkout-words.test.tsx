@@ -60,14 +60,17 @@ test("a sentence around a name, an address or an amount carries it, in every lan
     es.anonymousCheckout!,
   ]) {
     expect(pack.reviewFor("UNIQUE")).toContain("UNIQUE");
-    expect(pack.checkEmail("UNIQUE")).toContain("UNIQUE");
+    expect(pack.completedFor("UNIQUE")).toContain("UNIQUE");
+    const then = pack.thenPrice("PRICE", "2026-11-04T00:00:00Z");
+    expect(then).toContain("PRICE");
+    expect(then).toContain("2026");
     const changed = pack.amountChanged("WAS", "NOW");
     expect(changed).toContain("WAS");
     expect(changed).toContain("NOW");
   }
 });
 
-test("a wait is said in seconds, then in minutes, and one second is in the singular", () => {
+test("a wait is said in seconds, then in minutes, and under two seconds it is a moment", () => {
   for (const [name, pack] of [
     ["en", englishAnonymousCheckoutWords],
     ["fr", fr.anonymousCheckout!],
@@ -79,8 +82,22 @@ test("a wait is said in seconds, then in minutes, and one second is in the singu
     expect(pack.tryAgainIn(90), name).toContain("2");
     expect(pack.tryAgainIn(90), name).not.toContain("90");
     expect(pack.tryAgainIn(600), name).toContain("10");
-    expect(pack.tryAgainIn(1), name).toMatch(/1 (second|seconde|Sekunde|segundo)(?!s|n)/);
     expect(pack.tryAgainIn(2), name).toMatch(/2 (seconds|secondes|Sekunden|segundos)/);
+    // A `Retry-After: 0` is no "0 seconds".
+    for (const seconds of [0, 1]) expect(pack.tryAgainIn(seconds), name).not.toMatch(/\d/);
+  }
+});
+
+test("the default words promise no e-mail from Kaiten, which sends none to a vendor's buyers", () => {
+  for (const [name, pack] of [
+    ["en", englishAnonymousCheckoutWords],
+    ["fr", fr.anonymousCheckout!],
+    ["de", de.anonymousCheckout!],
+    ["es", es.anonymousCheckout!],
+  ] as const) {
+    for (const said of [pack.emailHint, pack.completedFor("a@b.c"), pack.lostAdvice]) {
+      expect(said, name).not.toMatch(/e-?mail|correo|courriel/i);
+    }
   }
 });
 

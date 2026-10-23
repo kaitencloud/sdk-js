@@ -3,7 +3,11 @@
 
 import * as React from "react";
 
-import { useLocalization, type KaitenAnonymousCheckoutWords } from "@kaitencloud/react";
+import {
+  formatKaitenDate,
+  useLocalization,
+  type KaitenAnonymousCheckoutWords,
+} from "@kaitencloud/react";
 
 /**
  * The English words of an anonymous checkout. They live here and not in the core's defaults for
@@ -14,7 +18,8 @@ import { useLocalization, type KaitenAnonymousCheckoutWords } from "@kaitencloud
 export const englishAnonymousCheckoutWords: KaitenAnonymousCheckoutWords = {
   nameLabel: "Name",
   emailLabel: "Email",
-  emailHint: "Your receipt and the next steps are sent to this address.",
+  emailHint: "This address is used for your account and your billing.",
+  nameRequired: "Enter your name.",
   humanCheck: "Security check",
   checking: "Running the security check...",
   checked: "Security check passed.",
@@ -34,17 +39,20 @@ export const englishAnonymousCheckoutWords: KaitenAnonymousCheckoutWords = {
   amountChanged: (was, now) =>
     `The amount due changed from ${was} to ${now}. Check it before you continue.`,
   detailsChanged: "The terms of your order changed. Check them before you continue.",
-  checkEmail: (email) => `Check ${email}: we'll write to you there with what to do next.`,
+  thenPrice: (price, isoDate) =>
+    `Then ${price} from ${formatKaitenDate(isoDate)}, unless you cancel before.`,
+  completedFor: (email) => `Your order is registered for ${email}.`,
   continueLink: "Continue",
   closedAbandoned: "This checkout stayed open for too long and was closed. Nothing was charged.",
   closedExpired: "The payment didn't come through in time, so this checkout was closed.",
   startAgain: "Start again",
   lost: "We can't find this checkout in this browser.",
-  lostAdvice:
-    "If you already paid, there is nothing more to do: check your email for the confirmation, or contact us before paying again.",
+  lostAdvice: "If you already paid, please don't pay again: contact us and we'll check your order.",
   startNew: "Start a new checkout",
   tryAgainIn: (seconds) =>
-    `Try again in ${seconds < 90 ? `${seconds} second${seconds === 1 ? "" : "s"}` : `${Math.ceil(seconds / 60)} minutes`}.`,
+    seconds < 2
+      ? "Try again in a moment."
+      : `Try again in ${seconds < 90 ? `${seconds} seconds` : `${Math.ceil(seconds / 60)} minutes`}.`,
   turnstileFailed: "We couldn't verify the security check. Please complete it again.",
   turnstileUnavailable: "The security check can't be reached right now.",
   rateLimited: "Too many attempts.",

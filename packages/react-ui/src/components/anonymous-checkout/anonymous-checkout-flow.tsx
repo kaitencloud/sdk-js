@@ -50,14 +50,17 @@ export interface AnonymousCheckoutFlowProps {
   priceId?: string;
   /**
    * Where the payment provider's page sends the visitor back to, with `kaiten_checkout_session`
-   * appended: https, or http on localhost, on an origin the publishable key allows. Default: this
-   * page, minus its fragment and any `kaiten_*` parameter. Mount the flow on that page: the checkout
-   * goes on from there.
+   * appended: https, or http on localhost, on an origin the publishable key allows, at most 2,048
+   * characters. Default: this page, minus its fragment and any `kaiten_*` parameter (and its query
+   * too when the address would be too long to send). Mount the flow on that page: the checkout goes
+   * on from there.
    */
   returnUrl?: string;
   /**
    * Where "Continue" sends the visitor once the checkout completed: a page of the host's. Without
-   * it, the visitor is told to check their email. An address that is not http(s) is not offered.
+   * it, the visitor is told that the order is registered for their address, and nothing more:
+   * Kaiten sends no e-mail to a vendor's buyers. A host whose own e-mail follows says so in
+   * `localization.anonymousCheckout.completedFor`. An address that is not http(s) is not offered.
    */
   successUrl?: string;
   /**
@@ -179,6 +182,12 @@ function AnonymousCheckoutView({
 
   const problemText = useProblemText(words);
 
+  // What the visitor has been told is wrong with the form: after they leave the e-mail field, or
+  // press the button while something is missing. Not while they are still typing it.
+  const [emailLeft, setEmailLeft] = React.useState(false);
+  const [attempted, setAttempted] = React.useState(false);
+  const form = React.useRef<HTMLFormElement>(null);
+
   // A free plan has nothing to review: starting it is confirming it, once.
   const confirmed = React.useRef<string | null>(null);
   const { confirm } = checkout;
@@ -287,7 +296,7 @@ function AnonymousCheckoutView({
           }
         />
         {href === null && email ? (
-          <Message unstyled={unstyled} tone="info" text={words.checkEmail(email)} />
+          <Message unstyled={unstyled} tone="info" text={words.completedFor(email)} />
         ) : null}
         <div className={unstyled ? undefined : "flex flex-wrap gap-2"}>
           {href !== null ? (
@@ -401,6 +410,12 @@ function AnonymousCheckoutView({
         unstyled={unstyled}
         words={words}
         problemText={problemText}
+        price={
+          quote?.trialEndsAt != null && quote.requiresPaymentMethod && chosen !== null
+            ? (formatKaitenPrice(chosen, localization, { entitlements: shown?.entitlements }) ??
+              null)
+            : null
+        }
       />,
       <ReviewActions
         checkout={checkout}
@@ -437,12 +452,25 @@ function AnonymousCheckoutView({
   const emailTyped = checkout.selection.email.trim() !== "";
   const nameMissing = collectName && checkout.selection.name.trim() === "";
   const ready = checkout.canStart && !nameMissing;
+  const emailBad = !isPlausibleEmail(checkout.selection.email);
+  const showEmailError = emailBad && (attempted || (emailLeft && emailTyped));
+  const showNameError = nameMissing && attempted;
   const submit = () => {
-    if (ready) void checkout.start();
+    if (ready) {
+      void checkout.start();
+      return;
+    }
+    // Pressed while something is missing: say what, and take the visitor to the first field to fix.
+    setAttempted(true);
+    const firstWrong = nameMissing ? "name" : emailBad ? "email" : null;
+    if (firstWrong !== null) {
+      form.current?.querySelector<HTMLElement>(`[data-field="${firstWrong}"]`)?.focus();
+    }
   };
 
   return frame(
     <form
+      ref={form}
       noValidate
       className={unstyled ? undefined : "flex flex-col gap-5"}
       onSubmit={(event) => {
@@ -476,6 +504,9 @@ function AnonymousCheckoutView({
           value={checkout.selection.name}
           disabled={starting}
           required
+          invalid={showNameError}
+          error={showNameError ? words.nameRequired : undefined}
+          fieldName="name"
           focusKey="step"
           onChange={checkout.setName}
         />
@@ -490,8 +521,11 @@ function AnonymousCheckoutView({
         value={checkout.selection.email}
         disabled={starting}
         required
-        invalid={emailTyped && !isPlausibleEmail(checkout.selection.email)}
+        invalid={showEmailError}
+        error={showEmailError ? words.invalidEmail : undefined}
+        fieldName="email"
         focusKey={collectName ? undefined : "step"}
+        onBlur={() => setEmailLeft(true)}
         onChange={checkout.setEmail}
       />
 
@@ -523,7 +557,7 @@ function AnonymousCheckoutView({
           variant="default"
           fill
           busy={starting}
-          disabled={!starting && !ready}
+          unavailable={!starting && !ready}
           onClick={submit}
         >
           {starting ? (
@@ -541,7 +575,10 @@ function AnonymousCheckoutView({
           </Action>
         ) : null}
       </div>
-      {!free && chosen !== null ? (
+      {/* A trial that asks for no card is not a plan that sends the visitor to the provider: the note would contradict the review. */}
+      {!free &&
+      chosen !== null &&
+      (plan.requiresPaymentMethod === true || !plan.trialPeriodDays) ? (
         <p className={unstyled ? undefined : "text-xs text-ktn-muted-foreground"}>
           {checkoutWords.paymentNote}
         </p>
@@ -572,9 +609,12 @@ function Waiting({
   const localization = useLocalization();
   return frame(
     unstyled ? (
-      <p aria-busy="true">{localization.states.loading}</p>
+      <p role="status" aria-busy="true">
+        {localization.states.loading}
+      </p>
     ) : (
-      <div aria-busy="true" className="flex flex-col gap-3">
+      <div role="status" aria-busy="true" className="flex flex-col gap-3">
+        <span className="sr-only">{localization.states.loading}</span>
         <Skeleton className="h-9 w-full" />
         <Skeleton className="h-5 w-full" />
         <Skeleton className="h-6 w-1/2 self-end" />
@@ -644,7 +684,10 @@ function Field({
   disabled,
   required,
   invalid,
+  error,
+  fieldName,
   focusKey,
+  onBlur,
   onChange,
 }: {
   unstyled: boolean;
@@ -657,21 +700,30 @@ function Field({
   disabled: boolean;
   required?: boolean;
   invalid?: boolean;
+  /** Why the input is invalid, in words: a colour alone says nothing to everyone. */
+  error?: string;
+  /** Names the input for the form, to take the keyboard to the first one that is wrong. */
+  fieldName: string;
   /** Marks the input as somewhere focus can be sent to (see `useFocusScope`). */
   focusKey?: string;
+  onBlur?: () => void;
   onChange: (value: string) => void;
 }) {
   const id = React.useId();
   const common = {
     id,
     "data-focus": focusKey,
+    "data-field": fieldName,
     type,
     value,
     disabled,
     required,
     autoComplete,
     "aria-invalid": invalid || undefined,
-    "aria-describedby": hint ? `${id}-hint` : undefined,
+    "aria-describedby":
+      [error ? `${id}-error` : null, hint ? `${id}-hint` : null].filter(Boolean).join(" ") ||
+      undefined,
+    onBlur,
     onChange: (event: React.ChangeEvent<HTMLInputElement>) => onChange(event.target.value),
   };
   return (
@@ -680,6 +732,15 @@ function Field({
         {label}
       </label>
       {unstyled ? <input {...common} /> : <Input {...common} />}
+      {error ? (
+        <p
+          id={`${id}-error`}
+          role="alert"
+          className={unstyled ? undefined : "text-xs text-destructive-subtle-foreground"}
+        >
+          {error}
+        </p>
+      ) : null}
       {hint ? (
         <p id={`${id}-hint`} className={unstyled ? undefined : "text-xs text-ktn-muted-foreground"}>
           {hint}
@@ -701,6 +762,8 @@ function TurnstileCheck({
 }) {
   const { turnstile } = checkout;
   const legend = React.useId();
+  // The compact widget is taller than the normal one: its room is kept, or the form jumps when it appears.
+  const room = turnstile.size === "compact" ? "min-h-[140px]" : "min-h-[65px]";
   const failed = turnstile.status === "failed";
   const text = failed
     ? words.checkFailed
@@ -721,7 +784,7 @@ function TurnstileCheck({
       <div
         ref={turnstile.ref}
         data-slot="anonymous-checkout-turnstile"
-        className={cn("ktn-own", unstyled ? undefined : "min-h-[65px] max-w-full overflow-x-auto")}
+        className={cn("ktn-own", unstyled ? undefined : cn(room, "max-w-full overflow-x-auto"))}
       />
       <p
         role={failed ? "alert" : "status"}
@@ -768,12 +831,15 @@ function Review({
   unstyled,
   words,
   problemText,
+  price,
 }: {
   checkout: UseAnonymousCheckoutResult;
   quote: AnonymousCheckoutQuote;
   unstyled: boolean;
   words: KaitenAnonymousCheckoutWords;
   problemText: (problem: AnonymousCheckoutProblem | null) => string;
+  /** The catalogue price the plan is bought at, with its period, when a trial that asks for a card is on screen. */
+  price: string | null;
 }) {
   const localization = useLocalization();
   const { changed } = checkout;
@@ -806,6 +872,14 @@ function Review({
         <Message unstyled={unstyled} tone="info" text={words.trialAlreadyUsed} />
       ) : null}
       <CheckoutSummaryBody preview={previewOf(quote)} unstyled={unstyled} />
+      {/* What the card is for: the server's `dueToday` has no line for a trial, the catalogue's price is the one said. */}
+      {price !== null && quote.trialEndsAt !== null ? (
+        <Message
+          unstyled={unstyled}
+          tone="muted"
+          text={words.thenPrice(price, quote.trialEndsAt)}
+        />
+      ) : null}
       {quote.requiresPaymentMethod ? null : (
         <Message unstyled={unstyled} tone="muted" text={words.noCardNeeded} />
       )}
@@ -906,12 +980,15 @@ function PaymentWait({
       {payment?.status === "requires_action" ? (
         <Message unstyled={unstyled} tone="info" text={checkoutWords.confirmPayment} />
       ) : null}
-      <Message
-        unstyled={unstyled}
-        tone="muted"
-        text={gaveUp ? checkoutWords.paymentStillOpen : checkoutWords.waitingForPayment}
-        busy={payment?.settlement === "polling"}
-      />
+      {/* A refused card is waited on silently: the invoice link is the way on, and "waiting" would contradict it. */}
+      {payment?.status === "failed" ? null : (
+        <Message
+          unstyled={unstyled}
+          tone="muted"
+          text={gaveUp ? checkoutWords.paymentStillOpen : checkoutWords.waitingForPayment}
+          busy={payment?.settlement === "polling"}
+        />
+      )}
       {url && payment?.status === "requires_action" ? (
         <Action unstyled={unstyled} variant="default" href={url} external>
           {checkoutWords.completePayment}

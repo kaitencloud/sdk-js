@@ -223,7 +223,8 @@ export const es: KaitenLocalization = {
   anonymousCheckout: {
     nameLabel: "Nombre",
     emailLabel: "Correo electrónico",
-    emailHint: "Su recibo y los siguientes pasos se envían a esta dirección.",
+    emailHint: "Esta dirección se usa para su cuenta y su facturación.",
+    nameRequired: "Escriba su nombre.",
     humanCheck: "Control de seguridad",
     checking: "Control de seguridad en curso…",
     checked: "Control de seguridad superado.",
@@ -243,18 +244,20 @@ export const es: KaitenLocalization = {
     amountChanged: (was, now) =>
       `El importe a pagar ha pasado de ${was} a ${now}. Compruébelo antes de continuar.`,
     detailsChanged: "Las condiciones de su pedido han cambiado. Compruébelas antes de continuar.",
-    checkEmail: (email) => `Revise ${email}: le escribiremos allí con los siguientes pasos.`,
+    thenPrice: (price, isoDate) =>
+      `Después, ${price} a partir del ${formatKaitenDate(isoDate, { locale: "es-ES" })}, salvo que cancele antes.`,
+    completedFor: (email) => `Su pedido está registrado para ${email}.`,
     continueLink: "Continuar",
-    closedAbandoned:
-      "Esta contratación estuvo abierta demasiado tiempo y se cerró. No se cobró nada.",
-    closedExpired: "El pago no llegó a tiempo, así que esta contratación se cerró.",
+    closedAbandoned: "Este pedido estuvo abierto demasiado tiempo y se cerró. No se cobró nada.",
+    closedExpired: "El pago no llegó a tiempo, así que este pedido se cerró.",
     startAgain: "Empezar de nuevo",
-    lost: "No encontramos esta contratación en este navegador.",
-    lostAdvice:
-      "Si ya pagó, no tiene que hacer nada: revise su correo para ver la confirmación, o contáctenos antes de pagar otra vez.",
-    startNew: "Empezar una nueva contratación",
+    lost: "No encontramos este pedido en este navegador.",
+    lostAdvice: "Si ya pagó, no vuelva a pagar: contáctenos y comprobaremos su pedido.",
+    startNew: "Empezar un nuevo pedido",
     tryAgainIn: (seconds) =>
-      `Inténtelo de nuevo en ${seconds < 90 ? `${seconds} segundo${seconds === 1 ? "" : "s"}` : `${Math.ceil(seconds / 60)} minutos`}.`,
+      seconds < 2
+        ? "Inténtelo de nuevo en un momento."
+        : `Inténtelo de nuevo en ${seconds < 90 ? `${seconds} segundos` : `${Math.ceil(seconds / 60)} minutos`}.`,
     turnstileFailed: "No pudimos validar el control de seguridad. Vuelva a superarlo.",
     turnstileUnavailable: "El control de seguridad no está disponible en este momento.",
     rateLimited: "Demasiados intentos.",
@@ -264,7 +267,7 @@ export const es: KaitenLocalization = {
     invalidEmail: "Esta dirección de correo no es válida.",
     quotaReached: "No podemos aceptar nuevas altas por ahora. Contáctenos.",
     notAvailable: "El alta en línea no está disponible en este momento.",
-    sessionClosed: "Esta contratación ya está cerrada.",
+    sessionClosed: "Este pedido ya está cerrado.",
     dueTodayChanged:
       "El importe a pagar cambió después de guardar su medio de pago. No se cobró nada. Empiece de nuevo para ver el nuevo importe.",
     network: "No pudimos contactar con el servidor. Compruebe su conexión e inténtelo de nuevo.",

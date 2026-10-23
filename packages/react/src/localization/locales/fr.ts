@@ -222,7 +222,8 @@ export const fr: KaitenLocalization = {
   anonymousCheckout: {
     nameLabel: "Nom",
     emailLabel: "E-mail",
-    emailHint: "Votre reçu et les prochaines étapes sont envoyés à cette adresse.",
+    emailHint: "Cette adresse sert pour votre compte et votre facturation.",
+    nameRequired: "Saisissez votre nom.",
     humanCheck: "Contrôle de sécurité",
     checking: "Contrôle de sécurité en cours…",
     checked: "Contrôle de sécurité réussi.",
@@ -242,18 +243,22 @@ export const fr: KaitenLocalization = {
     amountChanged: (was, now) =>
       `Le montant dû est passé de ${was} à ${now}. Vérifiez-le avant de continuer.`,
     detailsChanged: "Les conditions de votre commande ont changé. Vérifiez-les avant de continuer.",
-    checkEmail: (email) => `Consultez ${email}\u00a0: nous vous y écrirons pour la suite.`,
+    thenPrice: (price, isoDate) =>
+      `Puis ${price} à partir du ${formatKaitenDate(isoDate, { locale: "fr-FR" })}, sauf si vous résiliez avant.`,
+    completedFor: (email) => `Votre commande est enregistrée pour ${email}.`,
     continueLink: "Continuer",
     closedAbandoned:
-      "Cette souscription est restée ouverte trop longtemps et a été fermée. Rien n'a été prélevé.",
-    closedExpired: "Le paiement n'est pas arrivé à temps, cette souscription a donc été fermée.",
+      "Cette commande est restée ouverte trop longtemps et a été fermée. Rien n'a été prélevé.",
+    closedExpired: "Le paiement n'est pas arrivé à temps, cette commande a donc été fermée.",
     startAgain: "Recommencer",
-    lost: "Nous ne retrouvons pas cette souscription dans ce navigateur.",
+    lost: "Nous ne retrouvons pas cette commande dans ce navigateur.",
     lostAdvice:
-      "Si vous avez déjà payé, vous n'avez rien à faire\u00a0: consultez vos e-mails pour la confirmation, ou contactez-nous avant de payer à nouveau.",
-    startNew: "Commencer une nouvelle souscription",
+      "Si vous avez déjà payé, ne payez pas à nouveau\u00a0: contactez-nous, nous vérifierons votre commande.",
+    startNew: "Commencer une nouvelle commande",
     tryAgainIn: (seconds) =>
-      `Réessayez dans ${seconds < 90 ? `${seconds} seconde${seconds === 1 ? "" : "s"}` : `${Math.ceil(seconds / 60)} minutes`}.`,
+      seconds < 2
+        ? "Réessayez dans un instant."
+        : `Réessayez dans ${seconds < 90 ? `${seconds} secondes` : `${Math.ceil(seconds / 60)} minutes`}.`,
     turnstileFailed: "Nous n'avons pas pu valider le contrôle de sécurité. Passez-le à nouveau.",
     turnstileUnavailable: "Le contrôle de sécurité est injoignable pour le moment.",
     rateLimited: "Trop de tentatives.",
@@ -264,7 +269,7 @@ export const fr: KaitenLocalization = {
     quotaReached:
       "Nous ne pouvons pas accepter de nouvelle inscription pour le moment. Contactez-nous.",
     notAvailable: "L'inscription en ligne n'est pas disponible pour le moment.",
-    sessionClosed: "Cette souscription est déjà fermée.",
+    sessionClosed: "Cette commande est déjà fermée.",
     dueTodayChanged:
       "Le montant dû a changé après l'enregistrement de votre moyen de paiement. Rien n'a été prélevé. Recommencez pour voir le nouveau montant.",
     network: "Nous n'avons pas pu joindre le serveur. Vérifiez votre connexion et réessayez.",

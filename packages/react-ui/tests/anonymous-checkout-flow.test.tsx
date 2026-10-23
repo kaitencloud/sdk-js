@@ -21,6 +21,7 @@ import {
   growth,
   latestAnonymousClient,
   lite,
+  pro,
   starter,
   type StoryAnonymousOptions,
 } from "../.storybook/anonymous-checkout-mock.tsx";
@@ -99,7 +100,7 @@ describe("choosing", () => {
     // The hint is the field's description, so that it is read with it.
     const describedBy = email().getAttribute("aria-describedby")!;
     expect(document.getElementById(describedBy)?.textContent).toMatch(
-      /Your receipt and the next steps/,
+      /used for your account and your billing/,
     );
     expect(screen.queryByLabelText("Name")).toBeNull();
     expect(off(go())).toBe(true);
@@ -109,11 +110,48 @@ describe("choosing", () => {
     mount();
     await passed();
     fireEvent.change(email(), { target: { value: "ada@" } });
-    expect(email().getAttribute("aria-invalid")).toBe("true");
+    // Not told off while still typing it.
+    expect(email().getAttribute("aria-invalid")).toBeNull();
     expect(off(go())).toBe(true);
+    fireEvent.blur(email());
+    expect(email().getAttribute("aria-invalid")).toBe("true");
     fireEvent.change(email(), { target: { value: EMAIL } });
     expect(email().getAttribute("aria-invalid")).toBeNull();
     await waitFor(() => expect(off(go())).toBe(false));
+  });
+
+  test("a bad address is said in words, tied to the field, and pressing the button says it too", async () => {
+    mount();
+    await passed();
+    fireEvent.change(email(), { target: { value: "ada@" } });
+    fireEvent.blur(email());
+    const alert = screen.getByRole("alert");
+    expect(alert.textContent).toBe("This email address isn't valid.");
+    expect(email().getAttribute("aria-describedby")).toContain(alert.id);
+    // The button is dimmed but not removed from the keyboard, and pressing it takes the visitor to the field.
+    expect(go().getAttribute("aria-disabled")).toBe("true");
+    expect((go() as HTMLButtonElement).disabled).toBe(false);
+    email().blur();
+    fireEvent.click(go());
+    expect(document.activeElement).toBe(email());
+    expect(latestAnonymousClient().calls).toHaveLength(0);
+  });
+
+  test("Enter in an empty address field says what is wrong instead of nothing", async () => {
+    mount();
+    await passed();
+    expect(screen.queryByRole("alert")).toBeNull();
+    fireEvent.submit(email().closest("form")!);
+    expect(screen.getByRole("alert").textContent).toBe("This email address isn't valid.");
+    expect(document.activeElement).toBe(email());
+  });
+
+  test("a name asked for and missing is said in words too", async () => {
+    mount({ plan: starter, collectName: true });
+    await fillIn();
+    fireEvent.click(go("Start for free"));
+    expect(screen.getByRole("alert").textContent).toBe("Enter your name.");
+    expect(document.activeElement).toBe(screen.getByLabelText("Name"));
   });
 
   test("the name is asked for when the page says so, and it is the page's alone", async () => {
@@ -168,6 +206,17 @@ describe("choosing", () => {
     mount({ plan: lite });
     await passed();
     expect(screen.queryByRole("radiogroup")).toBeNull();
+  });
+
+  test("the note about the card is for a plan that goes to the provider's page, not for a trial that asks for none", async () => {
+    const note = /handled by the payment provider/;
+    mount({ plan: growth });
+    await passed();
+    expect(screen.getByText(note)).toBeTruthy();
+    cleanup();
+    mount({ plan: lite });
+    await passed();
+    expect(screen.queryByText(note)).toBeNull();
   });
 
   test("a plan that is not sold online says so and offers only the way to ask", async () => {
@@ -281,9 +330,7 @@ describe("what is due", () => {
     expect(calls).toEqual(["startCheckout", "confirmCheckout"]);
     expect(screen.getByText("Nothing is due today.")).toBeTruthy();
     // Told what happens next, since the host gave no page to go on to.
-    expect(
-      screen.getByText("Check ada@example.com: we'll write to you there with what to do next."),
-    ).toBeTruthy();
+    expect(screen.getByText("Your order is registered for ada@example.com.")).toBeTruthy();
   });
 
   test("a free plan the server prices at something is reviewed, not confirmed behind the visitor's back", async () => {
@@ -311,6 +358,25 @@ describe("what is due", () => {
     fireEvent.click(go("Start free trial"));
     await screen.findByText("You're subscribed");
     expect(screen.getAllByText(/^Trial ends on /).length).toBeGreaterThan(0);
+  });
+
+  test("a trial that asks for a card says what it will bill and from when, from the catalogue's price", async () => {
+    mount({ plan: pro });
+    await fillIn();
+    fireEvent.click(go());
+    await screen.findByText(`For ${EMAIL}`);
+    expect(await screen.findByText("$0.00 today")).toBeTruthy();
+    expect(
+      screen.getByText(/^Then \$49\.00\/month from .+, unless you cancel before\.$/),
+    ).toBeTruthy();
+  });
+
+  test("a trial that asks for no card does not promise a charge", async () => {
+    mount({ plan: lite });
+    await fillIn();
+    fireEvent.click(go());
+    await screen.findByText(`For ${EMAIL}`);
+    expect(screen.queryByText(/^Then /)).toBeNull();
   });
 
   test("changing the choices from the review goes back to the form with a security check to pass", async () => {
@@ -376,7 +442,7 @@ describe("what happens next", () => {
       "https://shop.example.test/welcome",
     );
     expect(screen.getByText("Payment received.")).toBeTruthy();
-    expect(screen.queryByText(/Check ada@example\.com/)).toBeNull();
+    expect(screen.queryByText(/registered for ada@example\.com/)).toBeNull();
   });
 
   test("a page of the host's own site is offered as it is written", async () => {
@@ -387,11 +453,11 @@ describe("what happens next", () => {
   });
 
   test.each(["javascript:alert(1)", "data:text/html,x", "ftp://example.test/"])(
-    "%s is not a place to send a visitor: they are told to check their email instead",
+    "%s is not a place to send a visitor: they are told the order is registered instead",
     async (successUrl) => {
       await buy({ plan: growth, successUrl });
       expect(screen.queryByRole("link", { name: "Continue" })).toBeNull();
-      expect(screen.getByText(/Check ada@example\.com/)).toBeTruthy();
+      expect(screen.getByText(/registered for ada@example\.com/)).toBeTruthy();
     },
   );
 
@@ -442,8 +508,11 @@ describe("coming back from the payment provider", () => {
     const client = createMockKaitenAnonymousCheckoutClient();
     window.history.replaceState(null, "", "/welcome?kaiten_checkout_session=chk_gone");
     render(plainProvider(client)(<AnonymousCheckoutFlow plan={growth} />));
+    // From the first frame the page says it is reading the checkout: not the form of a visitor who has not paid.
+    expect(screen.getByText("Loading")).toBeTruthy();
+    expect(screen.queryByLabelText("Email")).toBeNull();
     await screen.findByText("We can't find this checkout in this browser.", {}, { timeout: 2_000 });
-    expect(screen.getByText(/If you already paid, there is nothing more to do/)).toBeTruthy();
+    expect(screen.getByText(/If you already paid, please don't pay again/)).toBeTruthy();
     expect(off(screen.getByRole("button", { name: "Start a new checkout" }))).toBe(false);
     // Nothing was started, and the double was asked once, for the session in the address.
     expect(client.calls.map((call) => call.method)).toEqual(["confirmCheckout"]);

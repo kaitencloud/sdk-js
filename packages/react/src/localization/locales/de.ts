@@ -224,7 +224,8 @@ export const de: KaitenLocalization = {
   anonymousCheckout: {
     nameLabel: "Name",
     emailLabel: "E-Mail",
-    emailHint: "Ihr Beleg und die nächsten Schritte werden an diese Adresse gesendet.",
+    emailHint: "Diese Adresse wird für Ihr Konto und Ihre Abrechnung verwendet.",
+    nameRequired: "Geben Sie Ihren Namen ein.",
     humanCheck: "Sicherheitsprüfung",
     checking: "Sicherheitsprüfung läuft …",
     checked: "Sicherheitsprüfung bestanden.",
@@ -245,8 +246,9 @@ export const de: KaitenLocalization = {
       `Der fällige Betrag hat sich von ${was} auf ${now} geändert. Prüfen Sie ihn, bevor Sie fortfahren.`,
     detailsChanged:
       "Die Bedingungen Ihrer Bestellung haben sich geändert. Prüfen Sie sie, bevor Sie fortfahren.",
-    checkEmail: (email) =>
-      `Sehen Sie in ${email} nach: Dort melden wir uns mit den nächsten Schritten.`,
+    thenPrice: (price, isoDate) =>
+      `Danach ${price} ab dem ${formatKaitenDate(isoDate, { locale: "de-DE" })}, sofern Sie nicht vorher kündigen.`,
+    completedFor: (email) => `Ihre Bestellung ist für ${email} erfasst.`,
     continueLink: "Weiter",
     closedAbandoned:
       "Dieser Abschluss war zu lange offen und wurde geschlossen. Es wurde nichts abgebucht.",
@@ -255,10 +257,12 @@ export const de: KaitenLocalization = {
     startAgain: "Neu beginnen",
     lost: "Wir finden diesen Abschluss in diesem Browser nicht.",
     lostAdvice:
-      "Wenn Sie bereits bezahlt haben, müssen Sie nichts tun: Prüfen Sie Ihre E-Mails auf die Bestätigung oder kontaktieren Sie uns, bevor Sie erneut zahlen.",
+      "Wenn Sie bereits bezahlt haben, zahlen Sie bitte nicht erneut: Kontaktieren Sie uns, wir prüfen Ihre Bestellung.",
     startNew: "Neuen Abschluss beginnen",
     tryAgainIn: (seconds) =>
-      `Versuchen Sie es in ${seconds < 90 ? `${seconds} Sekunde${seconds === 1 ? "" : "n"}` : `${Math.ceil(seconds / 60)} Minuten`} erneut.`,
+      seconds < 2
+        ? "Versuchen Sie es gleich noch einmal."
+        : `Versuchen Sie es in ${seconds < 90 ? `${seconds} Sekunden` : `${Math.ceil(seconds / 60)} Minuten`} erneut.`,
     turnstileFailed:
       "Wir konnten die Sicherheitsprüfung nicht bestätigen. Bestehen Sie sie bitte erneut.",
     turnstileUnavailable: "Die Sicherheitsprüfung ist im Moment nicht erreichbar.",
