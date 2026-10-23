@@ -162,6 +162,7 @@ reaches `onAuthError`.
 | `createPortalSession({ returnUrl })`                                | `POST /public/session/billing/portal-session`            |
 | `createPaymentMethodSession(…)`, `completePaymentMethodSession(id)` | `POST /public/session/billing/payment-method-session[…]` |
 | `validateVoucher({ code, licensePriceId? })`                        | `POST /public/session/vouchers/validate`                 |
+| `redeemVoucher({ code, dryRun? })`                                  | `POST /public/session/vouchers/redeem`                   |
 | `setAddonQuantity(addonSlug, quantity)`                             | `PUT /public/session/addons/{addonSlug}`                 |
 
 A session bound to an instance (`CustomerSessions.createCustomerSession` takes an `instanceSlug`) reads
@@ -183,6 +184,16 @@ with the provider's `setupUrl` to send the customer to (call `checkout` again wi
 does not apply and, for one that does, how long it lasts (`duration`: `ONE_TIME`,
 `REPEATING` or `FOREVER`) and what it gives; a discount's `value` and a boost's
 `modifierValue` are decimal strings. The code goes in the request body only.
+
+A code is redeemed by the checkout that carries it, or, on an instance whose subscription
+is live (in its trial, active or past due), by `redeemVoucher`: with `dryRun: true` it
+answers what the code would give and changes nothing, and without it the redemption is
+made. A price part applies from the next invoice (`appliesFromInvoice: "next"`) and the
+current period is never invoiced again. A subscription still waiting for its first payment
+refuses (`RedeemSessionVoucher.SubscriptionIncomplete`), as does one that is not live
+(`.NoLiveSubscription`); every other refusal is the same `.VoucherInvalid`. While a
+subscription is in its trial, `portal.trial` holds when it ends, what its end charges (the
+server's figure, `null` when nothing would be) and the card that charge goes to.
 
 A refused call rejects with a `KaitenError` carrying the API's `status` and `code`, such
 as `CreateSessionCheckout.AlreadySubscribed`; some refusals have a class of their own,

@@ -352,6 +352,7 @@ test("renders a portal the server already read on the first render, with no requ
     createPaymentMethodSession: unused,
     completePaymentMethodSession: unused,
     validateVoucher: unused,
+    redeemVoucher: unused,
     setAddonQuantity: unused,
   };
   const serverPortal: KaitenPortal = {

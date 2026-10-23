@@ -16,6 +16,7 @@ import type {
   SessionAddon,
   SessionInvoice,
   SessionInvoiceLine,
+  SessionRedemption,
   VoucherSummary,
   VoucherValidation,
 } from "../client/session-types.ts";
@@ -136,6 +137,8 @@ export function createMockKaitenSessionClient(
   const vouchers = options.vouchers ?? demoVouchers();
   const addOns = structuredClone(options.addOns ?? portal.addOns);
   const calls: MockSessionCall[] = [];
+  /** The vouchers the instance already holds, by name: a code is redeemed once per instance. */
+  const held = new Set(portal.vouchers.map((voucher) => voucher.name));
   /** Payment method setup pages opened and not completed yet, by session id. */
   const setups = new Set<string>();
   let opened = 0;
@@ -447,6 +450,70 @@ export function createMockKaitenSessionClient(
       await enter("validateVoucher", [input]);
       const voucher = vouchers[normalizeCode(input.code)];
       return voucher ? { valid: true, voucher: structuredClone(voucher) } : { valid: false };
+    },
+
+    async redeemVoucher(input: { code: string; dryRun?: boolean }): Promise<SessionRedemption> {
+      await enter("redeemVoucher", [input]);
+      if (typeof input?.code !== "string" || input.code.trim() === "") {
+        throw new TypeError("Kaiten: redeemVoucher needs the code.");
+      }
+      const subscription = portal.subscription;
+      if (subscription?.status === "INCOMPLETE") {
+        throw refusal(
+          409,
+          "RedeemSessionVoucher.SubscriptionIncomplete",
+          "the subscription is waiting for its first payment",
+        );
+      }
+      if (!liveSubscription()) {
+        throw refusal(
+          409,
+          "RedeemSessionVoucher.NoLiveSubscription",
+          "there is no live subscription to redeem a code on",
+        );
+      }
+      const voucher = vouchers[normalizeCode(input.code)];
+      if (!voucher || held.has(voucher.name)) {
+        // Whatever the reason, one answer: the server says none.
+        throw refusal(422, "RedeemSessionVoucher.VoucherInvalid", "this code cannot be used");
+      }
+      const prices = voucher.voucherType === "PRICE" || voucher.voucherType === "COMPOSITE";
+      const redemption: SessionRedemption = {
+        name: voucher.name,
+        voucherType: voucher.voucherType,
+        status: "ACTIVE",
+        appliesFromInvoice: prices ? "next" : null,
+        applicationsCount: 0,
+        applicationsMax: !prices
+          ? null
+          : voucher.duration === "ONE_TIME"
+            ? 1
+            : voucher.duration === "REPEATING"
+              ? voucher.durationInPeriods
+              : null,
+        effectiveStartsAt: DEMO_SESSION_NOW,
+        effectiveExpiresAt: null,
+      };
+      if (!input.dryRun) {
+        held.add(voucher.name);
+        // The next invoice carries the discount; during a trial that is the one the trial ends with.
+        const { trial } = portal;
+        touch({
+          vouchers: [structuredClone(redemption), ...portal.vouchers],
+          ...(trial?.charge && prices
+            ? {
+                trial: {
+                  ...trial,
+                  charge: {
+                    ...trial.charge,
+                    amount: trial.charge.amount - discountOn(trial.charge.amount, voucher),
+                  },
+                },
+              }
+            : {}),
+        });
+      }
+      return structuredClone(redemption);
     },
 
     async setAddonQuantity(addonSlug: string, quantity: number): Promise<SessionAddon> {

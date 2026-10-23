@@ -321,9 +321,11 @@ const SCENARIOS = [
     // Measured at 9 751 bytes, up from 9 585: the four refusals of an anonymous checkout
     // the errors tell apart (a Turnstile token refused or out of reach, a session closed, a due
     // amount changed), which every client of the package reads its refusals through.
+    // Measured at 9 989 bytes, up from 9 751: the trial block of the portal, the members of a
+    // redemption and the call that redeems a code.
     name: "client · KaitenSessionClient alone",
     code: `import { KaitenSessionClient } from "@kaitencloud/client"; console.log(KaitenSessionClient);`,
-    budgetGzip: 9_850,
+    budgetGzip: 10_100,
     headless: true,
     resolveDir: FROM_NODE,
   },

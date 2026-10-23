@@ -25,17 +25,18 @@ import {
   mapPortal,
   mapPortalSession,
   mapSessionAddon,
+  mapRedemption,
   mapSubscription,
   mapVoucherValidation,
 } from "./session-mapping.ts";
 import type { WireCheckout } from "./session-mapping.ts";
+import type { WireRedemption, WireSessionPortal } from "./session-spec-shapes.ts";
 import type {
   CompletedPaymentMethodSession as WireCompletedPaymentMethodSession,
   PageSessionInvoice,
   PaymentMethodSession as WirePaymentMethodSession,
   PortalSession as WirePortalSession,
   SessionAddon as WireSessionAddon,
-  SessionPortal as WirePortal,
   SessionSubscription as WireSubscription,
   SessionVoucherValidity,
 } from "../core/index.ts";
@@ -50,6 +51,7 @@ import type {
   PortalSubscription,
   SessionAddon,
   SessionInvoice,
+  SessionRedemption,
   VoucherValidation,
 } from "./session-types.ts";
 
@@ -90,6 +92,15 @@ export interface KaitenSessionClientLike {
   completePaymentMethodSession: (sessionId: string) => Promise<CompletedPaymentMethodSession>;
   /** Checks a voucher code. It is redeemed by the checkout that carries it. */
   validateVoucher: (input: { code: string; licensePriceId?: string }) => Promise<VoucherValidation>;
+  /**
+   * Redeems a code on the session's instance while its subscription is live (in its trial, active
+   * or past due); `dryRun` answers what redeeming it would give and changes nothing. A price part
+   * applies from the next invoice. A subscription still waiting for its first payment refuses
+   * (409 `RedeemSessionVoucher.SubscriptionIncomplete`), as does one that is not live (409
+   * `.NoLiveSubscription`); every other refusal is the same 422 `.VoucherInvalid`, whatever the
+   * reason.
+   */
+  redeemVoucher: (input: { code: string; dryRun?: boolean }) => Promise<SessionRedemption>;
   /** Sets how many units of an add-on the instance holds; `0` detaches it. */
   setAddonQuantity: (addonSlug: string, quantity: number) => Promise<SessionAddon>;
 }
@@ -139,7 +150,7 @@ export class KaitenSessionClient implements KaitenSessionClientLike {
   }
 
   async getPortal(): Promise<KaitenPortal> {
-    return mapPortal(await this.call<WirePortal>("GET", "portal", "getPortal()"));
+    return mapPortal(await this.call<WireSessionPortal>("GET", "portal", "getPortal()"));
   }
 
   async listInvoices(
@@ -222,6 +233,19 @@ export class KaitenSessionClient implements KaitenSessionClientLike {
         "validateVoucher()",
         input,
       ),
+    );
+  }
+
+  async redeemVoucher(input: { code: string; dryRun?: boolean }): Promise<SessionRedemption> {
+    if (typeof input?.code !== "string" || input.code.trim() === "") {
+      throw new TypeError("Kaiten: redeemVoucher needs the code.");
+    }
+    // The code travels in the body, as `validateVoucher`'s does, and is not kept.
+    return mapRedemption(
+      await this.call<WireRedemption>("POST", "vouchers/redeem", "redeemVoucher()", {
+        code: input.code,
+        ...(input.dryRun ? { dryRun: true } : {}),
+      }),
     );
   }
 

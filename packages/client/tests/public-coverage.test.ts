@@ -67,8 +67,16 @@ function publicOperations(yaml: string) {
   return operations;
 }
 
+/**
+ * The methods of the session client whose route the specification gives and the contract snapshot
+ * does not carry yet. They are held to the specification here, and `tests/spec-shapes.test.ts`
+ * fails on the day the snapshot serves them, which is the day they join `OPERATION_OF`.
+ */
+const SPECIFIED_ONLY = { redeemVoucher: "/public/session/vouchers/redeem" } as const;
+type Specified = keyof typeof SPECIFIED_ONLY;
+
 /** The operation each method of the session client is for. A method added to the interface needs a line. */
-const OPERATION_OF: Record<keyof KaitenSessionClientLike, string> = {
+const OPERATION_OF: Record<Exclude<keyof KaitenSessionClientLike, Specified>, string> = {
   getPortal: "getSessionPortal",
   listInvoices: "listSessionInvoices",
   checkout: "createSessionCheckout",
@@ -84,7 +92,7 @@ const CATALOG_OPERATION = "getPublicCatalog";
 
 /** What a call is given, and what the route answers: enough to make each method go through. */
 const CALLS: Record<
-  keyof KaitenSessionClientLike,
+  Exclude<keyof KaitenSessionClientLike, Specified>,
   {
     call: (client: KaitenSessionClientLike) => Promise<unknown>;
     reply: () => unknown;
@@ -185,7 +193,7 @@ describe("each is one method", () => {
   });
 
   for (const [method, operationId] of Object.entries(OPERATION_OF) as [
-    keyof KaitenSessionClientLike,
+    Exclude<keyof KaitenSessionClientLike, Specified>,
     string,
   ][]) {
     test(`${method} is ${operationId}, on the route and with the verb the contract gives it`, async () => {
@@ -203,8 +211,28 @@ describe("each is one method", () => {
     });
   }
 
+  test("the specified routes the contract does not carry yet are sent as the specification gives them", async () => {
+    const { fetch, requests } = server(() =>
+      json({
+        name: "Welcome 20%",
+        voucherType: "PRICE",
+        status: "ACTIVE",
+        effectiveStartsAt: "2026-10-06T10:00:00Z",
+        effectiveExpiresAt: null,
+      }),
+    );
+    const client = sessionClient(fetch, sessions(session(KST_A, T0 + 30 * MINUTE)));
+
+    await client.redeemVoucher({ code: "WELCOME20" });
+
+    expect(requests.map((request) => [request.method, new URL(request.url).pathname])).toEqual([
+      ["POST", `/api${SPECIFIED_ONLY.redeemVoucher}`],
+    ]);
+    expect(requests[0]!.headers.get("Authorization")).toBe(`Bearer ${KST_A}`);
+  });
+
   test("the session client and its double have a method for each, and none more", () => {
-    const methods = Object.keys(OPERATION_OF).sort();
+    const methods = [...Object.keys(OPERATION_OF), ...Object.keys(SPECIFIED_ONLY)].sort();
     const double = createMockKaitenSessionClient();
 
     for (const method of methods) {

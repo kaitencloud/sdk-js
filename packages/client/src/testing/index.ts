@@ -44,10 +44,12 @@ export type {
 
 export {
   DEMO_SESSION_NOW,
+  DEMO_TRIAL_ENDS_AT,
   demoCheckoutPrices,
   demoPortal,
   demoSessionAddOns,
   demoSessionInvoices,
+  demoTrialPortal,
   demoUnsubscribedPortal,
   demoVouchers,
 } from "./session-fixtures.ts";

@@ -133,16 +133,65 @@ export interface CompletedPaymentMethodSession {
   paymentMethod: PaymentMethodSummary;
 }
 
-/** A voucher redeemed on the session's instance. Never its code. */
+/**
+ * A voucher redeemed on the session's instance, as the portal lists it and as a redemption
+ * answers. Never its code.
+ */
 export interface PortalVoucher {
   name: string;
-  /** `PRICE` (a discount) or `ENTITLEMENT_BOOST`. Open: more may come. */
-  voucherType: "PRICE" | "ENTITLEMENT_BOOST" | (string & {});
+  /**
+   * `PRICE` (a discount), `ENTITLEMENT_BOOST`, `FLAG_GRANT` or `COMPOSITE` (a price part and a
+   * grant in one). Open: more may come.
+   */
+  voucherType: "PRICE" | "ENTITLEMENT_BOOST" | "FLAG_GRANT" | "COMPOSITE" | (string & {});
   /** `ACTIVE`, `EXPIRED` or `REVOKED`. Open: more may come. */
   status: "ACTIVE" | "EXPIRED" | "REVOKED" | (string & {});
+  /**
+   * `"next"` while a price part has not yet discounted an invoice: it applies from the next one,
+   * and the current period is never invoiced again. `null` when the voucher has no price part, or
+   * its first invoice is behind it. Absent from a server that predates it.
+   */
+  appliesFromInvoice?: "next" | null;
+  /** How many invoices the price part has discounted. `0` without one. Absent from a server that predates it. */
+  applicationsCount?: number;
+  /** How many invoices it discounts at most. Null without a price part, or when it never ends. Absent from a server that predates it. */
+  applicationsMax?: number | null;
+  /** When the boost or grant takes effect. */
   effectiveStartsAt: string;
-  /** When a boost stops applying. Null when it does not expire, and for a `PRICE` voucher, which is counted in invoices. */
+  /** When a boost or grant stops applying. Null when it does not expire, and for a `PRICE` voucher, which is counted in invoices. */
   effectiveExpiresAt: string | null;
+}
+
+/** What a redemption is, whether the portal lists it or a `redeemVoucher` made it. */
+export type SessionRedemption = PortalVoucher;
+
+/** The money a trial's end will charge, as the server computed it: the SDK never sums prices. */
+export interface TrialCharge {
+  /** In minor units, before any tax the payment provider adds. */
+  amount: number;
+  currencyCode: CurrencyCode;
+  /** The billing period it is charged for. */
+  billingInterval?: BillingInterval;
+  /** `3` for a quarterly period, `6` for a semi-annual one; absent for one interval. */
+  intervalCount?: number;
+}
+
+/**
+ * The trial a session's instance is in, which `<TrialBanner/>` shows. Non-null only while the
+ * subscription is in its trial.
+ */
+export interface PortalTrial {
+  /** When the trial ends: the subscription converts, or ends, then. */
+  endsAt: string;
+  /** When Kaiten told the vendor the trial was about to end. */
+  reminderAt: string;
+  /**
+   * What the end of the trial charges, discounts included, before any tax the payment provider
+   * adds. Null when nothing would be charged. Always the server's figure.
+   */
+  charge: TrialCharge | null;
+  /** The card the charge goes to: its brand and last four digits. Null without a usable card. */
+  paymentMethod: { brand: string; last4: string } | null;
 }
 
 /** An amount due, as the server computed it: the SDK never sums prices. */
@@ -266,11 +315,17 @@ export interface KaitenPortal {
   entitlements: ResolvedEntitlement[];
   /** The add-ons attached to the bound instance, each with its `quantity`. */
   addOns: SessionAddon[];
+  /** The instance's active redemptions, newest first: a code redeemed here, at checkout, or by the vendor. */
   vouchers: PortalVoucher[];
   /** The payment method the customer's invoices are charged to. Null when none is saved. */
   paymentMethod: PaymentMethodSummary | null;
   /** Null without a live subscription. */
   upcomingInvoice: UpcomingInvoice | null;
+  /**
+   * The trial the bound instance is in. Null outside a trial. Absent from a server that does not
+   * serve it yet: a screen that shows it shows nothing then.
+   */
+  trial?: PortalTrial | null;
   capabilities: BillingCapabilities;
   /** When this snapshot was read. */
   updatedAt: string;

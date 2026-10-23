@@ -17,6 +17,7 @@ import {
   mapBillingPrice,
 } from "./billing.ts";
 import { entitlementStatus } from "./normalize.ts";
+import type { WireRedemption, WireSessionPortal, WireTrial } from "./session-spec-shapes.ts";
 import type {
   CheckoutPreview,
   CheckoutResult,
@@ -27,6 +28,8 @@ import type {
   PaymentMethodSummary,
   PortalSession,
   PortalSubscription,
+  PortalTrial,
+  PortalVoucher,
   SessionAddon,
   SessionInvoice,
   SessionInvoiceLine,
@@ -200,8 +203,52 @@ export function mapSessionAddon(raw: Api.SessionAddon): SessionAddon {
   };
 }
 
+/**
+ * One redemption: a line of the portal's `vouchers`, or the answer of a redemption. The members a
+ * server that predates them does not send stay absent rather than made up.
+ */
+export function mapRedemption(raw: WireRedemption): PortalVoucher {
+  return {
+    name: raw.name,
+    voucherType: raw.voucherType,
+    status: raw.status,
+    ...(raw.appliesFromInvoice !== undefined
+      ? { appliesFromInvoice: raw.appliesFromInvoice === "next" ? ("next" as const) : null }
+      : {}),
+    ...(typeof raw.applicationsCount === "number"
+      ? { applicationsCount: raw.applicationsCount }
+      : {}),
+    ...(raw.applicationsMax !== undefined ? { applicationsMax: raw.applicationsMax } : {}),
+    effectiveStartsAt: raw.effectiveStartsAt,
+    effectiveExpiresAt: raw.effectiveExpiresAt ?? null,
+  };
+}
+
+/**
+ * The portal's trial block. The charge is the server's figure, passed as it comes; its period is
+ * its own, or the subscription's when the API gives the amount alone.
+ */
+function mapTrial(raw: WireTrial, subscriptionPeriod: string | undefined): PortalTrial {
+  const charge = raw.charge ?? raw.chargeAmount ?? null;
+  const period = billingInterval(charge?.billingPeriod ?? subscriptionPeriod);
+  const card = raw.paymentMethod;
+  return {
+    endsAt: raw.endsAt,
+    reminderAt: raw.reminderAt,
+    charge: charge
+      ? {
+          amount: charge.amount,
+          currencyCode: charge.currency,
+          ...(period ? { billingInterval: period.interval } : {}),
+          ...(period?.intervalCount ? { intervalCount: period.intervalCount } : {}),
+        }
+      : null,
+    paymentMethod: card ? { brand: card.brand, last4: card.last4 } : null,
+  };
+}
+
 /** `GET /public/session/portal` as a `KaitenPortal`. */
-export function mapPortal(raw: Api.SessionPortal): KaitenPortal {
+export function mapPortal(raw: WireSessionPortal): KaitenPortal {
   const { customer, instance, upcomingInvoice, capabilities } = raw;
   return {
     customer: {
@@ -226,13 +273,7 @@ export function mapPortal(raw: Api.SessionPortal): KaitenPortal {
     subscription: raw.subscription ? mapSubscription(raw.subscription) : null,
     entitlements: list(raw.entitlements).map(mapPortalEntitlement),
     addOns: list(raw.addOns).map(mapSessionAddon),
-    vouchers: list(raw.vouchers).map((voucher) => ({
-      name: voucher.name,
-      voucherType: voucher.voucherType,
-      status: voucher.status,
-      effectiveStartsAt: voucher.effectiveStartsAt,
-      effectiveExpiresAt: voucher.effectiveExpiresAt ?? null,
-    })),
+    vouchers: list(raw.vouchers).map(mapRedemption),
     paymentMethod: raw.paymentMethod ? mapPaymentMethod(raw.paymentMethod) : null,
     upcomingInvoice: upcomingInvoice
       ? {
@@ -249,6 +290,12 @@ export function mapPortal(raw: Api.SessionPortal): KaitenPortal {
       unsubscribe: capabilities?.unsubscribe === true,
       checkout: capabilities?.checkout === true,
     },
+    // Only a server that serves the block has the member; a TRIAL subscription with none shows no banner.
+    ...(raw.trial !== undefined
+      ? {
+          trial: raw.trial ? mapTrial(raw.trial, raw.subscription?.billingPeriod) : null,
+        }
+      : {}),
     updatedAt: raw.updatedAt,
   };
 }

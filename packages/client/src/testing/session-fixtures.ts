@@ -25,6 +25,9 @@ export const DEMO_SESSION_NOW = "2026-01-15T09:00:00.000Z";
 /** When a payment method setup page opened by the demo session expires. */
 export const DEMO_SETUP_EXPIRES_AT = "2026-01-15T10:00:00.000Z";
 
+/** When the trial of `demoTrialPortal` ends. */
+export const DEMO_TRIAL_ENDS_AT = "2026-01-29T09:00:00.000Z";
+
 const PERIOD_START = "2026-01-01T00:00:00.000Z";
 const PERIOD_END = "2026-02-01T00:00:00.000Z";
 
@@ -119,6 +122,34 @@ export function demoPortal(overrides: Partial<KaitenPortal> = {}): KaitenPortal 
 }
 
 /**
+ * The portal of a session whose instance is in the trial of Growth, which ends on the 29th of
+ * January: no card on file yet, so that the end of the trial charges $79.00 to a card that is still
+ * to be added. Pass `overrides` for a trial that already has its card (`paymentMethod` and
+ * `trial.paymentMethod`) or one that charges nothing (`trial.charge: null`).
+ */
+export function demoTrialPortal(overrides: Partial<KaitenPortal> = {}): KaitenPortal {
+  const portal = demoPortal();
+  return demoPortal({
+    subscription: {
+      ...portal.subscription!,
+      status: "TRIAL",
+      currentPeriodEnd: DEMO_TRIAL_ENDS_AT,
+      trialEndsAt: DEMO_TRIAL_ENDS_AT,
+    },
+    addOns: [],
+    paymentMethod: null,
+    upcomingInvoice: null,
+    trial: {
+      endsAt: DEMO_TRIAL_ENDS_AT,
+      reminderAt: "2026-01-26T09:00:00.000Z",
+      charge: { amount: 7900, currencyCode: "USD", billingInterval: "month" },
+      paymentMethod: null,
+    },
+    ...overrides,
+  });
+}
+
+/**
  * The portal of an instance that was never subscribed, whose plan can be
  * bought alone: no subscription, no payment method, and a checkout to offer.
  */
@@ -177,7 +208,10 @@ export function demoSessionInvoices(): SessionInvoice[] {
   ];
 }
 
-/** The voucher codes a demo checkout accepts: 20% off the base fee for three invoices. */
+/**
+ * The voucher codes a demo checkout accepts: `WELCOME20`, 20% off the base fee for three invoices,
+ * and `DOUBLECALLS`, a boost of the API calls.
+ */
 export function demoVouchers(): Record<string, VoucherSummary> {
   return {
     WELCOME20: {
@@ -186,6 +220,13 @@ export function demoVouchers(): Record<string, VoucherSummary> {
       duration: "REPEATING",
       durationInPeriods: 3,
       discount: { type: "PERCENTAGE", value: "20", appliesTo: "LICENSE_BASE" },
+    },
+    DOUBLECALLS: {
+      name: "Double API calls",
+      voucherType: "ENTITLEMENT_BOOST",
+      duration: "FOREVER",
+      durationInPeriods: null,
+      boosts: [{ entitlementSlug: "api-calls", modifierType: "MULTIPLY", modifierValue: "2" }],
     },
   };
 }
