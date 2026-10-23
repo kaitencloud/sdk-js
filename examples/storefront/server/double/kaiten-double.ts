@@ -38,6 +38,7 @@ import { readFileSync } from "node:fs";
 
 import type { Route } from "../http.ts";
 import { generateSlug } from "../slug.ts";
+import { addMonths, html, iso, money, MONTHS, normalizeCode, problem, reply } from "./responses.ts";
 
 type Json = Record<string, any>;
 
@@ -201,65 +202,6 @@ export interface Scenario {
    */
   signUp?: boolean;
 }
-
-/** `Retry-After` in the answers it is attached to. */
-const reply = (status: number, body: unknown, headers: Record<string, string> = {}) =>
-  new Response(status === 204 ? null : JSON.stringify(body), {
-    status,
-    headers: {
-      "Content-Type": status < 400 ? "application/json" : "application/problem+json",
-      "Cache-Control": "no-store",
-      ...headers,
-    },
-  });
-
-const problem = (status: number, code: string, detail: string, instance = "", more: Json = {}) =>
-  reply(status, {
-    type: "https://tools.ietf.org/html/rfc7231",
-    title: status === 401 ? "Unauthorized" : status === 429 ? "Too Many Requests" : "Refused",
-    status,
-    detail,
-    instance,
-    code,
-    ...more,
-  });
-
-const html = (title: string, body: string) =>
-  new Response(
-    `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${title}</title>` +
-      `<meta name="color-scheme" content="light dark">` +
-      `<style>:root{color-scheme:light dark}body{font:16px/1.5 system-ui,sans-serif;max-width:28rem;margin:3rem auto;padding:0 1rem}` +
-      `button{font:inherit;padding:.5rem 1rem;margin:.25rem .25rem .25rem 0}` +
-      `footer{margin-top:2.5rem;font-size:.8125rem;opacity:.7}</style>` +
-      `</head><body>${body}<footer>Stand-in for Kaiten: no payment is real.</footer></body></html>`,
-    { headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" } },
-  );
-
-const MONTHS: Record<string, number> = {
-  MONTHLY: 1,
-  QUARTERLY: 3,
-  SEMI_ANNUAL: 6,
-  ANNUAL: 12,
-};
-
-const iso = (time: number) => new Date(time).toISOString();
-
-function addMonths(from: Date, months: number): Date {
-  const next = new Date(from);
-  next.setUTCMonth(next.getUTCMonth() + months);
-  return next;
-}
-
-/** The label of an amount in minor units, for the description of a line: `49.00 EUR`. */
-function money(amount: number, currency: string): string {
-  const digits =
-    new Intl.NumberFormat("en", { style: "currency", currency }).resolvedOptions()
-      .maximumFractionDigits ?? 2;
-  return `${(amount / 10 ** digits).toFixed(digits)} ${currency}`;
-}
-
-/** A code as the API reads it: case and separators do not matter. */
-const normalizeCode = (code: string) => code.replace(/[^a-z0-9]/gi, "").toUpperCase();
 
 /** What a payment can come to, as `/control/payment` is told. */
 const OUTCOMES: PaymentOutcome[] = ["paid", "requires_action", "failed", "processing"];
@@ -964,15 +906,20 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
         "/api/customers",
       );
     }
+    return reply(201, customerBody(addCustomer(slug, body.name, body.billingEmail ?? null)));
+  }
+
+  /** Makes the customer, which the routes above and an anonymous checkout's completion both do. */
+  function addCustomer(slug: string, name: string, billingEmail: string | null): StoredCustomer {
     const stored: StoredCustomer = {
       id: randomUUID(),
       slug,
-      name: body.name,
-      billingEmail: body.billingEmail ?? null,
+      name,
+      billingEmail,
       createdAt: new Date().toISOString(),
     };
     customers.push(stored);
-    return reply(201, customerBody(stored));
+    return stored;
   }
 
   function deleteCustomer(slug: string): Response {
@@ -1043,17 +990,36 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
         "/api/instances",
       );
     }
+    return reply(
+      201,
+      instanceBody(
+        addInstance(customer, licence, {
+          slug,
+          name: body.name,
+          description: body.description,
+          startLicenseDate: body.startLicenseDate,
+          endLicenseDate: body.endLicenseDate,
+        }),
+      ),
+    );
+  }
+
+  /** Makes the instance of a customer on a licence, which `POST /instances` and a completed anonymous checkout both do. */
+  function addInstance(
+    customer: StoredCustomer,
+    licence: Json,
+    fields: Pick<
+      StoredInstance,
+      "slug" | "name" | "description" | "startLicenseDate" | "endLicenseDate"
+    >,
+  ): StoredInstance {
     const stored: StoredInstance = {
       id: randomUUID(),
-      slug,
-      name: body.name,
-      description: body.description,
+      ...fields,
       customerId: customer.id,
       customerSlug: customer.slug,
       licenseId: licence.licenseId,
       licenseSlug: licence.licenseSlug,
-      startLicenseDate: body.startLicenseDate,
-      endLicenseDate: body.endLicenseDate,
       createdAt: new Date().toISOString(),
     };
     instances.push(stored);
@@ -1070,7 +1036,7 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
     planName = licence.name;
     planSlug = licence.licenseSlug;
     billingEmail = customer.billingEmail;
-    return reply(201, instanceBody(stored));
+    return stored;
   }
 
   // ---- The routes -----------------------------------------------------------
