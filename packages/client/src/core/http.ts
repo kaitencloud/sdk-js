@@ -141,6 +141,20 @@ export function retryAfterDelay(error: unknown): number | undefined {
   return seconds === undefined ? undefined : Math.min(seconds, MAX_RETRY_AFTER_SECONDS) * 1000;
 }
 
+/**
+ * The headers of the host for a call to the public surface, without any credential:
+ * each call adds its own. `defaultHeaders` is the host's to fill, and a credential in
+ * it would reach routes it does not belong to: the customer session's `Authorization`
+ * on the checkout's, the publishable key on a session's. Both public clients build
+ * their headers here, so that the rule is written once.
+ */
+export function publicHeaders(defaultHeaders?: Record<string, string>): Headers {
+  const headers = new Headers(defaultHeaders);
+  headers.delete("Authorization");
+  headers.delete("X-Kaiten-Publishable-Key");
+  return headers;
+}
+
 /** The error a response that failed carries: a `KaitenError`, or the class of the refusal it is. */
 export function apiErrorOf(body: unknown, response: Response): KaitenError {
   const seconds = retryAfterSeconds(response);

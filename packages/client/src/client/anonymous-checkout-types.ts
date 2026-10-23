@@ -27,44 +27,79 @@ export type CheckoutBillingPeriod =
   | (string & {});
 
 /**
- * What an anonymous checkout buys, and who buys it.
- *
- * Name the plan by `priceId`, or by `licenseSlug` with a `billingPeriod`, which
- * designates the default flat fee of that period on that version of the plan. One
- * of the two forms, not both: the client refuses anything else before it spends
- * the Turnstile token.
+ * The plan a checkout buys: by `priceId`, or by `licenseSlug` with a `billingPeriod`, which
+ * designates the default flat fee of that period on that version of the plan. One of the two
+ * forms, not both: the compiler refuses a start with neither or with both, and the client
+ * refuses it too, before it spends the Turnstile token, for a caller that is not type-checked.
  */
-export interface StartCheckoutInput {
+export type CheckoutPriceChoice =
+  | {
+      /** The id of a price of the public catalog (`BillingPrice.id`). */
+      priceId: string;
+      licenseSlug?: never;
+      billingPeriod?: never;
+    }
+  | {
+      priceId?: never;
+      /** A version of a public plan, with `billingPeriod`. */
+      licenseSlug: string;
+      billingPeriod: CheckoutBillingPeriod;
+    };
+
+/** What a start takes besides the plan and the buyer's contact. */
+interface StartCheckoutOptions {
   /**
    * The token the Turnstile widget gave the page. It is single-use, and a `dryRun`
    * spends one too: obtain a fresh token for each start.
    */
   turnstileToken: string;
-  /** The id of a price of the public catalog (`BillingPrice.id`). */
-  priceId?: string;
-  /** A version of a public plan, with `billingPeriod`. */
-  licenseSlug?: string;
-  billingPeriod?: CheckoutBillingPeriod;
   addOns?: { addonSlug: string; quantity: number }[];
   voucherCode?: string;
   /** `false` declines the plan's trial. */
   trial?: boolean;
   /**
-   * The buyer's e-mail. It becomes the new customer's billing e-mail once the
-   * checkout completes. Required unless `dryRun`.
+   * Your own reference for the buyer, at most 255 characters. Echoed on the checkout's events.
+   * Untrusted once it comes back through a browser: a visitor can change it, and a value taken from
+   * a request parameter of your page is the visitor's too. Link a buyer to an account from the
+   * signed `checkout_session.v1.completed` event your backend receives, never from this value read
+   * in the browser.
    */
-  email?: string;
-  /**
-   * Where the hosted setup page sends the visitor back, with
-   * `kaiten_checkout_session=<sessionId>` added: https, or http on localhost, on
-   * an origin the publishable key allows. Required unless `dryRun`.
-   */
-  returnUrl?: string;
-  /** Your own reference for the buyer, at most 255 characters. Echoed on the checkout's events. */
   clientReferenceId?: string;
-  /** `true` computes what is due today and writes nothing. It spends a Turnstile token all the same. */
-  dryRun?: boolean;
 }
+
+/**
+ * What an anonymous checkout buys, and who buys it.
+ *
+ * Name the plan with {@link CheckoutPriceChoice}. A real start gives the buyer's `email` and
+ * the `returnUrl`, and the compiler asks for both; a `dryRun` computes what is due and takes
+ * neither, though it takes an `email` to tell a trial already used from one that is offered.
+ */
+export type StartCheckoutInput = CheckoutPriceChoice &
+  StartCheckoutOptions &
+  (
+    | {
+        /** `true` computes what is due today and writes nothing. It spends a Turnstile token all the same. */
+        dryRun: true;
+        /** The buyer's e-mail. Optional for a `dryRun`. */
+        email?: string;
+        /** Optional for a `dryRun`. */
+        returnUrl?: string;
+      }
+    | {
+        dryRun?: false;
+        /**
+         * The buyer's e-mail. It becomes the new customer's billing e-mail once the
+         * checkout completes.
+         */
+        email: string;
+        /**
+         * Where the hosted setup page sends the visitor back, with
+         * `kaiten_checkout_session=<sessionId>` added: https, or http on localhost, on
+         * an origin the publishable key allows.
+         */
+        returnUrl: string;
+      }
+  );
 
 /**
  * Why a trial was not granted. Only `ALREADY_CONSUMED` today: a customer with the
@@ -102,7 +137,7 @@ export interface CheckoutSessionPreview extends CheckoutQuote {
 export interface CheckoutSessionOpened extends CheckoutQuote {
   status: "open";
   sessionId: string;
-  /** The session's `ksc_`. A secret: it reads and confirms this one session. */
+  /** The session's `ksc_`: a bearer credential for this one session, which reads and confirms it. Do not log or share it. */
   token: string;
   /** When the session is abandoned if it is still open: 24 hours after the start. */
   expiresAt: string;

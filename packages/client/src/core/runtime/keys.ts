@@ -37,10 +37,10 @@ const SECRET_KEY_PREFIXES = ["sk_", "ksh_", "ksm_"] as const;
 
 /**
  * True for a checkout session token (`ksc_…`), the credential `startCheckout`
- * obtains for one anonymous checkout. It is not a secret: it reads and confirms
- * that one session and nothing else. But it is not a publishable key or a
- * customer session either, and none of the three is accepted where another is
- * expected.
+ * obtains for one anonymous checkout: a bearer credential for one session, which
+ * reads and confirms that session and nothing else. Do not log or share it. It is
+ * not a publishable key or a customer session either, and none of the three is
+ * accepted where another is expected.
  */
 export function isCheckoutSessionToken(token: unknown): token is string {
   return (

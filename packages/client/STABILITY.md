@@ -103,7 +103,25 @@ release that ships them, on the terms above. What that fixes:
 - **`onAuthError` is a refused credential**: a 401, or a 403 `Auth.WrongCredentialKind`; not a 403 for
   a feature turned off or an origin not allowed.
 - **`readCheckoutReturn` reads and `clearCheckoutReturn` clears.** The second is for after the confirm
-  or the read has succeeded.
+  or the read has succeeded. `CHECKOUT_RETURN_PARAM` is the query member the hosted setup page
+  brings the visitor back with, `kaiten_checkout_session`; its value is part of the contract.
+- **`isCheckoutSessionToken` and `CHECKOUT_SESSION_TOKEN_PREFIX` tell the credential of a session**
+  (`ksc_`) from the other two classes, the publishable key (`pk_`) and the customer session
+  (`kst_`). The prefix is part of the contract; what follows it is opaque.
+- **`checkStartCheckoutInput` is the client's own shape check of a start**, the Turnstile token
+  apart, with the same `TypeError`s: a page calls it before it takes a token from the widget, so that
+  a start the API would refuse for its shape does not spend one. The limits it holds are the API's;
+  a minor release follows the API when it relaxes one.
+- **`StartCheckoutInput` is a union, and becomes no looser.** The plan is named one way, by `priceId`
+  or by `licenseSlug` with a `billingPeriod` (`CheckoutPriceChoice`), and a real start gives an
+  `email` and a `returnUrl`; the compiler asks for what the API asks for. A member is added to it
+  only as optional.
+- **What the client writes to `storage` is its own.** `KaitenCheckoutTokenStorage` is the shape of the
+  store a host may pass; the key and the value the client keeps in it are not a contract, and a
+  minor release may change them. Do not read them.
+- **The trial block of the portal**: `PortalTrial.charge` is absent when the API names no charge, and
+  `null` only when the API says nothing is charged. A screen says nothing about the charge in the
+  first case.
 
 ## How enumerations grow
 
@@ -128,6 +146,15 @@ release that ships them, on the terms above. What that fixes:
   closed.
 
 ## Prices
+
+`majorUnitAmount(price)` writes a price's amount in the major units of its currency, as a
+decimal string with the currency's own number of decimals (and a price below one minor unit
+exactly). It changes only to fix an amount it writes wrongly.
+
+`isPublishableKeyShape` and `assertPublishableKeyShape` check a key against the shape Kaiten issues
+keys in today, `pk_` and 43 base64url characters. A minor release may relax them if Kaiten issues
+keys of another shape, and never tightens them. `assertPublishableKey`, which only reads the
+prefix, stays lenient.
 
 `PlanPrice.amount` is required, and a 1.0 reader takes `interval: "month"` for a
 monthly price. So the lists typed `PlanPrice[]` — `Plan.prices`, `Addon.prices` —
@@ -166,6 +193,10 @@ refusal (`AlreadySubscribed`, `VoucherInvalid`, `SetupSessionIncomplete`,
 `OtherVersionAttached`, `AnonymousCheckoutDisabled`, …) stays a plain `KaitenError`, read by
 its `code`. A later minor release may give another refusal a class; it will extend
 `KaitenError` too, and the eight above are never removed or retyped.
+
+Two more are the refusals of a usage report under a `transactionId`:
+`TransactionIdReusedError` (409, with `transactionId` and `original`) and
+`InvalidTransactionIdError` (422). Neither is replayed, and both extend `KaitenError`.
 
 `KaitenAnonymousCheckoutClient` also raises `CheckoutTokenMissingError`, a `KaitenError`
 with status `0` and no `code`, before any request, when it holds no token for the session

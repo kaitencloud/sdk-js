@@ -229,7 +229,7 @@ const started = await checkout.startCheckout({
   billingPeriod: "MONTHLY",
   email: "ada@example.com",
   returnUrl: "https://shop.example.com/welcome",
-  clientReferenceId: "cart-42", // echoed on the checkout's events
+  clientReferenceId: "cart-42", // echoed on the checkout's events; yours, not a request parameter's
 });
 // `started` is an opened session: the type follows from asking for no dryRun.
 const confirmed = await checkout.confirmCheckout(started.sessionId);
@@ -300,14 +300,15 @@ start and nowhere else. The start answers a session and its `ksc_` token, which 
 `Authorization: Bearer ksc_…` to that session's own two routes and nowhere else. Neither is
 ever sent with the other, whatever `defaultHeaders` holds, and no cookie is sent. `started.token`
 is the same token the client already holds: read it only to keep it somewhere of your own (a
-server-side session, when the page that confirms is not this one), and treat it as a secret:
-never in a URL, in `localStorage` or in a log.
+server-side session, when the page that confirms is not this one). It is a bearer credential for
+one session: do not log or share it, and never put it in a URL or in `localStorage`.
 
 **The token survives the redirect** to the hosted page that saves a payment method, which is a
 full-page navigation: it is kept in memory and in `sessionStorage`, under the session's id. It
 is never in a URL, never in `localStorage`. `sessionStorage` is used in a browser only; a server
 runtime has memory alone, since the `sessionStorage` some of them offer is shared by every
-visitor. The client keeps the token of a session that closed (`COMPLETED`, `ABANDONED` or
+visitor; for the same reason a client on a server must not be shared across visitors, as it
+holds the token of every session it started. The client keeps the token of a session that closed (`COMPLETED`, `ABANDONED` or
 `EXPIRED`) for the 24 hours the API still answers a read with it, so that a reload shows the
 outcome of a payment; it drops the token when the API refuses it, when that window is over,
 or on `forgetCheckoutSession`. A closed session's last answer is also kept in memory so that a
@@ -679,14 +680,50 @@ closed session until `forgetCheckoutSession`, after which every call on it rejec
 It does not check the Turnstile token's value, and it models neither add-ons (a `KaitenError`, 422
 `AddonNotPublic`) nor vouchers.
 
+Its options: `plans`, the `MockCheckoutPlan`s it sells (a `licenseSlug`, a `priceId`, a `billingPeriod`,
+a `currencyCode`, an `amount` in minor units, and optionally `trialDays` and `requiresPaymentMethod`);
+`delayMs`, to make loading states observable; `error`, to reject every call with it; and the `fail` above.
+`demoAnonymousCheckoutPlans()` is the default for `plans`, and a good start to extend: a free Starter,
+Growth monthly and annual, and Lite with a 14-day trial that asks for no card.
+
+```ts
+import {
+  createMockKaitenAnonymousCheckoutClient,
+  demoAnonymousCheckoutPlans,
+} from "@kaitencloud/client/testing";
+
+const checkout = createMockKaitenAnonymousCheckoutClient({
+  plans: [
+    ...demoAnonymousCheckoutPlans(),
+    {
+      licenseSlug: "pro-v1",
+      priceId: "price_pro_monthly",
+      billingPeriod: "MONTHLY",
+      currencyCode: "USD",
+      amount: 4900,
+      trialDays: 7,
+      requiresPaymentMethod: true, // a trial that asks for a card first
+    },
+  ],
+});
+```
+
 ### Fixtures
 
 `demoCustomer` · `demoInstance` · `demoLicense` · `demoPlans` ·
 `demoPlansWithoutPrices` · `demoCatalog` · `demoCatalogWithoutPrices` ·
 `demoEntitlements` · `demoFlags` · `demoAddOns` · `demoCredits` ·
 `demoSnapshot` · `demoSnapshotWithoutPrices`, and for the session client `demoPortal` ·
-`demoUnsubscribedPortal` · `demoSessionInvoices` · `demoSessionAddOns` ·
-`demoCheckoutPrices` · `demoVouchers`
+`demoUnsubscribedPortal` · `demoTrialPortal` · `demoSessionInvoices` · `demoSessionAddOns` ·
+`demoCheckoutPrices` · `demoVouchers`, and for the anonymous checkout client
+`demoAnonymousCheckoutPlans`
+
+`demoTrialPortal(overrides)` is the portal of an instance in its trial: its `trial` block (the end,
+the reminder, what the end charges and no card yet) is what a trial banner draws, and
+`overrides` makes one that already has its card or that charges nothing (`trial.charge: null`).
+`DEMO_TRIAL_ENDS_AT` is the instant that trial ends, and `DEMO_SESSION_NOW` the instant the
+session fixtures and the anonymous checkout double are set at, for a test that fixes its clock
+there.
 
 Each is a **factory**, so one test's mutation cannot reach another, with fixed
 ids and timestamps for stable assertions and visual baselines.

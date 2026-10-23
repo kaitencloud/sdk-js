@@ -12,6 +12,7 @@ import {
   resolveApiBaseUrl,
   resolveFetchImplementation,
   retryable,
+  publicHeaders,
   retryAfterDelay,
   sendPublic,
 } from "../core/http.ts";
@@ -313,7 +314,7 @@ export class KaitenSessionClient implements KaitenSessionClientLike {
     token: string,
     body: unknown,
   ): Promise<T> {
-    const headers = new Headers(this.config.defaultHeaders);
+    const headers = publicHeaders(this.config.defaultHeaders);
     headers.set("Authorization", `Bearer ${token}`);
     return sendPublic<T>(
       this.fetchImpl,

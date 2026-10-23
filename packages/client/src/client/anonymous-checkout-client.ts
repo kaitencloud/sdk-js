@@ -16,6 +16,7 @@ import type {
 } from "../core/config.ts";
 import {
   resolveApiBaseUrl,
+  publicHeaders,
   resolveFetchImplementation,
   retryable,
   retryAfterDelay,
@@ -363,10 +364,7 @@ export class KaitenAnonymousCheckoutClient implements KaitenAnonymousCheckoutCli
 
   /** The headers of the host, without any credential: each call adds its own. */
   private headers(): Headers {
-    const headers = new Headers(this.config.defaultHeaders);
-    headers.delete("Authorization");
-    headers.delete("X-Kaiten-Publishable-Key");
-    return headers;
+    return publicHeaders(this.config.defaultHeaders);
   }
 
   private bearer(token: string): Headers {

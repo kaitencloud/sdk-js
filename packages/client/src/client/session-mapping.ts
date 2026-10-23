@@ -229,20 +229,26 @@ export function mapRedemption(raw: WireRedemption): PortalVoucher {
  * its own, or the subscription's when the API gives the amount alone.
  */
 function mapTrial(raw: WireTrial, subscriptionPeriod: string | undefined): PortalTrial {
-  const charge = raw.charge ?? raw.chargeAmount ?? null;
-  const period = billingInterval(charge?.billingPeriod ?? subscriptionPeriod);
+  // Two names for one member, and neither may be there: a server that names neither says nothing
+  // about the charge, which is not the same as saying that nothing is charged (`null`).
+  const named = raw.charge !== undefined ? raw.charge : raw.chargeAmount;
+  const period = billingInterval(named?.billingPeriod ?? subscriptionPeriod);
   const card = raw.paymentMethod;
   return {
     endsAt: raw.endsAt,
     reminderAt: raw.reminderAt,
-    charge: charge
-      ? {
-          amount: charge.amount,
-          currencyCode: charge.currency,
-          ...(period ? { billingInterval: period.interval } : {}),
-          ...(period?.intervalCount ? { intervalCount: period.intervalCount } : {}),
-        }
-      : null,
+    ...(named === undefined
+      ? {}
+      : {
+          charge: named
+            ? {
+                amount: named.amount,
+                currencyCode: named.currency,
+                ...(period ? { billingInterval: period.interval } : {}),
+                ...(period?.intervalCount ? { intervalCount: period.intervalCount } : {}),
+              }
+            : null,
+        }),
     paymentMethod: card ? { brand: card.brand, last4: card.last4 } : null,
   };
 }

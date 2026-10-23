@@ -27,17 +27,16 @@ const SCRIPTS = [
   "consumeTrial",
 ];
 
-const input = (
-  licenseSlug: string,
-  extra: Partial<StartCheckoutInput> = {},
-): StartCheckoutInput => ({
-  turnstileToken: "any",
-  licenseSlug,
-  billingPeriod: "MONTHLY",
-  email: "ada@example.test",
-  returnUrl: "https://shop.example.test/welcome",
-  ...extra,
-});
+/** A start, with members overridden: the ones a test sets may be ones the compiler refuses. */
+const input = (licenseSlug: string, extra: Record<string, unknown> = {}): StartCheckoutInput =>
+  ({
+    turnstileToken: "any",
+    licenseSlug,
+    billingPeriod: "MONTHLY",
+    email: "ada@example.test",
+    returnUrl: "https://shop.example.test/welcome",
+    ...extra,
+  }) as StartCheckoutInput;
 
 const opened = async (
   checkout: KaitenAnonymousCheckoutClientLike,

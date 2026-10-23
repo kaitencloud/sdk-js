@@ -17,6 +17,7 @@ import {
   RateLimitedError,
   TurnstileFailedError,
   TurnstileUnavailableError,
+  checkStartCheckoutInput,
   clearCheckoutReturn,
   isCheckoutSessionToken,
   readCheckoutReturn,
@@ -370,16 +371,25 @@ describe("startCheckout", () => {
   describe("refuses, before a Turnstile token is spent, a start the API would refuse", () => {
     const refused: [string, StartCheckoutInput][] = [
       ["no token", { ...START, turnstileToken: "" }],
-      ["no price", { turnstileToken: TURNSTILE, email: "a@b.test", returnUrl: RETURN_URL }],
-      ["both forms of the price", { ...START, priceId: "p" }],
-      ["a plan without its period", { ...START, billingPeriod: undefined }],
-      ["a period without its plan", { ...START, licenseSlug: undefined }],
+      // The compiler refuses these four too; a caller that is not type-checked still reaches the client.
+      [
+        "no price",
+        { turnstileToken: TURNSTILE, email: "a@b.test", returnUrl: RETURN_URL } as never,
+      ],
+      ["both forms of the price", { ...START, priceId: "p" } as never],
+      ["a plan without its period", { ...START, billingPeriod: undefined } as never],
+      ["a period without its plan", { ...START, licenseSlug: undefined } as never],
       [
         "an empty price",
-        { ...START, licenseSlug: undefined, billingPeriod: undefined, priceId: "" },
+        {
+          ...START,
+          licenseSlug: undefined,
+          billingPeriod: undefined,
+          priceId: "",
+        } as never,
       ],
-      ["no e-mail", { ...START, email: undefined }],
-      ["no return URL", { ...START, returnUrl: undefined }],
+      ["no e-mail", { ...START, email: undefined } as never],
+      ["no return URL", { ...START, returnUrl: undefined } as never],
       ["a reference over 255 characters", { ...START, clientReferenceId: "x".repeat(256) }],
       ["an empty voucher", { ...START, voucherCode: "" }],
       ["a voucher over 64 characters", { ...START, voucherCode: "v".repeat(65) }],
@@ -410,6 +420,20 @@ describe("startCheckout", () => {
 
       expect(await caught(client.startCheckout(input))).toBeInstanceOf(TypeError);
       expect(requests).toHaveLength(0);
+    });
+
+    test("checkStartCheckoutInput runs the same checks without the token, for a page that has not taken one yet", () => {
+      const { turnstileToken: _, ...withoutToken } = START;
+
+      expect(() => checkStartCheckoutInput(withoutToken)).not.toThrow();
+      expect(() =>
+        checkStartCheckoutInput({ ...withoutToken, email: `${"a".repeat(250)}@b.test` }),
+      ).toThrow(TypeError);
+      expect(() =>
+        checkStartCheckoutInput({ ...withoutToken, voucherCode: "v".repeat(65) }),
+      ).toThrow(TypeError);
+      expect(() => checkStartCheckoutInput({ ...withoutToken, priceId: "p" })).toThrow(TypeError);
+      expect(() => checkStartCheckoutInput(null)).toThrow(TypeError);
     });
 
     test("the API counts characters, not UTF-16 units: 255 emoji are 255 characters", async () => {
@@ -564,6 +588,48 @@ describe("getCheckoutSession", () => {
     expect(requests).toHaveLength(2);
   });
 
+  test("waits the Retry-After the API sent before a read is sent again, not the backoff", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout"] });
+    try {
+      const { client, requests } = await started((_, index) =>
+        index === 0
+          ? json(problem(500, "GetCheckoutSession.Failed"), 500, { "Retry-After": "7" })
+          : json(checkoutSession()),
+      );
+
+      const read = client.getCheckoutSession(SESSION_ID);
+      await vi.advanceTimersByTimeAsync(6_999);
+      expect(requests).toHaveLength(1);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(requests).toHaveLength(2);
+      expect((await read).sessionId).toBe(SESSION_ID);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  test("puts the session's id in the path as one segment, whatever it holds", async () => {
+    const sessionId = "chk a/b?c#d";
+    const encoded = "chk%20a%2Fb%3Fc%23d";
+    const { client, requests } = open((request, index) => {
+      if (index === 0) return json(startOpen({ sessionId }), 201);
+      return json(
+        request.url.endsWith("/confirm")
+          ? confirmation({ session: completedSession({ sessionId }) })
+          : checkoutSession({ sessionId }),
+      );
+    });
+    await client.startCheckout(START);
+
+    await client.getCheckoutSession(sessionId);
+    await client.confirmCheckout(sessionId);
+
+    expect(requests.slice(1).map((request) => new URL(request.url).pathname)).toEqual([
+      `/api/public/checkout-sessions/${encoded}`,
+      `/api/public/checkout-sessions/${encoded}/confirm`,
+    ]);
+  });
+
   test("a session that waits for its payment keeps its token for the next read", async () => {
     const { client, requests } = await started(() => json(awaitingSession()));
 
@@ -656,6 +722,46 @@ describe("confirmCheckout", () => {
     expect(request.headers.get("Content-Type")).toBeNull();
     expect(request.credentials).toBe("omit");
     expect(await request.text()).toBe("");
+  });
+
+  test("a status it does not know is refused: the session stays readable and no token reaches the host", async () => {
+    const { client } = await started((request) =>
+      request.url.endsWith("/confirm")
+        ? json({ ...confirmation(), status: "queued" })
+        : json(checkoutSession()),
+    );
+
+    const error = await caught(client.confirmCheckout(SESSION_ID));
+
+    expect(error).toBeInstanceOf(KaitenError);
+    expect(error).toMatchObject({ status: 0, message: "Unknown checkout confirmation status" });
+    expect((error as KaitenError).detail).toContain(SESSION_ID);
+    expect(JSON.stringify(error)).not.toContain("ksc_");
+    expect(client.holdsCheckoutSession(SESSION_ID)).toBe(true);
+    expect((await client.getCheckoutSession(SESSION_ID)).sessionId).toBe(SESSION_ID);
+    // The contract knows no such status: that is the point of the test.
+    violations.length = 0;
+  });
+
+  test("waits 30 seconds for a confirm unless the host sets a timeout, and 10 for a read", async () => {
+    const timeout = vi.spyOn(AbortSignal, "timeout");
+    try {
+      const answers = (request: Request) =>
+        request.url.endsWith("/confirm") ? json(requiresPaymentMethod()) : json(checkoutSession());
+      for (const [timeoutMs, confirms, reads] of [
+        [undefined, 30_000, 10_000],
+        [5_000, 5_000, 5_000],
+      ] as const) {
+        const { client } = await started(answers, { timeoutMs });
+        timeout.mockClear();
+
+        await client.confirmCheckout(SESSION_ID);
+        await client.getCheckoutSession(SESSION_ID);
+        expect(timeout.mock.calls.map(([ms]) => ms)).toEqual([confirms, reads]);
+      }
+    } finally {
+      timeout.mockRestore();
+    }
   });
 
   test("a payment method is needed first: the page to save it, and the token is kept", async () => {
@@ -1429,6 +1535,29 @@ describe("the types", () => {
       }
     };
     expect(typeof read).toBe("function");
+  });
+
+  test("a start names its price one way, and a real start gives the e-mail and the return URL", () => {
+    const check = (client: KaitenAnonymousCheckoutClientLike) => {
+      const base = { turnstileToken: "t", email: "a@b.test", returnUrl: RETURN_URL };
+      void client.startCheckout({ ...base, priceId: "p" });
+      void client.startCheckout({ ...base, licenseSlug: "growth-v1", billingPeriod: "MONTHLY" });
+      // @ts-expect-error -- no price
+      void client.startCheckout({ ...base });
+      // @ts-expect-error -- both forms of the price
+      void client.startCheckout({ ...base, priceId: "p", licenseSlug: "growth-v1" });
+      // @ts-expect-error -- a plan without its period
+      void client.startCheckout({ ...base, licenseSlug: "growth-v1" });
+      // @ts-expect-error -- a real start needs the e-mail
+      void client.startCheckout({ turnstileToken: "t", priceId: "p", returnUrl: RETURN_URL });
+      // @ts-expect-error -- and the return URL
+      void client.startCheckout({ turnstileToken: "t", priceId: "p", email: "a@b.test" });
+      // A dryRun takes neither.
+      void client.startCheckout({ turnstileToken: "t", priceId: "p", dryRun: true });
+      // @ts-expect-error -- a dryRun the compiler cannot see is a real start as far as it knows
+      void client.startCheckout({ turnstileToken: "t", priceId: "p", dryRun: Math.random() > 0.5 });
+    };
+    expect(typeof check).toBe("function");
   });
 
   test("the start hands the session's token to the host, on an opened session only", () => {

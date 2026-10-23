@@ -45,7 +45,6 @@ export type {
   KaitenAnonymousCheckoutClientConfig,
   KaitenApiError,
   KaitenAuthScheme,
-  KaitenCheckoutCredential,
   KaitenCheckoutTokenStorage,
   KaitenClientConfig,
   KaitenCustomerSession,
@@ -72,6 +71,7 @@ export {
   readCheckoutReturn,
 } from "./client/anonymous-checkout-client.ts";
 export type { KaitenAnonymousCheckoutClientLike } from "./client/anonymous-checkout-client.ts";
+export { checkStartCheckoutInput } from "./client/anonymous-checkout-input.ts";
 export type { KaitenSessionClientLike } from "./client/session-client.ts";
 export type {
   KaitenClientLike,

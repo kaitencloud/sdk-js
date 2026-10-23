@@ -14,6 +14,8 @@ import type {
   CheckoutConfirmation,
   CheckoutDueToday,
   CheckoutSession,
+  CheckoutSessionOpened,
+  CheckoutSessionPreview,
   CheckoutSessionStart,
   StartCheckoutInput,
 } from "../client/anonymous-checkout-types.ts";
@@ -310,6 +312,15 @@ export function createMockKaitenAnonymousCheckoutClient(
 
   const invoiceUrl = (sessionId: string) => `https://pay.example.test/invoice/${sessionId}`;
 
+  // Typed by what it asks for, as the client's is: a page tested against the double compiles
+  // where it compiles against the client.
+  function startCheckout(
+    input: StartCheckoutInput & { dryRun: true },
+  ): Promise<CheckoutSessionPreview>;
+  function startCheckout(
+    input: StartCheckoutInput & { dryRun?: false },
+  ): Promise<CheckoutSessionOpened>;
+  function startCheckout(input: StartCheckoutInput): Promise<CheckoutSessionStart>;
   async function startCheckout(input: StartCheckoutInput): Promise<CheckoutSessionStart> {
     await enter("startCheckout", [input], () => void startCheckoutBody(input));
     if (input.addOns?.length) {
@@ -380,7 +391,7 @@ export function createMockKaitenAnonymousCheckoutClient(
       return calls;
     },
 
-    startCheckout: startCheckout as KaitenAnonymousCheckoutClientLike["startCheckout"],
+    startCheckout,
 
     async getCheckoutSession(sessionId: string): Promise<CheckoutSession> {
       await enter("getCheckoutSession", [sessionId]);

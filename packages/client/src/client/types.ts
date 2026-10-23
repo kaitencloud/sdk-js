@@ -667,7 +667,11 @@ export interface Plan {
    * checkout. When false, offer `selfServeCtaUrl` instead, when there is one.
    */
   selfServe?: boolean;
-  /** Where to send a customer for a plan that is not self-serve ("Contact us"). */
+  /**
+   * Where to send a customer for a plan that is not self-serve ("Contact us"). The vendor sets it in
+   * Kaiten; a component links to it as written when it is an http(s) address, so a page does not
+   * overwrite it with a value taken from a request parameter.
+   */
   selfServeCtaUrl?: string | null;
   /** The add-on families that can be attached to this plan. */
   compatibleAddonFamilies?: string[];

@@ -52,23 +52,42 @@ function characters(value: string): number {
 
 /**
  * Refuses, before a Turnstile token is spent, a start the API would refuse for its
- * shape, with a `TypeError`: a token missing, a member of the wrong type, too long
- * or unknown, both forms of the price, no e-mail or return URL on a real start.
+ * shape, with a `TypeError`: a member of the wrong type, too long or unknown, both
+ * forms of the price, no e-mail or return URL on a real start. Everything but the
+ * Turnstile token, which only the widget gives and a form has no say in: a page that
+ * checks a start before it takes the token from the widget calls this, and
+ * {@link startCheckoutBody} does the rest.
+ *
  * The token is single-use, and a start that fails on the choice of the price has
- * already used it up. Returns the body to send, without the members left undefined.
+ * already used it up.
  */
-export function startCheckoutBody(input: StartCheckoutInput): Record<string, unknown> {
+export function checkStartCheckoutInput(input: unknown): void {
   if (!isRecord(input)) {
     throw new TypeError("Kaiten: startCheckout needs an input object.");
   }
   for (const member of Object.keys(input)) {
-    if (!MEMBERS.has(member) && input[member as keyof StartCheckoutInput] !== undefined) {
+    if (!MEMBERS.has(member) && input[member] !== undefined) {
       throw new TypeError(`Kaiten: startCheckout does not take "${member}".`);
     }
   }
+  checkMembers(input as Partial<StartCheckoutInput>);
+}
+
+/**
+ * The body of a start: {@link checkStartCheckoutInput}, and the Turnstile token the
+ * widget gave. Returns the body to send, without the members left undefined.
+ */
+export function startCheckoutBody(input: StartCheckoutInput): Record<string, unknown> {
+  checkStartCheckoutInput(input);
   if (typeof input.turnstileToken !== "string" || input.turnstileToken === "") {
     throw new TypeError("Kaiten: startCheckout needs the turnstileToken the widget gave the page.");
   }
+  return Object.fromEntries(
+    Object.entries(input).filter(([, value]) => value !== undefined),
+  ) as Record<string, unknown>;
+}
+
+function checkMembers(input: Partial<StartCheckoutInput>): void {
   for (const [field, limit] of Object.entries(STRING_LIMITS)) {
     const value = input[field as keyof StartCheckoutInput];
     if (value === undefined) continue;
@@ -112,7 +131,4 @@ export function startCheckoutBody(input: StartCheckoutInput): Record<string, unk
       );
     }
   }
-  return Object.fromEntries(
-    Object.entries(input).filter(([, value]) => value !== undefined),
-  ) as Record<string, unknown>;
 }

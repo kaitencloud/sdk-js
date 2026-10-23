@@ -89,6 +89,26 @@ describe("session mode: Bearer kst_ on session routes only, refreshed before exp
     expect(requests[1]!.headers.get("X-Kaiten-Publishable-Key")).toBeNull();
   });
 
+  test("the host's default headers cannot carry a publishable key, or another Authorization, to a session route", async () => {
+    const { fetch, requests } = server(() => json(PORTAL));
+    const client = new KaitenSessionClient({
+      apiUrl: "https://api.acme.test/api",
+      fetch,
+      getCustomerSession: sessions(session(KST_A, T0 + 30 * MINUTE)),
+      defaultHeaders: {
+        Authorization: "Bearer ksh_the-hosts",
+        "X-Kaiten-Publishable-Key": "pk_the-hosts",
+        "X-App": "shop",
+      },
+    });
+
+    await client.getPortal();
+
+    expect(requests[0]!.headers.get("Authorization")).toBe(`Bearer ${KST_A}`);
+    expect(requests[0]!.headers.get("X-Kaiten-Publishable-Key")).toBeNull();
+    expect(requests[0]!.headers.get("X-App")).toBe("shop");
+  });
+
   test("a 401 renews the session and retries once; a second 401 reaches onAuthError", async () => {
     const invalid = () =>
       json({ title: "Unauthorized", status: 401, code: "PublicAuth.InvalidCredential" }, 401);

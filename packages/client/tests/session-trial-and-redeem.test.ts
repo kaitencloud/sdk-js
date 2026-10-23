@@ -84,6 +84,17 @@ describe("the trial block of the portal", () => {
     expect(portal.trial).toMatchObject({ charge: null, paymentMethod: null });
   });
 
+  test("says nothing of the charge when the API names it under neither spelling: not that nothing is charged", async () => {
+    const { charge: _, ...unnamed } = BLOCK;
+    const portal = await read(trialPortal(unnamed));
+
+    expect(portal.trial).not.toHaveProperty("charge");
+    expect(portal.trial?.paymentMethod).toEqual({ brand: "visa", last4: "4242" });
+    // An explicit null under the other spelling is still the API saying nothing is charged.
+    const none = await read(trialPortal({ ...unnamed, chargeAmount: null }));
+    expect(none.trial?.charge).toBeNull();
+  });
+
   test("is null outside a trial, and absent from a server that does not serve it", async () => {
     expect((await read(trialPortal(null))).trial).toBeNull();
     expect(await read(answer("portal"))).not.toHaveProperty("trial");
