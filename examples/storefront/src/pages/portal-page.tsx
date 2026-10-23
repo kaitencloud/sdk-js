@@ -8,6 +8,7 @@ import { CustomerPortal, usePlans, usePortal } from "@kaitencloud/react-ui";
 import { useAccount, useTitleFocusAfterSignUp } from "../account.tsx";
 import { changePlanTarget } from "../change-plan.ts";
 import { navigate } from "../router.tsx";
+import { useDocumentTitle } from "../title.ts";
 import { SignUpStep } from "./sign-up-step.tsx";
 
 export function PortalPage() {
@@ -17,6 +18,7 @@ export function PortalPage() {
   const [leaving, setLeaving] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
   useTitleFocusAfterSignUp(true);
+  useDocumentTitle("Your account");
 
   // The account is a customer's: a visitor makes one first.
   if (!account.signedIn) return <SignUpStep />;

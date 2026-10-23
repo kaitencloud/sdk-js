@@ -10,6 +10,7 @@ import { chapters, coming, type Action, type Scenario, type Step } from "../jour
 import { StandInPanel } from "../journey/stand-in-panel.tsx";
 import { useStandIn } from "../journey/stand-in.ts";
 import { Link } from "../router.tsx";
+import { useDocumentTitle } from "../title.ts";
 
 /**
  * The payment lifecycle, walked in the order a presenter tells it. Each scenario has steps; a step
@@ -22,6 +23,7 @@ import { Link } from "../router.tsx";
  */
 export function JourneyPage({ mode }: { mode: "double" | "live" }) {
   const double = mode === "double";
+  useDocumentTitle("Journey");
   const { state, events, failure, refresh } = useStandIn(double);
   const catalogue = usePlans();
   const plans = catalogue.data;

@@ -4,8 +4,10 @@
 import { PricingTable } from "@kaitencloud/react-ui";
 
 import { navigate } from "../router.tsx";
+import { useDocumentTitle } from "../title.ts";
 
 export function PricingPage() {
+  useDocumentTitle("Pricing");
   return (
     <section aria-labelledby="pricing-title">
       <div className="hero">

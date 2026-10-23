@@ -54,7 +54,10 @@ const start = (
   label,
   run: async () => {
     await standIn.start(point, payment);
-    return "The customer is back to this starting point.";
+    // A visitor is not a customer yet: the stand-in holds none until they sign up or buy.
+    return point.signUp
+      ? "The stand-in is back to its starting point: no customer yet."
+      : "The customer is back to this starting point.";
   },
 });
 

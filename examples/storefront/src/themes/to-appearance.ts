@@ -16,10 +16,13 @@
 // - Shadows, the mono and serif fonts, tracking, spacing, charts and the sidebar have no key in
 //   `KaitenVariables`, so they are not mapped. The page's CSS (`page-css.ts`) and the classes of
 //   `elements` below carry what the storefront needs of them.
+// - The colour a refusal is written in has no shadcn token either. The components set it on the
+//   background of the page and of a card, which a theme chooses, so it is checked against both here
+//   (`refusalText`) and moved only when the components' own colour does not read on them.
 
 import type { KaitenAppearance, KaitenVariables } from "@kaitencloud/react-ui";
 
-import { hoverFor } from "./color.ts";
+import { hoverFor, legible, parseHex } from "./color.ts";
 import type { ShadcnToken, ShadcnTheme, ShadcnTokens } from "./shadcn.ts";
 
 /** What the mapper hands to `<KaitenStyleRoot appearance>`, next to `baseTheme`. */
@@ -62,7 +65,30 @@ const HOVERS: ReadonlyArray<readonly [ShadcnToken, ShadcnToken, ColourKey]> = [
   ["destructive", "destructive-foreground", "colorDestructiveHover"],
 ];
 
-function colours(tokens: ShadcnTokens): KaitenVariables {
+/**
+ * The colour the components write a refusal in when the theme says nothing, per mode: the value of
+ * `--ktn-destructive-subtle-foreground` in the components' own stylesheet (the theme package's
+ * token). It is repeated here to be measured against the theme's surfaces, and it is not set unless
+ * it has to move.
+ */
+const REFUSAL_TEXT = { light: "#c91d21", dark: "#ea7073" } as const;
+
+/**
+ * The colour for a refusal's text when the components' own does not read at 4.5:1 on the theme's
+ * card and background (it is 4.25:1 on Neo Brutalism's dark card), the least change that does;
+ * `undefined` when it reads as it is, or when the surfaces are not hex and cannot be measured.
+ */
+function refusalText(tokens: ShadcnTokens, mode: "light" | "dark"): string | undefined {
+  const surfaces = [tokens.card, tokens.background].filter(
+    (value): value is string => value !== undefined && parseHex(value) !== undefined,
+  );
+  if (surfaces.length === 0) return undefined;
+  const own = REFUSAL_TEXT[mode];
+  const moved = legible(own, surfaces, { pole: mode === "dark" ? "#ffffff" : "#000000" });
+  return moved === own ? undefined : moved;
+}
+
+function colours(tokens: ShadcnTokens, mode: "light" | "dark"): KaitenVariables {
   const variables: KaitenVariables = {};
   for (const [token, key] of COLOURS) {
     const value = tokens[token];
@@ -73,6 +99,8 @@ function colours(tokens: ShadcnTokens): KaitenVariables {
     const label = tokens[labelToken];
     if (fill !== undefined && label !== undefined) variables[key] = hoverFor(fill, label);
   }
+  const refusal = refusalText(tokens, mode);
+  if (refusal !== undefined) variables.colorDestructiveSubtleForeground = refusal;
   return variables;
 }
 
@@ -111,8 +139,8 @@ export function toAppearance(theme: ShadcnTheme): ThemedAppearance {
   return {
     variables: both,
     modes: {
-      light: { ...colours(theme.light), ...perMode.light },
-      dark: { ...colours(theme.dark), ...perMode.dark },
+      light: { ...colours(theme.light, "light"), ...perMode.light },
+      dark: { ...colours(theme.dark, "dark"), ...perMode.dark },
     },
     elements: { ...THEMED_ELEMENTS },
   };

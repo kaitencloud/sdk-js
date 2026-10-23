@@ -4,6 +4,7 @@
 import { usePlans } from "@kaitencloud/react-ui";
 
 import { Link, useLocation } from "../router.tsx";
+import { useDocumentTitle } from "../title.ts";
 
 /**
  * Where a customer who wants another plan, or a plan priced on request, is sent: the vendor's
@@ -16,6 +17,7 @@ export function SalesPage() {
   const { data: plans } = usePlans();
   const asked = search.get("plan");
   const plan = plans?.find((each) => each.slug === asked);
+  useDocumentTitle("Talk to sales");
   const subject = encodeURIComponent(plan ? `About the ${plan.name} plan` : "About my plan");
 
   return (

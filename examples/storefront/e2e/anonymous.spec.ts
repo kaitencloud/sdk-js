@@ -8,7 +8,7 @@
 // Kaiten (`reset({ signUp: true, anonymousCheckout: true })`), a stand-in for Cloudflare's script plays the
 // security check (see `support/cloudflare.ts`), and the page, its backend and the SDK's components are real.
 
-import type { Page } from "@playwright/test";
+import type { BrowserContext, Page } from "@playwright/test";
 
 import { planCard } from "./support/page.ts";
 import { expect, test, type StandIn } from "./support/stand-in.ts";
@@ -50,6 +50,15 @@ test("a visitor buys a free plan with no account: an e-mail and the security che
   await expect(flow(page)).toContainText("Nothing is due today.");
   await expect(flow(page)).toContainText("Your order is registered for ada@acme.test.");
   await expect(page.getByTestId("visitor-done")).toContainText("checkout_session.v1.completed");
+  // The buyer has a next step of their own, and the note for the vendor is labelled as one.
+  await expect(
+    page.getByTestId("visitor-done").getByRole("link", { name: "Back to the plans" }),
+  ).toBeVisible();
+  await expect(
+    page
+      .getByTestId("visitor-dev-note")
+      .getByRole("heading", { name: "For the vendor, not the buyer" }),
+  ).toBeVisible();
 
   // Kaiten made the customer from the address and its instance on the plan, and subscribed it with no
   // provider, no card and no invoice.
@@ -75,8 +84,14 @@ test("a visitor buys a free plan with no account: an e-mail and the security che
       },
     ],
   });
-  // The reference the page gave is echoed for the vendor to link the buyer by.
+  // The reference the page gave is echoed for the vendor to link the buyer by, and it is the session's own
+  // that the page prints.
   expect(state.checkoutSessions[0]!.clientReferenceId).toMatch(/^order-[0-9a-f]{8}$/);
+  await expect(page.getByTestId("visitor-reference")).toHaveText(
+    state.checkoutSessions[0]!.clientReferenceId!,
+  );
+  // One token for the one start, and no token sent twice.
+  expect(state.turnstileReused).toBe(0);
   expect((await standIn.events()).map((event) => event.type)).toContain(
     "checkout_session.completed",
   );
@@ -196,8 +211,8 @@ test("a visitor whose security check Kaiten refuses passes it again, and nothing
 
   const starts = (await anonymousCalls(standIn)).filter((call) => call.credential === "pk_");
   expect(starts.map((call) => call.status)).toEqual([422, 201]);
-  // The two starts did not share a token.
-  expect((await standIn.state()).turnstileChecks).toBe(2);
+  // The two starts did not share a token: Kaiten refuses one it has seen, as Cloudflare does.
+  expect(await standIn.state()).toMatchObject({ turnstileChecks: 2, turnstileReused: 0 });
 });
 
 test("a visitor says the security check could not be reached, and goes on once it can", async ({
@@ -386,13 +401,19 @@ test("the journey page starts the visitor's anonymous checkout, and the security
   await page.goto("/journey");
   const scenario = page.getByRole("article", { name: "A visitor buys with no account" });
   await scenario.getByRole("button", { name: "Start as a visitor" }).click();
-  await expect(scenario.getByRole("status").first()).toContainText("back to this starting point");
+  await expect(scenario.getByRole("status").first()).toContainText("back to its starting point");
   expect(await standIn.state()).toMatchObject({ anonymousCheckout: true, customers: [] });
 
+  // No checkout is waiting yet, and the presenter is told so in words.
+  await scenario.getByRole("button", { name: "Let a checkout expire" }).click();
+  await expect(
+    scenario.getByRole("status").filter({ hasText: "No checkout is waiting" }),
+  ).toHaveText("No checkout is waiting: open a plan's checkout first.");
+
   await scenario.getByRole("button", { name: "Refuse the next security check" }).click();
-  await expect(scenario.getByRole("status").last()).toContainText(
-    "The next verification is refused",
-  );
+  await expect(
+    scenario.getByRole("status").filter({ hasText: "The next verification is refused" }),
+  ).toBeVisible();
 
   // The page learnt, without a reload, that the key opens the anonymous checkout.
   await scenario.getByRole("link", { name: "Open Starter's checkout" }).click();
@@ -407,4 +428,167 @@ test("the journey page starts the visitor's anonymous checkout, and the security
   // The stand-in's panel lists the visitor's checkouts.
   await page.goto("/journey");
   await expect(page.getByTestId("checkout-sessions")).toContainText("grace@acme.test");
+});
+
+test("a visitor sent to the provider's page in the same tab comes back to a page that is loaded again, and it prints the session's reference", async ({
+  page,
+  standIn,
+}) => {
+  await standIn.reset({ signUp: true, anonymousCheckout: true });
+  // The browser blocks the popup, so the checkout sends this very tab to the provider's page.
+  await page.addInitScript(() => {
+    window.open = () => null;
+  });
+  await chooseAndFill(page, "Pro");
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await expect(flow(page)).toContainText("For ada@acme.test");
+  await page.evaluate(() => {
+    (window as unknown as { loadedOnce: boolean }).loadedOnce = true;
+  });
+
+  await page.getByRole("button", { name: "Continue to payment" }).click();
+  await expect(page.getByRole("heading", { name: "Payment provider" })).toBeVisible();
+  await page.getByRole("button", { name: /Save card/ }).click();
+
+  await expect(flow(page)).toContainText("You're subscribed");
+  // The page was loaded again on the way, so its own reference (made when it mounted) is not the one that
+  // was sent to Kaiten.
+  expect(
+    await page.evaluate(() => (window as unknown as { loadedOnce?: boolean }).loadedOnce),
+  ).toBeUndefined();
+  const [session] = (await standIn.state()).checkoutSessions;
+  expect(session).toMatchObject({ status: "COMPLETED", licenseSlug: "pro-v2" });
+  expect(session!.clientReferenceId).toMatch(/^order-[0-9a-f]{8}$/);
+  // What the vendor is told is the reference of the session, which the SDK reads back from it.
+  await expect(page.getByTestId("visitor-reference")).toHaveText(session!.clientReferenceId!);
+});
+
+/** A second tab of another visitor with the same address buys Growth to the end: the trial is used up. */
+async function useUpTheTrial(context: BrowserContext, email: string) {
+  const other = await context.newPage();
+  await chooseAndFill(other, "Growth", email);
+  await other.getByRole("button", { name: "Continue", exact: true }).click();
+  const opened = context.waitForEvent("page");
+  await other.getByRole("button", { name: "Continue to payment" }).click();
+  const provider = await opened;
+  await provider.getByRole("button", { name: /Save card/ }).click();
+  await provider.waitForEvent("close");
+  await expect(flow(other)).toContainText("You're subscribed");
+  await other.close();
+}
+
+test("a trial another checkout used up before the card is saved is shown at its new price, both amounts side by side", async ({
+  page,
+  context,
+  standIn,
+}) => {
+  await standIn.reset({ signUp: true, anonymousCheckout: true });
+  await chooseAndFill(page, "Growth");
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await expect(flow(page)).toContainText("For ada@acme.test");
+
+  await useUpTheTrial(context, "ada@acme.test");
+
+  // The confirm finds the trial gone: nothing is captured, and the visitor sees what changed first.
+  await page.getByRole("button", { name: "Continue to payment" }).click();
+  await expect(flow(page)).toContainText(
+    "The amount due changed from €0.00 to €99.00. Check it before you continue.",
+  );
+  expect(await standIn.state()).toMatchObject({ customers: [expect.anything()] });
+});
+
+test("a trial another checkout used up while the card was being saved is refused for the new amount, and the visitor starts again", async ({
+  page,
+  context,
+  standIn,
+}) => {
+  await standIn.reset({ signUp: true, anonymousCheckout: true });
+  await chooseAndFill(page, "Growth");
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  const opened = context.waitForEvent("page");
+  await page.getByRole("button", { name: "Continue to payment" }).click();
+  const provider = await opened;
+
+  // While this visitor is on the provider's page, the same address takes the trial in another tab.
+  await useUpTheTrial(context, "ada@acme.test");
+
+  await provider.getByRole("button", { name: /Save card/ }).click();
+  await provider.waitForEvent("close");
+  await expect(
+    flow(page).getByText(/The amount due changed after your payment method was saved\./),
+  ).toBeVisible();
+  // Nothing was charged and nothing more was made: the other visitor's customer is the only one.
+  expect(await standIn.state()).toMatchObject({
+    customers: [expect.anything()],
+    invoices: [],
+  });
+  await page.getByRole("button", { name: "Start again" }).click();
+  await expect(page.getByLabel("Email")).toBeVisible();
+});
+
+test("a long address stays inside the card on a phone, in the review and once bought", async ({
+  page,
+  standIn,
+}) => {
+  const long = "ada.lovelace.with.a.very.long.address@subdomain.example-company.test";
+  const sideways = () =>
+    page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    );
+  await page.setViewportSize({ width: 320, height: 800 });
+
+  await standIn.reset({ signUp: true, anonymousCheckout: true });
+  await chooseAndFill(page, "Pro", long);
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await expect(flow(page)).toContainText(`For ${long}`);
+  expect(await sideways()).toBeLessThanOrEqual(0);
+
+  await standIn.reset({ signUp: true, anonymousCheckout: true });
+  await chooseAndFill(page, "Starter", long);
+  await page.getByRole("button", { name: "Start for free" }).click();
+  await expect(flow(page)).toContainText(`Your order is registered for ${long}.`);
+  await expect(page.getByTestId("visitor-done")).toBeVisible();
+  expect(await sideways()).toBeLessThanOrEqual(0);
+});
+
+test("the checkout is a new page to the keyboard and the screen reader: titled, with focus on its heading", async ({
+  page,
+  standIn,
+}) => {
+  await standIn.reset({ signUp: true, anonymousCheckout: true });
+  await page.goto("/");
+  await expect(page).toHaveTitle("Pricing · Acme");
+  await planCard(page, "Pro").getByRole("button", { name: "Select plan" }).click();
+  await expect(page).toHaveTitle("Subscribe to Pro · Acme");
+  const heading = page.getByRole("heading", { name: "Subscribe to Pro" });
+  await expect(heading).toBeFocused();
+  // The same when the page is loaded at its address, with the catalogue still to be read.
+  await page.goto(`/checkout/pro-v2?price=${PRO_PRICE}`);
+  await expect(heading).toBeFocused();
+});
+
+test("a button that is not available says why, and a link to a tab of its own says so", async ({
+  page,
+  context,
+  standIn,
+}) => {
+  await standIn.reset({ signUp: true, anonymousCheckout: true });
+  await page.goto("/");
+  await planCard(page, "Pro").getByRole("button", { name: "Select plan" }).click();
+  await expect(flow(page)).toContainText("Security check passed.");
+  const next = page.getByRole("button", { name: "Continue", exact: true });
+  // Focusable and dimmed, not disabled; the sentence under it is its description.
+  await expect(next).toHaveAttribute("aria-disabled", "true");
+  expect(await next.evaluate((button) => (button as HTMLButtonElement).disabled)).toBe(false);
+  await expect(next).toHaveAccessibleDescription("Enter your email address to continue.");
+
+  await page.getByLabel("Email").fill("ada@acme.test");
+  await expect(next).not.toHaveAttribute("aria-disabled", "true");
+  await next.click();
+  const opened = context.waitForEvent("page");
+  await page.getByRole("button", { name: "Continue to payment" }).click();
+  await opened;
+  await expect(page.getByRole("link", { name: "Open the page again" })).toHaveAccessibleDescription(
+    "opens in a new tab",
+  );
 });

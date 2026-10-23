@@ -269,6 +269,30 @@ describe("toAppearance", () => {
     });
   });
 
+  it("moves the colour of a refusal only where the components' own does not read on the theme's surfaces", () => {
+    // The components write a refusal in #ea7073 on a dark page and #c91d21 on a light one. On Neo
+    // Brutalism's dark card (#333333) the first is 4.25:1, so the theme gets a lighter one.
+    const own = { light: "#c91d21", dark: "#ea7073" } as const;
+    const dark = toAppearance(neoBrutalism).modes.dark;
+    expect(dark.colorDestructiveSubtleForeground).toBeTypeOf("string");
+    expect(contrastRatio(own.dark, "#333333")).toBeLessThan(4.5);
+    for (const theme of [claude, neoBrutalism]) {
+      for (const mode of MODES) {
+        const tokens = theme[mode];
+        const set = toAppearance(theme).modes[mode].colorDestructiveSubtleForeground;
+        for (const surface of [tokens.card!, tokens.background!]) {
+          expect(
+            contrastRatio(set ?? own[mode], surface),
+            `${mode} on ${surface}`,
+          ).toBeGreaterThanOrEqual(4.5);
+        }
+      }
+    }
+    // Where it reads, nothing is set: the components' colour stays the theme package's.
+    expect(toAppearance(claude).modes.light.colorDestructiveSubtleForeground).toBeUndefined();
+    expect(toAppearance(claude).modes.dark.colorDestructiveSubtleForeground).toBeUndefined();
+  });
+
   it("maps no token the components have no key for", () => {
     const keys = Object.keys({ ...appearance.modes.light, ...appearance.variables }).join(" ");
     expect(keys).not.toMatch(/chart|sidebar|shadow|mono|serif|tracking|spacing/i);

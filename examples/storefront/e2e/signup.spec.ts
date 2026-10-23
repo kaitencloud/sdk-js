@@ -3,8 +3,9 @@
 
 // A visitor who is not a customer yet, and whose publishable key does not open the anonymous checkout (see
 // `anonymous.spec.ts` for the key that does): the storefront's backend makes the customer and its instance
-// when the visitor signs up, mints their session, and the checkout goes on where it was. The stand-in for Kaiten plays the sign-up scenario (`reset({ signUp: true })`), and the
-// page, the backend and the SDK's components are the real ones.
+// when the visitor signs up, mints their session, and the checkout goes on where it was. The stand-in for
+// Kaiten plays the sign-up scenario (`reset({ signUp: true })`), and the page, the backend and the SDK's
+// components are the real ones.
 
 import type { BrowserContext, Page } from "@playwright/test";
 
@@ -442,7 +443,7 @@ test("the journey page starts the stand-in as a visitor, and back as the custome
   await page.goto("/journey");
   const scenario = page.getByRole("article", { name: "A visitor signs up and buys a plan" });
   await scenario.getByRole("button", { name: "Start as a visitor" }).click();
-  await expect(scenario.getByRole("status")).toContainText("back to this starting point");
+  await expect(scenario.getByRole("status")).toContainText("back to its starting point");
 
   // The page learnt, without a reload, that its visitor has no account.
   await scenario.getByRole("link", { name: "Open Pro's checkout" }).click();

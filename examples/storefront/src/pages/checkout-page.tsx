@@ -7,6 +7,7 @@ import { CheckoutFlow, usePlans } from "@kaitencloud/react-ui";
 
 import { useAccount, useTitleFocusAfterSignUp } from "../account.tsx";
 import { Link, navigate, useLocation } from "../router.tsx";
+import { useDocumentTitle } from "../title.ts";
 import { VisitorCheckout } from "../visitor-checkout.tsx";
 
 export function CheckoutPage({ slug }: { slug: string }) {
@@ -17,8 +18,9 @@ export function CheckoutPage({ slug }: { slug: string }) {
 
   const plan = plans?.find((each) => each.slug === slug);
   useTitleFocusAfterSignUp(plan !== undefined);
+  useDocumentTitle(plan ? `Subscribe to ${plan.name}` : "Checkout");
 
-  if (isLoading && !plans) return <p>Loading the plan…</p>;
+  if (isLoading && !plans) return <p role="status">Loading the plan…</p>;
   if (error && !plans) {
     return (
       <p role="alert">
