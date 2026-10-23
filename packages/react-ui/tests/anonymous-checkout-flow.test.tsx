@@ -667,10 +667,10 @@ describe("what happens next", () => {
   );
 
   test("the host is told once, with the session and the reference it gave", async () => {
-    const onComplete = vi.fn();
-    await buy({ plan: growth, onComplete, clientReferenceId: "cart-42" });
-    await waitFor(() => expect(onComplete).toHaveBeenCalledTimes(1));
-    expect(onComplete.mock.calls[0]![0]).toMatchObject({
+    const onSubscribed = vi.fn();
+    await buy({ plan: growth, onSubscribed, clientReferenceId: "cart-42" });
+    await waitFor(() => expect(onSubscribed).toHaveBeenCalledTimes(1));
+    expect(onSubscribed.mock.calls[0]![0]).toMatchObject({
       sessionId: "chk_mock_1",
       clientReferenceId: "cart-42",
       session: { status: "COMPLETED", email: EMAIL },
@@ -692,8 +692,8 @@ describe("coming back from the payment provider", () => {
     client.completeSetup(started.sessionId);
     window.history.replaceState(null, "", `/welcome?kaiten_checkout_session=${started.sessionId}`);
 
-    const onComplete = vi.fn();
-    render(plainProvider(client)(<AnonymousCheckoutFlow onComplete={onComplete} />));
+    const onSubscribed = vi.fn();
+    render(plainProvider(client)(<AnonymousCheckoutFlow onSubscribed={onSubscribed} />));
     // The plan is the session's, by its price: the title says so.
     expect(await screen.findByText("Growth", {}, { timeout: 2_000 })).toBeTruthy();
     await screen.findByText(

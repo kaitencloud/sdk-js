@@ -379,7 +379,7 @@ test("a start is refused for a token that Turnstile refused: back to choosing, a
   expect(probe.now.problem).toEqual({ kind: "turnstile_failed" });
   expect(probe.now.error).toBeInstanceOf(TurnstileFailedError);
   // What was chosen is still chosen, and the widget has a fresh token for the retry.
-  expect(probe.now.selection).toMatchObject({ priceId: STARTER, email: EMAIL });
+  expect(probe.now.selection).toMatchObject({ licensePriceId: STARTER, email: EMAIL });
   expect(probe.now.canStart).toBe(true);
   const spent = (callsTo(client, "startCheckout")[0]!.args[0] as { turnstileToken: string })
     .turnstileToken;
@@ -524,10 +524,10 @@ test("a preview asks what a selection would bill and writes nothing", async () =
 // ---------------------------------------------------------------------------
 
 test("a free plan completes at the first confirm, and the page is told once, with the reference", async () => {
-  const onComplete = vi.fn();
+  const onSubscribed = vi.fn();
   const onStarted = vi.fn();
   const client = doubleOf();
-  const probe = await mount(client, { onComplete, onStarted, clientReferenceId: "cart-42" });
+  const probe = await mount(client, { onSubscribed, onStarted, clientReferenceId: "cart-42" });
   act(() => probe.now.setName("  Ada Lovelace "));
   await started(probe, STARTER);
 
@@ -551,7 +551,7 @@ test("a free plan completes at the first confirm, and the page is told once, wit
     name: "Ada Lovelace",
     session: { status: "COMPLETED", customerSlug: "customer-chk_mock_1" },
   });
-  expect(onComplete).toHaveBeenCalledTimes(1);
+  expect(onSubscribed).toHaveBeenCalledTimes(1);
   // Nothing was due, and nothing is waited on: the payment is not "processing".
   expect(probe.now.payment).toEqual({
     status: "not_required",
@@ -567,7 +567,7 @@ test("a free plan completes at the first confirm, and the page is told once, wit
     await probe.now.confirm();
   });
   expect(callsTo(client, "confirmCheckout")).toHaveLength(1);
-  expect(onComplete).toHaveBeenCalledTimes(1);
+  expect(onSubscribed).toHaveBeenCalledTimes(1);
 });
 
 test("a trial that needs no payment method starts at the first confirm and says when it ends", async () => {
@@ -621,8 +621,8 @@ test("a second trial for an e-mail that had one is refused, and the amount due i
 test("a paid plan sends the visitor to the provider's page in a popup, and goes on when the popup is done", async () => {
   const open = popupOpens();
   const client = doubleOf();
-  const onComplete = vi.fn();
-  const probe = await mount(client, { onComplete });
+  const onSubscribed = vi.fn();
+  const probe = await mount(client, { onSubscribed });
   await started(probe);
   await act(async () => {
     await probe.now.confirm();
@@ -658,7 +658,7 @@ test("a paid plan sends the visitor to the provider's page in a popup, and goes 
   client.settlePayment("chk_mock_1");
   await settle(5_000);
   expect(probe.now.step).toBe("completed");
-  expect(onComplete).toHaveBeenCalledTimes(1);
+  expect(onSubscribed).toHaveBeenCalledTimes(1);
   expect(probe.now.outcome?.session.customerSlug).toBe("customer-chk_mock_1");
   expect(probe.now.payment?.settlement).toBe("idle");
   expect(probe.now.payment?.status).not.toBe("processing");
@@ -709,8 +709,8 @@ test("a blocked popup sends this page itself, and the page loaded back goes on f
   // The provider sends the visitor back to the return URL with the session in the address.
   client.completeSetup("chk_mock_1");
   at("/pricing?plan=growth&kaiten_checkout_session=chk_mock_1");
-  const onComplete = vi.fn();
-  const back = await mount(client, { onComplete });
+  const onSubscribed = vi.fn();
+  const back = await mount(client, { onSubscribed });
   await settle(300);
 
   expect(back.now.step).toBe("awaiting_payment");
@@ -721,7 +721,7 @@ test("a blocked popup sends this page itself, and the page loaded back goes on f
   client.settlePayment("chk_mock_1");
   await settle(5_000);
   expect(back.now.step).toBe("completed");
-  expect(onComplete).toHaveBeenCalledTimes(1);
+  expect(onSubscribed).toHaveBeenCalledTimes(1);
 });
 
 test("a page loaded back shows the wait at once: no form, and no security check drawn for nothing", async () => {
@@ -990,7 +990,7 @@ test("a payment that never comes closes the session as expired, and the visitor 
   await flush();
   expect(probe.now.step).toBe("selecting");
   expect(probe.now.closedAs).toBeNull();
-  expect(probe.now.selection).toMatchObject({ priceId: GROWTH, email: EMAIL });
+  expect(probe.now.selection).toMatchObject({ licensePriceId: GROWTH, email: EMAIL });
   expect(probe.now.canStart).toBe(true);
 });
 
@@ -1021,9 +1021,9 @@ test("a checkout that completed while the visitor was away is a success, not a r
   cleanup();
   client.completeSetup("chk_mock_1");
   // Kaiten completes a checkout whose visitor never came back.
-  const onComplete = vi.fn();
+  const onSubscribed = vi.fn();
   at("/pricing?kaiten_checkout_session=chk_mock_1");
-  const back = await mount(client, { onComplete });
+  const back = await mount(client, { onSubscribed });
   await settle(300);
   client.settlePayment("chk_mock_1");
   await settle(5_000);
@@ -1367,9 +1367,9 @@ test("starting over forgets the name that was kept for the checkout given up", a
 });
 
 test("the page is told of the completion once, however many times the closed session is read", async () => {
-  const onComplete = vi.fn();
+  const onSubscribed = vi.fn();
   const client = doubleOf();
-  const probe = await mount(client, { onComplete });
+  const probe = await mount(client, { onSubscribed });
   await started(probe, STARTER);
   await act(async () => {
     await probe.now.confirm();
@@ -1383,7 +1383,7 @@ test("the page is told of the completion once, however many times the closed ses
   await flush();
 
   expect(callsTo(client, "getCheckoutSession").length).toBeGreaterThan(0);
-  expect(onComplete).toHaveBeenCalledTimes(1);
+  expect(onSubscribed).toHaveBeenCalledTimes(1);
 });
 
 test("the widget's appearance is one the hook can honour", () => {

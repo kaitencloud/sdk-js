@@ -101,7 +101,7 @@ export function VisitorCheckout({ plan, priceId }: { plan: Plan; priceId: string
             plan={plan}
             priceId={priceId}
             clientReferenceId={reference}
-            onComplete={setCompleted}
+            onSubscribed={setCompleted}
             onCancel={() => navigate("/")}
           />
           {completed ? (

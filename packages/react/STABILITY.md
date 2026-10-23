@@ -144,8 +144,11 @@ the rest of the blessed path:
   session's token is `lost` and never starts another checkout, which would create a second
   customer. The Turnstile widget (`turnstile`, with `TurnstileOptions` and `TurnstileWidget`)
   is part of it: its script is loaded once, from Cloudflare, the first time a widget is
-  drawn, and only by this entry. Like the other billing hooks it needs the first Kaiten release
-  that has the anonymous checkout (`POST /public/checkout-sessions`). Its steps, its refusals
+  drawn, and only by this entry. It names what `useCheckout` names, with the same words: the price
+  chosen is `selection.licensePriceId` (the client sends it to the API as `priceId`) and the page is
+  told the instance is subscribed by `onSubscribed`. `start()` stays its own, since it spends a
+  Turnstile token and opens a session, which `submit()` does not. Like the other billing hooks it
+  needs the first Kaiten release that has the anonymous checkout (`POST /public/checkout-sessions`). Its steps, its refusals
   (`AnonymousCheckoutProblem`), the way it opened the payment provider's page, how a payment is
   waited on and the state of the widget may gain a member in a minor release, by the rules of
   [Unions that grow](#unions-that-grow). The `name` it holds is the page's own: Kaiten has no

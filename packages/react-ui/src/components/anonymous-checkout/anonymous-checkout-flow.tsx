@@ -68,7 +68,7 @@ export interface AnonymousCheckoutFlowProps {
    */
   successUrl?: string;
   /**
-   * Asks for the visitor's name too, and hands it to `onStarted` and `onComplete`. Kaiten has no
+   * Asks for the visitor's name too, and hands it to `onStarted` and `onSubscribed`. Kaiten has no
    * member for it, so it is never sent to Kaiten. Default `false`.
    */
   collectName?: boolean;
@@ -83,7 +83,7 @@ export interface AnonymousCheckoutFlowProps {
   /** Called once when a checkout is started, with its id, before the visitor is sent anywhere. */
   onStarted?: UseAnonymousCheckoutOptions["onStarted"];
   /** Called once when the checkout completes, in this window, whether the visitor paid here or came back. */
-  onComplete?: UseAnonymousCheckoutOptions["onComplete"];
+  onSubscribed?: UseAnonymousCheckoutOptions["onSubscribed"];
   /** Adds a cancel button while the visitor is choosing, and beside the invoice of a card that was declined. */
   onCancel?: () => void;
   appearance?: KaitenAppearance;
@@ -144,7 +144,7 @@ function AnonymousCheckoutView({
   collectName = false,
   clientReferenceId,
   onStarted,
-  onComplete,
+  onSubscribed,
   onCancel,
   appearance,
   unstyled = false,
@@ -163,11 +163,11 @@ function AnonymousCheckoutView({
   const start = React.useMemo(() => initialPrice(ownPrices, priceId), [ownPrices, priceId]);
 
   const checkout = useAnonymousCheckout({
-    initial: { priceId: start?.id ?? null },
+    initial: { licensePriceId: start?.id ?? null },
     returnUrl,
     clientReferenceId,
     onStarted,
-    onComplete,
+    onSubscribed,
     turnstile: { theme: turnstileTheme(merged.baseTheme) },
   });
   const { step, quote, session } = checkout;
@@ -187,7 +187,7 @@ function AnonymousCheckoutView({
     () => (plan ? ownPrices : shown ? purchasablePrices(shown, session?.priceId) : []),
     [plan, ownPrices, shown, session?.priceId],
   );
-  const chosen = prices.find((price) => price.id === checkout.selection.priceId) ?? null;
+  const chosen = prices.find((price) => price.id === checkout.selection.licensePriceId) ?? null;
   const free = chosen !== null && chosen.amount === 0;
 
   const problemText = useProblemText(words);
@@ -504,7 +504,9 @@ function AnonymousCheckoutView({
   const waitingFor =
     starting || ready
       ? null
-      : !solved && checkout.turnstile.status !== "failed" && checkout.selection.priceId !== null
+      : !solved &&
+          checkout.turnstile.status !== "failed" &&
+          checkout.selection.licensePriceId !== null
         ? words.checkFirst
         : nameMissing
           ? showNameError
@@ -541,7 +543,7 @@ function AnonymousCheckoutView({
           unstyled={unstyled}
           legend={localization.pricingTable.billingInterval}
           prices={prices}
-          selected={checkout.selection.priceId}
+          selected={checkout.selection.licensePriceId}
           disabled={starting}
           unavailable={NO_PRICES}
           note={null}

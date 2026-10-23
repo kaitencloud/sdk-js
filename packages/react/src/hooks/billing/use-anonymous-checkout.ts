@@ -68,11 +68,14 @@ export type AnonymousCheckoutStep =
 
 /** What a visitor has chosen and typed. */
 export interface AnonymousCheckoutSelection {
-  /** The id of the price being bought (`BillingPrice.id`). `null` until one is chosen. */
-  priceId: string | null;
+  /**
+   * The id of the price being bought (`BillingPrice.id`), named as in `useCheckout`. The client
+   * sends it to the API as `priceId`. `null` until one is chosen.
+   */
+  licensePriceId: string | null;
   /**
    * A version of a public plan with `billingPeriod`, to name the price without its id: for a page
-   * that knows its plans and does not read the catalogue. Read when `priceId` is `null`.
+   * that knows its plans and does not read the catalogue. Read when `licensePriceId` is `null`.
    */
   licenseSlug: string | null;
   billingPeriod: CheckoutBillingPeriod | null;
@@ -86,7 +89,7 @@ export interface AnonymousCheckoutSelection {
   email: string;
   /**
    * The buyer's name, if the page asks for one. Kaiten has no member for it: it is never sent to
-   * Kaiten. The hook keeps it for the page, which gets it in `onStarted` and `onComplete`.
+   * Kaiten. The hook keeps it for the page, which gets it in `onStarted` and `onSubscribed`.
    */
   name: string;
 }
@@ -143,7 +146,7 @@ export interface AnonymousCheckoutPayment {
   settlement: "idle" | "polling" | "gave_up";
 }
 
-/** What `onComplete` is given: the checkout that completed. */
+/** What `onSubscribed` is given: the checkout that completed. */
 export interface AnonymousCheckoutOutcome {
   sessionId: string;
   /**
@@ -192,7 +195,7 @@ export interface UseAnonymousCheckoutOptions {
    */
   onStarted?: (started: { sessionId: string; email: string; name: string | null }) => void;
   /** Called once when the checkout completes, in this window, whether the visitor paid here or came back. */
-  onComplete?: (outcome: AnonymousCheckoutOutcome) => void;
+  onSubscribed?: (outcome: AnonymousCheckoutOutcome) => void;
 }
 
 export interface UseAnonymousCheckoutResult {
@@ -207,7 +210,7 @@ export interface UseAnonymousCheckoutResult {
   selection: AnonymousCheckoutSelection;
   select: (patch: Partial<AnonymousCheckoutSelection>) => void;
   /** Chooses the price (the plan, at a billing period) by its `BillingPrice.id`. */
-  selectPrice: (priceId: string | null) => void;
+  selectPrice: (licensePriceId: string | null) => void;
   setEmail: (email: string) => void;
   setName: (name: string) => void;
   /** Sets the voucher code, `""` for none. */
@@ -326,7 +329,7 @@ export function emptyAnonymousSelection(
   initial: Partial<AnonymousCheckoutSelection> = {},
 ): AnonymousCheckoutSelection {
   return {
-    priceId: initial.priceId ?? null,
+    licensePriceId: initial.licensePriceId ?? null,
     licenseSlug: initial.licenseSlug ?? null,
     billingPeriod: initial.billingPeriod ?? null,
     addOns: { ...initial.addOns },
@@ -339,7 +342,7 @@ export function emptyAnonymousSelection(
 
 /** Whether the selection names a price, by id or by plan and period. */
 const namesPrice = (selection: AnonymousCheckoutSelection): boolean =>
-  selection.priceId !== null ||
+  selection.licensePriceId !== null ||
   (selection.licenseSlug !== null && selection.billingPeriod !== null);
 
 /** The part of the request a selection is: the price, the add-ons, the code and the trial. */
@@ -356,8 +359,8 @@ function requestOf(selection: AnonymousCheckoutSelection): SelectionRequest {
     .map(([addonSlug, quantity]) => ({ addonSlug, quantity }));
   const voucherCode = selection.voucherCode.trim();
   return {
-    ...(selection.priceId !== null
-      ? { priceId: selection.priceId }
+    ...(selection.licensePriceId !== null
+      ? { priceId: selection.licensePriceId }
       : { licenseSlug: selection.licenseSlug ?? "", billingPeriod: selection.billingPeriod ?? "" }),
     ...(addOns.length ? { addOns } : {}),
     ...(voucherCode ? { voucherCode } : {}),
@@ -484,7 +487,10 @@ export function useAnonymousCheckout(
       setSelection((previous) => ({ ...previous, ...patch })),
     [],
   );
-  const selectPrice = React.useCallback((priceId: string | null) => select({ priceId }), [select]);
+  const selectPrice = React.useCallback(
+    (licensePriceId: string | null) => select({ licensePriceId }),
+    [select],
+  );
   const setEmail = React.useCallback((email: string) => select({ email }), [select]);
   const setName = React.useCallback((name: string) => select({ name }), [select]);
   const setVoucherCode = React.useCallback(
@@ -575,7 +581,7 @@ export function useAnonymousCheckout(
   React.useEffect(() => {
     if (outcome === null || told.current === outcome.sessionId) return;
     told.current = outcome.sessionId;
-    latest.current.options.onComplete?.(outcome);
+    latest.current.options.onSubscribed?.(outcome);
   }, [outcome]);
 
   /** An error that ends where a step cannot go on: the step to show, and the error. */

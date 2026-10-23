@@ -39,7 +39,7 @@ const meta: Meta<typeof AnonymousCheckoutFlow> = {
     plan: growth,
     successUrl: "https://shop.example.test/welcome",
     onStarted: fn(),
-    onComplete: fn(),
+    onSubscribed: fn(),
   },
 };
 
@@ -247,7 +247,7 @@ export const Bought: Story = {
       "https://shop.example.test/welcome",
     );
     await expect(canvas.queryByText(/registered for ada@example.com/)).toBeNull();
-    await waitFor(() => expect(args.onComplete).toHaveBeenCalledTimes(1), SLOW);
+    await waitFor(() => expect(args.onSubscribed).toHaveBeenCalledTimes(1), SLOW);
   },
 };
 
@@ -291,7 +291,7 @@ export const FreePlan: Story = {
     await expect(args.onStarted).toHaveBeenCalledWith(
       expect.objectContaining({ email: EMAIL, name: null }),
     );
-    await waitFor(() => expect(args.onComplete).toHaveBeenCalledTimes(1), SLOW);
+    await waitFor(() => expect(args.onSubscribed).toHaveBeenCalledTimes(1), SLOW);
     // No payment method was asked for, and no provider's page opened.
     await expect(canvas.queryByText(/Save your payment method/)).toBeNull();
   },

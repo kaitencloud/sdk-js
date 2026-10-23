@@ -471,15 +471,15 @@ const anonymousCheckoutClient = new KaitenAnonymousCheckoutClient({
   publishableKey="pk_…"
   anonymousCheckoutClient={anonymousCheckoutClient}
 >
-  <Signup priceId="…" />
+  <Signup licensePriceId="…" />
 </KaitenProvider>;
 
-function Signup({ priceId }: { priceId: string }) {
+function Signup({ licensePriceId }: { licensePriceId: string }) {
   const checkout = useAnonymousCheckout({
-    initial: { priceId },
+    initial: { licensePriceId },
     // For the screen only. What a browser reports can be faked: your backend links the buyer to an
     // account from the signed `checkout_session.v1.completed` event, not from this callback.
-    onComplete: ({ session }) => showWelcome(session.email),
+    onSubscribed: ({ session }) => showWelcome(session.email),
   });
   if (!checkout.available) return null; // the catalogue says this key cannot start one
   if (checkout.step === "completed") return <p>Thank you, you are all set.</p>;
@@ -545,24 +545,24 @@ function Signup({ priceId }: { priceId: string }) {
   `returnUrl` of your own is refused before a Turnstile token is spent). A page that is loaded back
   shows the wait from its first frame, not the form. `reset()` closes the popup the provider's page
   was opened in.
-- **Why its names differ from `useCheckout`'s.** The two hooks are two flows, and a name says which:
-  `useCheckout` names a price by `licensePriceId` and makes the checkout in one `submit()`, while
-  `useAnonymousCheckout` names it by `priceId` (or `licenseSlug` with `billingPeriod`, for a page
-  that does not read the catalogue) and is two calls, `start()` and `confirm()`, with a session
-  between them; `useCheckout().preview` is a state the hook keeps up to date as the customer
-  chooses, while `previewQuote()` is a call, because each one spends a Turnstile token and nothing
-  here runs by itself (its answer is `previewed`); `onSubscribed` says an instance is subscribed,
-  `onComplete` that the checkout completed for a buyer who is not an account yet. The same goes for
-  the vouchers: `useValidateVoucher` checks a code on its own, during a checkout, and
+- **Its names are `useCheckout`'s, where the concept is the same.** Both name the price by
+  `licensePriceId` (`useAnonymousCheckout` also takes `licenseSlug` with `billingPeriod`, for a page
+  that does not read the catalogue; its client sends the id to the API as `priceId`) and both tell the
+  page the instance is subscribed with `onSubscribed`. What differs is the flow: `useCheckout` makes
+  the checkout in one `submit()`, while `useAnonymousCheckout` is two calls, `start()` and `confirm()`,
+  with a session between them, and `start()` spends a Turnstile token; `useCheckout().preview` is a
+  state the hook keeps up to date as the customer chooses, while `previewQuote()` is a call, because
+  each one spends a token and nothing here runs by itself (its answer is `previewed`). The same goes
+  for the vouchers: `useValidateVoucher` checks a code on its own, during a checkout, and
   `useRedeemVoucher` previews, then redeems, a code on a live subscription. The names are stable
-  from the first release; a wider alignment would be a major one.
+  from the first release.
 - **A page that comes back without the token is `lost`.** Another browser, cleared storage, or a window of
   more than 24 hours: the checkout may have been paid for and completed. The hook never starts
   another by itself; the visitor decides (`reset()`).
 - **The name is yours.** Kaiten has no member for a buyer's name. `selection.name` is kept in the tab and
-  given to `onStarted` and `onComplete`, and is never sent to Kaiten. The vendor links the buyer to an
+  given to `onStarted` and `onSubscribed`, and is never sent to Kaiten. The vendor links the buyer to an
   account through the checkout's signed events (`checkout_session.v1.completed`), with `clientReferenceId`
-  or the e-mail. `onComplete`, the outcome and a `clientReferenceId` read in the browser are the visitor's
+  or the e-mail. `onSubscribed`, the outcome and a `clientReferenceId` read in the browser are the visitor's
   to change: use them for the screen only, and give `clientReferenceId` a value of your own, never one
   taken from a request parameter.
 - **Refusals have names.** `problem` classifies what the last attempt was refused with:

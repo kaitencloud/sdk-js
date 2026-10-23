@@ -209,7 +209,7 @@ test("an anonymous checkout renders on the server: a widget's place, nothing loa
   const client = createMockKaitenAnonymousCheckoutClient();
 
   function Signup() {
-    const checkout = useAnonymousCheckout({ initial: { priceId: "price_growth_monthly" } });
+    const checkout = useAnonymousCheckout({ initial: { licensePriceId: "price_growth_monthly" } });
     return (
       <form data-step={checkout.step} data-available={String(checkout.available)}>
         <div ref={checkout.turnstile.ref} />
