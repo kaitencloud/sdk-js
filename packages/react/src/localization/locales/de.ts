@@ -408,4 +408,54 @@ export const de: KaitenLocalization = {
       "Der Zahlungsdienstleister ist gerade nicht erreichbar. Versuchen Sie es gleich erneut.",
     error: "Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut.",
   },
+  trialBanner: {
+    title: "Testphase",
+    endsInDays: (days) =>
+      pluralize(
+        days,
+        { one: "Ihre Testphase endet in {n} Tag", other: "Ihre Testphase endet in {n} Tagen" },
+        "de-DE",
+      ),
+    endsInHours: (hours) =>
+      pluralize(
+        hours,
+        {
+          one: "Ihre Testphase endet in {n} Stunde",
+          other: "Ihre Testphase endet in {n} Stunden",
+        },
+        "de-DE",
+      ),
+    endsInMinutes: (minutes) =>
+      pluralize(
+        minutes,
+        {
+          one: "Ihre Testphase endet in {n} Minute",
+          other: "Ihre Testphase endet in {n} Minuten",
+        },
+        "de-DE",
+      ),
+    endsInAMoment: "Ihre Testphase endet gleich",
+    endsOn: (isoDate) => `Endet am ${formatKaitenDate(isoDate, { locale: "de-DE" })}`,
+    chargeOn: (price, isoDate) =>
+      `${price} werden am ${formatKaitenDate(isoDate, { locale: "de-DE" })} berechnet.`,
+    nothingCharged: "Am Ende Ihrer Testphase wird nichts berechnet.",
+    cardOnFile: (label) => `Hinterlegte Karte: ${label}.`,
+    noCard: "Noch keine Karte hinterlegt. Fügen Sie vor dem Ende Ihrer Testphase eine hinzu.",
+    card: "Karte",
+    addCard: "Karte hinzufügen",
+    cancel: "Abbrechen",
+    cancelPrompt: "Ihre Testphase endet sofort, und es wird nichts berechnet.",
+    cancelConfirm: "Meine Testphase beenden",
+    cancelKeep: "Testphase behalten",
+    opening: "Wird geöffnet…",
+    saving: "Ihre Karte wird gespeichert…",
+    saved: "Karte gespeichert.",
+    incomplete:
+      "Wir haben noch keine Karte erhalten. Fügen Sie eine hinzu oder prüfen Sie noch einmal.",
+    unavailable:
+      "Der Zahlungsdienstleister ist gerade nicht erreichbar. Versuchen Sie es gleich erneut.",
+    stillClosing:
+      "Ihr Abrechnungszeitraum wird noch abgeschlossen. Versuchen Sie es in einer Minute erneut.",
+    error: "Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut.",
+  },
 };

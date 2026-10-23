@@ -35,6 +35,11 @@ re-exports: an app that draws with Kaiten's components imports everything from h
   It draws nothing unless the catalogue says the publishable key may start one, and every refusal
   has words in English, French, Spanish and German. It is a component of its own rather than a mode
   of `CheckoutFlow`, which is a customer's.
+- **The trial.** `TrialBanner` shows the trial a customer session's instance is in: a countdown
+  to its end, what the end charges and to which card (the server's figure, or that nothing will
+  be charged), a prompt to add a card when there is none, "Add a card" through the provider's page
+  and back, and "Cancel", which asks first and says the trial ends at once with nothing charged.
+  It draws nothing outside a trial, and has words in English, French, Spanish and German.
 - **Summaries.** `BillingSummary`, `CurrentPlan` and `Paywall` say where a subscription stands
   (running, in its trial, canceled and ending, past due, over, or waiting for the first payment of
   its checkout, whose plan starts once the payment is confirmed), as the portal says it. Billing

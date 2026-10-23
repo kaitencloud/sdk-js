@@ -90,6 +90,7 @@ export type {
   KaitenPaymentMethodWords,
   KaitenPortalBillingWords,
   KaitenSubscriptionWords,
+  KaitenTrialBannerWords,
   KaitenDateFormatOptions,
   KaitenDateFormatter,
   KaitenDateInput,

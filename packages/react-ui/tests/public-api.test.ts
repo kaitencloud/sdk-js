@@ -37,6 +37,7 @@ const STYLED_SURFACE = [
   "AnonymousCheckoutFlow",
   "EntitlementStatusBar",
   "BillingSummary",
+  "TrialBanner",
 ] as const;
 
 /** Reached through `@kaitencloud/react/internal` only; a host has no business with them. */

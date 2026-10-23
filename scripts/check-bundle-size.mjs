@@ -184,9 +184,11 @@ const SCENARIOS = [
     // refusal).
     // Measured at 6 167 bytes, up from 6 142: the trial's price and a missing name, less the words
     // that promised an e-mail.
+    // Measured at 6 452 bytes, up from 6 215: the words of the trial banner and of redeeming a code,
+    // which every language pack carries whole.
     name: "locales · fr alone",
     code: `import { fr } from "@kaitencloud/react/locales"; console.log(fr);`,
-    budgetGzip: 6_250,
+    budgetGzip: 6_550,
     unstyled: true,
   },
   {
@@ -258,6 +260,14 @@ const SCENARIOS = [
     budgetGzip: 46_350,
   },
   {
+    // What a host that shows a customer their trial ships: the banner, the billing hooks that add a
+    // card and end the trial, and the words of its English.
+    // Measured at 46 991 bytes.
+    name: "react-ui · TrialBanner + KaitenProvider + KaitenStyleRoot",
+    code: `import { TrialBanner, KaitenProvider, KaitenStyleRoot } from "@kaitencloud/react-ui"; console.log(TrialBanner, KaitenProvider, KaitenStyleRoot);`,
+    budgetGzip: 47_100,
+  },
+  {
     // What a host that offers a customer portal ships: the sections, the billing hooks they
     // change a subscription with, and the words of their English. A host that offers none does
     // not: the scenarios above are not in it.
@@ -308,9 +318,11 @@ const SCENARIOS = [
     // English and the billing periods' choice it shares with the customer's checkout.
     // Measured at 106 719 bytes, up from 105 881: what the hook and the flow grew by, as above.
     // Measured at 106 964 bytes, up from 106 719: what the anonymous checkout grew by, as above.
+    // Measured at 108 472 bytes, up from 106 964: the trial banner, with the hooks and the words it
+    // is made of.
     name: "react-ui · everything",
     code: `import * as all from "@kaitencloud/react-ui"; console.log(all);`,
-    budgetGzip: 107_100,
+    budgetGzip: 108_600,
   },
   {
     name: "client · KaitenClient alone",

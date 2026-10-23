@@ -387,6 +387,50 @@ export interface KaitenPaymentMethodWords {
   error: string;
 }
 
+/**
+ * What `TrialBanner` says: how long a trial has left, what its end charges and to which card, and
+ * what the customer can do about it. Dates are RAW ISO bounds, formatted by the pack; a price is
+ * already formatted, with its period ("$79.00/month").
+ */
+export interface KaitenTrialBannerWords {
+  /** The name of the banner as a region, for a screen reader. */
+  title: string;
+  /** Said when a day or more is left. Receives the whole days. */
+  endsInDays: (days: number) => string;
+  /** Said when less than a day is left. Receives the whole hours. */
+  endsInHours: (hours: number) => string;
+  /** Said when less than an hour is left. Receives the whole minutes. */
+  endsInMinutes: (minutes: number) => string;
+  /** Said when less than a minute is left. */
+  endsInAMoment: string;
+  endsOn: (isoDate: string) => string;
+  /** What the end of the trial charges and when. Receives the server's price and the end of the trial. */
+  chargeOn: (price: string, isoDate: string) => string;
+  /** Said when the end of the trial charges nothing. */
+  nothingCharged: string;
+  /** The card the charge goes to. Receives its label: "Visa •••• 4242". */
+  cardOnFile: (label: string) => string;
+  /** Said when no card is on file, which the end of the trial may depend on. */
+  noCard: string;
+  /** What a card is called when the provider gave no brand. */
+  card: string;
+  addCard: string;
+  cancel: string;
+  /** Said before the trial is ended at the customer's request. */
+  cancelPrompt: string;
+  cancelConfirm: string;
+  cancelKeep: string;
+  opening: string;
+  saving: string;
+  saved: string;
+  /** Said back from the provider's page when no card was saved on it. */
+  incomplete: string;
+  unavailable: string;
+  /** Said when the billing period is still being closed: the same action goes through in a moment. */
+  stillClosing: string;
+  error: string;
+}
+
 export interface KaitenLocalization {
   /**
    * Formats a price for display. `amount` is in minor units (e.g. cents) and
@@ -609,6 +653,8 @@ export interface KaitenLocalization {
   portalBilling?: KaitenPortalBillingWords;
   /** What `PaymentMethodCard` says. Optional, like `checkoutFlow`. */
   paymentMethodCard?: KaitenPaymentMethodWords;
+  /** What `TrialBanner` says. Optional, like `checkoutFlow`. */
+  trialBanner?: KaitenTrialBannerWords;
 }
 
 /**

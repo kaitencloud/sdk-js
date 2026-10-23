@@ -400,4 +400,56 @@ export const fr: KaitenLocalization = {
       "Le prestataire de paiement est injoignable pour le moment. Réessayez dans un instant.",
     error: "Un problème est survenu. Veuillez réessayer.",
   },
+  trialBanner: {
+    title: "Période d'essai",
+    endsInDays: (days) =>
+      pluralize(
+        days,
+        {
+          one: "Votre essai se termine dans {n} jour",
+          other: "Votre essai se termine dans {n} jours",
+        },
+        "fr-FR",
+      ),
+    endsInHours: (hours) =>
+      pluralize(
+        hours,
+        {
+          one: "Votre essai se termine dans {n} heure",
+          other: "Votre essai se termine dans {n} heures",
+        },
+        "fr-FR",
+      ),
+    endsInMinutes: (minutes) =>
+      pluralize(
+        minutes,
+        {
+          one: "Votre essai se termine dans {n} minute",
+          other: "Votre essai se termine dans {n} minutes",
+        },
+        "fr-FR",
+      ),
+    endsInAMoment: "Votre essai se termine dans un instant",
+    endsOn: (isoDate) => `Se termine le ${formatKaitenDate(isoDate, { locale: "fr-FR" })}`,
+    chargeOn: (price, isoDate) =>
+      `Prélèvement de ${price} le ${formatKaitenDate(isoDate, { locale: "fr-FR" })}.`,
+    nothingCharged: "Rien ne sera prélevé à la fin de votre essai.",
+    cardOnFile: (label) => `Carte enregistrée : ${label}.`,
+    noCard: "Aucune carte enregistrée. Ajoutez-en une avant la fin de votre essai.",
+    card: "Carte",
+    addCard: "Ajouter une carte",
+    cancel: "Annuler",
+    cancelPrompt: "Votre essai prendra fin immédiatement et rien ne vous sera facturé.",
+    cancelConfirm: "Mettre fin à mon essai",
+    cancelKeep: "Garder mon essai",
+    opening: "Ouverture…",
+    saving: "Enregistrement de votre carte…",
+    saved: "Carte enregistrée.",
+    incomplete: "Nous n'avons pas encore reçu de carte. Ajoutez-en une, ou vérifiez à nouveau.",
+    unavailable:
+      "Le prestataire de paiement est injoignable pour le moment. Réessayez dans un instant.",
+    stillClosing:
+      "Votre période de facturation est encore en cours de clôture. Réessayez dans une minute.",
+    error: "Un problème est survenu. Veuillez réessayer.",
+  },
 };

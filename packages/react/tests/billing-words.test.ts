@@ -11,7 +11,7 @@ import { expect, test } from "vite-plus/test";
 import { de, es, fr } from "../src/locales.ts";
 
 const packs = { fr, de, es } as const;
-const SECTIONS = ["subscription", "portalBilling", "paymentMethodCard"] as const;
+const SECTIONS = ["subscription", "portalBilling", "paymentMethodCard", "trialBanner"] as const;
 
 test.each(SECTIONS)("%s: the three packs carry the same words", (section) => {
   const keys = (pack: (typeof packs)[keyof typeof packs]) =>

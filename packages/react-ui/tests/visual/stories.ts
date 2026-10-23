@@ -272,6 +272,19 @@ export const STORIES: Array<{ name: string; storyId: string }> = [
     name: "paywall-session--cancellation-scheduled",
     storyId: "flows-paywall-session--cancellation-scheduled",
   },
+  // TrialBanner — the trial a customer's instance is in: its countdown (the clock is fixed), what the
+  // end charges and to which card, the question before it is ended, and three languages.
+  { name: "trial-banner--default", storyId: "flows-trialbanner--default" },
+  { name: "trial-banner--with-a-card", storyId: "flows-trialbanner--with-a-card" },
+  { name: "trial-banner--nothing-to-charge", storyId: "flows-trialbanner--nothing-to-charge" },
+  { name: "trial-banner--quarterly", storyId: "flows-trialbanner--quarterly" },
+  { name: "trial-banner--last-hours", storyId: "flows-trialbanner--last-hours" },
+  {
+    name: "trial-banner--asking-before-canceling",
+    storyId: "flows-trialbanner--asking-before-canceling",
+  },
+  { name: "trial-banner--in-french", storyId: "flows-trialbanner--in-french" },
+  { name: "trial-banner--unstyled", storyId: "flows-trialbanner--unstyled" },
   // AnonymousCheckoutFlow — a visitor's checkout with no account: the form and its security check,
   // the review of what is due, the paths without a payment method, the payment provider's page and
   // what became of the payment, the ends a checkout can have, and every refusal that has words.

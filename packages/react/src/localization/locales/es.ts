@@ -397,4 +397,47 @@ export const es: KaitenLocalization = {
       "No se puede contactar con el proveedor de pagos ahora mismo. Inténtelo de nuevo en un momento.",
     error: "Algo ha salido mal. Vuelva a intentarlo.",
   },
+  trialBanner: {
+    title: "Periodo de prueba",
+    endsInDays: (days) =>
+      pluralize(
+        days,
+        { one: "Su prueba termina en {n} día", other: "Su prueba termina en {n} días" },
+        "es-ES",
+      ),
+    endsInHours: (hours) =>
+      pluralize(
+        hours,
+        { one: "Su prueba termina en {n} hora", other: "Su prueba termina en {n} horas" },
+        "es-ES",
+      ),
+    endsInMinutes: (minutes) =>
+      pluralize(
+        minutes,
+        { one: "Su prueba termina en {n} minuto", other: "Su prueba termina en {n} minutos" },
+        "es-ES",
+      ),
+    endsInAMoment: "Su prueba termina en un momento",
+    endsOn: (isoDate) => `Termina el ${formatKaitenDate(isoDate, { locale: "es-ES" })}`,
+    chargeOn: (price, isoDate) =>
+      `Se cobrarán ${price} el ${formatKaitenDate(isoDate, { locale: "es-ES" })}.`,
+    nothingCharged: "No se cobrará nada al terminar su prueba.",
+    cardOnFile: (label) => `Tarjeta guardada: ${label}.`,
+    noCard: "Todavía no hay ninguna tarjeta guardada. Añada una antes de que termine su prueba.",
+    card: "Tarjeta",
+    addCard: "Añadir una tarjeta",
+    cancel: "Cancelar",
+    cancelPrompt: "Su prueba terminará de inmediato y no se le cobrará nada.",
+    cancelConfirm: "Terminar mi prueba",
+    cancelKeep: "Mantener mi prueba",
+    opening: "Abriendo…",
+    saving: "Guardando su tarjeta…",
+    saved: "Tarjeta guardada.",
+    incomplete: "Todavía no hemos recibido una tarjeta. Añada una o compruebe otra vez.",
+    unavailable:
+      "No se puede contactar con el proveedor de pagos ahora mismo. Inténtelo de nuevo en un momento.",
+    stillClosing:
+      "Su periodo de facturación todavía se está cerrando. Inténtelo de nuevo en un minuto.",
+    error: "Algo ha salido mal. Vuelva a intentarlo.",
+  },
 };

@@ -74,6 +74,7 @@ export {
   type PaymentMethodCardProps,
 } from "./components/payment-method-card/payment-method-card.tsx";
 export { Paywall, type PaywallProps } from "./components/paywall/paywall.tsx";
+export { TrialBanner, type TrialBannerProps } from "./components/trial-banner/trial-banner.tsx";
 export { PlanBadge, type PlanBadgeProps } from "./components/plan-badge/plan-badge.tsx";
 export {
   UpgradeButton,

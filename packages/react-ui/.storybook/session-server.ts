@@ -28,6 +28,39 @@ export type PortalName =
 
 export type ErrorName = keyof typeof answers.errors;
 
+/**
+ * The portal of an instance in its trial, with the trial block the specification gives it and the
+ * contract does not carry yet. Kaiten's recorded portal is the base: only the subscription's status
+ * and the block change. Pass `trial` for another figure, `null` for a trial that charges nothing
+ * (`charge`) or has a card already (`paymentMethod`).
+ */
+export function trialPortal(
+  trial: Partial<{
+    endsAt: string;
+    reminderAt: string;
+    charge: { amount: number; currency: string; billingPeriod: string } | null;
+    paymentMethod: { brand: string; last4: string } | null;
+  }> = {},
+  change: (portal: Record<string, any>) => void = () => {},
+): Record<string, any> {
+  const portal: Record<string, any> = structuredClone(answers.portal);
+  const endsAt = trial.endsAt ?? "2026-10-30T09:00:00Z";
+  portal.subscription = { ...portal.subscription, status: "TRIAL", trialEndsAt: endsAt };
+  portal.upcomingInvoice = null;
+  portal.paymentMethod = null;
+  portal.trial = {
+    endsAt,
+    reminderAt: trial.reminderAt ?? "2026-10-27T09:00:00Z",
+    charge:
+      trial.charge === undefined
+        ? { amount: 4900, currency: "EUR", billingPeriod: "MONTHLY" }
+        : trial.charge,
+    paymentMethod: trial.paymentMethod === undefined ? null : trial.paymentMethod,
+  };
+  change(portal);
+  return portal;
+}
+
 /** An answer, as a status, a body and the `Retry-After` it may carry. */
 export interface Reply {
   status: number;
@@ -84,6 +117,19 @@ const CODES: Record<string, unknown> = {
   FIVEOFF: answers.voucherFixed,
 };
 
+/** A refusal of the redemption of a code, as the specification gives it: only its status and code matter. */
+const redemptionRefusal = (status: number, code: string): Reply => ({
+  status,
+  body: {
+    type: "https://tools.ietf.org/html/rfc7231#section-6.5.1",
+    title: "Refused",
+    status,
+    detail: "refused",
+    instance: "/api/public/session/vouchers/redeem",
+    code,
+  },
+});
+
 /** How a recorded checkout goes: the payment it ends in, and whether the plan starts with a trial. */
 export interface CheckoutScript {
   /** `paid` by default. `trial` is a subscription that starts as one, with nothing due today. */
@@ -139,6 +185,7 @@ export function sessionServer(
                 cancelAtPeriodEnd: false,
               },
               upcomingInvoice: null,
+              ...("trial" in portal ? { trial: null } : {}),
               capabilities: { ...portal.capabilities, unsubscribe: false, checkout: true },
             }
           : {
@@ -178,6 +225,43 @@ export function sessionServer(
         .replace(/[^a-z0-9]/gi, "")
         .toUpperCase();
       return { status: 200, body: CODES[code] ?? answers.voucherRefused };
+    }
+    if (method === "POST" && route === "vouchers/redeem") {
+      const status = portal.subscription?.status;
+      if (status === "INCOMPLETE") {
+        return redemptionRefusal(409, "RedeemSessionVoucher.SubscriptionIncomplete");
+      }
+      if (!portal.subscription || status === "CANCELED") {
+        return redemptionRefusal(409, "RedeemSessionVoucher.NoLiveSubscription");
+      }
+      const code = String(body.code)
+        .replace(/[^a-z0-9]/gi, "")
+        .toUpperCase();
+      const given = CODES[code] as { valid?: boolean; voucher?: Record<string, any> } | undefined;
+      const voucher = given?.valid ? given.voucher : undefined;
+      const held = (portal.vouchers as Array<Record<string, any>>).some(
+        (each) => each.name === voucher?.name,
+      );
+      if (!voucher || held) return redemptionRefusal(422, "RedeemSessionVoucher.VoucherInvalid");
+      const prices = voucher.voucherType === "PRICE";
+      const redemption = {
+        name: voucher.name,
+        voucherType: voucher.voucherType,
+        status: "ACTIVE",
+        appliesFromInvoice: prices ? "next" : null,
+        applicationsCount: 0,
+        applicationsMax: !prices
+          ? null
+          : voucher.duration === "ONE_TIME"
+            ? 1
+            : voucher.duration === "REPEATING"
+              ? voucher.durationInPeriods
+              : null,
+        effectiveStartsAt: "2026-10-23T09:00:00Z",
+        effectiveExpiresAt: null,
+      };
+      if (!body.dryRun) change({ vouchers: [redemption, ...portal.vouchers] });
+      return { status: body.dryRun ? 200 : 201, body: redemption };
     }
     if (method === "POST" && route === "checkout") {
       const payment = options.checkout?.payment ?? "paid";
@@ -220,7 +304,16 @@ export function sessionServer(
       };
     }
     if (method === "POST" && /^billing\/payment-method-session\/[^/]+\/complete$/.test(route)) {
-      change({ paymentMethod: answers.paymentMethodCompleted.paymentMethod });
+      const saved = answers.paymentMethodCompleted.paymentMethod;
+      change({
+        paymentMethod: saved,
+        // A trial's card is the one the customer now pays with.
+        ...(portal.trial
+          ? {
+              trial: { ...portal.trial, paymentMethod: { brand: saved.brand, last4: saved.last4 } },
+            }
+          : {}),
+      });
       return { status: 200, body: answers.paymentMethodCompleted };
     }
     return { status: 404, body: { title: "Not Found", status: 404, detail: `${method} ${route}` } };

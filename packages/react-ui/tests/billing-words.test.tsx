@@ -12,6 +12,7 @@ import { expect, test } from "vite-plus/test";
 import { de, es, fr } from "@kaitencloud/react/locales";
 import { KaitenProvider, useLocalization } from "@kaitencloud/react";
 
+import { englishTrialBannerWords } from "../src/components/trial-banner/words.ts";
 import {
   englishPaymentMethodWords,
   englishPortalBillingWords,
@@ -26,6 +27,7 @@ const sections = [
   ["subscription", englishSubscriptionWords],
   ["portalBilling", englishPortalBillingWords],
   ["paymentMethodCard", englishPaymentMethodWords],
+  ["trialBanner", englishTrialBannerWords],
 ] as const;
 
 // Words that are the same in another language, or a name that is not translated.
@@ -98,6 +100,24 @@ test("a sentence around a name, a date or an amount carries it", () => {
     expect(subscription.trialEndsOn(day)).toMatch(/2026|01|1/);
     expect(subscription.endsOn(day)).toMatch(/2026|01|1/);
     expect(subscription.changesOn("€490.00/year", day)).toContain("€490.00/year");
+  }
+  for (const trial of [
+    englishTrialBannerWords,
+    fr.trialBanner!,
+    de.trialBanner!,
+    es.trialBanner!,
+  ]) {
+    expect(trial.endsOn(day)).toMatch(/2026|01|1/);
+    const charge = trial.chargeOn("PRICE", day);
+    expect(charge).toContain("PRICE");
+    expect(charge).toMatch(/2026|01|1/);
+    expect(trial.cardOnFile("Visa •••• 4242")).toContain("Visa •••• 4242");
+    // The countdown carries the number it counts, in the plural and the singular.
+    for (const count of [trial.endsInDays, trial.endsInHours, trial.endsInMinutes]) {
+      expect(count(5)).toContain("5");
+      expect(count(1)).toContain("1");
+      expect(count(1)).not.toBe(count(5));
+    }
   }
   for (const card of [
     englishPaymentMethodWords,

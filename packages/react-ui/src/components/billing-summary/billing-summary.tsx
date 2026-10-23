@@ -25,7 +25,7 @@ import { useTrackComponent } from "@kaitencloud/react/internal";
 import { Button } from "../ui/button.tsx";
 import { Separator } from "../ui/separator.tsx";
 import { Skeleton } from "../ui/skeleton.tsx";
-import { describePaymentMethod } from "../payment-method-card/payment-method-card.tsx";
+import { describePaymentMethod } from "../shared/payment-method-label.ts";
 import { usePaymentMethodWords, useSubscriptionWords } from "../shared/billing-words.ts";
 import {
   describeSubscription,

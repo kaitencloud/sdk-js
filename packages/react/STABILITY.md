@@ -179,11 +179,12 @@ the core lists here that `@kaitencloud/react-ui` imports only grows within a maj
 [Compatibility with `@kaitencloud/react-ui`](#compatibility-with-kaitencloudreact-ui)): today
 `formatKaitenPrice`, `emitKaitenEvent`, `DEFAULT_CURRENCY_CODE`, and the types of words
 `KaitenCheckoutWords`, `KaitenAnonymousCheckoutWords`, `KaitenPortalBillingWords`,
-`KaitenSubscriptionWords` and `KaitenPaymentMethodWords`.
+`KaitenSubscriptionWords`, `KaitenPaymentMethodWords` and `KaitenTrialBannerWords`.
 
 - **What `@kaitencloud/react-ui` adds.** Its styled components (default,
   non-`unstyled` rendering): `CustomerPortal` (and its sections
   `CurrentPlan`/`IncludedFeatures`/`UsageMeters`/`AddOns`/`FlagsSummary`/`InvoiceList`/`VoucherEntry`/`PaymentMethodCard`),
+  `TrialBanner`,
   `PricingTable`, `FeatureComparison`, `CheckoutSummary`, `CheckoutFlow`, `AnonymousCheckoutFlow`,
   `Paywall`, `PlanBadge`,
   `UpgradeButton`, `EntitlementStatusBar`, `FeatureCatalog`, `BillingSummary`,
@@ -223,6 +224,15 @@ the core lists here that `@kaitencloud/react-ui` imports only grows within a maj
     replace it on the provider's hosted page, or manage it in the provider's own billing portal.
     It is an element of `CustomerPortal` under a session, and it is not there at all (no element,
     no empty card) when the portal says the provider cannot capture a payment method.
+  - **`TrialBanner`** (`@kaitencloud/react-ui`), under `mode="customer-session"`: the trial the
+    bound instance is in, from the portal's `trial` block. It counts down to the end, says what the
+    end charges and when (the server's figure, never computed by the component; nothing when the end
+    charges nothing), the card the charge goes to or a prompt to add one, and offers "Add a card"
+    and "Cancel" as the portal allows them (`capabilities.paymentMethods`, `capabilities.unsubscribe`).
+    Cancelling asks first and says the trial ends at once with nothing charged. It draws nothing
+    outside a trial, and nothing from a server that does not serve the block. It adds no route and
+    reads nothing but the portal. `now` fixes the instant it counts from; `trial` draws a trial
+    the host holds.
   - **The subscription in `CurrentPlan`, `BillingSummary` and `Paywall`** (`@kaitencloud/react-ui`),
     under `mode="customer-session"`: the status the portal gives (running, in its trial, canceled and
     ending with its period, past due, over, waiting for the first payment of its checkout, or no
@@ -250,8 +260,8 @@ the core lists here that `@kaitencloud/react-ui` imports only grows within a maj
   `checkoutFlow` for the rest, so a host that overrides it overrides both.
 - **The words of the portal and of a subscription**, `KaitenLocalization.portalBilling` and
   `KaitenLocalization.subscription` (typed `KaitenPortalBillingWords` and
-  `KaitenSubscriptionWords`), and `KaitenLocalization.paymentMethodCard`
-  (`KaitenPaymentMethodWords`). Optional, like the checkout's: the English is in
+  `KaitenSubscriptionWords`), `KaitenLocalization.paymentMethodCard`
+  (`KaitenPaymentMethodWords`) and `KaitenLocalization.trialBanner` (`KaitenTrialBannerWords`). Optional, like the checkout's: the English is in
   `@kaitencloud/react-ui`, and a language pack carries each section whole.
 - **Theming API** — `KaitenStyleRoot`, `useKaitenPortalContainer`, `appearance`
   (`KaitenAppearance`, the `themes.*` presets, the `--ktn-*` variable contract)
