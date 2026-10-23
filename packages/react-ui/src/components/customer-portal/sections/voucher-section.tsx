@@ -138,10 +138,9 @@ export function describeRedemption(
   if (hasPricePart(redemption)) {
     if (appliesFromInvoice === "next") {
       notes.push(words.voucherFromNextInvoice);
-      if (typeof applicationsMax === "number")
-        notes.push(words.voucherForInvoices(applicationsMax));
-    } else if (typeof applicationsCount === "number" && !offered) {
-      notes.push(words.voucherUsedOf(applicationsCount, applicationsMax ?? null));
+      if (applicationsMax !== null) notes.push(words.voucherForInvoices(applicationsMax));
+    } else if (!offered) {
+      notes.push(words.voucherUsedOf(applicationsCount, applicationsMax));
     }
   }
   if (hasGrantPart(redemption)) {

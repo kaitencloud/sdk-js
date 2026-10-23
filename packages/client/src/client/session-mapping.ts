@@ -204,22 +204,17 @@ export function mapSessionAddon(raw: Api.SessionAddon): SessionAddon {
 
 /**
  * One redemption: a line of the portal's `vouchers`, or the answer of `vouchers/redeem`, which are
- * the contract's one `SessionRedemption`. The contract makes `appliesFromInvoice`,
- * `applicationsCount` and `applicationsMax` required; a portal served by a Kaiten that predates
- * them leaves them out, and they stay absent rather than made up.
+ * the contract's one `SessionRedemption`. The contract makes every member required, and the client
+ * trusts it.
  */
 export function mapRedemption(raw: Api.SessionRedemption): PortalVoucher {
   return {
     name: raw.name,
     voucherType: raw.voucherType,
     status: raw.status,
-    ...(raw.appliesFromInvoice !== undefined
-      ? { appliesFromInvoice: raw.appliesFromInvoice === "next" ? ("next" as const) : null }
-      : {}),
-    ...(typeof raw.applicationsCount === "number"
-      ? { applicationsCount: raw.applicationsCount }
-      : {}),
-    ...(raw.applicationsMax !== undefined ? { applicationsMax: raw.applicationsMax } : {}),
+    appliesFromInvoice: raw.appliesFromInvoice === "next" ? "next" : null,
+    applicationsCount: raw.applicationsCount,
+    applicationsMax: raw.applicationsMax,
     effectiveStartsAt: raw.effectiveStartsAt,
     effectiveExpiresAt: raw.effectiveExpiresAt ?? null,
   };

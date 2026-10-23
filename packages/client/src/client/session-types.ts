@@ -149,13 +149,13 @@ export interface PortalVoucher {
   /**
    * `"next"` while a price part has not yet discounted an invoice: it applies from the next one,
    * and the current period is never invoiced again. `null` when the voucher has no price part, or
-   * its first invoice is behind it. Absent from a server that predates it.
+   * its first invoice is behind it.
    */
-  appliesFromInvoice?: "next" | null;
-  /** How many invoices the price part has discounted. `0` without one. Absent from a server that predates it. */
-  applicationsCount?: number;
-  /** How many invoices it discounts at most. Null without a price part, or when it never ends. Absent from a server that predates it. */
-  applicationsMax?: number | null;
+  appliesFromInvoice: "next" | null;
+  /** How many invoices the price part has discounted. `0` without one. */
+  applicationsCount: number;
+  /** How many invoices it discounts at most. Null without a price part, or when it never ends. */
+  applicationsMax: number | null;
   /** When the boost or grant takes effect. */
   effectiveStartsAt: string;
   /** When a boost or grant stops applying. Null when it does not expire, and for a `PRICE` voucher, which is counted in invoices. */
