@@ -1713,6 +1713,54 @@ describe("a code redeemed from the portal", () => {
     });
   });
 
+  test("is not taken again by a checkout or a check once the instance redeemed it", async () => {
+    const { double, recorder, customer } = world();
+    double.reset({ subscribed: true });
+    const session = await customer();
+    await expect(session.validateVoucher({ code: "WELCOME20" })).resolves.toMatchObject({
+      valid: true,
+    });
+    await session.redeemVoucher({ code: "WELCOME20" });
+
+    // The subscription ends, and the instance falls back to the free plan.
+    await session.cancelSubscription();
+    expect(double.advance(ORIGIN)).toMatchObject({ ok: true, applied: "canceled" });
+
+    // The code is the instance's, taken: a check says so, and a new checkout that carries it is refused.
+    await expect(session.validateVoucher({ code: "WELCOME20" })).resolves.toMatchObject({
+      valid: false,
+    });
+    for (const dryRun of [true, false]) {
+      await expect(
+        session.checkout({ licensePriceId: PRO_MONTHLY, voucherCode: "WELCOME20", dryRun }),
+      ).rejects.toMatchObject({ status: 422, code: "CreateSessionCheckout.VoucherInvalid" });
+    }
+    // Without the code the checkout goes through, and the invoice carries no discount.
+    await session.checkout({ licensePriceId: PRO_MONTHLY });
+    expect((await session.listInvoices()).items[0]).toMatchObject({ discountTotal: 0 });
+    expect(problemsBesidesDryRuns(recorder)).toEqual([]);
+  });
+
+  test("a trial that carries the code discounts the invoice it ends with once", async () => {
+    const { double, customer } = world();
+    double.reset({ card: true, email: true });
+    const session = await customer();
+    await session.checkout({ licensePriceId: GROWTH_MONTHLY, voucherCode: "WELCOME20" });
+
+    const [redemption] = (await session.getPortal()).vouchers;
+    expect(redemption).toMatchObject({ name: "Welcome 20%", applicationsCount: 0 });
+    expect(double.endTrial(ORIGIN)).toMatchObject({ ok: true, applied: "trial_converted" });
+
+    // 9,900 less 20% of the base fee, and the code counted once.
+    expect(double.state().invoices[0]).toMatchObject({ kind: "ACTIVATION", total: 9900 - 1980 });
+    expect((await session.listInvoices()).items).toEqual([
+      expect.objectContaining({ discountTotal: 1980 }),
+    ]);
+    expect((await session.getPortal()).vouchers).toEqual([
+      expect.objectContaining({ applicationsCount: 1 }),
+    ]);
+  });
+
   test("refuses a body the contract does not allow", async () => {
     const { double, call, mint } = world();
     double.reset({ subscribed: true });

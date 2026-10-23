@@ -765,7 +765,8 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
 
     let discountTotal = 0;
     if (order.voucherCode !== undefined) {
-      if (normalizeCode(String(order.voucherCode)) !== VOUCHER_CODE) {
+      // The instance redeemed it already: a code is taken once, wherever it was presented first.
+      if (normalizeCode(String(order.voucherCode)) !== VOUCHER_CODE || redeemed) {
         return {
           problem: problem(422, `${operation}.VoucherInvalid`, "this voucher cannot be applied"),
         };
@@ -1650,7 +1651,7 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
     if (key === "POST /public/session/vouchers/validate") {
       return reply(
         200,
-        normalizeCode(String(body.code ?? "")) === VOUCHER_CODE
+        normalizeCode(String(body.code ?? "")) === VOUCHER_CODE && !redeemed
           ? session.voucherPercent
           : session.voucherRefused,
       );
