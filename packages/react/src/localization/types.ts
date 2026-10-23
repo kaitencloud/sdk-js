@@ -127,8 +127,21 @@ export interface KaitenCheckoutWords {
  * formatted by the pack.
  */
 export interface KaitenAnonymousCheckoutWords {
+  /** The label of the field for the visitor's company, when the page asks for one. */
+  companyLabel: string;
+  /** Said under the company field. */
+  companyHint: string;
+  /** Said under the company field of a visitor who pressed the button without giving one. */
+  companyRequired: string;
   /** The label of the field for the visitor's name, when the page asks for one. */
   nameLabel: string;
+  /** Said under the name field. */
+  nameHint: string;
+  /**
+   * Added in parentheses after the label of a field the page asks for and does not require
+   * ("Name (optional)"), so that the label says what the field's absent `required` would not.
+   */
+  optional: string;
   emailLabel: string;
   /**
    * Said under the e-mail field. The default makes no promise about mail: Kaiten sends none to the

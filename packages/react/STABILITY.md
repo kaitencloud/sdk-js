@@ -151,8 +151,9 @@ the rest of the blessed path:
   needs the first Kaiten release that has the anonymous checkout (`POST /public/checkout-sessions`). Its steps, its refusals
   (`AnonymousCheckoutProblem`), the way it opened the payment provider's page, how a payment is
   waited on and the state of the widget may gain a member in a minor release, by the rules of
-  [Unions that grow](#unions-that-grow). The `name` it holds is the page's own: Kaiten has no
-  member for it, and it is never sent. `problem` is the way to branch on a refusal: the error classes
+  [Unions that grow](#unions-that-grow). The `name` and the `company` it holds are the page's own: Kaiten has no
+  member for either, and neither is ever sent. Both are given to `onStarted` and to the outcome
+  (`null` when none was typed or it was lost), kept in the tab across the payment provider's page. `problem` is the way to branch on a refusal: the error classes
   behind it are `@kaitencloud/client`'s and are not re-exported by this package. The widget's
   `appearance` offers `always` and `interaction-only`; Cloudflare's `execute`, which needs the page to
   ask for the check, is left out until a call exists to ask.
@@ -217,7 +218,9 @@ the core lists here that `@kaitencloud/react-ui` imports only grows within a maj
     a customer's and needs a session, so that a host that sells to one kind of buyer ships
     only that flow. It renders nothing unless the catalogue says the publishable key may start an
     anonymous checkout. The styled flow is the plan, the billing period, the e-mail and, if the
-    page asks, the name: it has no field for a voucher code or for add-ons, which a page that
+    page asks, the company and the name (`collectCompany` and `collectName`: off, `"optional"`
+    or `"required"`, where `true` is `"required"`; the props of a styled component are
+    experimental, and a value the flow does not know asks for nothing): it has no field for a voucher code or for add-ons, which a page that
     sells either builds on the hook (`setVoucherCode`, `setAddonQuantity`, and the problems
     `voucher_invalid` and `addon_refused`).
   - **The billing sections of `CustomerPortal`** (`@kaitencloud/react-ui`), under `mode="customer-session"`:
@@ -267,7 +270,10 @@ the core lists here that `@kaitencloud/react-ui` imports only grows within a maj
   present one replace them.
 - **The words of an anonymous checkout**, `KaitenLocalization.anonymousCheckout` (typed
   `KaitenAnonymousCheckoutWords`). Optional and carried whole by every language pack, like the
-  checkout's; the English is in `@kaitencloud/react-ui`. It says what a customer's checkout does
+  checkout's; the English is in `@kaitencloud/react-ui`. The company field's words
+  (`companyLabel`, `companyHint`, `companyRequired`), the name's hint and the mark of an optional
+  field (`optional`) are members of 1.0.0, which is not published: a pack that predates them is
+  incomplete, and the compiler says so. It says what a customer's checkout does
   not (the form, the security check, the review, the end, each refusal) and leans on
   `checkoutFlow` for the rest, so a host that overrides it overrides both.
 - **The words of the portal and of a subscription**, `KaitenLocalization.portalBilling` and

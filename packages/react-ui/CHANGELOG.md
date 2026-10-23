@@ -29,7 +29,7 @@ re-exports: an app that draws with Kaiten's components imports everything from h
   no total is computed in the browser. A voucher code is never left in the page, an address or a
   log.
 - **Anonymous checkout.** `AnonymousCheckoutFlow` sells a plan to a visitor with no account: the
-  billing period, an email (and a name, if the page asks), the Turnstile security check, what the
+  billing period, an email (and a company and a name, if the page asks), the Turnstile security check, what the
   server says is due, a free plan started with one button, the payment provider's page and the way
   back from it, the payment, and what happens next (an email to check, or a page of the host's).
   It draws nothing unless the catalogue says the publishable key may start one, and every refusal

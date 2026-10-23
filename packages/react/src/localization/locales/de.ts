@@ -223,7 +223,12 @@ export const de: KaitenLocalization = {
     addOnRefused: (names) => `Dieser Tarif kann ${names} nicht abrechnen.`,
   },
   anonymousCheckout: {
+    companyLabel: "Unternehmen",
+    companyHint: "Der Name Ihres Unternehmens oder Ihrer Organisation.",
+    companyRequired: "Geben Sie Ihr Unternehmen ein.",
     nameLabel: "Name",
+    nameHint: "Die Ansprechperson für Ihr Konto.",
+    optional: "optional",
     emailLabel: "E-Mail",
     emailHint: "Diese Adresse wird für Ihr Konto und Ihre Abrechnung verwendet.",
     nameRequired: "Geben Sie Ihren Namen ein.",

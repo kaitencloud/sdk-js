@@ -357,6 +357,10 @@ export const STORIES: Array<{ name: string; storyId: string }> = [
     name: "anonymous-checkout-flow--with-a-name",
     storyId: "flows-anonymouscheckoutflow--with-a-name",
   },
+  {
+    name: "anonymous-checkout-flow--with-a-company-and-a-name",
+    storyId: "flows-anonymouscheckoutflow--with-a-company-and-a-name",
+  },
   { name: "anonymous-checkout-flow--unstyled", storyId: "flows-anonymouscheckoutflow--unstyled" },
   { name: "anonymous-checkout-flow--french", storyId: "flows-anonymouscheckoutflow--french" },
   { name: "anonymous-checkout-flow--dark", storyId: "flows-anonymouscheckoutflow--dark" },

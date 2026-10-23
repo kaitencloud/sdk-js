@@ -617,7 +617,60 @@ export const WithAName: Story = {
       sessionId: "chk_mock_1",
       email: EMAIL,
       name: "Ada Lovelace",
+      company: null,
     });
+  },
+};
+
+export const WithACompanyAndAName: Story = {
+  decorators: [standard],
+  name: "Asking for a company, and a name that may be left out",
+  args: { collectCompany: "required", collectName: "optional", plan: starter, onStarted: fn() },
+  play: async ({ canvasElement, args }) => {
+    const canvas = await checked(canvasElement);
+    // Company, name, e-mail: the order of the page, the optional field said to be so.
+    const company = canvas.getByLabelText("Company");
+    const name = canvas.getByLabelText("Name (optional)");
+    await expect(company).toBeRequired();
+    await expect(name).not.toBeRequired();
+    await expect(company).toHaveAttribute("autocomplete", "organization");
+    await expect(name).toHaveAttribute("autocomplete", "name");
+    await expect(
+      company.compareDocumentPosition(name) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    await typeEmail(canvas);
+    const go = canvas.getByRole("button", { name: "Start for free" });
+    // The company is asked for, so the button waits for it and says why; the name is not.
+    await unavailable(go);
+    await expect(canvas.getByText("Enter your company.")).toBeInTheDocument();
+    await userEvent.click(go);
+    await expect(await canvas.findByRole("alert")).toHaveTextContent("Enter your company.");
+    await expect(company).toHaveFocus();
+    await userEvent.type(company, "Analytical Engines");
+    await available(go);
+    await userEvent.click(go);
+    await expect(await canvas.findByText("You're subscribed", {}, SLOW)).toBeInTheDocument();
+    // Kaiten has no member for either: the page gets them, and nothing else does.
+    await expect(args.onStarted).toHaveBeenCalledWith({
+      sessionId: "chk_mock_1",
+      email: EMAIL,
+      name: null,
+      company: "Analytical Engines",
+    });
+  },
+};
+
+export const CompanyAndNameOptional: Story = {
+  decorators: [standard],
+  name: "Asking for a company and a name, both optional",
+  args: { collectCompany: "optional", collectName: "optional", plan: starter },
+  play: async ({ canvasElement }) => {
+    const canvas = await checked(canvasElement);
+    await expect(canvas.getByLabelText("Company (optional)")).not.toBeRequired();
+    await expect(canvas.getByLabelText("Name (optional)")).not.toBeRequired();
+    await typeEmail(canvas);
+    // Nothing else is needed: the button is available without either.
+    await available(canvas.getByRole("button", { name: "Start for free" }));
   },
 };
 
@@ -650,6 +703,20 @@ export const French: Story = {
     ).toBeInTheDocument();
     await expect(canvas.getByLabelText("E-mail")).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Continuer" })).toBeInTheDocument();
+  },
+};
+
+export const FrenchWithACompany: Story = {
+  decorators: [anonymousCheckoutDecorator({}, fr)],
+  name: "In French, asking for a company and a name",
+  args: { collectCompany: true, collectName: "optional", plan: starter },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(
+      await canvas.findByText("Contrôle de sécurité réussi.", {}, SLOW),
+    ).toBeInTheDocument();
+    await expect(canvas.getByLabelText("Entreprise")).toBeRequired();
+    await expect(canvas.getByLabelText("Nom (facultatif)")).not.toBeRequired();
   },
 };
 

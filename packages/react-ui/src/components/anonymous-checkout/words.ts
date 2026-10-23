@@ -16,7 +16,12 @@ import {
  * and a host's override of one string is merged over these.
  */
 export const englishAnonymousCheckoutWords: KaitenAnonymousCheckoutWords = {
+  companyLabel: "Company",
+  companyHint: "The name of your company or organization.",
+  companyRequired: "Enter your company.",
   nameLabel: "Name",
+  nameHint: "Who we should contact about your account.",
+  optional: "optional",
   emailLabel: "Email",
   emailHint: "This address is used for your account and your billing.",
   nameRequired: "Enter your name.",

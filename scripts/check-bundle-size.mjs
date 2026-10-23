@@ -273,9 +273,12 @@ const SCENARIOS = [
     // Measured at 69 768 bytes, up from 68 963: what the hook grew by, as above, the check that
     // failed told apart from a script that could not load, and the review that does not draw the
     // figures of an amount that changed after the setup.
+    // Measured at 70 159 bytes, up from 69 777: the company field and the optional mode of both
+    // fields, with their English words (label, hint, required message, the mark of an optional
+    // field) and the hook's company beside its name.
     name: "react-ui · AnonymousCheckoutFlow + KaitenProvider + KaitenStyleRoot",
     code: `import { AnonymousCheckoutFlow, KaitenProvider, KaitenStyleRoot } from "@kaitencloud/react-ui"; console.log(AnonymousCheckoutFlow, KaitenProvider, KaitenStyleRoot);`,
-    budgetGzip: 70_100,
+    budgetGzip: 70_450,
   },
   {
     // What a host that shows a customer how they pay ships: the card, the billing hooks that add or
@@ -361,9 +364,10 @@ const SCENARIOS = [
     // Measured at 110 793 bytes, up from 110 468: the anonymous checkout's review and the warning tone.
     // Measured at 111 688 bytes, up from 110 793: what the anonymous checkout and the hooks that open
     // a popup grew by, as above.
+    // Measured at 112 248 bytes, up from 111 694: the company field of the anonymous checkout, as above.
     name: "react-ui · everything",
     code: `import * as all from "@kaitencloud/react-ui"; console.log(all);`,
-    budgetGzip: 112_000,
+    budgetGzip: 112_550,
   },
   {
     name: "client · KaitenClient alone",

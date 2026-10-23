@@ -222,7 +222,12 @@ export const es: KaitenLocalization = {
     addOnRefused: (names) => `Este plan no puede facturar ${names}.`,
   },
   anonymousCheckout: {
+    companyLabel: "Empresa",
+    companyHint: "El nombre de su empresa u organización.",
+    companyRequired: "Escriba el nombre de su empresa.",
     nameLabel: "Nombre",
+    nameHint: "La persona con quien contactar sobre su cuenta.",
+    optional: "opcional",
     emailLabel: "Correo electrónico",
     emailHint: "Esta dirección se usa para su cuenta y su facturación.",
     nameRequired: "Escriba su nombre.",

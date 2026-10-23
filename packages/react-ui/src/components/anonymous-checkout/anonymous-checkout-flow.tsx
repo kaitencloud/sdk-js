@@ -40,6 +40,22 @@ import { Input } from "../ui/input.tsx";
 import { Skeleton } from "../ui/skeleton.tsx";
 import { useAnonymousCheckoutWords } from "./words.ts";
 
+/**
+ * Whether the form asks for a field, and whether the visitor may leave it empty: `false` does not
+ * ask, `"optional"` asks and takes an empty answer, and `"required"` (or `true`) asks and holds the
+ * button until it is filled in.
+ */
+export type AnonymousCheckoutFieldMode = boolean | "optional" | "required";
+
+type FieldKind = "off" | "optional" | "required";
+
+/** A field's mode as the form reads it. A value a later release adds, which this one does not know, asks for nothing. */
+function fieldKind(mode: AnonymousCheckoutFieldMode | undefined): FieldKind {
+  if (mode === true || mode === "required") return "required";
+  if (mode === "optional") return "optional";
+  return "off";
+}
+
 export interface AnonymousCheckoutFlowProps {
   /**
    * The plan to sell: what `PricingTable` hands to `onSelectPlan`, or one of `usePlans()`. It carries
@@ -68,10 +84,18 @@ export interface AnonymousCheckoutFlowProps {
    */
   successUrl?: string;
   /**
-   * Asks for the visitor's name too, and hands it to `onStarted` and `onSubscribed`. Kaiten has no
-   * member for it, so it is never sent to Kaiten. Default `false`.
+   * Asks for the visitor's company too, above their name and e-mail, and hands it to `onStarted`
+   * and `onSubscribed`. `true` and `"required"` hold the button until it is given, `"optional"`
+   * takes an empty answer. Kaiten has no member for it, so it is never sent to Kaiten: the
+   * vendor's backend names the customer after it. Default `false`.
    */
-  collectName?: boolean;
+  collectCompany?: AnonymousCheckoutFieldMode;
+  /**
+   * Asks for the visitor's name too, and hands it to `onStarted` and `onSubscribed`. `true` and
+   * `"required"` hold the button until it is given, `"optional"` takes an empty answer. Kaiten has
+   * no member for it, so it is never sent to Kaiten. Default `false`.
+   */
+  collectName?: AnonymousCheckoutFieldMode;
   /**
    * Your own reference for the buyer, at most 255 characters. Echoed on the checkout's events.
    * Untrusted once it comes back through a browser: a visitor can change it, and a value taken from
@@ -141,6 +165,7 @@ function AnonymousCheckoutView({
   priceId,
   returnUrl,
   successUrl,
+  collectCompany = false,
   collectName = false,
   clientReferenceId,
   onStarted,
@@ -480,11 +505,17 @@ function AnonymousCheckoutView({
   const starting = step === "starting";
   const solved = checkout.turnstile.status === "solved";
   const emailTyped = checkout.selection.email.trim() !== "";
-  const nameMissing = collectName && checkout.selection.name.trim() === "";
-  const ready = checkout.canStart && !nameMissing;
+  const companyKind = fieldKind(collectCompany);
+  const nameKind = fieldKind(collectName);
+  const companyMissing = companyKind === "required" && checkout.selection.company.trim() === "";
+  const nameMissing = nameKind === "required" && checkout.selection.name.trim() === "";
+  const ready = checkout.canStart && !companyMissing && !nameMissing;
   const emailBad = !isPlausibleEmail(checkout.selection.email);
   const showEmailError = emailBad && (attempted || (emailLeft && emailTyped));
+  const showCompanyError = companyMissing && attempted;
   const showNameError = nameMissing && attempted;
+  // The first field the form draws carries the focus a new step sends the keyboard to.
+  const firstField = companyKind !== "off" ? "company" : nameKind !== "off" ? "name" : "email";
   const submit = () => {
     if (ready) {
       void checkout.start();
@@ -492,7 +523,13 @@ function AnonymousCheckoutView({
     }
     // Pressed while something is missing: say what, and take the visitor to the first field to fix.
     setAttempted(true);
-    const firstWrong = nameMissing ? "name" : emailBad ? "email" : null;
+    const firstWrong = companyMissing
+      ? "company"
+      : nameMissing
+        ? "name"
+        : emailBad
+          ? "email"
+          : null;
     if (firstWrong !== null) {
       form.current?.querySelector<HTMLElement>(`[data-field="${firstWrong}"]`)?.focus();
     }
@@ -508,15 +545,19 @@ function AnonymousCheckoutView({
           checkout.turnstile.status !== "failed" &&
           checkout.selection.licensePriceId !== null
         ? words.checkFirst
-        : nameMissing
-          ? showNameError
+        : companyMissing
+          ? showCompanyError
             ? null
-            : words.nameRequired
-          : emailBad
-            ? showEmailError
+            : words.companyRequired
+          : nameMissing
+            ? showNameError
               ? null
-              : words.emailFirst
-            : null;
+              : words.nameRequired
+            : emailBad
+              ? showEmailError
+                ? null
+                : words.emailFirst
+              : null;
   const waitingId = `${formId}-waiting`;
   const checkId = `${formId}-check`;
   // A check that failed says why in its own sentence, and the button that waits on it points there.
@@ -554,20 +595,41 @@ function AnonymousCheckoutView({
         />
       ) : null}
 
-      {collectName ? (
+      {companyKind !== "off" ? (
+        <Field
+          unstyled={unstyled}
+          slot="anonymous-checkout-company"
+          label={words.companyLabel}
+          hint={words.companyHint}
+          optionalMark={companyKind === "optional" ? words.optional : undefined}
+          type="text"
+          autoComplete="organization"
+          value={checkout.selection.company}
+          disabled={starting}
+          required={companyKind === "required"}
+          invalid={showCompanyError}
+          error={showCompanyError ? words.companyRequired : undefined}
+          fieldName="company"
+          focusKey={firstField === "company" ? "step" : undefined}
+          onChange={checkout.setCompany}
+        />
+      ) : null}
+      {nameKind !== "off" ? (
         <Field
           unstyled={unstyled}
           slot="anonymous-checkout-name"
           label={words.nameLabel}
+          hint={words.nameHint}
+          optionalMark={nameKind === "optional" ? words.optional : undefined}
           type="text"
           autoComplete="name"
           value={checkout.selection.name}
           disabled={starting}
-          required
+          required={nameKind === "required"}
           invalid={showNameError}
           error={showNameError ? words.nameRequired : undefined}
           fieldName="name"
-          focusKey="step"
+          focusKey={firstField === "name" ? "step" : undefined}
           onChange={checkout.setName}
         />
       ) : null}
@@ -584,7 +646,7 @@ function AnonymousCheckoutView({
         invalid={showEmailError}
         error={showEmailError ? words.invalidEmail : undefined}
         fieldName="email"
-        focusKey={collectName ? undefined : "step"}
+        focusKey={firstField === "email" ? "step" : undefined}
         onBlur={() => setEmailLeft(true)}
         onChange={checkout.setEmail}
       />
@@ -744,6 +806,7 @@ function Field({
   slot,
   label,
   hint,
+  optionalMark,
   type,
   autoComplete,
   value,
@@ -760,6 +823,8 @@ function Field({
   slot: string;
   label: string;
   hint?: string;
+  /** The word that marks a field the visitor may leave empty, drawn after the label in parentheses. */
+  optionalMark?: string;
   type: "text" | "email";
   autoComplete: string;
   value: string;
@@ -796,6 +861,12 @@ function Field({
     <div data-slot={slot} className={cn("ktn-own", unstyled ? undefined : "flex flex-col gap-2")}>
       <label htmlFor={id} className={unstyled ? undefined : "text-sm font-medium"}>
         {label}
+        {optionalMark ? (
+          <span className={unstyled ? undefined : "font-normal text-ktn-muted-foreground"}>
+            {" "}
+            ({optionalMark})
+          </span>
+        ) : null}
       </label>
       {unstyled ? <input {...common} /> : <Input {...common} />}
       {error ? (

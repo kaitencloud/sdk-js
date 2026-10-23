@@ -18,7 +18,7 @@ import {
   TurnstileFailedError,
 } from "@kaitencloud/client";
 import { createMockKaitenAnonymousCheckoutClient } from "@kaitencloud/client/testing";
-import { fr } from "@kaitencloud/react/locales";
+import { de, es, fr } from "@kaitencloud/react/locales";
 
 import {
   anonymousCheckoutDecorator,
@@ -109,6 +109,7 @@ describe("choosing", () => {
       /used for your account and your billing/,
     );
     expect(screen.queryByLabelText("Name")).toBeNull();
+    expect(screen.queryByLabelText("Company")).toBeNull();
     expect(off(go())).toBe(true);
   });
 
@@ -173,9 +174,121 @@ describe("choosing", () => {
       sessionId: "chk_mock_1",
       email: EMAIL,
       name: "Ada Lovelace",
+      company: null,
     });
     const sent = latestAnonymousClient().calls.flatMap((call) => JSON.stringify(call.args));
     expect(sent.join()).not.toContain("Ada Lovelace");
+  });
+
+  test("the company is asked for, above the name and the email, with the words of browsers' autofill", async () => {
+    mount({ plan: starter, collectCompany: true, collectName: "optional" });
+    await passed();
+    const company = screen.getByLabelText("Company") as HTMLInputElement;
+    const name = screen.getByLabelText(/^Name/) as HTMLInputElement;
+    expect(company.getAttribute("autocomplete")).toBe("organization");
+    expect(name.getAttribute("autocomplete")).toBe("name");
+    expect(company.required).toBe(true);
+    // Company, name, email: the order of the page.
+    const order = Array.from(company.closest("form")!.querySelectorAll("input")).map((input) =>
+      input.getAttribute("data-field"),
+    );
+    expect(order.filter(Boolean)).toEqual(["company", "name", "email"]);
+    // The hints are the fields' descriptions, so that they are read with them.
+    const described = (input: HTMLInputElement) =>
+      document.getElementById(input.getAttribute("aria-describedby")!)?.textContent;
+    expect(described(company)).toBe("The name of your company or organization.");
+    expect(described(name)).toBe("Who we should contact about your account.");
+  });
+
+  test("a company that is required holds the button, and pressing it says so and goes to the field", async () => {
+    mount({ plan: starter, collectCompany: "required" });
+    await fillIn();
+    expect(off(go("Start for free"))).toBe(true);
+    const company = screen.getByLabelText("Company");
+    // The sentence under the button, while the field has said nothing yet.
+    const waiting = document.getElementById(go("Start for free").getAttribute("aria-describedby")!);
+    expect(waiting?.textContent).toBe("Enter your company.");
+    fireEvent.click(go("Start for free"));
+    const alert = screen.getByRole("alert");
+    expect(alert.textContent).toBe("Enter your company.");
+    expect(company.getAttribute("aria-invalid")).toBe("true");
+    expect(company.getAttribute("aria-describedby")).toContain(alert.id);
+    expect(document.activeElement).toBe(company);
+    // Spaces are not a company.
+    fireEvent.change(company, { target: { value: "   " } });
+    expect(off(go("Start for free"))).toBe(true);
+    fireEvent.change(company, { target: { value: "Analytical Engines" } });
+    await waitFor(() => expect(off(go("Start for free"))).toBe(false));
+    expect(company.getAttribute("aria-invalid")).toBeNull();
+  });
+
+  test("the company is checked before the name, and the name before the email", async () => {
+    mount({ plan: starter, collectCompany: true, collectName: true });
+    await passed();
+    fireEvent.click(go("Start for free"));
+    expect(document.activeElement).toBe(screen.getByLabelText("Company"));
+    fireEvent.change(screen.getByLabelText("Company"), { target: { value: "Analytical Engines" } });
+    fireEvent.click(go("Start for free"));
+    expect(document.activeElement).toBe(screen.getByLabelText("Name"));
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Ada" } });
+    fireEvent.click(go("Start for free"));
+    expect(document.activeElement).toBe(email());
+  });
+
+  test("a field that is optional says so in its label, does not hold the button, and may be empty", async () => {
+    const onStarted = vi.fn();
+    mount({ plan: starter, collectCompany: "optional", collectName: "optional", onStarted });
+    await fillIn();
+    const company = screen.getByLabelText("Company (optional)") as HTMLInputElement;
+    const name = screen.getByLabelText("Name (optional)") as HTMLInputElement;
+    expect(company.required).toBe(false);
+    expect(name.required).toBe(false);
+    expect(off(go("Start for free"))).toBe(false);
+    fireEvent.click(go("Start for free"));
+    await screen.findByText("You're subscribed");
+    expect(onStarted).toHaveBeenCalledWith({
+      sessionId: "chk_mock_1",
+      email: EMAIL,
+      name: null,
+      company: null,
+    });
+  });
+
+  test("a company and a name are the page's alone: Kaiten is sent neither", async () => {
+    const onStarted = vi.fn();
+    mount({ plan: starter, collectCompany: true, collectName: "optional", onStarted });
+    await fillIn();
+    fireEvent.change(screen.getByLabelText("Company"), { target: { value: "Analytical Engines" } });
+    fireEvent.change(screen.getByLabelText(/^Name/), { target: { value: "Ada Lovelace" } });
+    fireEvent.click(go("Start for free"));
+    await screen.findByText("You're subscribed");
+    expect(onStarted).toHaveBeenCalledWith({
+      sessionId: "chk_mock_1",
+      email: EMAIL,
+      name: "Ada Lovelace",
+      company: "Analytical Engines",
+    });
+    const sent = latestAnonymousClient().calls.flatMap((call) => JSON.stringify(call.args));
+    expect(sent.join()).not.toContain("Analytical Engines");
+    expect(sent.join()).not.toContain("Ada Lovelace");
+  });
+
+  test("true and 'required' mean the same, and false and nothing ask for nothing", async () => {
+    mount({ plan: starter, collectCompany: false, collectName: "required" });
+    await passed();
+    expect(screen.queryByLabelText("Company")).toBeNull();
+    expect((screen.getByLabelText("Name") as HTMLInputElement).required).toBe(true);
+  });
+
+  test("the first field the form draws is where a new step sends the keyboard", async () => {
+    mount({ plan: starter, collectCompany: "optional" });
+    await passed();
+    expect(screen.getByLabelText(/^Company/).getAttribute("data-focus")).toBe("step");
+    expect(email().getAttribute("data-focus")).toBeNull();
+    cleanup();
+    mount({ plan: starter });
+    await passed();
+    expect(email().getAttribute("data-focus")).toBe("step");
   });
 
   test("submitting the form starts the checkout once, as pressing the button does", async () => {
@@ -747,6 +860,31 @@ describe("markup", () => {
     expect(screen.getByLabelText("E-mail")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Commencer gratuitement" })).toBeTruthy();
   });
+
+  test.each([
+    [
+      "French",
+      fr,
+      "Entreprise (facultatif)",
+      "Nom (facultatif)",
+      "Saisissez le nom de votre entreprise.",
+    ],
+    ["Spanish", es, "Empresa (opcional)", "Nombre (opcional)", "Escriba el nombre de su empresa."],
+    ["German", de, "Unternehmen (optional)", "Name (optional)", "Geben Sie Ihr Unternehmen ein."],
+  ])(
+    "the company and the name are worded in %s",
+    async (_language, locale, company, name, missing) => {
+      mount({ plan: starter, collectCompany: "optional", collectName: "optional" }, {}, locale);
+      await waitFor(() => expect(screen.getByLabelText(company)).toBeTruthy());
+      expect(screen.getByLabelText(name)).toBeTruthy();
+      cleanup();
+      mount({ plan: starter, collectCompany: true }, {}, locale);
+      await waitFor(() => expect(document.querySelector('[data-field="company"]')).toBeTruthy());
+      fireEvent.submit(document.querySelector("form")!);
+      const alerts = await screen.findAllByRole("alert");
+      expect(alerts[0]!.textContent).toBe(missing);
+    },
+  );
 });
 
 describe("what the visitor is told", () => {
@@ -809,6 +947,14 @@ describe("what the visitor is told", () => {
     fireEvent.change(email(), { target: { value: EMAIL } });
     const hint = document.getElementById(go().getAttribute("aria-describedby") ?? "");
     expect(hint?.textContent).toBe("Enter your name.");
+  });
+
+  test("a company that is missing is the reason the button gives, once the check passed", async () => {
+    mount({ plan: growth, collectCompany: true });
+    await passed();
+    fireEvent.change(email(), { target: { value: EMAIL } });
+    const hint = document.getElementById(go().getAttribute("aria-describedby") ?? "");
+    expect(hint?.textContent).toBe("Enter your company.");
   });
 
   test("a link to the provider's page says that it opens a tab of its own", async () => {

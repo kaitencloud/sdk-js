@@ -97,6 +97,7 @@ export {
 export { CheckoutFlow, type CheckoutFlowProps } from "./components/checkout-flow/checkout-flow.tsx";
 export {
   AnonymousCheckoutFlow,
+  type AnonymousCheckoutFieldMode,
   type AnonymousCheckoutFlowProps,
 } from "./components/anonymous-checkout/anonymous-checkout-flow.tsx";
 export {

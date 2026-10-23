@@ -21,7 +21,7 @@ afterEach(cleanup);
 
 const packs = { fr, de, es } as const;
 /** Words a language writes as English does. */
-const SAME_AS_ENGLISH: Record<string, string[]> = { de: ["nameLabel"] };
+const SAME_AS_ENGLISH: Record<string, string[]> = { de: ["nameLabel", "optional"] };
 
 test.each(Object.entries(packs))(
   "the %s pack carries every word the English has, and no other",
