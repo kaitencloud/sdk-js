@@ -457,6 +457,13 @@ export function createMockKaitenSessionClient(
       if (typeof input?.code !== "string" || input.code.trim() === "") {
         throw new TypeError("Kaiten: redeemVoucher needs the code.");
       }
+      if (portal.instance === null) {
+        throw refusal(
+          422,
+          "RedeemSessionVoucher.InstanceRequired",
+          "this session is bound to the customer only: a code is redeemed on an instance",
+        );
+      }
       const subscription = portal.subscription;
       if (subscription?.status === "INCOMPLETE") {
         throw refusal(

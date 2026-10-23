@@ -9,13 +9,11 @@ import {
   demoPortal,
   demoTrialPortal,
 } from "../src/testing/index.ts";
-import { answer } from "./support/session-answers.ts";
+import { requestProblems, responseProblems } from "./support/contract-schema.ts";
+import { answer, refused } from "./support/session-answers.ts";
 import { json, open, sent, useSessionClock } from "./support/session-harness.ts";
 
-// The trial block of the portal, on the shapes of the contract, and the redemption of a code, on the
-// shapes the specification gives (`src/client/session-spec-shapes.ts`): the contract snapshot does
-// not carry the redemption route yet, so its answers are doubles, built here from the portal Kaiten
-// serves.
+// The trial block of the portal and the redemption of a code, both on the shapes of the contract.
 useSessionClock();
 
 /** The portal of the contract, in a trial, with the given trial block; none leaves the member out. */
@@ -156,16 +154,7 @@ describe("the redemptions the portal lists", () => {
 });
 
 describe("redeemVoucher", () => {
-  const redemption = {
-    name: "Welcome 20%",
-    voucherType: "PRICE",
-    status: "ACTIVE",
-    appliesFromInvoice: "next",
-    applicationsCount: 0,
-    applicationsMax: 3,
-    effectiveStartsAt: "2026-10-06T10:00:00Z",
-    effectiveExpiresAt: null,
-  };
+  const redemption = answer("redemption");
 
   test("posts the code in the body and reads the redemption", async () => {
     const { client, requests } = open(() => json(redemption, 201));
@@ -178,10 +167,33 @@ describe("redeemVoucher", () => {
     expect(result).toEqual(redemption);
   });
 
+  test("sends a body the contract allows, and reads an answer it allows", async () => {
+    const { client, requests } = open(() => json(redemption, 201));
+
+    await client.redeemVoucher({ code: "WELCOME20", dryRun: true });
+    await client.redeemVoucher({ code: "WELCOME20" });
+
+    for (const request of requests) {
+      expect(
+        requestProblems("POST", "/public/session/vouchers/redeem", await request.clone().json()),
+      ).toEqual([]);
+    }
+    expect(responseProblems("POST", "/public/session/vouchers/redeem", 201, redemption)).toEqual(
+      [],
+    );
+  });
+
+  test("reads a redemption that gives no discount: a boost, with an end and no invoices", async () => {
+    const boost = answer("redemptionBoost");
+    const { client } = open(() => json(boost, 201));
+
+    expect(await client.redeemVoucher({ code: "DOUBLE" })).toEqual(boost);
+  });
+
   test("asks what a code would give, and changes nothing, with dryRun", async () => {
     const { client, requests } = open(() => json(redemption));
 
-    await client.redeemVoucher({ code: "WELCOME20", dryRun: true });
+    const result = await client.redeemVoucher({ code: "WELCOME20", dryRun: true });
 
     expect(await sent(requests)).toEqual([
       [
@@ -189,6 +201,18 @@ describe("redeemVoucher", () => {
         "/public/session/vouchers/redeem",
         JSON.stringify({ code: "WELCOME20", dryRun: true }),
       ],
+    ]);
+    // The route answers a dry run with 200 and a made redemption with 201: the same body.
+    expect(result).toEqual(redemption);
+  });
+
+  test("does not send dryRun when it is false", async () => {
+    const { client, requests } = open(() => json(redemption, 201));
+
+    await client.redeemVoucher({ code: "WELCOME20", dryRun: false });
+
+    expect(await sent(requests)).toEqual([
+      ["POST", "/public/session/vouchers/redeem", JSON.stringify({ code: "WELCOME20" })],
     ]);
   });
 
@@ -217,33 +241,55 @@ describe("redeemVoucher", () => {
   });
 
   test.each([
-    [409, "RedeemSessionVoucher.SubscriptionIncomplete"],
-    [409, "RedeemSessionVoucher.NoLiveSubscription"],
-    [422, "RedeemSessionVoucher.VoucherInvalid"],
-    [422, "RedeemSessionVoucher.InstanceRequired"],
-  ])("a %i %s refusal reaches the host with its code", async (status, code) => {
-    const { client } = open(() => json({ title: "refused", status, code }, status));
+    ["redeemSubscriptionIncomplete", 409, "RedeemSessionVoucher.SubscriptionIncomplete"],
+    ["redeemNoLiveSubscription", 409, "RedeemSessionVoucher.NoLiveSubscription"],
+    ["redeemVoucherInvalid", 422, "RedeemSessionVoucher.VoucherInvalid"],
+    ["redeemInstanceRequired", 422, "RedeemSessionVoucher.InstanceRequired"],
+  ] as const)(
+    "the refusal %s reaches the host as a KaitenError with its code",
+    async (key, status, code) => {
+      const { client, requests } = open(() => refused(key));
+
+      const error = await client.redeemVoucher({ code: "X" }).catch((thrown: unknown) => thrown);
+
+      expect(error).toBeInstanceOf(KaitenError);
+      expect(error).not.toBeInstanceOf(RateLimitedError);
+      expect(error).toMatchObject({ status, code });
+      expect(requests).toHaveLength(1);
+    },
+  );
+
+  test("a refusal of the code says nothing of why, whatever the reason", async () => {
+    const { client } = open(() => refused("redeemVoucherInvalid"));
 
     const error = await client.redeemVoucher({ code: "X" }).catch((thrown: unknown) => thrown);
 
-    expect(error).toBeInstanceOf(KaitenError);
-    expect((error as KaitenError).status).toBe(status);
-    expect((error as KaitenError).code).toBe(code);
+    expect((error as KaitenError).detail).toBe("this code cannot be redeemed");
+    expect((error as KaitenError).errors).toBeUndefined();
   });
 
-  test("a refusal for coming too often is a RateLimitedError with the wait", async () => {
-    const { client } = open(() =>
-      json(
-        { title: "Too Many Requests", status: 429, code: "RedeemSessionVoucher.RateLimited" },
-        429,
-        { "Retry-After": "90" },
-      ),
-    );
+  test("a refusal for coming too often is a RateLimitedError with the wait, shared with validate", async () => {
+    const { client, requests } = open(() => refused("redeemRateLimited"));
 
     const error = await client.redeemVoucher({ code: "X" }).catch((thrown: unknown) => thrown);
 
     expect(error).toBeInstanceOf(RateLimitedError);
-    expect((error as RateLimitedError).retryAfterSeconds).toBe(90);
+    expect(error).toMatchObject({
+      status: 429,
+      code: "RedeemSessionVoucher.RateLimited",
+      retryAfterSeconds: 90,
+    });
+    // A write, and a rate limit: not sent again, however short the wait.
+    expect(requests).toHaveLength(1);
+  });
+
+  test("a bare 429 from a gateway is a plain KaitenError that says so by its status", async () => {
+    const { client } = open(() => json({ title: "Too Many Requests", status: 429 }, 429));
+
+    const error = await client.redeemVoucher({ code: "X" }).catch((thrown: unknown) => thrown);
+
+    expect(error).not.toBeInstanceOf(RateLimitedError);
+    expect(error).toMatchObject({ status: 429 });
   });
 });
 
@@ -314,6 +360,17 @@ describe("the double", () => {
     expect(await refusedWith(none.redeemVoucher({ code: "WELCOME20" }))).toMatchObject({
       status: 409,
       code: "RedeemSessionVoucher.NoLiveSubscription",
+    });
+  });
+
+  test("refuses a session bound to the customer alone, before it looks at any subscription", async () => {
+    const session = createMockKaitenSessionClient({
+      portal: { ...demoPortal(), instance: null, subscription: null },
+    });
+
+    expect(await refusedWith(session.redeemVoucher({ code: "WELCOME20" }))).toMatchObject({
+      status: 422,
+      code: "RedeemSessionVoucher.InstanceRequired",
     });
   });
 

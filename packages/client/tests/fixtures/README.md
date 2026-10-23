@@ -59,7 +59,7 @@ add-on's are its id followed by the same (`a101`).
 
 ## `session.initech.json`
 
-What the ten `/public/session/*` routes answer, for a fictional customer,
+What the `/public/session/*` routes answer, for a fictional customer,
 Initech, with a customer session (`kst_`). Each key is one answer, named for the
 route and the case it shows; `errors` holds the refusals as `{ status, body,
 retryAfter }`, where `retryAfter` is the `Retry-After` header in seconds. The
@@ -78,7 +78,15 @@ every answer is checked against its response schema in that file.
 
 The members the contract added after that run are in by hand, with the value of an instance that has
 none of the feature: `trial: null` and `branding.poweredByRemovable: false` on every portal, and
-`pendingQuantity: null` on every add-on. The next regeneration replaces them with its own. A portal in
+`pendingQuantity: null` on every add-on. The next regeneration replaces them with its own.
+
+The redemption of a code (`POST /public/session/vouchers/redeem`) is in by hand, as the route's code
+builds it and the contract's `SessionRedemption` allows: `redemption` (a price voucher, applied from
+the next invoice) and `redemptionBoost` (a boost with an end), and the five refusals `redeem*` in
+`errors`, with the codes and details its use case gives. The `appliesFromInvoice`, `applicationsCount`
+and `applicationsMax` the contract made required on the portal's vouchers are in by hand on every
+portal that lists one. The next regeneration replaces all of them with its own. The contract declares
+the 201 of the route only, and Kaiten answers a `dryRun` with a 200 that carries the same body. A portal in
 its trial is not recorded: the tests build one from `portal` and the trial block the contract names.
 
 To regenerate it after the contract moves, from a checkout of Kaiten at the new
@@ -99,6 +107,7 @@ Do not edit it by hand.
 | `cancel`, `reactivate`                                                      | The subscription after each                                                                                                                                      |
 | `portalSession`, `paymentMethodSession`                                     | The provider's pages                                                                                                                                             |
 | `paymentMethodCompleted`, `paymentMethodCompletedBare`                      | A payment method saved, with and without its labels                                                                                                              |
+| `redemption`, `redemptionBoost`                                             | A price code applied from the next invoice for three; a boost with an end                                                                                        |
 | `voucherPercent`, `voucherFixed`, `voucherBoost`, `voucherRefused`          | A repeating percentage, a one-time amount, forever boosts (one unlimited), and the answer to any code that does not apply                                        |
 | `addon`, `addonDetached`                                                    | The quantity set; the add-on removed                                                                                                                             |
 
@@ -106,7 +115,7 @@ Ids are `00000000-0000-4000-8000-` followed by twelve hex digits: `0201`, `0202`
 and `0204` are the monthly, quarterly and annual prices of the plan, `a101` and
 `a102` the flat fee and the metered price of the `extra-seats` add-on.
 
-`errors` holds seven refusals and no quota refusal (422
+`errors` holds twelve refusals and no quota refusal (422
 `CreateSessionCheckout.QuotaExceeded`, the entitlements over the plan in
 `errors[0].value.entitlementSlugs`). The tests that need one build it in
 `support/session-answers.ts`, from the problem Kaiten's checkout renders, and

@@ -123,16 +123,7 @@ const CALLS: Record<
   },
   redeemVoucher: {
     call: (c) => c.redeemVoucher({ code: "WELCOME20" }),
-    reply: () => ({
-      name: "Welcome 20%",
-      voucherType: "PRICE",
-      status: "ACTIVE",
-      appliesFromInvoice: "next",
-      applicationsCount: 0,
-      applicationsMax: 3,
-      effectiveStartsAt: "2026-10-06T10:00:00Z",
-      effectiveExpiresAt: null,
-    }),
+    reply: () => answer("redemption"),
   },
   setAddonQuantity: {
     call: (c) => c.setAddonQuantity("extra-seats-v1", 1),

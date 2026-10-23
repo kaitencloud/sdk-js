@@ -43,6 +43,7 @@ function sessionSchema(key: string): string {
   if (key === "cancel" || key === "reactivate") return "SessionSubscription";
   if (key === "paymentMethodSession") return "PaymentMethodSession";
   if (key.startsWith("paymentMethodCompleted")) return "CompletedPaymentMethodSession";
+  if (key.startsWith("redemption")) return "SessionRedemption";
   if (key.startsWith("voucher")) return "SessionVoucherValidity";
   if (key.startsWith("addon")) return "SessionAddon";
   throw new Error(`No response schema is named for the session answer ${key}`);
@@ -113,6 +114,19 @@ describe("the response of an operation", () => {
     expect(
       responseProblems("POST", "/public/session/checkout", 200, answers.checkoutPreview),
     ).toEqual([]);
+    expect(
+      responseProblems("POST", "/public/session/vouchers/redeem", 201, answers.redemption),
+    ).toEqual([]);
+    for (const key of [
+      "redeemSubscriptionIncomplete",
+      "redeemNoLiveSubscription",
+      "redeemVoucherInvalid",
+      "redeemInstanceRequired",
+      "redeemRateLimited",
+    ]) {
+      const { status, body } = errors[key]!;
+      expect(responseProblems("POST", "/public/session/vouchers/redeem", status, body)).toEqual([]);
+    }
     expect(
       responseProblems("POST", "/public/session/checkout", 201, answers.checkoutSubscribed),
     ).toEqual([]);

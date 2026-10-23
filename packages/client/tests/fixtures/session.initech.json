@@ -365,6 +365,62 @@
       },
       "retryAfter": 90,
       "status": 429
+    },
+    "redeemSubscriptionIncomplete": {
+      "body": {
+        "type": "https://tools.ietf.org/html/rfc7231#section-6.5.8",
+        "title": "Conflict",
+        "status": 409,
+        "detail": "a checkout waits for its payment: its own selection, voucher included, applies once paid",
+        "instance": "/api/public/session/vouchers/redeem",
+        "code": "RedeemSessionVoucher.SubscriptionIncomplete"
+      },
+      "status": 409
+    },
+    "redeemNoLiveSubscription": {
+      "body": {
+        "type": "https://tools.ietf.org/html/rfc7231#section-6.5.8",
+        "title": "Conflict",
+        "status": 409,
+        "detail": "the instance has no live subscription: a checkout starts one",
+        "instance": "/api/public/session/vouchers/redeem",
+        "code": "RedeemSessionVoucher.NoLiveSubscription"
+      },
+      "status": 409
+    },
+    "redeemVoucherInvalid": {
+      "body": {
+        "type": "https://tools.ietf.org/html/rfc4918#section-11.2",
+        "title": "Unprocessable Entity",
+        "status": 422,
+        "detail": "this code cannot be redeemed",
+        "instance": "/api/public/session/vouchers/redeem",
+        "code": "RedeemSessionVoucher.VoucherInvalid"
+      },
+      "status": 422
+    },
+    "redeemInstanceRequired": {
+      "body": {
+        "type": "https://tools.ietf.org/html/rfc4918#section-11.2",
+        "title": "Unprocessable Entity",
+        "status": 422,
+        "detail": "this session is bound to the customer only: a code is redeemed on an instance",
+        "instance": "/api/public/session/vouchers/redeem",
+        "code": "RedeemSessionVoucher.InstanceRequired"
+      },
+      "status": 422
+    },
+    "redeemRateLimited": {
+      "body": {
+        "type": "https://tools.ietf.org/html/rfc7231#section-6.6.1",
+        "title": "Too Many Requests",
+        "status": 429,
+        "detail": "too many voucher codes checked: try again later",
+        "instance": "/api/public/session/vouchers/redeem",
+        "code": "RedeemSessionVoucher.RateLimited"
+      },
+      "status": 429,
+      "retryAfter": 90
     }
   },
   "invoicesEmpty": {
@@ -2159,5 +2215,25 @@
   },
   "voucherRefused": {
     "valid": false
+  },
+  "redemption": {
+    "name": "Welcome 20%",
+    "voucherType": "PRICE",
+    "status": "ACTIVE",
+    "appliesFromInvoice": "next",
+    "applicationsCount": 0,
+    "applicationsMax": 3,
+    "effectiveStartsAt": "2026-10-06T10:00:00Z",
+    "effectiveExpiresAt": null
+  },
+  "redemptionBoost": {
+    "name": "Double API calls",
+    "voucherType": "ENTITLEMENT_BOOST",
+    "status": "ACTIVE",
+    "appliesFromInvoice": null,
+    "applicationsCount": 0,
+    "applicationsMax": null,
+    "effectiveStartsAt": "2026-10-06T10:00:00Z",
+    "effectiveExpiresAt": "2026-11-06T10:00:00Z"
   }
 }

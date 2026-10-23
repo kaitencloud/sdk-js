@@ -32,6 +32,8 @@ interface Answers {
   portalScheduledChange: KaitenApi.SessionPortal;
   portalSession: KaitenApi.PortalSession;
   reactivate: KaitenApi.SessionSubscription;
+  redemption: KaitenApi.SessionRedemption;
+  redemptionBoost: KaitenApi.SessionRedemption;
   voucherBoost: KaitenApi.SessionVoucherValidity;
   voucherFixed: KaitenApi.SessionVoucherValidity;
   voucherPercent: KaitenApi.SessionVoucherValidity;
@@ -52,6 +54,11 @@ interface Answers {
     | "checkoutAlreadySubscribed"
     | "checkoutProviderUnavailable"
     | "paymentMethodUnavailable"
+    | "redeemInstanceRequired"
+    | "redeemNoLiveSubscription"
+    | "redeemRateLimited"
+    | "redeemSubscriptionIncomplete"
+    | "redeemVoucherInvalid"
     | "voucherRateLimited",
     Refusal
   >;

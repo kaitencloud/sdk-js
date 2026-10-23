@@ -191,7 +191,12 @@ answers what the code would give and changes nothing, and without it the redempt
 made. A price part applies from the next invoice (`appliesFromInvoice: "next"`) and the
 current period is never invoiced again. A subscription still waiting for its first payment
 refuses (`RedeemSessionVoucher.SubscriptionIncomplete`), as does one that is not live
-(`.NoLiveSubscription`); every other refusal is the same `.VoucherInvalid`. While a
+(`.NoLiveSubscription`); a session bound to the customer alone has no instance to redeem on
+(422 `.InstanceRequired`); every other refusal of the code is the same 422 `.VoucherInvalid`, with
+nothing of why. Coming too often (10 attempts in 10 minutes per session, 30 an hour per customer,
+`validateVoucher` included) is a `RateLimitedError` with the `Retry-After`; the call is never sent
+again. The answer is the contract's `SessionRedemption`, a 201 for a redemption made and a 200 for
+a `dryRun`. While a
 subscription is in its trial, `portal.trial` holds when it ends (`endsAt`), when the `trial_will_end` event is,
 or was, due (`reminderAt`, `null` when the API gives none), what its end charges (`charge`: the server's figure
 and its billing period, `null` when nothing would be) and the card that charge goes to
