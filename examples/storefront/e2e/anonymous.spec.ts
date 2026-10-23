@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // A visitor who buys with no account. The publishable key opens the anonymous checkout, so the pricing table
-// leads a visitor straight to a checkout of their own: an email, Cloudflare's security check and, for a paid
-// plan, a card on the provider's page. Kaiten makes the customer, its instance and the subscription when the
-// checkout completes, and the storefront's backend is not asked for anything. The stand-in for Kaiten plays
+// leads a visitor straight to a checkout of their own: their company, optionally their name, an email,
+// Cloudflare's security check and, for a paid plan, a card on the provider's page. Kaiten makes the customer,
+// its instance and the subscription when the checkout completes, and names the customer after the email; the
+// storefront's backend then renames them after the company, once it has checked Kaiten's own record. The stand-in for Kaiten plays
 // Kaiten (`reset({ signUp: true, anonymousCheckout: true })`), a stand-in for Cloudflare's script plays the
 // security check (see `support/cloudflare.ts`), and the page, its backend and the SDK's components are real.
 
@@ -23,22 +24,38 @@ const flow = (page: Page) => page.locator('[data-slot="anonymous-checkout-flow"]
 const anonymousCalls = async (standIn: StandIn) =>
   (await standIn.calls()).filter((call) => call.path.startsWith("/public/checkout-sessions"));
 
+/** What the visitor types besides the email: the company is asked for, the name is not. */
+interface Who {
+  company?: string;
+  name?: string;
+}
+
 /** From the pricing table to the form, and the form filled in and the security check passed. */
-async function chooseAndFill(page: Page, plan: string, email = "ada@acme.test") {
+async function chooseAndFill(
+  page: Page,
+  plan: string,
+  email = "ada@acme.test",
+  who: Who = { company: "Analytical Engines" },
+) {
   await page.goto("/");
   await planCard(page, plan).getByRole("button", { name: "Select plan" }).click();
   await expect(page.getByRole("heading", { name: `Subscribe to ${plan}` })).toBeVisible();
+  if (who.company !== undefined) await page.getByLabel("Company").fill(who.company);
+  if (who.name !== undefined) await page.getByLabel(/^Name/).fill(who.name);
   await page.getByLabel("Email").fill(email);
   await expect(flow(page)).toContainText("Security check passed.");
 }
 
-test("a visitor buys a free plan with no account: an email and the security check, and nothing else", async ({
+test("a visitor buys a free plan with no account: a company, a name if they like, an email and the security check", async ({
   page,
   context,
   standIn,
 }) => {
   await standIn.reset({ signUp: true, anonymousCheckout: true });
-  await chooseAndFill(page, "Starter");
+  await chooseAndFill(page, "Starter", "ada@acme.test", {
+    company: "Analytical Engines",
+    name: "Ada Lovelace",
+  });
 
   // No account was asked for, and the page has none: a visitor, with no session minted for them.
   await expect(page.getByRole("heading", { name: /Create your account/ })).toHaveCount(0);
@@ -50,6 +67,10 @@ test("a visitor buys a free plan with no account: an email and the security chec
   await expect(flow(page)).toContainText("Nothing is due today.");
   await expect(flow(page)).toContainText("Your order is registered for ada@acme.test.");
   await expect(page.getByTestId("visitor-done")).toContainText("checkout_session.v1.completed");
+  // The company is on the page once the backend has named the customer after it.
+  await expect(page.getByTestId("visitor-company")).toHaveText(
+    "Your account is registered for Analytical Engines.",
+  );
   // The buyer has a next step of their own, and the note for the vendor is labelled as one and folded
   // away: it is for whoever builds the shop, not for the person who just bought.
   await expect(
@@ -64,8 +85,15 @@ test("a visitor buys a free plan with no account: an email and the security chec
   // Kaiten made the customer from the address and its instance on the plan, and subscribed it with no
   // provider, no card and no invoice.
   const state = await standIn.state();
-  expect(state.customers).toMatchObject([{ name: "ada@acme.test", billingEmail: "ada@acme.test" }]);
+  // Kaiten named the customer after the address; the storefront's backend renamed it after the company, and
+  // its instance too, with the person as the contact. The billing address is still the buyer's.
+  expect(state.customers).toMatchObject([
+    { name: "Analytical Engines", billingEmail: "ada@acme.test", createdBy: "system" },
+  ]);
   expect(state.customers[0]!.slug).toMatch(/^ada-acme-test-[0-9a-f]{6}$/);
+  expect(state.instances).toMatchObject([
+    { name: "Analytical Engines", description: "Contact: Ada Lovelace" },
+  ]);
   expect(state).toMatchObject({
     subscribed: true,
     free: true,
@@ -120,10 +148,101 @@ test("a visitor buys a free plan with no account: an email and the security chec
   expect(calls.filter((call) => call.path === "/customers" || call.path === "/instances")).toEqual(
     [],
   );
+  // The storefront's backend read the customer and the instance, then wrote both, with the server token. The
+  // page reached it once, and never reached Kaiten's customer routes itself.
+  const vendor = calls.filter((call) => call.credential === "ksh_");
+  expect(vendor.map((call) => `${call.method} ${call.path.split("/")[1]} ${call.status}`)).toEqual([
+    "GET customers 200",
+    "GET instances 200",
+    "PUT customers 204",
+    "PUT instances 204",
+  ]);
+  expect(
+    calls
+      .filter((call) => call.credential === "pk_" || call.credential === "ksc_")
+      .every((call) => call.path.startsWith("/public/")),
+  ).toBe(true);
   // And the browser kept nothing of an account.
   expect(
     (await context.cookies()).filter((cookie) => cookie.name === "storefront_account"),
   ).toEqual([]);
+});
+
+test("a visitor who gives a company and no name names the customer after the company, with no contact", async ({
+  page,
+  standIn,
+}) => {
+  await standIn.reset({ signUp: true, anonymousCheckout: true });
+  await chooseAndFill(page, "Starter", "ada@acme.test", { company: "Analytical Engines" });
+  await page.getByRole("button", { name: "Start for free" }).click();
+  await expect(page.getByTestId("visitor-company")).toContainText("Analytical Engines");
+
+  const state = await standIn.state();
+  expect(state.customers).toMatchObject([{ name: "Analytical Engines" }]);
+  expect(state.instances).toMatchObject([{ name: "Analytical Engines", description: "" }]);
+});
+
+test("the company is asked for and the name is not: the form says which, and the button waits for the company only", async ({
+  page,
+  standIn,
+}) => {
+  await standIn.reset({ signUp: true, anonymousCheckout: true });
+  await page.goto("/");
+  await planCard(page, "Starter").getByRole("button", { name: "Select plan" }).click();
+  await expect(flow(page)).toContainText("Security check passed.");
+
+  // Company, name, email, in that order, with the browser's own words for each.
+  const fields = page.locator('[data-slot="anonymous-checkout-flow"] input[data-field]');
+  await expect(fields).toHaveCount(3);
+  expect(
+    await fields.evaluateAll((all) => all.map((each) => each.getAttribute("data-field"))),
+  ).toEqual(["company", "name", "email"]);
+  await expect(page.getByLabel("Company")).toHaveAttribute("autocomplete", "organization");
+  await expect(page.getByLabel("Company")).toHaveAttribute("required", "");
+  await expect(page.getByLabel(/^Name/)).toHaveAttribute("autocomplete", "name");
+  await expect(page.getByLabel(/^Name/)).not.toHaveAttribute("required", "");
+  await expect(page.getByText("Name (optional)")).toBeVisible();
+
+  const start = page.getByRole("button", { name: "Start for free" });
+  await page.getByLabel("Email").fill("ada@acme.test");
+  await expect(start).toHaveAttribute("aria-disabled", "true");
+  // Pressed anyway, it says what is missing and goes to the field.
+  // (Playwright takes an `aria-disabled` button for one that is not enabled, which the keyboard and a finger can press.)
+  await start.click({ force: true });
+  await expect(page.getByRole("alert").filter({ hasText: "Enter your company." })).toBeVisible();
+  await expect(page.getByLabel("Company")).toBeFocused();
+  await page.getByLabel("Company").fill("Analytical Engines");
+  await expect(start).not.toHaveAttribute("aria-disabled", "true");
+  expect(await standIn.state()).toMatchObject({ customers: [], checkoutSessions: [] });
+});
+
+test("a post the backend cannot match to Kaiten's record is refused: the customer keeps the address and the buyer is told", async ({
+  page,
+  standIn,
+}) => {
+  await standIn.reset({ signUp: true, anonymousCheckout: true });
+  // A page whose report was changed on the way: the address is not the customer's.
+  await page.route("**/storefront-api/checkout/completed", async (route) => {
+    const body = route.request().postDataJSON() as Record<string, unknown>;
+    await route.continue({ postData: JSON.stringify({ ...body, email: "mallory@evil.test" }) });
+  });
+  await chooseAndFill(page, "Starter", "ada@acme.test", {
+    company: "Evil Corp",
+    name: "Mallory",
+  });
+  await page.getByRole("button", { name: "Start for free" }).click();
+
+  await expect(flow(page)).toContainText("You're subscribed");
+  await expect(page.getByTestId("visitor-company-failed")).toHaveText(
+    "Your order is complete, but we could not register your company name.",
+  );
+  await expect(page.getByTestId("visitor-company")).toHaveCount(0);
+  const state = await standIn.state();
+  expect(state.customers).toMatchObject([{ name: "ada@acme.test" }]);
+  expect(state.instances).toMatchObject([{ name: "ada@acme.test", description: "" }]);
+  // Kaiten was asked to read the customer and nothing more: no write was made.
+  const writes = (await standIn.calls()).filter((call) => call.method === "PUT");
+  expect(writes).toEqual([]);
 });
 
 test("a visitor buys a paid plan through the provider's page, and the plan starts once it is paid", async ({
@@ -267,6 +386,7 @@ test("a checkout nobody confirmed is closed, says so, and starts again; a trial 
 
   // Start again: the choices are asked for afresh, and a new session goes through.
   await page.getByRole("button", { name: "Start again" }).click();
+  await page.getByLabel("Company").fill("Analytical Engines");
   await page.getByLabel("Email").fill("ada@acme.test");
   await expect(flow(page)).toContainText("Security check passed.");
   await page.getByRole("button", { name: "Continue", exact: true }).click();
@@ -293,6 +413,7 @@ test("a checkout nobody confirmed is closed, says so, and starts again; a trial 
   // The same address has had Lite's trial: a second visit is shown the price it is due today.
   await page.goto("/");
   await planCard(page, "Lite").getByRole("button", { name: "Select plan" }).click();
+  await page.getByLabel("Company").fill("Analytical Engines");
   await page.getByLabel("Email").fill("Ada@Acme.test ");
   await expect(flow(page)).toContainText("Security check passed.");
   await page.getByRole("button", { name: "Continue", exact: true }).click();
@@ -424,6 +545,7 @@ test("the journey page starts the visitor's anonymous checkout, and the security
   // The page learnt, without a reload, that the key opens the anonymous checkout.
   await scenario.getByRole("link", { name: "Open Starter's checkout" }).click();
   await expect(page.getByRole("heading", { name: "Subscribe to Starter" })).toBeVisible();
+  await page.getByLabel("Company").fill("Difference Engines");
   await page.getByLabel("Email").fill("grace@acme.test");
   await expect(flow(page)).toContainText("Security check passed.");
   await page.getByRole("button", { name: "Start for free" }).click();
@@ -467,6 +589,10 @@ test("a visitor sent to the provider's page in the same tab comes back to a page
   expect(session!.clientReferenceId).toMatch(/^order-[0-9a-f]{8}$/);
   // What the vendor is told is the reference of the session, which the SDK reads back from it.
   await expect(page.getByTestId("visitor-reference")).toHaveText(session!.clientReferenceId!);
+  // The company typed before the provider's page, in the tab that was sent away, is still the visitor's
+  // when they are back, and names the customer.
+  await expect(page.getByTestId("visitor-company")).toContainText("Analytical Engines");
+  expect((await standIn.state()).customers).toMatchObject([{ name: "Analytical Engines" }]);
 });
 
 /** A second tab of another visitor with the same address buys Growth to the end: the trial is used up. */
@@ -586,6 +712,9 @@ test("a button that is not available says why, and a link to a tab of its own sa
   // Focusable and dimmed, not disabled; the sentence under it is its description.
   await expect(next).toHaveAttribute("aria-disabled", "true");
   expect(await next.evaluate((button) => (button as HTMLButtonElement).disabled)).toBe(false);
+  // The company is asked for first, then the email.
+  await expect(next).toHaveAccessibleDescription("Enter your company.");
+  await page.getByLabel("Company").fill("Analytical Engines");
   await expect(next).toHaveAccessibleDescription("Enter your email address to continue.");
 
   await page.getByLabel("Email").fill("ada@acme.test");

@@ -8,7 +8,7 @@ managing it, and the code to read when you wire your own.
 ```
 /                     PricingTable    the plans of the catalogue, from a publishable key
 /checkout/:plan       CheckoutFlow    the choices, what is due today, the card, the outcome
-                      AnonymousCheckoutFlow   the same for a visitor with no account: email, security check
+                      AnonymousCheckoutFlow   the same for a visitor with no account: company, name, email, security check
 /portal               CustomerPortal  the plan, the limits, the invoices, cancellation, Change plan
 /sales                                where Change plan and the plans priced on request lead
 /journey                              a presenter's walk through the payment lifecycle
@@ -253,6 +253,9 @@ page ──POST …/{sessionId}/confirm (Bearer ksc_…)────────
         a free plan, or a trial with no card: completed, and the customer, instance and subscription exist
         otherwise requires_payment_method { setupUrl }: the provider's page saves a card, in a popup
 page ──POST …/{sessionId}/confirm again, once back, then GET until paid ─────────▶ Kaiten  completed
+page ──POST /storefront-api/checkout/completed (slugs, email, company, name)──▶ backend
+backend ──GET /customers/{slug}, GET /instances/{slug}  (ksh_)───────────────▶ Kaiten  does the record agree?
+backend ──PUT /customers/{slug}, PUT /instances/{slug}  (ksh_)───────────────▶ Kaiten  the customer is named
 ```
 
 What the page does ([`src/app.tsx`](src/app.tsx), [`src/visitor-checkout.tsx`](src/visitor-checkout.tsx)):
@@ -267,9 +270,33 @@ What the page does ([`src/app.tsx`](src/app.tsx), [`src/visitor-checkout.tsx`](s
   popup lands on tells the one that waits, which carries on, and the popup closes.
 - **One start per attempt.** A start spends a Turnstile token, a preview too: the page makes no preview, and
   a token refused is replaced by the widget at once.
-- **Nothing else is asked of the storefront's backend**: no account, no cookie, no session. The visitor
-  has an email, and Kaiten has made a customer named after it, with that address as its billing email,
-  an instance and a subscription.
+- **The form asks for a company (required) and a name (optional)**, besides the email:
+  `collectCompany="required"` and `collectName="optional"` on the flow. Kaiten has no member for either,
+  so the hook keeps them on the visitor's side, across the provider's page, and gives them to
+  `onSubscribed`. Nothing of them is sent to Kaiten.
+- **Naming the customer is the vendor's job, and the backend's call**: Kaiten has made a customer named
+  after the email, with that address as its billing email, an instance and a subscription. Once the
+  checkout completes, the page posts the session id, the slugs of the customer and instance the
+  completion made (`session.customerSlug`, `session.instanceSlug`), the email, the company and the name
+  to `POST /storefront-api/checkout/completed` ([`server/checkout-completed-route.ts`](server/checkout-completed-route.ts)).
+  The customer is named after the company (else the person's name, else it stays the email), its
+  instance too, and the person's name goes in the instance's description as `Contact: <name>`. The page
+  is the visitor's browser, which a visitor can change, so the route trusts none of it. With the server
+  token it **reads the customer** and goes on only if its billing email is the email posted (any case),
+  if **Kaiten itself made it** (`createdBy.id` is Kaiten's own identity, `00000000-0000-0000-0000-000000000001`,
+  which no person and no service account has: a customer made by `POST /customers` is refused whatever
+  its address), and if its name is still the email; it **reads the instance** and checks that it belongs
+  to that customer; then it writes the names. A refusal is a clear 4xx (`email_mismatch`,
+  `not_made_by_a_checkout`, `instance_of_another_customer`, `already_named`, `not_found`,
+  `invalid_request` with the member), never the token and never what Kaiten answered. Posting twice is
+  posting once, and a naming that stopped half way goes on when the page posts again. `PUT` replaces the
+  resource, so the route sends back what it must keep: for the customer the billing email, the domain and
+  the external id; for the instance the customer, the licence, the dates, the metadata and the
+  deployment zone. What the route cannot know is whether the order was paid for, or which order this was:
+  a real shop names the customer when the signed `checkout_session.v1.completed` event arrives, which
+  carries the same slugs; this example has no webhook receiver, and takes the page's word for the company
+  once Kaiten's record matches. The page prints the company once the backend has named the customer, and
+  says so when it could not.
 - **The page gives a `clientReferenceId`** (an order number it makes), which Kaiten echoes on the
   `checkout_session.v1.started`, `.completed` and `.abandoned` events. That reference, or the email, is how
   a vendor links the buyer to its own account when the `completed` event arrives, with the slugs of the
@@ -428,16 +455,22 @@ created with, and replaces the account before it, which is then a visitor again 
 it, and the ones it held end). The stand-in lives in the server's memory, so it starts over at each
 restart, and with it every account.
 
+It also answers `GET` and `PUT` on `/customers/{slug}` and `/instances/{slug}`, which the storefront
+uses to name what an anonymous checkout made. `PUT` replaces as Kaiten's does (a domain or an external
+id that is not sent is cleared, an e-mail that is not sent is kept, a slug or integrations that are not
+the ones on record are refused), and a customer and an instance a completed checkout made are Kaiten's
+own (`createdBy` is its identity, not the service account that signs up visitors), as they are in Kaiten.
+
 ## How the credentials move
 
 Three credentials are involved, and each one stays on its own routes:
 
-| Credential                | Held by             | Sent to                                                                                                 |
-| ------------------------- | ------------------- | ------------------------------------------------------------------------------------------------------- |
-| a publishable key `pk_`   | the page            | `GET /public/catalog`, and the start of an anonymous checkout, `POST /public/checkout-sessions`         |
-| a checkout token `ksc_`   | the page, in memory | `GET` and `POST …/confirm` of **one** anonymous checkout session, and nothing else                      |
-| a customer session `kst_` | the page, in memory | `/public/session/*`: the portal and the checkout of **one** customer                                    |
-| a server token `ksh_`     | the backend only    | `POST /customer-sessions`, to mint the session; in sign-up mode `POST /customers` and `POST /instances` |
+| Credential                | Held by             | Sent to                                                                                                                                                                                             |
+| ------------------------- | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| a publishable key `pk_`   | the page            | `GET /public/catalog`, and the start of an anonymous checkout, `POST /public/checkout-sessions`                                                                                                     |
+| a checkout token `ksc_`   | the page, in memory | `GET` and `POST …/confirm` of **one** anonymous checkout session, and nothing else                                                                                                                  |
+| a customer session `kst_` | the page, in memory | `/public/session/*`: the portal and the checkout of **one** customer                                                                                                                                |
+| a server token `ksh_`     | the backend only    | `POST /customer-sessions`, to mint the session; in sign-up mode `POST /customers` and `POST /instances`; after an anonymous checkout `GET` and `PUT` on `/customers/{slug}` and `/instances/{slug}` |
 
 The page never holds the server token. It asks its own backend for a session, and the backend
 mints one with `CustomerSessions.createCustomerSession` of `@kaitencloud/server`:
@@ -583,18 +616,24 @@ cp .env.example .env     # then fill it in
 vp dev                   # http://localhost:5173
 ```
 
-| Variable                   | Value                                                                                                      |
-| -------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| `KAITEN_API_URL`           | Your API's URL, `/api` included                                                                            |
-| `KAITEN_API_TOKEN`         | A `ksh_` token: `write:customer_sessions`, and in sign-up mode `write:customers` and `write:instances` too |
-| `KAITEN_PUBLISHABLE_KEY`   | A publishable key whose allowed origins include the storefront's (`http://localhost:5173`)                 |
-| `STOREFRONT_CUSTOMER_SLUG` | Optional, with the next: the customer the storefront signs in as                                           |
-| `STOREFRONT_INSTANCE_SLUG` | Optional, with the previous: one of that customer's instances, the one a checkout subscribes               |
-| `STOREFRONT_COOKIE_SECRET` | Optional: 32 characters or more, to sign the account cookie of sign-up mode                                |
+| Variable                   | Value                                                                                                                  |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `KAITEN_API_URL`           | Your API's URL, `/api` included                                                                                        |
+| `KAITEN_API_TOKEN`         | A `ksh_` token: `write:customer_sessions`, `read:customers`, `write:customers`, `read:instances` and `write:instances` |
+| `KAITEN_PUBLISHABLE_KEY`   | A publishable key whose allowed origins include the storefront's (`http://localhost:5173`)                             |
+| `STOREFRONT_CUSTOMER_SLUG` | Optional, with the next: the customer the storefront signs in as                                                       |
+| `STOREFRONT_INSTANCE_SLUG` | Optional, with the previous: one of that customer's instances, the one a checkout subscribes                           |
+| `STOREFRONT_COOKIE_SECRET` | Optional: 32 characters or more, to sign the account cookie of sign-up mode                                            |
 
 The token is needed even when every visitor buys with no account: the page starts that checkout with
-the publishable key alone, but the server reads the environment as a whole and uses the token for the
-sign-up and customer-session routes, so a storefront with the key and no token refuses to start.
+the publishable key alone, but the server reads the environment as a whole, so a storefront with the key
+and no token refuses to start. It also uses the token to **name the customer a visitor's checkout made**
+(`POST /storefront-api/checkout/completed`): `read:customers` and `read:instances` to read the customer
+and the instance and check them against what the page says, and `write:customers` and `write:instances`
+to write the company as their name. A token that lacks one still lets the visitor buy; the page says
+that the company name could not be registered, and the scope is named in the server's log. The sign-up
+mode needs `write:customers`, `write:instances` and `write:customer_sessions` too, so one token with
+the five scopes serves every mode.
 
 - **Both slugs set**: the storefront signs in that one customer, as it always did. No sign-up, no sign
   out.
@@ -660,8 +699,10 @@ a script, and the live project reads them.
     a plan, coming back and still being signed in, signing out and becoming a new visitor, a customer
     Kaiten has forgotten and a cookie that was not signed, a token that lacks a scope and a request to
     wait, the step in every theme and colour mode down to 320px, and the one-customer mode left as it was.
-  - `anonymous.spec.ts` is a visitor who buys with no account: a free plan with an email and the security
-    check, a paid plan through the provider's page, a trial that asks for no card and one that does, a
+  - `anonymous.spec.ts` is a visitor who buys with no account: a free plan with a company, a name and an
+    email, and the security check (the customer is renamed after the company, its instance too, with the
+    contact in its description), a company alone, a post the backend refuses because the email does not
+    match Kaiten's record (the customer keeps its address and the buyer is told), a paid plan through the provider's page, a trial that asks for no card and one that does, a
     security check that Kaiten refuses or cannot reach, a checkout that is abandoned and started again, a
     payment that never comes, a trial used up by another checkout before the card and while it is saved, a
     visitor sent to the provider's page in the same tab (the page is loaded again and still prints the

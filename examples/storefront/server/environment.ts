@@ -26,8 +26,10 @@ interface LiveBase {
   /** Your Kaiten API's URL, `/api` included. */
   apiUrl: string;
   /**
-   * A `ksh_` token that holds `write:customer_sessions`, and in sign-up mode `write:customers` and
-   * `write:instances` too. It never leaves the server.
+   * A `ksh_` token that holds `write:customer_sessions`, `read:customers`, `write:customers`,
+   * `read:instances` and `write:instances`: the last four name the customer a visitor's anonymous
+   * checkout made (the server reads it and its instance, then writes their names), and sign-up mode
+   * writes both. It never leaves the server.
    */
   serverToken: string;
   /** A publishable key (`pk_`) whose allowed origins include the storefront's. */

@@ -2,12 +2,23 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // What a visitor who has no account does at a plan's checkout. When the publishable key opens the anonymous
-// checkout, they buy the plan right there: an email, a security check, and, for a paid plan, a card on the
-// provider's page. Kaiten makes the customer, its instance and the subscription when it completes, and the
-// storefront's backend is not asked for anything. When the key does not open it, the visitor first makes an
-// account (`SignUpStep`), and the checkout of a customer follows.
+// checkout, they buy the plan right there: their company, optionally their name, an email, a security check,
+// and, for a paid plan, a card on the provider's page. Kaiten makes the customer, its instance and the
+// subscription when it completes, and names the customer after the email: it has no member for a company or
+// a name, so once the purchase is complete the page tells the storefront's backend, which checks what it is
+// told against Kaiten and writes the company as the customer's name (`server/checkout-completed-route.ts`).
+// When the key does not open the anonymous checkout, the visitor first makes an account (`SignUpStep`), and
+// the checkout of a customer follows.
 
-import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 import { KaitenClient, readCheckoutReturn } from "@kaitencloud/client";
 import type { AnonymousCheckoutOutcome } from "@kaitencloud/react/billing";
@@ -60,6 +71,44 @@ export function useAnonymousCheckoutOffered(): boolean | null {
   return offered;
 }
 
+/** Where the page tells the storefront's backend that a purchase is complete. */
+const CHECKOUT_COMPLETED = "/storefront-api/checkout/completed";
+
+/** Whether the customer Kaiten made has been named after what the visitor typed. */
+type Naming = { state: "saving" } | { state: "done"; customerName: string } | { state: "failed" };
+
+/**
+ * Tells the storefront's backend what the visitor typed, with the slugs of what the completion made. What
+ * the browser reports is the visitor's to change, so the backend reads Kaiten for the customer and acts on
+ * what it finds there, not on this: a post it cannot match is refused.
+ */
+async function nameTheCustomer(outcome: AnonymousCheckoutOutcome): Promise<Naming> {
+  const { session } = outcome;
+  if (!session.customerSlug || !session.instanceSlug) return { state: "failed" };
+  try {
+    const response = await fetch(CHECKOUT_COMPLETED, {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sessionId: outcome.sessionId,
+        customerSlug: session.customerSlug,
+        instanceSlug: session.instanceSlug,
+        email: session.email,
+        company: outcome.company,
+        name: outcome.name,
+      }),
+    });
+    if (!response.ok) return { state: "failed" };
+    const named = (await response.json()) as { customerName?: unknown };
+    return typeof named.customerName === "string"
+      ? { state: "done", customerName: named.customerName }
+      : { state: "failed" };
+  } catch {
+    return { state: "failed" };
+  }
+}
+
 /** A reference of the visitor's own that Kaiten echoes on the events of their checkout, here a made-up order number. */
 function newOrderReference(): string {
   const random = crypto.getRandomValues(new Uint8Array(4));
@@ -75,6 +124,15 @@ export function VisitorCheckout({ plan, priceId }: { plan: Plan; priceId: string
   // session's own, which Kaiten echoes on its events.
   const [reference] = useState(newOrderReference);
   const [completed, setCompleted] = useState<AnonymousCheckoutOutcome | null>(null);
+  const [naming, setNaming] = useState<Naming | null>(null);
+  // The flow tells the page once, and so does this: a buyer who gave neither a company nor a name leaves the
+  // customer named after their address, and nothing is sent.
+  const onSubscribed = useCallback((outcome: AnonymousCheckoutOutcome) => {
+    setCompleted(outcome);
+    if (outcome.company === null && outcome.name === null) return;
+    setNaming({ state: "saving" });
+    void nameTheCustomer(outcome).then(setNaming);
+  }, []);
   const title = useMemo(() => `Subscribe to ${plan.name}`, [plan.name]);
 
   // The page is a new one to a keyboard or screen-reader user: they start at its title.
@@ -101,7 +159,9 @@ export function VisitorCheckout({ plan, priceId }: { plan: Plan; priceId: string
             plan={plan}
             priceId={priceId}
             clientReferenceId={reference}
-            onSubscribed={setCompleted}
+            collectCompany="required"
+            collectName="optional"
+            onSubscribed={onSubscribed}
             onCancel={() => navigate("/")}
           />
           {completed ? (
@@ -109,12 +169,30 @@ export function VisitorCheckout({ plan, priceId }: { plan: Plan; priceId: string
               <p>
                 Thank you for your order. <Link to="/">Back to the plans</Link>
               </p>
+              {naming?.state === "saving" ? (
+                <p role="status" className="small muted">
+                  Registering your details…
+                </p>
+              ) : null}
+              {naming?.state === "done" ? (
+                <p data-testid="visitor-company" className="small">
+                  Your account is registered for <strong>{naming.customerName}</strong>.
+                </p>
+              ) : null}
+              {naming?.state === "failed" ? (
+                <p role="alert" data-testid="visitor-company-failed" className="small muted">
+                  Your order is complete, but we could not register your company name.
+                </p>
+              ) : null}
               {/* A note for the person who builds the shop, not for the person who just bought: folded away. */}
               <details className="visitor-dev-note small muted" data-testid="visitor-dev-note">
                 <summary>For the vendor, not the buyer</summary>
                 <p>
-                  Kaiten has made the customer and its instance for this address. It sends no email
-                  to your buyers: a shop&rsquo;s backend hears of the order from the{" "}
+                  Kaiten has made the customer and its instance for this address, and named them
+                  after it: it has no member for a company or a name, so this page told the
+                  storefront&rsquo;s backend what the buyer typed, and the backend renamed them
+                  after checking Kaiten&rsquo;s own record. It sends no email to your buyers: a
+                  shop&rsquo;s backend hears of the order from the{" "}
                   <code>checkout_session.v1.completed</code> event, which carries the reference{" "}
                   <code data-testid="visitor-reference">
                     {completed.clientReferenceId ?? "none"}

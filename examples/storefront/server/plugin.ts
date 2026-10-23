@@ -14,6 +14,7 @@ import { createKaitenClient } from "@kaitencloud/server";
 import type { Connect, Plugin } from "vite-plus";
 
 import { createAccountCookie } from "./account-cookie.ts";
+import { checkoutCompletedRoute } from "./checkout-completed-route.ts";
 import { accountRoutes, SessionLedger, sessionAccounts } from "./account-routes.ts";
 import { createKaitenDouble, DOUBLE_PATH } from "./double/kaiten-double.ts";
 import {
@@ -106,13 +107,16 @@ export function storefrontRoutes(
       publishableKey: environment.publishableKey,
     };
     const visitorsSignUp = signsUp(environment);
+    const client = createKaitenClient({
+      baseUrl: environment.apiUrl,
+      token: environment.serverToken,
+    });
     return [
       (request) => (new URL(request.url).pathname === CONFIG_PATH ? json(config) : undefined),
+      // Names what a visitor's anonymous checkout made, whichever way the other visitors get in.
+      checkoutCompletedRoute({ client }),
       ...accountsBackend({
-        client: createKaitenClient({
-          baseUrl: environment.apiUrl,
-          token: environment.serverToken,
-        }),
+        client,
         cookieSecret: environment.cookieSecret,
         readCatalogue: catalogueReader({
           apiUrl: environment.apiUrl,
@@ -155,6 +159,8 @@ export function storefrontRoutes(
       };
       return json(config);
     },
+    // Names what a visitor's anonymous checkout made: the customer and its instance.
+    checkoutCompletedRoute({ client }),
     // The stand-in plays either: one customer (its default), or a visitor who signs up (a scenario a
     // test or the journey page starts it in), so the mode is asked at each request.
     ...accountsBackend({
