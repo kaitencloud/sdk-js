@@ -64,10 +64,10 @@ function whenText(
   }
   if (live.cancelAtPeriodEnd) return words.addonEnding(live.currentPeriodEnd);
   if (to > from) return words.addonBilledFrom(live.currentPeriodEnd);
-  // TODO: the contract's `SessionAddon` has no `pendingQuantity` yet, so a decrease is said as it
-  // is made today: at once, the renewal billing the new quantity. Once the portal's add-ons carry
-  // `pendingQuantity`, a decrease is scheduled for the next renewal and keeps its units until then:
-  // say that instead, and show the quantity scheduled.
+  // TODO: the contract's portal add-ons carry `pendingQuantity` (a decrease scheduled for the next
+  // renewal, whose units are kept until then), and the client does not map it yet, so a decrease is
+  // still said as it was made before: at once, the renewal billing the new quantity. Map it, then
+  // say a decrease as scheduled for the renewal instead, and show the quantity scheduled.
   return to === 0
     ? words.addonRemovedFrom(live.currentPeriodEnd)
     : words.addonLowerFrom(live.currentPeriodEnd);
