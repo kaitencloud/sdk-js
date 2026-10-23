@@ -140,6 +140,19 @@ export const STORIES: Array<{ name: string; storyId: string }> = [
     name: "customer-portal-session--voucher-rate-limited",
     storyId: "flows-customer-portal-session--voucher-rate-limited",
   },
+  // A code on a live subscription: what it gives to apply or leave, and once applied, listed.
+  {
+    name: "customer-portal-session--voucher-to-apply",
+    storyId: "flows-customer-portal-session--voucher-to-apply",
+  },
+  {
+    name: "customer-portal-session--voucher-applied",
+    storyId: "flows-customer-portal-session--voucher-applied",
+  },
+  {
+    name: "customer-portal-session--voucher-while-incomplete",
+    storyId: "flows-customer-portal-session--voucher-while-incomplete",
+  },
   {
     name: "customer-portal-session--in-french",
     storyId: "flows-customer-portal-session--in-french",

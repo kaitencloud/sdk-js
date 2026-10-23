@@ -354,6 +354,30 @@ export interface KaitenPortalBillingWords {
   voucherAtCheckout: string;
   /** A voucher check that was refused for coming too often. Receives the seconds to wait. */
   voucherWait: (seconds: number) => string;
+  /** Redeems the code a check showed, on a subscription that is live. */
+  voucherRedeem: string;
+  /** Leaves the code a check showed unredeemed. */
+  voucherDismiss: string;
+  /** Said once a code was redeemed. Receives the voucher's name. */
+  voucherRedeemed: (name: string) => string;
+  /** A discount that has not discounted an invoice yet: the current period is never invoiced again. */
+  voucherFromNextInvoice: string;
+  /** How many invoices a discount covers. Receives the count. */
+  voucherForInvoices: (count: number) => string;
+  /** What a boost or a flag grant does on redemption. */
+  voucherTakesEffect: string;
+  /** Until when a boost or a flag grant lasts. Receives the RAW ISO bound and formats it itself. */
+  voucherUntil: (isoDate: string) => string;
+  /** The heading of the list of redemptions that are in force. */
+  voucherActive: string;
+  /** A boost or a flag grant in force that has no end date. */
+  voucherActiveNow: string;
+  /** How many invoices a discount has covered so far. Receives the count, and the most it covers or null. */
+  voucherUsedOf: (count: number, max: number | null) => string;
+  /** Said in place of the field while the subscription waits for its first payment. */
+  voucherIncomplete: string;
+  /** Said when there turned out to be no subscription to redeem a code on. */
+  voucherNoSubscription: string;
   /** The button that opens how a limit is made up. */
   provenance: string;
   provenanceBase: string;

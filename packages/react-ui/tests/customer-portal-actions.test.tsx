@@ -260,7 +260,7 @@ test("a cancellation the API refuses is said, and changes nothing on screen", as
 });
 
 // ---------------------------------------------------------------------------
-// A voucher
+// A voucher, before there is a subscription to redeem it on: it is only checked
 // ---------------------------------------------------------------------------
 
 const CODE = "WELCOME20";
@@ -273,7 +273,7 @@ test("a valid code says what it is and that it is applied at checkout, and is go
   const logs = (["log", "info", "warn", "error", "debug"] as const).map((level) =>
     vi.spyOn(console, level).mockImplementation(() => {}),
   );
-  const server = sessionServer();
+  const server = sessionServer({ portal: "portalNeverSubscribed" });
   const { container } = mount(server, <VoucherEntry />);
   await screen.findByLabelText("Voucher code");
 
@@ -297,7 +297,7 @@ test("a valid code says what it is and that it is applied at checkout, and is go
 });
 
 test("the keyboard stays on Check while it is emptied and answered", async () => {
-  const server = sessionServer();
+  const server = sessionServer({ portal: "portalNeverSubscribed" });
   mount(server, <VoucherEntry />);
   await screen.findByLabelText("Voucher code");
 
@@ -309,7 +309,7 @@ test("the keyboard stays on Check while it is emptied and answered", async () =>
 });
 
 test("every refusal is the same sentence, and says no reason", async () => {
-  const server = sessionServer();
+  const server = sessionServer({ portal: "portalNeverSubscribed" });
   mount(server, <VoucherEntry />);
   await screen.findByLabelText("Voucher code");
 
@@ -321,7 +321,7 @@ test("every refusal is the same sentence, and says no reason", async () => {
 });
 
 test("Enter checks the code, and nothing is sent for an empty field", async () => {
-  const server = sessionServer();
+  const server = sessionServer({ portal: "portalNeverSubscribed" });
   mount(server, <VoucherEntry />);
   await screen.findByLabelText("Voucher code");
   expect(off(screen.getByRole("button", { name: "Check" }))).toBe(true);
@@ -334,7 +334,7 @@ test("Enter checks the code, and nothing is sent for an empty field", async () =
 
 test("a check refused for coming too often says when to come back, and waits that long", async () => {
   vi.useFakeTimers(FAKE_TIMERS);
-  const server = sessionServer();
+  const server = sessionServer({ portal: "portalNeverSubscribed" });
   server.script("POST vouchers/validate", refusal("voucherRateLimited"));
   mount(server, <VoucherEntry />);
   await settle();
@@ -351,7 +351,7 @@ test("a check refused for coming too often says when to come back, and waits tha
 });
 
 test("in French", async () => {
-  mount(sessionServer(), <VoucherEntry />, fr);
+  mount(sessionServer({ portal: "portalNeverSubscribed" }), <VoucherEntry />, fr);
   await screen.findByLabelText("Code promo");
   type("Code promo", "NOPE");
   await press("Vérifier");

@@ -379,6 +379,27 @@ export const de: KaitenLocalization = {
     voucherAtCheckout: "Wird beim Abschluss angewendet.",
     voucherWait: (seconds) =>
       `Zu viele Versuche. Versuchen Sie es in ${seconds < 90 ? `${seconds} Sekunde${seconds === 1 ? "" : "n"}` : `${Math.ceil(seconds / 60)} Minuten`} erneut.`,
+    voucherRedeem: "Einlösen",
+    voucherDismiss: "Jetzt nicht",
+    voucherRedeemed: (name) => `${name} eingelöst.`,
+    voucherFromNextInvoice: "Gilt ab Ihrer nächsten Rechnung.",
+    voucherForInvoices: (count) =>
+      pluralize(count, { one: "Für eine Rechnung.", other: "Für {n} Rechnungen." }, "de-DE"),
+    voucherTakesEffect: "Gilt sofort.",
+    voucherUntil: (isoDate) => `Bis zum ${formatKaitenDate(isoDate, { locale: "de-DE" })}.`,
+    voucherActive: "Aktive Gutscheine",
+    voucherActiveNow: "Aktiv.",
+    voucherUsedOf: (count, max) =>
+      max === null
+        ? pluralize(
+            count,
+            { one: "Auf {n} Rechnung angewendet.", other: "Auf {n} Rechnungen angewendet." },
+            "de-DE",
+          )
+        : `Auf ${count} von ${max} ${max === 1 ? "Rechnung" : "Rechnungen"} angewendet.`,
+    voucherIncomplete:
+      "Ihr Tarif beginnt, sobald Ihre Zahlung bestätigt ist. Danach können Sie einen Code hinzufügen.",
+    voucherNoSubscription: "Es gibt kein Abonnement, auf das ein Code angewendet werden könnte.",
     provenance: "Woraus sich dieses Limit ergibt",
     provenanceBase: "Basis",
     provenanceAddOn: "Zusatzoption",

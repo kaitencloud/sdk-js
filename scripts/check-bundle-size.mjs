@@ -184,11 +184,11 @@ const SCENARIOS = [
     // refusal).
     // Measured at 6 167 bytes, up from 6 142: the trial's price and a missing name, less the words
     // that promised an e-mail.
-    // Measured at 6 452 bytes, up from 6 215: the words of the trial banner and of redeeming a code,
+    // Measured at 6 669 bytes, up from 6 215: the words of the trial banner and of redeeming a code,
     // which every language pack carries whole.
     name: "locales · fr alone",
     code: `import { fr } from "@kaitencloud/react/locales"; console.log(fr);`,
-    budgetGzip: 6_550,
+    budgetGzip: 6_800,
     unstyled: true,
   },
   {
@@ -294,9 +294,12 @@ const SCENARIOS = [
     // says, and the words of its English.
     // Measured at 62 833 bytes, up from 62 593: the refusals of an anonymous checkout, as above.
     // Measured at 63 011 bytes, up from 62 833: the feedback tones and the new-tab description, as above.
+    // Measured at 65 068 bytes, up from 63 011: redeeming a code on a live subscription (the hook and
+    // its states, what a code gives said in sentences, the list of redemptions in force) and the words
+    // of its English.
     name: "react-ui · CustomerPortal + KaitenProvider + KaitenStyleRoot",
     code: `import { CustomerPortal, KaitenProvider, KaitenStyleRoot } from "@kaitencloud/react-ui"; console.log(CustomerPortal, KaitenProvider, KaitenStyleRoot);`,
-    budgetGzip: 63_100,
+    budgetGzip: 65_200,
   },
   {
     // Measured at 93 302 bytes, up from 79 688: Base UI's radio group, as in the checkout (12.4 KB),
@@ -320,9 +323,10 @@ const SCENARIOS = [
     // Measured at 106 964 bytes, up from 106 719: what the anonymous checkout grew by, as above.
     // Measured at 108 472 bytes, up from 106 964: the trial banner, with the hooks and the words it
     // is made of.
+    // Measured at 110 468 bytes, up from 108 472: redeeming a code, as above.
     name: "react-ui · everything",
     code: `import * as all from "@kaitencloud/react-ui"; console.log(all);`,
-    budgetGzip: 108_600,
+    budgetGzip: 110_600,
   },
   {
     name: "client · KaitenClient alone",

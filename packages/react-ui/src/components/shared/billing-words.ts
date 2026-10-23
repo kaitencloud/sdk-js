@@ -106,6 +106,22 @@ export const englishPortalBillingWords: KaitenPortalBillingWords = {
   voucherAtCheckout: "Applied at checkout.",
   voucherWait: (seconds) =>
     `Too many attempts. Try again in ${seconds < 90 ? `${seconds} second${seconds === 1 ? "" : "s"}` : `${Math.ceil(seconds / 60)} minutes`}.`,
+  voucherRedeem: "Apply",
+  voucherDismiss: "Not now",
+  voucherRedeemed: (name) => `${name} applied.`,
+  voucherFromNextInvoice: "Applies from your next invoice.",
+  voucherForInvoices: (count) => (count === 1 ? "For one invoice." : `For ${count} invoices.`),
+  voucherTakesEffect: "Takes effect now.",
+  voucherUntil: (isoDate) => `Until ${formatKaitenDate(isoDate)}.`,
+  voucherActive: "Active vouchers",
+  voucherActiveNow: "Active.",
+  voucherUsedOf: (count, max) =>
+    max === null
+      ? `Applied to ${count} ${count === 1 ? "invoice" : "invoices"}.`
+      : `Applied to ${count} of ${max} ${max === 1 ? "invoice" : "invoices"}.`,
+  voucherIncomplete:
+    "Your plan starts once your payment is confirmed. You can add a code after that.",
+  voucherNoSubscription: "There is no subscription to apply a code to.",
   provenance: "How this limit is made up",
   provenanceBase: "base",
   provenanceAddOn: "add-on",

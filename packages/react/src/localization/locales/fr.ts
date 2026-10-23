@@ -371,6 +371,27 @@ export const fr: KaitenLocalization = {
     voucherAtCheckout: "Appliqué à la souscription.",
     voucherWait: (seconds) =>
       `Trop de tentatives. Réessayez dans ${seconds < 90 ? `${seconds} seconde${seconds === 1 ? "" : "s"}` : `${Math.ceil(seconds / 60)} minutes`}.`,
+    voucherRedeem: "Appliquer",
+    voucherDismiss: "Pas maintenant",
+    voucherRedeemed: (name) => `${name} appliqué.`,
+    voucherFromNextInvoice: "S'applique dès votre prochaine facture.",
+    voucherForInvoices: (count) =>
+      pluralize(count, { one: "Sur une facture.", other: "Sur {n} factures." }, "fr-FR"),
+    voucherTakesEffect: "Prend effet immédiatement.",
+    voucherUntil: (isoDate) => `Jusqu'au ${formatKaitenDate(isoDate, { locale: "fr-FR" })}.`,
+    voucherActive: "Codes promo actifs",
+    voucherActiveNow: "Actif.",
+    voucherUsedOf: (count, max) =>
+      max === null
+        ? pluralize(
+            count,
+            { one: "Appliqué à {n} facture.", other: "Appliqué à {n} factures." },
+            "fr-FR",
+          )
+        : `Appliqué à ${count} facture${count > 1 ? "s" : ""} sur ${max}.`,
+    voucherIncomplete:
+      "Votre offre démarre dès que votre paiement est confirmé. Vous pourrez ajouter un code ensuite.",
+    voucherNoSubscription: "Il n'y a aucun abonnement auquel appliquer un code.",
     provenance: "D'où vient cette limite",
     provenanceBase: "de base",
     provenanceAddOn: "option",

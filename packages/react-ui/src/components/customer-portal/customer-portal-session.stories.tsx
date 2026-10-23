@@ -626,9 +626,13 @@ const voucher = {
   ),
 } satisfies Story;
 
+/** A customer with no subscription: a code is only checked, and the checkout applies it. */
+const noSubscription = portalDecorator({ portal: "portalNeverSubscribed" });
+
 export const VoucherValid: Story = {
   ...voucher,
-  name: "Voucher: a valid code",
+  name: "Voucher: a valid code, before a subscription",
+  decorators: [noSubscription],
   play: async ({ canvasElement }) => {
     const canvas = await check(canvasElement, "WELCOME20");
     await expect(
@@ -643,6 +647,7 @@ export const VoucherValid: Story = {
 export const VoucherRefused: Story = {
   ...voucher,
   name: "Voucher: a code that cannot be used",
+  decorators: [noSubscription],
   play: async ({ canvasElement }) => {
     const canvas = await check(canvasElement, "NOPE");
     await expect(await canvas.findByText("This code can't be used.", {}, SLOW)).toBeInTheDocument();
@@ -653,13 +658,65 @@ export const VoucherRateLimited: Story = {
   ...voucher,
   name: "Voucher: too many attempts",
   decorators: [
-    portalDecorator({ scripts: { "POST vouchers/validate": [refusal("voucherRateLimited")] } }),
+    portalDecorator({
+      portal: "portalNeverSubscribed",
+      scripts: { "POST vouchers/validate": [refusal("voucherRateLimited")] },
+    }),
   ],
   play: async ({ canvasElement }) => {
     const canvas = await check(canvasElement, "TRY");
     await expect(
       await canvas.findByText("Too many attempts. Try again in 2 minutes.", {}, SLOW),
     ).toBeInTheDocument();
+  },
+};
+
+export const VoucherToApply: Story = {
+  ...voucher,
+  name: "Voucher: what a code gives, to apply or leave",
+  play: async ({ canvasElement }) => {
+    const canvas = await check(canvasElement, "FIVEOFF");
+    await expect(
+      await canvas.findByText(
+        "Five off — Applies from your next invoice. For one invoice.",
+        {},
+        SLOW,
+      ),
+    ).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Apply" })).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Not now" })).toBeInTheDocument();
+  },
+};
+
+export const VoucherApplied: Story = {
+  ...voucher,
+  name: "Voucher: a code applied",
+  play: async ({ canvasElement }) => {
+    const canvas = await check(canvasElement, "LAUNCHBOOST");
+    await userEvent.click(await canvas.findByRole("button", { name: "Apply" }, SLOW));
+    await expect(
+      await canvas.findByText("Launch boost applied. Takes effect now.", {}, SLOW),
+    ).toBeInTheDocument();
+    // In force now: listed, with no code.
+    await expect(canvas.getByText("Active vouchers")).toBeInTheDocument();
+    await expect(canvasElement.innerHTML).not.toContain("LAUNCHBOOST");
+  },
+};
+
+export const VoucherWhileIncomplete: Story = {
+  ...voucher,
+  name: "Voucher: a subscription waiting for its payment",
+  decorators: [portalDecorator({ portal: incomplete })],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(
+      await canvas.findByText(
+        "Your plan starts once your payment is confirmed. You can add a code after that.",
+        {},
+        SLOW,
+      ),
+    ).toBeInTheDocument();
+    await expect(canvas.queryByLabelText("Voucher code")).toBeNull();
   },
 };
 
