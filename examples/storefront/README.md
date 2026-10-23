@@ -547,7 +547,7 @@ goes on from there: that is why the checkout has a path of its own, and why ther
 ## The stand-in for Kaiten
 
 With none of the variables of the next section, the backend plays Kaiten itself, in the same
-process: the catalogue, the minting of a session, the ten routes of `/public/session/*`, the three of
+process: the catalogue, the minting of a session, the eleven routes of `/public/session/*`, the three of
 the anonymous checkout (`/public/checkout-sessions`), and the
 pages of a payment provider, under `/kaiten-double`. The answers are the ones recorded from Kaiten
 in the client's fixtures, which the client's tests hold to the API contract; what the stand-in adds
@@ -568,6 +568,14 @@ is a customer who moves:
   cancelled at once, with no invoice, and subscribed in the same step. Any other live
   subscription is still a 409 `CreateSessionCheckout.AlreadySubscribed`;
 - a cancellation ends the subscription with its period, and a reactivation withdraws it;
+- `WELCOME20` can be redeemed from the portal (`POST /public/session/vouchers/redeem`) while the
+  subscription is live, in its trial included: a dry run answers 200 with what the code would make
+  and writes nothing, the redemption is 201 and is listed by the portal, and the 20% comes off the
+  base fee of the next three invoices (a trial's, for the invoice it ends with). A checkout that
+  carries the code redeems it too. Every refusal of the code is the same 422
+  `RedeemSessionVoucher.VoucherInvalid`, a code taken twice included; a session bound to the customer
+  alone is 422 `.InstanceRequired`, an instance with no subscription 409 `.NoLiveSubscription`. It
+  limits no rate: a test scripts the 429 (`script`);
 - the payment of the activation invoice can be paid, declined, wait for the customer's
   confirmation (3-D Secure) or be unknown for a while;
 - an add-on quantity is set from the portal's add-ons panel, one request per add-on confirmed, in

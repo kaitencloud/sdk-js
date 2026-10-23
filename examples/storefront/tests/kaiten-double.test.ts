@@ -1586,6 +1586,150 @@ describe("the payment method", () => {
   });
 });
 
+describe("a code redeemed from the portal", () => {
+  /**
+   * What the stand-in answered that the contract does not allow, but for a dry run: Kaiten answers a
+   * `dryRun` of `vouchers/redeem` with 200 and the contract declares the 201 only, so those answers
+   * are held to the redemption's schema instead.
+   */
+  const problemsBesidesDryRuns = (recorder: ReturnType<typeof recordingFetch>) => {
+    const dry = (exchange: { method: string; path: string; status: number }) =>
+      exchange.method === "POST" &&
+      exchange.path === "/public/session/vouchers/redeem" &&
+      exchange.status === 200;
+    return [
+      ...contractProblemsOf(recorder.exchanges.filter((exchange) => !dry(exchange))),
+      ...recorder.exchanges
+        .filter(dry)
+        .flatMap((exchange) => schemaProblems("SessionRedemption", exchange.body)),
+    ];
+  };
+
+  test("is listed by the portal, takes effect on the next invoice and is not redeemed twice", async () => {
+    const { double, recorder, customer } = world();
+    double.reset({ subscribed: true });
+    const session = await customer();
+
+    // A dry run answers what the code would make, and writes nothing.
+    const preview = await session.redeemVoucher({ code: "welcome-20", dryRun: true });
+    expect(preview).toMatchObject({
+      name: "Welcome 20%",
+      voucherType: "PRICE",
+      appliesFromInvoice: "next",
+      applicationsCount: 0,
+      applicationsMax: 3,
+    });
+    expect((await session.getPortal()).vouchers).toEqual([]);
+
+    const made = await session.redeemVoucher({ code: "WELCOME20" });
+    expect(made).toMatchObject({
+      name: "Welcome 20%",
+      status: "ACTIVE",
+      appliesFromInvoice: "next",
+    });
+    expect((await session.getPortal()).vouchers).toEqual([made]);
+
+    // Every refusal of the code is the one answer: an unknown code, and one already redeemed.
+    const unknown = await session.redeemVoucher({ code: "NOPE" }).catch((error: unknown) => error);
+    const twice = await session
+      .redeemVoucher({ code: "WELCOME20" })
+      .catch((error: unknown) => error);
+    for (const refusal of [unknown, twice]) {
+      expect(refusal).toBeInstanceOf(KaitenError);
+      expect(refusal).toMatchObject({ status: 422, code: "RedeemSessionVoucher.VoucherInvalid" });
+    }
+    expect((unknown as KaitenError).detail).toBe((twice as KaitenError).detail);
+
+    // The next invoice carries the discount, once, and the portal counts it.
+    const renewed = double.advance(ORIGIN);
+    expect(renewed).toMatchObject({ ok: true, applied: "renewed" });
+    const invoice = double.state().invoices[0]!;
+    expect(invoice).toMatchObject({ kind: "RENEWAL" });
+    const [shown] = (await session.listInvoices()).items;
+    expect(shown).toMatchObject({ discountTotal: 980 });
+    expect((await session.getPortal()).vouchers).toEqual([
+      expect.objectContaining({
+        appliesFromInvoice: null,
+        applicationsCount: 1,
+        applicationsMax: 3,
+      }),
+    ]);
+
+    expect(problemsBesidesDryRuns(recorder)).toEqual([]);
+  });
+
+  test("is refused as Kaiten refuses it: no instance, no subscription, a checkout waiting", async () => {
+    const { double, recorder, customer } = world();
+    double.reset({ subscribed: true });
+
+    const bound = await customer(null);
+    await expect(bound.redeemVoucher({ code: "WELCOME20" })).rejects.toMatchObject({
+      status: 422,
+      code: "RedeemSessionVoucher.InstanceRequired",
+    });
+
+    double.reset({ card: true, email: true });
+    const none = await customer();
+    await expect(none.redeemVoucher({ code: "WELCOME20" })).rejects.toMatchObject({
+      status: 409,
+      code: "RedeemSessionVoucher.NoLiveSubscription",
+    });
+
+    expect(problemsBesidesDryRuns(recorder)).toEqual([]);
+  });
+
+  test("a trial is live too: the code discounts the invoice the trial ends with", async () => {
+    const { double, recorder, customer } = world();
+    double.reset({ card: true, email: true });
+    const session = await customer();
+    await session.checkout({ licensePriceId: GROWTH_MONTHLY });
+    const before = (await session.getPortal()).trial?.charge?.amount;
+
+    await session.redeemVoucher({ code: "WELCOME20" });
+
+    const after = (await session.getPortal()).trial?.charge?.amount;
+    expect(before).toBeGreaterThan(0);
+    expect(after).toBe(before! - Math.round((before! * 20) / 100));
+    expect(double.endTrial(ORIGIN)).toMatchObject({ ok: true, applied: "trial_converted" });
+    expect(double.state().invoices[0]).toMatchObject({ kind: "ACTIVATION", total: after });
+    expect(problemsBesidesDryRuns(recorder)).toEqual([]);
+  });
+
+  test("a voucher a checkout carried is redeemed already", async () => {
+    const { double, customer } = world();
+    double.reset({ card: true, email: true });
+    const session = await customer();
+    await session.checkout({ licensePriceId: PRO_MONTHLY, voucherCode: "WELCOME20" });
+
+    expect((await session.getPortal()).vouchers).toEqual([
+      expect.objectContaining({
+        name: "Welcome 20%",
+        appliesFromInvoice: null,
+        applicationsCount: 1,
+      }),
+    ]);
+    await expect(session.redeemVoucher({ code: "WELCOME20" })).rejects.toMatchObject({
+      code: "RedeemSessionVoucher.VoucherInvalid",
+    });
+  });
+
+  test("refuses a body the contract does not allow", async () => {
+    const { double, call, mint } = world();
+    double.reset({ subscribed: true });
+    const { token } = await mint();
+    const post = (body: unknown) =>
+      call("/api/public/session/vouchers/redeem", {
+        method: "POST",
+        headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+    for (const body of [{}, { code: "" }, { code: "x".repeat(65) }, { code: "A", dryRun: "yes" }]) {
+      expect((await post(body)).status).toBe(422);
+    }
+  });
+});
+
 describe("the new controls, over HTTP", () => {
   test("move the subscription, say what happened, and refuse what makes no sense", async () => {
     const { double, call } = world();

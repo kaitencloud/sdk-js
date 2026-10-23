@@ -4,7 +4,7 @@
 // A stand-in for Kaiten, to run the storefront and its end-to-end tests without one.
 //
 // It answers the routes the storefront calls: the public catalogue, the minting of a customer
-// session, and the ten routes of `/public/session/*`. The answers are the ones recorded from
+// session, and the eleven routes of `/public/session/*`. The answers are the ones recorded from
 // Kaiten's own code in the client's fixtures, which `fixtures-contract.test.ts` holds to the
 // API contract; what it adds to them is a customer who moves. A checkout subscribes the
 // instance, after a card has been saved on a provider's page if there is none (and replaces a free
@@ -296,6 +296,9 @@ const INVOICE_STATUS: Record<string, string> = {
 /** The one voucher the double knows. */
 const VOUCHER_CODE = "WELCOME20";
 
+/** The invoices it discounts: three, as the recorded `voucherPercent` says. */
+const VOUCHER_INVOICES = 3;
+
 export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
   const session = fixture("session.initech.json");
   const catalog = options.catalog ?? fixture("public-catalog.acme.json");
@@ -363,6 +366,12 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
   /** The invoices whose failure leaves the subscription PAST_DUE: a renewal's and a trial's conversion. */
   let dunning: Set<string>;
   let addOns: Json[];
+  /**
+   * The code the instance redeemed, as the portal lists it (`SessionRedemption`): the one voucher the
+   * double knows, taken once per instance, at a checkout or from the portal. Its discount is on the
+   * invoices composed after it.
+   */
+  let redeemed: Json | null;
   let setups: Map<
     string,
     {
@@ -451,6 +460,7 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
     invoices = [];
     dunning = new Set();
     addOns = [];
+    redeemed = null;
     if (scenario.subscribed) {
       const now = new Date();
       const end = addMonths(now, 1);
@@ -947,7 +957,7 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
       };
     }
     portal.paymentMethod = card ? structuredClone(card) : null;
-    portal.vouchers = [];
+    portal.vouchers = redeemed ? [structuredClone(redeemed)] : [];
     portal.updatedAt = new Date().toISOString();
     return portal;
   };
@@ -1646,6 +1656,8 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
       );
     }
 
+    if (key === "POST /public/session/vouchers/redeem") return redeemVoucher(stored, body, path);
+
     if (method === "PUT" && route.startsWith("addons/")) {
       return setAddonQuantity(
         stored,
@@ -1717,6 +1729,14 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
       lines: due.lines,
     };
     invoices = [invoice, ...invoices];
+    if (due.discountTotal > 0 && redeemed) {
+      // The code has discounted one more invoice: it no longer starts "from the next one".
+      redeemed = {
+        ...redeemed,
+        appliesFromInvoice: null,
+        applicationsCount: redeemed.applicationsCount + 1,
+      };
+    }
     emit(
       "instance.invoice.issued",
       `${kind} ${invoice.providerInvoiceNumber}, ${money(due.total, due.currency)}`,
@@ -1854,6 +1874,8 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
         }),
     ];
     const trialing = priced.trialEndsAt !== undefined;
+    // The voucher the checkout carries is redeemed with it; a trial discounts the invoice it ends with.
+    if (order.voucherCode !== undefined) redeemed = redemptionOf(now);
     subscription = newSubscription(base, now, priced.trialEndsAt ?? null);
     canceling = false;
     pastDueSince = null;
@@ -1879,6 +1901,78 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
       activationInvoice: structuredClone(invoice),
       payment: { status: outcome, hostedInvoiceUrl: invoice.hostedInvoiceUrl },
     });
+  }
+
+  // ---- Vouchers -----------------------------------------------------------------
+
+  /** The redemption of the double's one voucher, as `POST /public/session/vouchers/redeem` answers it. */
+  const redemptionOf = (at: Date): Json => ({
+    name: "Welcome 20%",
+    voucherType: "PRICE",
+    status: "ACTIVE",
+    appliesFromInvoice: "next",
+    applicationsCount: 0,
+    applicationsMax: VOUCHER_INVOICES,
+    effectiveStartsAt: iso(at.getTime()),
+    effectiveExpiresAt: null,
+  });
+
+  /**
+   * `POST /public/session/vouchers/redeem`: a code on the session's instance while its subscription
+   * is live. The refusals come in Kaiten's order: the instance, the subscription, then the code, and
+   * every refusal of the code is one answer, whatever its reason. A `dryRun` answers 200 with what it
+   * would make and writes nothing; a redemption is 201. There is no rate limit here.
+   */
+  function redeemVoucher(stored: Stored, body: Json, path: string): Response {
+    const code = body.code;
+    if (typeof code !== "string" || code.length < 1 || code.length > 64) {
+      return problem(
+        422,
+        "RedeemSessionVoucher.InvalidBody",
+        "code is a string of 1 to 64 characters",
+        path,
+      );
+    }
+    if (body.dryRun !== undefined && typeof body.dryRun !== "boolean") {
+      return problem(422, "RedeemSessionVoucher.InvalidBody", "dryRun is true or false", path);
+    }
+    if (stored.instanceSlug === null) {
+      return problem(
+        422,
+        "RedeemSessionVoucher.InstanceRequired",
+        "this session is bound to the customer only: a code is redeemed on an instance",
+        path,
+      );
+    }
+    if (subscription?.status === "INCOMPLETE") {
+      return problem(
+        409,
+        "RedeemSessionVoucher.SubscriptionIncomplete",
+        "a checkout waits for its payment: its own selection, voucher included, applies once paid",
+        path,
+      );
+    }
+    if (!subscription) {
+      return problem(
+        409,
+        "RedeemSessionVoucher.NoLiveSubscription",
+        "the instance has no live subscription: a checkout starts one",
+        path,
+      );
+    }
+    if (normalizeCode(code) !== VOUCHER_CODE || redeemed) {
+      return problem(
+        422,
+        "RedeemSessionVoucher.VoucherInvalid",
+        "this code cannot be redeemed",
+        path,
+      );
+    }
+    const made = redemptionOf(new Date());
+    if (body.dryRun === true) return reply(200, made);
+    redeemed = made;
+    emit("instance.voucher.redeemed", `${made.name}, from the portal`);
+    return reply(201, structuredClone(made));
   }
 
   // ---- Add-ons ----------------------------------------------------------------
@@ -2740,7 +2834,28 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
       });
       subtotal += amount;
     }
-    return { currency, subtotal, discountTotal: 0, total: subtotal, lines };
+    // A redeemed code discounts the base fee of the invoices composed after it, up to its count.
+    const discountTotal = redemptionDiscount(price);
+    if (discountTotal > 0) {
+      lines.push({
+        seq: lines.length + 1,
+        type: "DISCOUNT",
+        label: String(redeemed!.name),
+        description: "20% off the base fee",
+        quantity: "1",
+        unitAmountDecimal: null,
+        amount: -discountTotal,
+        ...span,
+      });
+    }
+    return { currency, subtotal, discountTotal, total: subtotal - discountTotal, lines };
+  }
+
+  /** What the redeemed code takes off a base fee on the next invoice; 0 when none is left. */
+  function redemptionDiscount(price: Json): number {
+    if (!redeemed || redeemed.voucherType !== "PRICE") return 0;
+    if (redeemed.applicationsCount >= (redeemed.applicationsMax ?? Infinity)) return 0;
+    return Math.round((price.unitAmount * 20) / 100);
   }
 
   const refuse = (code: string, detail: string): BoundaryResult => ({ ok: false, code, detail });
