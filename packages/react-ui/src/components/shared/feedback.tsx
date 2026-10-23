@@ -7,8 +7,8 @@ import { isHttpUrl } from "@kaitencloud/react/internal";
 
 import { useIcons } from "../../appearance/icons.tsx";
 import { cn } from "../../lib/utils.ts";
-import { useCheckoutWords } from "../checkout-flow/words.ts";
 import { Button, buttonVariants } from "../ui/button.tsx";
+import { useOpensInNewTab } from "./new-tab-hint.ts";
 
 // What the billing screens say to a customer and what they offer them to do: a sentence in one of
 // four tones, and a button or a link. They are the checkout's and the portal's both, so that a
@@ -123,7 +123,7 @@ export function Action({
   focusKey,
   describedBy,
 }: ActionProps) {
-  const { opensInNewTab } = useCheckoutWords();
+  const opensInNewTab = useOpensInNewTab();
   const newTabHint = React.useId();
   if (href !== undefined) {
     // A link to the provider's page comes from the API: it is followed only when it is a web address.

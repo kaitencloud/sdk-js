@@ -224,8 +224,8 @@ const SCENARIOS = [
     // Measured at 66 391 bytes, up from 66 216: what a customer back at the checkout of such a
     // subscription is told, the invoice it offers to pay, and the wait on it.
     // Measured at 66 625 bytes, up from 66 391: the refusals of an anonymous checkout, as above.
-    // Measured at 66 819 bytes, up from 66 625: the feedback messages the anonymous checkout's
-    // readability fixes grew, which the customer's checkout shares.
+    // Measured at 66 832 bytes, up from 66 625: the text colours the feedback tones gained and the
+    // new-tab description of the "Powered by" link, which the customer's checkout shares.
     name: "react-ui · CheckoutFlow + KaitenProvider + KaitenStyleRoot",
     code: `import { CheckoutFlow, KaitenProvider, KaitenStyleRoot } from "@kaitencloud/react-ui"; console.log(CheckoutFlow, KaitenProvider, KaitenStyleRoot);`,
     budgetGzip: 66_950,
@@ -236,8 +236,8 @@ const SCENARIOS = [
     // English. A host that sells to customers only does not: the scenario above is not in it.
     // Measured at 67 564 bytes, up to 68 337: the hook, as above, and the flow's words for an address
     // that is wrong, a trial's price, and the form's own messages.
-    // Measured at 68 582 bytes, up from 68 337: what the flow says of what it knows and no more,
-    // and the steps it shows a visitor.
+    // Measured at 68 606 bytes, up from 68 337: what the flow says of what it knows and no more,
+    // the steps it shows a visitor, and the new-tab description of the "Powered by" link.
     name: "react-ui · AnonymousCheckoutFlow + KaitenProvider + KaitenStyleRoot",
     code: `import { AnonymousCheckoutFlow, KaitenProvider, KaitenStyleRoot } from "@kaitencloud/react-ui"; console.log(AnonymousCheckoutFlow, KaitenProvider, KaitenStyleRoot);`,
     budgetGzip: 68_700,
@@ -246,12 +246,13 @@ const SCENARIOS = [
     // What a host that shows a customer how they pay ships: the card, the billing hooks that add or
     // replace a payment method and open the provider's portal, and the words of its English.
     // Measured at 46 058 bytes: the refusals of an anonymous checkout, as above.
-    // Measured at 47 193 bytes, up from 46 058: the feedback messages, grown by the text colour of
-    // the info and success tones and by the anonymous checkout's readability fixes, which the card
-    // shares with the rest of the package.
+    // Measured at 46 263 bytes, up from 46 058: the text colours of the feedback tones and the
+    // new-tab description of links. The jump to 47 193 that an earlier note blamed on the tones was the
+    // checkout's English words, which the shared action imported for that one description: it reads
+    // it from a module of its own now.
     name: "react-ui · PaymentMethodCard + KaitenProvider + KaitenStyleRoot",
     code: `import { PaymentMethodCard, KaitenProvider, KaitenStyleRoot } from "@kaitencloud/react-ui"; console.log(PaymentMethodCard, KaitenProvider, KaitenStyleRoot);`,
-    budgetGzip: 47_300,
+    budgetGzip: 46_350,
   },
   {
     // What a host that offers a customer portal ships: the sections, the billing hooks they
@@ -279,10 +280,10 @@ const SCENARIOS = [
     // Measured at 62 593 bytes, up from 62 537: what cancelling a subscription that ends at once
     // says, and the words of its English.
     // Measured at 62 833 bytes, up from 62 593: the refusals of an anonymous checkout, as above.
-    // Measured at 63 817 bytes, up from 62 833: the feedback messages, as above.
+    // Measured at 63 011 bytes, up from 62 833: the feedback tones and the new-tab description, as above.
     name: "react-ui · CustomerPortal + KaitenProvider + KaitenStyleRoot",
     code: `import { CustomerPortal, KaitenProvider, KaitenStyleRoot } from "@kaitencloud/react-ui"; console.log(CustomerPortal, KaitenProvider, KaitenStyleRoot);`,
-    budgetGzip: 63_950,
+    budgetGzip: 63_100,
   },
   {
     // Measured at 93 302 bytes, up from 79 688: Base UI's radio group, as in the checkout (12.4 KB),
@@ -303,7 +304,7 @@ const SCENARIOS = [
     // Measured at 105 881 bytes, up from 98 007: the anonymous checkout, with its hook, its words in
     // English and the billing periods' choice it shares with the customer's checkout.
     // Measured at 106 719 bytes, up from 105 881: what the hook and the flow grew by, as above.
-    // Measured at 106 960 bytes, up from 106 719: what the anonymous checkout grew by, as above.
+    // Measured at 106 964 bytes, up from 106 719: what the anonymous checkout grew by, as above.
     name: "react-ui · everything",
     code: `import * as all from "@kaitencloud/react-ui"; console.log(all);`,
     budgetGzip: 107_100,

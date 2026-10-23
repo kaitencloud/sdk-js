@@ -1,10 +1,13 @@
 // Copyright 2026 KAITEN INC
 // SPDX-License-Identifier: Apache-2.0
 
+import * as React from "react";
+
 import { useKaitenBranding, useLocalization } from "@kaitencloud/react";
 
 import { cn } from "../../lib/utils.ts";
 import { KaitenLogoMark } from "./kaiten-logo.tsx";
+import { useOpensInNewTab } from "./new-tab-hint.ts";
 
 export interface KaitenBrandingProps {
   className?: string;
@@ -34,6 +37,9 @@ export function KaitenBranding({
   // warning — is the core's `useKaitenBranding`; this is its default rendering.
   const { hidden } = useKaitenBranding();
   const poweredByPrefix = getPoweredByPrefix(localization.branding.poweredBy);
+  // The link opens a tab of its own, which its name does not say: the description is read after it.
+  const opensInNewTab = useOpensInNewTab();
+  const newTabHint = React.useId();
 
   if (hidden) {
     return null;
@@ -46,6 +52,7 @@ export function KaitenBranding({
         target="_blank"
         rel="noreferrer"
         aria-label={localization.branding.poweredBy}
+        aria-describedby={newTabHint}
         className={cn(
           "flex w-full items-center justify-center gap-2 whitespace-nowrap text-sm font-medium text-ktn-muted-foreground transition-colors hover:text-ktn-foreground",
           className,
@@ -53,6 +60,9 @@ export function KaitenBranding({
       >
         <span>{poweredByPrefix}</span>
         <KaitenLogoMark className="h-[1.1em] w-auto shrink-0" />
+        <span id={newTabHint} hidden>
+          {opensInNewTab}
+        </span>
       </a>
     );
   }
@@ -69,10 +79,14 @@ export function KaitenBranding({
         target="_blank"
         rel="noreferrer"
         aria-label={localization.branding.poweredBy}
+        aria-describedby={newTabHint}
         className="inline-flex items-center gap-2 whitespace-nowrap text-xs font-medium text-ktn-muted-foreground transition-colors hover:text-ktn-foreground"
       >
         <span>{poweredByPrefix}</span>
         <KaitenLogoMark className="h-4 w-auto shrink-0" />
+        <span id={newTabHint} hidden>
+          {opensInNewTab}
+        </span>
       </a>
     </div>
   );
