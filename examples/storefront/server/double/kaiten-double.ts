@@ -38,6 +38,27 @@ import { readFileSync } from "node:fs";
 
 import type { Route } from "../http.ts";
 import { generateSlug } from "../slug.ts";
+import {
+  aMomentAgo,
+  CONFIRM,
+  describeSession,
+  isEmail,
+  isReturnUrl,
+  readDraft,
+  readStatus,
+  SESSION_LIFETIME_MS,
+  sessionClosed,
+  sessionView,
+  START,
+  trialKey,
+  TURNSTILE_RETRY_SECONDS,
+  TURNSTILE_TEST_SITE_KEY,
+  TURNSTILE_VERDICTS,
+  type CheckoutStatus,
+  type Draft,
+  type StoredCheckout,
+  type TurnstileVerdict,
+} from "./anonymous-checkout.ts";
 import { addMonths, html, iso, money, MONTHS, normalizeCode, problem, reply } from "./responses.ts";
 
 type Json = Record<string, any>;
@@ -85,8 +106,8 @@ export interface Call {
   method: string;
   /** The path below the API's prefix: `/public/session/portal`. */
   path: string;
-  /** `kst_`, `ksh_`, `pk_`, or `none`: the kind of credential that came with it, never the credential. */
-  credential: "kst_" | "ksh_" | "pk_" | "none" | "other";
+  /** `kst_`, `ksc_`, `ksh_`, `pk_`, or `none`: the kind of credential that came with it, never the credential. */
+  credential: "kst_" | "ksc_" | "ksh_" | "pk_" | "none" | "other";
   /** The `Origin` header, which a browser sets and a backend does not. */
   origin: string | null;
   status: number;
@@ -138,6 +159,20 @@ export interface KaitenDouble {
   advance: (origin?: string) => BoundaryResult;
   /** Ends a trial now, which is moving a trial to its boundary. Refused for a subscription that is not in one. */
   endTrial: (origin?: string) => BoundaryResult;
+  /** Switches the publishable key's anonymous checkout on or off: the catalogue says so, and a start is refused when it is off. */
+  anonymousCheckout: (enabled: boolean) => void;
+  /**
+   * What the security check of the next `times` verifications comes to (all of them when `times` is left
+   * out; passing again after them): Cloudflare refuses the token, cannot be reached, or the key has no
+   * secret. A real token is never looked at: the stand-in only plays the verdict.
+   */
+  turnstile: (verdict: TurnstileVerdict, times?: number) => void;
+  /**
+   * Lets the time pass that closes the newest checkout session still waiting: one that was never
+   * confirmed is abandoned after 24 hours, one whose first payment never came expires. Refused when
+   * no session is waiting.
+   */
+  expireCheckout: () => { ok: true; sessionId: string; status: CheckoutStatus } | { ok: false };
   /** What Kaiten would have told the vendor so far. */
   events: () => DoubleEvent[];
   calls: () => Call[];
@@ -180,6 +215,22 @@ export interface DoubleState {
   customers: Array<{ slug: string; name: string; billingEmail: string | null }>;
   /** The instances it was asked to create, with the licence each started on. */
   instances: Array<{ slug: string; customerSlug: string; licenseSlug: string }>;
+  /** Whether the publishable key starts anonymous checkouts. */
+  anonymousCheckout: boolean;
+  /** The anonymous checkout sessions it holds, oldest first. */
+  checkoutSessions: Array<{
+    id: string;
+    status: CheckoutStatus;
+    email: string;
+    clientReferenceId: string | null;
+    licenseSlug: string;
+    customerSlug: string | null;
+    instanceSlug: string | null;
+    /** The payment of the first invoice, once there is one. */
+    payment: StoredCheckout["payment"];
+  }>;
+  /** How many Turnstile tokens it was asked to verify. Never what they were. */
+  turnstileChecks: number;
 }
 
 /** How the customer starts. */
@@ -201,6 +252,11 @@ export interface Scenario {
    * ignored with it, and the storefront's backend runs in sign-up mode while it is on.
    */
   signUp?: boolean;
+  /**
+   * The publishable key starts anonymous checkouts: the catalogue says so, with a Turnstile site key, and a
+   * visitor buys with no account. Off by default.
+   */
+  anonymousCheckout?: boolean;
 }
 
 /** What a payment can come to, as `/control/payment` is told. */
@@ -277,7 +333,16 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
   /** The invoices whose failure leaves the subscription PAST_DUE: a renewal's and a trial's conversion. */
   let dunning: Set<string>;
   let addOns: Json[];
-  let setups: Map<string, { returnUrl: string; saved: boolean; card: (typeof CARDS)[number] }>;
+  let setups: Map<
+    string,
+    {
+      returnUrl: string;
+      saved: boolean;
+      card: (typeof CARDS)[number];
+      /** The anonymous checkout session that opened it: its card is that session's, not the instance's. */
+      checkout?: string;
+    }
+  >;
   let sessions: Map<string, Stored>;
   let log: Call[];
   let events: DoubleEvent[];
@@ -289,6 +354,13 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
   let signedUp: boolean;
   let customers: StoredCustomer[];
   let instances: StoredInstance[];
+  /** The publishable key's anonymous checkout, and what the security check comes to. */
+  let anonymousOn: boolean;
+  let verdict: { value: TurnstileVerdict; remaining: number };
+  let verified: number;
+  let checkouts: Map<string, StoredCheckout>;
+  /** The trials an address consumed, by family (see `trialKey`). */
+  let trialsTaken: Set<string>;
 
   /** The card the next setup page offers: the one that is not on file, so that a change is seen. */
   const nextCard = () => {
@@ -372,13 +444,19 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
       planSlug = starter.licenseSlug;
       subscription = newSubscription(starter.prices[0], new Date(), null);
     }
-    setups = new Map();
+    // The provider's pages a visitor's checkout opened are not this customer's: they outlive it.
+    setups = new Map([...(setups ?? [])].filter(([, setup]) => setup.checkout !== undefined));
   };
 
   const reset = (scenario: Scenario = {}) => {
     signedUp = scenario.signUp === true;
     customers = [];
     instances = [];
+    anonymousOn = scenario.anonymousCheckout === true;
+    verdict = { value: "pass", remaining: Infinity };
+    verified = 0;
+    checkouts = new Map();
+    trialsTaken = new Set();
     // A visitor with no account has nothing of the billing a scenario describes.
     startBilling(signedUp ? {} : scenario);
     events = [];
@@ -460,6 +538,11 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
    */
   const catalogFor = (origin: string): Json => {
     const shown = structuredClone(catalog);
+    shown.capabilities = {
+      ...shown.capabilities,
+      anonymousCheckout: anonymousOn,
+      turnstileSiteKey: anonymousOn ? TURNSTILE_TEST_SITE_KEY : null,
+    };
     for (const plan of shown.plans as Json[]) {
       plan.selfServeCtaUrl =
         plan.pricingType === "FREE"
@@ -484,8 +567,16 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
 
   // ---- A checkout, priced ---------------------------------------------------
 
-  /** What a checkout bills today: the double's own sums, as a server's are. */
-  function price(order: Json): {
+  /**
+   * What a checkout bills today: the double's own sums, as a server's are. `operation` names the
+   * refusals (a customer's checkout or a visitor's), and `held` is the add-ons the instance already
+   * holds, which an activation bills too: a visitor's instance does not exist yet, and holds none.
+   */
+  function price(
+    order: Json,
+    operation = "CreateSessionCheckout",
+    held: Json[] = addOns,
+  ): {
     problem?: Response;
     due?: Json;
     trialEndsAt?: string;
@@ -496,7 +587,7 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
       return {
         problem: problem(
           422,
-          "CreateSessionCheckout.PriceNotPublic",
+          `${operation}.PriceNotPublic`,
           "licensePriceId is not an ACTIVE price of a plan in the public catalogue",
         ),
       };
@@ -506,18 +597,14 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
       return {
         problem: problem(
           422,
-          "CreateSessionCheckout.PriceNotFlatFee",
+          `${operation}.PriceNotFlatFee`,
           "a subscription is bought on a flat-fee price",
         ),
       };
     }
     if (plan.pricingType === "CUSTOM") {
       return {
-        problem: problem(
-          422,
-          "CreateSessionCheckout.NotSelfServe",
-          "this plan is priced on request",
-        ),
+        problem: problem(422, `${operation}.NotSelfServe`, "this plan is priced on request"),
       };
     }
 
@@ -543,16 +630,16 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
     }
     // The add-ons the instance already holds are active at the activation, and billed by it at
     // their fee for the new period. One that cannot be billed is refused by the checkout itself.
-    for (const held of addOns) {
-      const fee = billedFee(held.prices as Json[], currency, base.billingPeriod);
+    for (const kept of held) {
+      const fee = billedFee(kept.prices as Json[], currency, base.billingPeriod);
       if (!fee) continue;
-      const amount = fee.unitAmount * held.quantity;
+      const amount = fee.unitAmount * kept.quantity;
       lines.push({
         seq: lines.length + 1,
         type: "ADDON",
-        label: held.name,
-        description: `${held.quantity} × ${money(fee.unitAmount, currency)}`,
-        quantity: String(held.quantity),
+        label: kept.name,
+        description: `${kept.quantity} × ${money(fee.unitAmount, currency)}`,
+        quantity: String(kept.quantity),
         unitAmountDecimal: String(fee.unitAmount),
         amount,
         ...span,
@@ -565,7 +652,7 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
         return {
           problem: problem(
             422,
-            "CreateSessionCheckout.AddonNotPublic",
+            `${operation}.AddonNotPublic`,
             `"${wanted.addonSlug}" is not a public add-on that fits this plan`,
           ),
         };
@@ -574,7 +661,7 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
         return {
           problem: problem(
             422,
-            "CreateSessionCheckout.QuantityExceedsMax",
+            `${operation}.QuantityExceedsMax`,
             `at most ${addon.maxQuantity} of "${wanted.addonSlug}"`,
           ),
         };
@@ -586,7 +673,7 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
         return {
           problem: problem(
             422,
-            "CreateSessionCheckout.CurrencyMismatch",
+            `${operation}.CurrencyMismatch`,
             `"${wanted.addonSlug}" is not priced in ${currency}, the plan's currency`,
           ),
         };
@@ -599,7 +686,7 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
         return {
           problem: problem(
             422,
-            "CreateSessionCheckout.AddonInvalid",
+            `${operation}.AddonInvalid`,
             `"${wanted.addonSlug}" has no price for the plan's billing period`,
             "",
             {
@@ -634,11 +721,7 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
     if (order.voucherCode !== undefined) {
       if (normalizeCode(String(order.voucherCode)) !== VOUCHER_CODE) {
         return {
-          problem: problem(
-            422,
-            "CreateSessionCheckout.VoucherInvalid",
-            "this voucher cannot be applied",
-          ),
+          problem: problem(422, `${operation}.VoucherInvalid`, "this voucher cannot be applied"),
         };
       }
       discountTotal = Math.round((base.unitAmount * 20) / 100);
@@ -1044,6 +1127,7 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
   const credentialOf = (request: Request): Call["credential"] => {
     const authorization = request.headers.get("authorization");
     if (authorization?.startsWith("Bearer kst_")) return "kst_";
+    if (authorization?.startsWith("Bearer ksc_")) return "ksc_";
     if (authorization?.startsWith("Bearer ksh_")) return "ksh_";
     if (authorization) return "other";
     if (request.headers.has("x-kaiten-publishable-key")) return "pk_";
@@ -1057,7 +1141,13 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
     const body: Json = text ? JSON.parse(text) : {};
 
     // A scripted answer comes first, whoever asks.
-    const queue = scripts.get(key) ?? scripts.get(key.replace(/\/[^/]+(\/complete)$/, "/*$1"));
+    const queue =
+      scripts.get(key) ??
+      scripts.get(
+        key
+          .replace(/(\/public\/checkout-sessions)\/[^/]+(\/confirm)?$/, "$1/*$2")
+          .replace(/\/[^/]+(\/complete)$/, "/*$1"),
+      );
     const fits = queue?.findIndex(
       (each) => each.dryRun === undefined || each.dryRun === (body.dryRun === true),
     );
@@ -1169,6 +1259,19 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
       }
       if (method === "PUT") return schedulePlanChange(vendorPlanChange[1]!, body, path);
       if (method === "DELETE") return cancelPlanChange(vendorPlanChange[1]!, path);
+      return problem(404, "NotFound", `no ${key}`);
+    }
+
+    const visitor = /^\/public\/checkout-sessions(?:\/([^/]+)(\/confirm)?)?$/.exec(path);
+    if (visitor) {
+      const [, sessionId, confirming] = visitor;
+      if (sessionId === undefined && method === "POST") return startCheckout(request, body);
+      if (sessionId !== undefined && !confirming && method === "GET") {
+        return readCheckout(request, sessionId);
+      }
+      if (sessionId !== undefined && confirming && method === "POST") {
+        return confirmCheckout(request, sessionId, origin);
+      }
       return problem(404, "NotFound", `no ${key}`);
     }
 
@@ -1604,6 +1707,481 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
     });
   }
 
+  // ---- The anonymous checkout -------------------------------------------------
+
+  const wrongKind = (instance: string) =>
+    problem(
+      403,
+      "Auth.WrongCredentialKind",
+      "this credential is not the kind this route takes",
+      instance,
+    );
+  const invalidCredential = (instance: string) =>
+    problem(401, "PublicAuth.InvalidCredential", "invalid credential", instance);
+
+  /** The plan a visitor's instance starts on while it owes: the catalogue's free one. */
+  const fallbackPlan = (): Json | undefined =>
+    (catalog.plans as Json[]).find((each) => each.pricingType === "FREE");
+
+  const needsPaymentMethod = (plan: Json, due: Json) =>
+    plan.pricingType !== "FREE" && (due.total > 0 || plan.requiresPaymentMethod === true);
+
+  /** What the next verification of the security check comes to. */
+  function scriptVerdict(value: TurnstileVerdict, times = Infinity) {
+    verdict = { value, remaining: times };
+  }
+
+  function verifyTurnstile(instance: string): Response | null {
+    verified += 1;
+    const current = verdict.value;
+    if (verdict.remaining !== Infinity) {
+      verdict.remaining -= 1;
+      if (verdict.remaining <= 0) verdict = { value: "pass", remaining: Infinity };
+    }
+    switch (current) {
+      case "unconfigured":
+        return problem(
+          422,
+          `${START}.TurnstileNotConfigured`,
+          "this publishable key has no usable Turnstile site key and secret",
+          instance,
+        );
+      case "unavailable":
+        return problem(
+          503,
+          `${START}.TurnstileUnavailable`,
+          "the challenge could not be verified: try again",
+          instance,
+          {},
+          { "Retry-After": String(TURNSTILE_RETRY_SECONDS) },
+        );
+      case "fail":
+        return problem(
+          422,
+          `${START}.TurnstileFailed`,
+          "the challenge was not passed: solve it again",
+          instance,
+        );
+      default:
+        return null;
+    }
+  }
+
+  /**
+   * `POST /public/checkout-sessions`: the start of a visitor's checkout. It writes the session and
+   * nothing else, and as in Kaiten the security check is verified before the price is looked at.
+   */
+  function startCheckout(request: Request, body: unknown): Response {
+    const path = "/api/public/checkout-sessions";
+    if (request.headers.has("authorization")) return wrongKind(path);
+    if (request.headers.get("x-kaiten-publishable-key") !== options.publishableKey) {
+      return invalidCredential(path);
+    }
+    const read = readDraft(body);
+    if ("refusal" in read) return read.refusal;
+    const draft: Draft = read.draft;
+    if (!anonymousOn) {
+      return problem(
+        403,
+        `${START}.AnonymousCheckoutDisabled`,
+        "this publishable key does not start anonymous checkouts",
+        path,
+      );
+    }
+    const refused = verifyTurnstile(path);
+    if (refused) return refused;
+
+    // The price: by its id, or by a plan's version and a billing period, one of the two.
+    const byPrice = draft.priceId !== undefined;
+    const byPlan = draft.licenseSlug !== undefined || draft.billingPeriod !== undefined;
+    if (byPrice === byPlan || (byPlan && (!draft.licenseSlug || !draft.billingPeriod))) {
+      return problem(
+        422,
+        `${START}.InvalidPriceSelection`,
+        "name the price by priceId, or by licenseSlug with billingPeriod: one of the two",
+        path,
+      );
+    }
+    const found = byPrice
+      ? findPrice(draft.priceId!)
+      : (catalog.plans as Json[])
+          .filter((each) => each.licenseSlug === draft.licenseSlug)
+          .flatMap((plan) =>
+            (plan.prices as Json[])
+              .filter(
+                (price) =>
+                  price.isDefault &&
+                  price.billingModel === "FLAT_FEE" &&
+                  price.billingPeriod === draft.billingPeriod,
+              )
+              .map((price) => ({ plan, price })),
+          )[0];
+    if (!found) {
+      return problem(
+        422,
+        `${START}.PriceNotPublic`,
+        "this is not an ACTIVE price of a plan in the public catalogue",
+        path,
+      );
+    }
+    const { plan, price: base } = found;
+
+    // What a plan has to be to be bought here, before anything of the visitor's is looked at.
+    const order = { licensePriceId: base.id, addOns: draft.addOns };
+    const plain = price({ ...order, trial: false }, START, []);
+    if (plain.problem) return plain.problem;
+    if (plan.pricingType === "FREE") {
+      for (const wanted of draft.addOns) {
+        const fee = findAddOnPrice(wanted.addonSlug, base.currency, base.billingPeriod)?.price;
+        if ((fee?.unitAmount ?? 0) > 0) {
+          return problem(
+            422,
+            `${START}.AddonNotPublic`,
+            `"${wanted.addonSlug}" is not free, and this plan charges nothing`,
+            path,
+          );
+        }
+      }
+    }
+    if (plan.pricingType === "PAID" && catalog.capabilities.paymentMethods !== true) {
+      return problem(
+        422,
+        `${START}.ProviderCannotCapturePayment`,
+        "no billing provider that captures payment methods is connected: a paid plan cannot be checked out",
+        path,
+      );
+    }
+    if (draft.email !== undefined && !isEmail(draft.email)) {
+      return problem(
+        422,
+        `${START}.InvalidEmail`,
+        "email must be an e-mail address of at most 254 characters",
+        path,
+      );
+    }
+    const page = request.headers.get("origin");
+    if (draft.returnUrl !== undefined && !isReturnUrl(draft.returnUrl, page)) {
+      return problem(
+        422,
+        `${START}.InvalidReturnUrl`,
+        "returnUrl is https (http on localhost only), at most 2048 characters, on an origin the publishable key allows",
+        path,
+      );
+    }
+    if (!draft.dryRun) {
+      if (draft.email === undefined) {
+        return problem(422, `${START}.InvalidEmail`, "email is required to start a checkout", path);
+      }
+      if (draft.returnUrl === undefined) {
+        return problem(
+          422,
+          `${START}.InvalidReturnUrl`,
+          "returnUrl is required to start a checkout",
+          path,
+        );
+      }
+    }
+    // Kaiten has no restriction to check a voucher against before a customer exists: it refuses
+    // every code, and says no more than that.
+    if (draft.voucherCode !== undefined) {
+      return problem(422, `${START}.VoucherInvalid`, "this voucher cannot be applied", path);
+    }
+
+    // The plan's trial, unless declined, and one per address and family. A preview without an
+    // address shows it unchecked.
+    let trial = draft.trial !== false;
+    let trialRefusedReason: string | null = null;
+    if (
+      trial &&
+      (plan.trialPeriodDays ?? 0) > 0 &&
+      draft.email !== undefined &&
+      trialsTaken.has(trialKey(draft.email, plan.familySlug))
+    ) {
+      trial = false;
+      trialRefusedReason = "ALREADY_CONSUMED";
+    }
+    const priced = trial ? price(order, START, []) : plain;
+    if (priced.problem) return priced.problem;
+    const due = priced.due!;
+    // A visitor's instance never holds a paid plan before it is paid: it starts on a free one.
+    if (due.total > 0 && !fallbackPlan()) {
+      return problem(
+        422,
+        `${START}.FallbackRequired`,
+        "this plan has an amount due today, so its family needs a free fallback plan",
+        path,
+      );
+    }
+    const requiresPaymentMethod = needsPaymentMethod(plan, due);
+    const trialEndsAt = priced.trialEndsAt ?? null;
+    if (draft.dryRun) {
+      return reply(200, {
+        status: "preview",
+        dueToday: due,
+        trialEndsAt,
+        trialRefusedReason,
+        requiresPaymentMethod,
+      });
+    }
+
+    const now = Date.now();
+    const stored: StoredCheckout = {
+      id: randomUUID(),
+      token: `ksc_${randomBytes(32).toString("base64url")}`,
+      status: "OPEN",
+      email: draft.email!,
+      clientReferenceId: draft.clientReferenceId ?? null,
+      plan,
+      price: base,
+      addOns: draft.addOns,
+      due,
+      trialEndsAt,
+      trialRefusedReason,
+      requiresPaymentMethod,
+      returnUrl: draft.returnUrl!,
+      createdAt: iso(now),
+      expiresAt: iso(now + SESSION_LIFETIME_MS),
+      completedAt: null,
+      customerSlug: null,
+      instanceSlug: null,
+      setupId: null,
+      invoice: null,
+      payment: null,
+    };
+    checkouts.set(stored.id, stored);
+    emit("checkout_session.started", describeSession(stored));
+    return reply(201, {
+      status: "open",
+      sessionId: stored.id,
+      token: stored.token,
+      expiresAt: stored.expiresAt,
+      dueToday: due,
+      trialEndsAt,
+      trialRefusedReason,
+      requiresPaymentMethod,
+    });
+  }
+
+  /** The session a request's `ksc_` is for: another session's id answers as an unknown token does. */
+  function checkoutOf(request: Request, sessionId: string): StoredCheckout | Response {
+    const path = `/api/public/checkout-sessions/${sessionId}`;
+    if (request.headers.has("x-kaiten-publishable-key")) return wrongKind(path);
+    const header = request.headers.get("authorization") ?? "";
+    if (!header.startsWith("Bearer ")) return invalidCredential(path);
+    const bearer = header.slice("Bearer ".length).trim();
+    if (!bearer.startsWith("ksc_")) return wrongKind(path);
+    const stored = [...checkouts.values()].find((each) => each.token === bearer);
+    return stored && stored.id === sessionId ? stored : invalidCredential(path);
+  }
+
+  /** `GET /public/checkout-sessions/{sessionId}`. */
+  function readCheckout(request: Request, sessionId: string): Response {
+    const stored = checkoutOf(request, sessionId);
+    return stored instanceof Response ? stored : reply(200, sessionView(stored));
+  }
+
+  /** The answer of a confirm: the session as it now reads, and the provider's page when one is to be visited. */
+  function confirmation(
+    stored: StoredCheckout,
+    page?: { url: string; expiresAt: string },
+  ): Response {
+    const session = sessionView(stored);
+    if (page) {
+      return reply(200, {
+        status: "requires_payment_method",
+        setupUrl: page.url,
+        setupExpiresAt: page.expiresAt,
+        session,
+      });
+    }
+    return reply(200, {
+      status: stored.status === "AWAITING_PAYMENT" ? "awaiting_payment" : "completed",
+      session,
+    });
+  }
+
+  /**
+   * `POST /public/checkout-sessions/{sessionId}/confirm`. It completes the session when nothing stands in
+   * the way (a free plan, a trial that needs no payment method, nothing due); otherwise it sends the
+   * visitor to the provider's page to save a payment method, and the confirm after it completes. With an
+   * amount due the session then waits for the payment of its first invoice.
+   */
+  function confirmCheckout(request: Request, sessionId: string, origin: string): Response {
+    const path = `/api/public/checkout-sessions/${sessionId}/confirm`;
+    const found = checkoutOf(request, sessionId);
+    if (found instanceof Response) return found;
+    const stored = found;
+    // Completed already and waiting for its payment: answered as it now is.
+    if (stored.status === "AWAITING_PAYMENT") return confirmation(stored);
+    const status = readStatus(stored, Date.now());
+    if (status !== "OPEN") return sessionClosed(status, path);
+    if (!anonymousOn) {
+      return problem(
+        403,
+        `${CONFIRM}.AnonymousCheckoutDisabled`,
+        "this publishable key no longer starts anonymous checkouts",
+        path,
+      );
+    }
+
+    const setup = stored.setupId === null ? undefined : setups.get(stored.setupId);
+    // A trial that another checkout consumed since the start: dropped and the session priced again,
+    // unless a payment method was captured for the amount that was shown.
+    if (
+      stored.trialEndsAt !== null &&
+      trialsTaken.has(trialKey(stored.email, stored.plan.familySlug))
+    ) {
+      if (setup?.saved) {
+        return problem(
+          409,
+          `${CONFIRM}.DueTodayChanged`,
+          "what is due today changed since the start: start again to see the new amount",
+          path,
+        );
+      }
+      const again = price(
+        { licensePriceId: stored.price.id, addOns: stored.addOns, trial: false },
+        CONFIRM,
+        [],
+      );
+      if (again.problem) return again.problem;
+      stored.due = again.due!;
+      stored.trialEndsAt = null;
+      stored.trialRefusedReason = "ALREADY_CONSUMED";
+      stored.requiresPaymentMethod = needsPaymentMethod(stored.plan, stored.due);
+    }
+    if (stored.due.total > 0 && !fallbackPlan()) {
+      return problem(
+        422,
+        `${CONFIRM}.FallbackRequired`,
+        "this plan names no free fallback plan to start on until the payment",
+        path,
+      );
+    }
+
+    if (stored.requiresPaymentMethod && !setup?.saved) {
+      let id = stored.setupId;
+      if (id === null || !setups.has(id)) {
+        id = `cs_setup_${randomBytes(6).toString("hex")}`;
+        const back = new URL(stored.returnUrl);
+        back.searchParams.set("kaiten_checkout_session", stored.id);
+        setups.set(id, {
+          returnUrl: back.toString(),
+          saved: false,
+          card: nextCard(),
+          checkout: stored.id,
+        });
+        stored.setupId = id;
+      }
+      return confirmation(stored, {
+        url: `${origin}${DOUBLE_PATH}/provider/setup/${id}`,
+        expiresAt: iso(Date.now() + 3_600_000),
+      });
+    }
+    return complete(stored, setup, origin);
+  }
+
+  /**
+   * Makes what the session sold: in one step the customer (named by the address, with a slug of the
+   * address and a random suffix) and its instance, and what the plan asks of them. An amount due
+   * leaves the instance on the free plan until the first invoice is paid; anything else subscribes it
+   * to the plan at once.
+   */
+  function complete(
+    stored: StoredCheckout,
+    setup: { card: (typeof CARDS)[number] } | undefined,
+    origin: string,
+  ): Response {
+    const now = new Date();
+    const owing = stored.due.total > 0;
+    const startedOn = owing ? fallbackPlan()! : stored.plan;
+    const customer = addCustomer(generateSlug(stored.email), stored.email, stored.email);
+    const instance = addInstance(customer, startedOn, {
+      slug: generateSlug(stored.email),
+      name: stored.email,
+      description: "",
+      startLicenseDate: iso(now.getTime()),
+      endLicenseDate: iso(now.getTime() + 100 * 365 * 86_400_000),
+    });
+    stored.customerSlug = customer.slug;
+    stored.instanceSlug = instance.slug;
+    // The new instance starts the billing state over: the card the visitor saved is its customer's.
+    if (setup) {
+      card = structuredClone(setup.card.method);
+      emit("customer.payment_method.attached", `${card.brand} ${card.last4}`, now);
+    }
+
+    if (owing) {
+      const end = addMonths(now, MONTHS[stored.price.billingPeriod] ?? 1);
+      const invoice = issueInvoice(origin, "ACTIVATION", stored.due, now, end, now);
+      stored.invoice = invoice;
+      stored.payment = outcome;
+      stored.status = "AWAITING_PAYMENT";
+      if (invoice.status === "PAID") activate(stored, now);
+      return confirmation(stored);
+    }
+
+    subscription = newSubscription(stored.price, now, stored.trialEndsAt);
+    // A free plan is on no provider at all.
+    if (stored.plan.pricingType === "FREE") {
+      subscription = { ...subscription, providerKind: "NOOP", collectionMethod: "SEND_INVOICE" };
+    }
+    emit(
+      "instance.billing.started",
+      `${stored.plan.name}${stored.trialEndsAt ? `, trial until ${stored.trialEndsAt}` : ""}`,
+      now,
+    );
+    if (stored.trialEndsAt !== null) {
+      trialsTaken.add(trialKey(stored.email, stored.plan.familySlug));
+    }
+    close(stored, now);
+    return confirmation(stored);
+  }
+
+  /** The session is done: the customer and the instance are the vendor's to link, through the event. */
+  function close(stored: StoredCheckout, at: Date) {
+    stored.status = "COMPLETED";
+    stored.completedAt = iso(at.getTime());
+    emit("checkout_session.completed", `${describeSession(stored)} → ${stored.customerSlug}`, at);
+  }
+
+  /** The first invoice of a session is paid: the instance moves to the plan it bought and is subscribed to it. */
+  function activate(stored: StoredCheckout, at = new Date()) {
+    stored.payment = "paid";
+    const instance = instances.find((each) => each.slug === stored.instanceSlug);
+    if (instance) {
+      instance.licenseSlug = stored.plan.licenseSlug;
+      instance.licenseId = stored.plan.licenseId;
+    }
+    // The stand-in plays one instance at a time: the billing state is the newest instance's.
+    if (instances.at(-1)?.slug === stored.instanceSlug) {
+      planName = stored.plan.name;
+      planSlug = stored.plan.licenseSlug;
+      subscription = newSubscription(stored.price, at, null);
+      emit("instance.billing.started", stored.plan.name, at);
+    }
+    close(stored, at);
+  }
+
+  /** Lets the time pass that closes the newest session still waiting. */
+  function expireCheckout():
+    | { ok: true; sessionId: string; status: CheckoutStatus }
+    | { ok: false } {
+    const waiting = [...checkouts.values()]
+      .reverse()
+      .find((each) => each.status === "OPEN" || each.status === "AWAITING_PAYMENT");
+    if (!waiting) return { ok: false };
+    if (waiting.status === "OPEN") {
+      waiting.status = "ABANDONED";
+      waiting.expiresAt = aMomentAgo();
+    } else {
+      // Its subscription never left INCOMPLETE: the customer and the instance stay, on the free plan.
+      waiting.status = "EXPIRED";
+    }
+    emit("checkout_session.abandoned", `${describeSession(waiting)}, ${waiting.status}`);
+    return { ok: true, sessionId: waiting.id, status: waiting.status };
+  }
+
   // ---- The vendor's plan change -----------------------------------------------
 
   /** A price as the vendor's API shows it. */
@@ -1915,13 +2493,17 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
       if (setup[2]) {
         if (request.method !== "POST") return reply(405, {}, { Allow: "POST" });
         pending.saved = true;
-        card = structuredClone(pending.card.method);
-        emit(
-          "customer.payment_method.attached",
-          `${pending.card.method.brand} ${pending.card.method.last4}`,
-        );
         const back = new URL(pending.returnUrl);
-        back.searchParams.set("kaiten_setup_session", id);
+        // A visitor's checkout has no customer to keep the card on until it completes: the session
+        // takes it then, and its return address already names the session.
+        if (pending.checkout === undefined) {
+          card = structuredClone(pending.card.method);
+          emit(
+            "customer.payment_method.attached",
+            `${pending.card.method.brand} ${pending.card.method.last4}`,
+          );
+          back.searchParams.set("kaiten_setup_session", id);
+        }
         return new Response(null, { status: 303, headers: { Location: back.toString() } });
       }
       return html(
@@ -1966,6 +2548,10 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
       found.status = "PAID";
       found.paidAt = new Date().toISOString();
       emit("instance.invoice.paid", `${found.providerInvoiceNumber} was paid`);
+      // A visitor's checkout that waited for this payment completes with it.
+      for (const waiting of checkouts.values()) {
+        if (waiting.invoice === found && waiting.status === "AWAITING_PAYMENT") activate(waiting);
+      }
       // The last overdue invoice paid, the subscription is whole again.
       if (
         subscription?.status === "PAST_DUE" &&
@@ -1985,6 +2571,11 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
     if (found.status !== "PAYMENT_FAILED") {
       found.status = "PAYMENT_FAILED";
       emit("instance.invoice.payment_failed", `${found.providerInvoiceNumber}: the payment failed`);
+      for (const waiting of checkouts.values()) {
+        if (waiting.invoice === found && waiting.status === "AWAITING_PAYMENT") {
+          waiting.payment = "failed";
+        }
+      }
       // A renewal that cannot be collected makes the subscription overdue.
       if (dunning.has(found.id) && subscription?.status === "ACTIVE") {
         subscription = { ...subscription, status: "PAST_DUE" };
@@ -2022,6 +2613,26 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
       }
       outcome = body.outcome as PaymentOutcome;
       return reply(200, { ok: true });
+    }
+    if (request.method === "POST" && path === "/control/anonymous-checkout") {
+      if (typeof body.enabled !== "boolean")
+        return reply(400, { error: "enabled is true or false" });
+      anonymousOn = body.enabled;
+      return reply(200, { ok: true });
+    }
+    if (request.method === "POST" && path === "/control/turnstile") {
+      if (!TURNSTILE_VERDICTS.includes(body.verdict as TurnstileVerdict)) {
+        return reply(400, { error: `verdict is one of ${TURNSTILE_VERDICTS.join(", ")}` });
+      }
+      if (body.times !== undefined && !(Number.isInteger(body.times) && body.times > 0)) {
+        return reply(400, { error: "times is a whole number, 1 or more" });
+      }
+      scriptVerdict(body.verdict as TurnstileVerdict, body.times);
+      return reply(200, { ok: true });
+    }
+    if (request.method === "POST" && path === "/control/checkout-sessions/expire") {
+      const expired = expireCheckout();
+      return expired.ok ? reply(200, expired) : reply(409, expired);
     }
     const boundary = /^\/control\/(advance|trial\/end)$/.exec(path);
     if (request.method === "POST" && boundary) {
@@ -2093,6 +2704,18 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
       customerSlug: each.customerSlug,
       licenseSlug: each.licenseSlug,
     })),
+    anonymousCheckout: anonymousOn,
+    checkoutSessions: [...checkouts.values()].map((each) => ({
+      id: each.id,
+      status: readStatus(each, Date.now()),
+      email: each.email,
+      clientReferenceId: each.clientReferenceId,
+      licenseSlug: each.plan.licenseSlug as string,
+      customerSlug: each.customerSlug,
+      instanceSlug: each.instanceSlug,
+      payment: each.payment,
+    })),
+    turnstileChecks: verified,
   });
 
   const route: Route = async (request) => {
@@ -2118,6 +2741,10 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
       if (sent && typeof sent === "object" && "voucherCode" in sent) {
         sent = { ...sent, voucherCode: "…" };
       }
+      // A Turnstile token is a credential for one start: the log says it was sent, not what it was.
+      if (sent && typeof sent === "object" && "turnstileToken" in sent) {
+        sent = { ...sent, turnstileToken: "…" };
+      }
     } catch {
       sent = undefined;
     }
@@ -2142,6 +2769,11 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
     },
     payInvoice,
     declineInvoice,
+    anonymousCheckout: (enabled) => {
+      anonymousOn = enabled;
+    },
+    turnstile: scriptVerdict,
+    expireCheckout,
     advance: (origin = "http://stand-in.invalid") => moveToBoundary(origin),
     endTrial: (origin = "http://stand-in.invalid") => moveToBoundary(origin, "trial"),
     events: () => structuredClone(events),

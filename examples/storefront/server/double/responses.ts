@@ -25,16 +25,21 @@ export const problem = (
   detail: string,
   instance = "",
   more: Json = {},
+  headers: Record<string, string> = {},
 ) =>
-  reply(status, {
-    type: "https://tools.ietf.org/html/rfc7231",
-    title: status === 401 ? "Unauthorized" : status === 429 ? "Too Many Requests" : "Refused",
+  reply(
     status,
-    detail,
-    instance,
-    code,
-    ...more,
-  });
+    {
+      type: "https://tools.ietf.org/html/rfc7231",
+      title: status === 401 ? "Unauthorized" : status === 429 ? "Too Many Requests" : "Refused",
+      status,
+      detail,
+      instance,
+      code,
+      ...more,
+    },
+    headers,
+  );
 
 /** A page of the payment provider. */
 export const html = (title: string, body: string) =>

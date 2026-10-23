@@ -9,7 +9,12 @@
 
 import { randomUUID } from "node:crypto";
 
-import { KaitenClient, KaitenError, KaitenSessionClient } from "@kaitencloud/client";
+import {
+  KaitenAnonymousCheckoutClient,
+  KaitenClient,
+  KaitenError,
+  KaitenSessionClient,
+} from "@kaitencloud/client";
 import {
   Billing,
   createKaitenClient,
@@ -22,6 +27,7 @@ import { describe, expect, test } from "vite-plus/test";
 import type { Configuration } from "../../conformance/src/configuration.ts";
 import { Journey } from "../../conformance/src/journey.ts";
 import { contractProblemsOf, recordingFetch } from "../../conformance/src/recording.ts";
+import { contractProblems as schemaProblems } from "../../../packages/client/tests/support/contract-schema.ts";
 import { createKaitenDouble, DOUBLE_PATH, type Call } from "../server/double/kaiten-double.ts";
 
 import acmeCatalog from "../../../packages/client/tests/fixtures/public-catalog.acme.json" with { type: "json" };
@@ -1957,5 +1963,694 @@ describe("the stand-in as a Kaiten with no customer yet", () => {
     expect(double.signUp()).toBe(false);
     double.reset({ signUp: true, subscribed: true, card: true });
     expect(double.state()).toMatchObject({ subscribed: false, cardOnFile: false, customers: [] });
+  });
+});
+
+describe("the anonymous checkout, against the stand-in", () => {
+  const RETURN_URL = `${ORIGIN}/checkout/pro-v2`;
+  const TOKEN = "XXXX.DUMMY.TOKEN.XXXX";
+  const STARTER_PRICE = STARTER_MONTHLY;
+  const LITE_FAMILY_PRICE = LITE_MONTHLY;
+
+  /** The stand-in with the key's anonymous checkout on, a visitor's client and the means to follow the provider's page. */
+  function visitorShop(scenario: Parameters<ReturnType<typeof world>["double"]["reset"]>[0] = {}) {
+    const made = world();
+    made.double.reset({ anonymousCheckout: true, signUp: true, ...scenario });
+    const checkout = new KaitenAnonymousCheckoutClient({
+      apiUrl: API,
+      publishableKey: PUBLISHABLE_KEY,
+      fetch: made.recorder.fetch,
+      storage: null,
+    });
+    const start = (priceId: string, extra: Record<string, unknown> = {}) =>
+      checkout.startCheckout({
+        turnstileToken: TOKEN,
+        priceId,
+        email: "ada@acme.test",
+        returnUrl: RETURN_URL,
+        ...extra,
+      });
+    /** Saves the card on the provider's page, and says where the page sent the visitor back to. */
+    const saveCard = async (setupUrl: string) => {
+      const saved = await made.double.route(new Request(`${setupUrl}/save`, { method: "POST" }));
+      expect(saved?.status).toBe(303);
+      return new URL(saved!.headers.get("location")!);
+    };
+    /** A request to the anonymous routes with exactly the headers given. */
+    const raw = (
+      path: string,
+      init: { method?: string; headers?: Record<string, string>; json?: unknown } = {},
+    ) =>
+      made.recorder.fetch(`${API}${path}`, {
+        method: init.method,
+        headers: { "Content-Type": "application/json", ...init.headers },
+        body: init.json === undefined ? undefined : JSON.stringify(init.json),
+      });
+    return { ...made, checkout, start, saveCard, raw };
+  }
+
+  test("is off until the key starts it, and the catalogue says which", async () => {
+    const { double, recorder, raw } = visitorShop({ anonymousCheckout: false });
+    const catalogue = async () => {
+      const response = await raw("/public/catalog", {
+        headers: { "X-Kaiten-Publishable-Key": PUBLISHABLE_KEY },
+      });
+      return ((await response.json()) as any).capabilities;
+    };
+    expect(await catalogue()).toMatchObject({ anonymousCheckout: false, turnstileSiteKey: null });
+
+    const refused = await raw("/public/checkout-sessions", {
+      method: "POST",
+      headers: { "X-Kaiten-Publishable-Key": PUBLISHABLE_KEY },
+      json: { turnstileToken: TOKEN, priceId: STARTER_PRICE, dryRun: true },
+    });
+    expect(refused.status).toBe(403);
+    expect(await refused.json()).toMatchObject({
+      code: "CreateCheckoutSession.AnonymousCheckoutDisabled",
+    });
+
+    double.anonymousCheckout(true);
+    expect(await catalogue()).toMatchObject({
+      anonymousCheckout: true,
+      turnstileSiteKey: "1x00000000000000000000AA",
+    });
+    expect(double.state().anonymousCheckout).toBe(true);
+    // A scenario starts it on, and a reset without one off again.
+    double.reset();
+    expect(await catalogue()).toMatchObject({ anonymousCheckout: false });
+    expect(contractProblems(recorder)).toEqual([]);
+  });
+
+  test("onboards a visitor on a free plan with no payment method and no provider, and every answer fits the contract", async () => {
+    const { double, recorder, checkout, start } = visitorShop();
+
+    const opened = await start(STARTER_PRICE, { clientReferenceId: "cart-7" });
+    expect(opened).toMatchObject({
+      status: "open",
+      dueToday: { total: 0 },
+      requiresPaymentMethod: false,
+      trialEndsAt: null,
+    });
+    // Nothing exists but the session until it is confirmed.
+    expect(double.state()).toMatchObject({ customers: [], instances: [], subscribed: false });
+    expect(double.state().checkoutSessions).toMatchObject([
+      { status: "OPEN", email: "ada@acme.test", clientReferenceId: "cart-7", customerSlug: null },
+    ]);
+
+    const done = await checkout.confirmCheckout(opened.sessionId);
+    expect(done).toMatchObject({
+      status: "completed",
+      session: { status: "COMPLETED", activationInvoice: null, payment: null },
+    });
+
+    const state = double.state();
+    expect(state.customers).toMatchObject([
+      { name: "ada@acme.test", billingEmail: "ada@acme.test" },
+    ]);
+    expect(state.customers[0]!.slug).toMatch(/^ada-acme-test-[0-9a-f]{6}$/);
+    expect(state.instances).toMatchObject([
+      { customerSlug: state.customers[0]!.slug, licenseSlug: "starter-v1" },
+    ]);
+    // A subscription on the free plan, and no card, no invoice, no provider.
+    expect(state).toMatchObject({
+      subscribed: true,
+      free: true,
+      plan: "starter-v1",
+      status: "ACTIVE",
+      cardOnFile: false,
+      invoices: [],
+      billingEmail: "ada@acme.test",
+      checkoutSessions: [
+        {
+          status: "COMPLETED",
+          customerSlug: state.customers[0]!.slug,
+          instanceSlug: state.instances[0]!.slug,
+        },
+      ],
+    });
+    expect(double.events().map((each) => each.type)).toEqual([
+      "checkout_session.started",
+      "instance.billing.started",
+      "checkout_session.completed",
+    ]);
+
+    // A closed session reads its outcome, and is not confirmed again.
+    await expect(checkout.getCheckoutSession(opened.sessionId)).resolves.toMatchObject({
+      status: "COMPLETED",
+      customerSlug: state.customers[0]!.slug,
+    });
+    await expect(checkout.confirmCheckout(opened.sessionId)).rejects.toMatchObject({
+      status: 409,
+      code: "ConfirmCheckoutSession.SessionClosed",
+    });
+
+    // Each credential went to its own routes, and only there.
+    const kinds = double
+      .calls()
+      .filter((each) => each.path.startsWith("/public/checkout-sessions"))
+      .map((each) => `${each.method} ${each.credential}`);
+    // (The client keeps what it saw of a closed session, so the two calls after the close never left.)
+    expect(kinds).toEqual(["POST pk_", "POST ksc_"]);
+    // Neither the Turnstile token nor the ksc_ is in the log.
+    expect(JSON.stringify(double.calls())).not.toContain(TOKEN);
+    expect(JSON.stringify(double.calls())).not.toContain("ksc_" + "c");
+    expect(contractProblems(recorder)).toEqual([]);
+  });
+
+  test("sells a paid plan: the provider's page first, then the payment, and the plan once it is paid", async () => {
+    const { double, recorder, checkout, start, saveCard } = visitorShop();
+    const opened = await start(PRO_MONTHLY, {
+      addOns: [{ addonSlug: "extra-seats-v1", quantity: 2 }],
+    });
+    expect(opened).toMatchObject({
+      dueToday: { subtotal: 6900, total: 6900 },
+      requiresPaymentMethod: true,
+    });
+
+    const first = await checkout.confirmCheckout(opened.sessionId);
+    if (first.status !== "requires_payment_method") throw new Error("a setup page was expected");
+    expect(first.setupUrl).toContain(`${DOUBLE_PATH}/provider/setup/`);
+    expect(double.state()).toMatchObject({ customers: [], cardOnFile: false });
+    // Confirmed again before the card is saved: the same page.
+    const again = await checkout.confirmCheckout(opened.sessionId);
+    expect(again).toMatchObject({ status: "requires_payment_method", setupUrl: first.setupUrl });
+
+    // The provider's page sends the visitor back to the page they left, naming the session.
+    const back = await saveCard(first.setupUrl);
+    expect(back.origin + back.pathname).toBe(RETURN_URL);
+    expect(back.searchParams.get("kaiten_checkout_session")).toBe(opened.sessionId);
+    expect(back.searchParams.has("kaiten_setup_session")).toBe(false);
+    // The card belongs to a customer that does not exist yet.
+    expect(double.state().cardOnFile).toBe(false);
+
+    const paid = await checkout.confirmCheckout(opened.sessionId);
+    expect(paid).toMatchObject({
+      status: "completed",
+      session: {
+        status: "COMPLETED",
+        payment: { status: "paid" },
+        activationInvoice: { kind: "ACTIVATION", status: "PAID", total: 6900 },
+      },
+    });
+    const state = double.state();
+    expect(state).toMatchObject({
+      subscribed: true,
+      plan: "pro-v2",
+      status: "ACTIVE",
+      cardOnFile: true,
+      card: "Visa 4242",
+      billingEmail: "ada@acme.test",
+      invoices: [{ kind: "ACTIVATION", status: "PAID", total: 6900 }],
+    });
+    // The instance moved from the free plan it started on to the one it bought.
+    expect(state.instances).toMatchObject([{ licenseSlug: "pro-v2" }]);
+    expect(double.events().map((each) => each.type)).toEqual([
+      "checkout_session.started",
+      "customer.payment_method.attached",
+      "instance.invoice.issued",
+      "instance.invoice.paid",
+      "instance.billing.started",
+      "checkout_session.completed",
+    ]);
+    expect(contractProblems(recorder)).toEqual([]);
+  });
+
+  test("keeps the instance on the free plan while the payment waits, and moves it when the invoice is paid", async () => {
+    const { double, recorder, checkout, start, saveCard } = visitorShop();
+    double.payment("requires_action");
+    const opened = await start(PRO_MONTHLY);
+    const setup = await checkout.confirmCheckout(opened.sessionId);
+    if (setup.status !== "requires_payment_method") throw new Error("a setup page was expected");
+    await saveCard(setup.setupUrl);
+
+    const waiting = await checkout.confirmCheckout(opened.sessionId);
+    expect(waiting).toMatchObject({
+      status: "awaiting_payment",
+      session: {
+        status: "AWAITING_PAYMENT",
+        payment: { status: "requires_action" },
+        activationInvoice: { status: "PAYMENT_FAILED" },
+      },
+    });
+    expect(double.state()).toMatchObject({
+      subscribed: false,
+      plan: "starter-v1",
+      instances: [{ licenseSlug: "starter-v1" }],
+    });
+    // Confirmed again while it waits: the session as it is, and no second customer.
+    await expect(checkout.confirmCheckout(opened.sessionId)).resolves.toMatchObject({
+      status: "awaiting_payment",
+    });
+    expect(double.state().customers).toHaveLength(1);
+
+    // The visitor confirms the payment on the invoice's page.
+    const invoice = double.state().invoices[0]!;
+    expect(double.payInvoice(invoice.id)).toBe(true);
+    await expect(checkout.getCheckoutSession(opened.sessionId)).resolves.toMatchObject({
+      status: "COMPLETED",
+      payment: { status: "paid" },
+    });
+    expect(double.state()).toMatchObject({
+      subscribed: true,
+      plan: "pro-v2",
+      instances: [{ licenseSlug: "pro-v2" }],
+    });
+    expect(contractProblems(recorder)).toEqual([]);
+  });
+
+  test("a payment that is declined leaves the session waiting, and its expiry closes it with the customer left on the free plan", async () => {
+    const { double, checkout, start, saveCard } = visitorShop();
+    double.payment("failed");
+    const opened = await start(PRO_MONTHLY);
+    const setup = await checkout.confirmCheckout(opened.sessionId);
+    if (setup.status !== "requires_payment_method") throw new Error("a setup page was expected");
+    await saveCard(setup.setupUrl);
+    await expect(checkout.confirmCheckout(opened.sessionId)).resolves.toMatchObject({
+      status: "awaiting_payment",
+      session: { payment: { status: "failed" } },
+    });
+
+    expect(double.expireCheckout()).toMatchObject({ ok: true, status: "EXPIRED" });
+    await expect(checkout.getCheckoutSession(opened.sessionId)).resolves.toMatchObject({
+      status: "EXPIRED",
+      customerSlug: expect.any(String),
+    });
+    expect(double.state()).toMatchObject({ subscribed: false, plan: "starter-v1" });
+    expect(double.events().at(-1)).toMatchObject({ type: "checkout_session.abandoned" });
+  });
+
+  test("starts a trial with nothing to pay, a card first when the plan asks for one, and one trial per address and family", async () => {
+    const { double, recorder, checkout, start, saveCard } = visitorShop();
+
+    // Lite: a trial, and no payment method asked for. The session completes at the first confirm.
+    const lite = await start(LITE_FAMILY_PRICE);
+    expect(lite).toMatchObject({
+      dueToday: { total: 0 },
+      requiresPaymentMethod: false,
+      trialRefusedReason: null,
+      trialEndsAt: expect.any(String),
+    });
+    await expect(checkout.confirmCheckout(lite.sessionId)).resolves.toMatchObject({
+      status: "completed",
+      session: { trialEndsAt: lite.trialEndsAt, payment: null },
+    });
+    expect(double.state()).toMatchObject({
+      status: "TRIAL",
+      plan: "lite-v1",
+      cardOnFile: false,
+      invoices: [],
+    });
+
+    // The same address, the same family: no trial, the first period is due today.
+    const second = await start(LITE_FAMILY_PRICE);
+    expect(second).toMatchObject({
+      trialEndsAt: null,
+      trialRefusedReason: "ALREADY_CONSUMED",
+      dueToday: { total: 1900 },
+      requiresPaymentMethod: true,
+    });
+    // Another address, or another family, is not refused its trial.
+    await expect(start(LITE_FAMILY_PRICE, { email: "grace@acme.test" })).resolves.toMatchObject({
+      trialRefusedReason: null,
+    });
+    await expect(start(GROWTH_MONTHLY)).resolves.toMatchObject({ trialRefusedReason: null });
+    // The visitor can decline a trial too.
+    await expect(
+      start(LITE_FAMILY_PRICE, { email: "grace@acme.test", trial: false }),
+    ).resolves.toMatchObject({ trialEndsAt: null, dueToday: { total: 1900 } });
+
+    // Growth asks for a card, and then starts its trial with nothing charged.
+    double.reset({ anonymousCheckout: true, signUp: true });
+    const growth = await start(GROWTH_MONTHLY);
+    expect(growth).toMatchObject({ dueToday: { total: 0 }, requiresPaymentMethod: true });
+    const setup = await checkout.confirmCheckout(growth.sessionId);
+    if (setup.status !== "requires_payment_method") throw new Error("a setup page was expected");
+    await saveCard(setup.setupUrl);
+    await expect(checkout.confirmCheckout(growth.sessionId)).resolves.toMatchObject({
+      status: "completed",
+      session: { trialEndsAt: growth.trialEndsAt },
+    });
+    expect(double.state()).toMatchObject({
+      status: "TRIAL",
+      plan: "growth-v1",
+      cardOnFile: true,
+      invoices: [],
+    });
+    expect(contractProblems(recorder)).toEqual([]);
+  });
+
+  test("reprices a session whose trial another checkout used up, and refuses to once a card was saved for the amount shown", async () => {
+    const { double, checkout, start, saveCard } = visitorShop();
+    const first = await start(GROWTH_MONTHLY);
+    const second = await start(GROWTH_MONTHLY);
+    const setup = await checkout.confirmCheckout(first.sessionId);
+    if (setup.status !== "requires_payment_method") throw new Error("a setup page was expected");
+    await saveCard(setup.setupUrl);
+    await checkout.confirmCheckout(first.sessionId);
+
+    // Before its setup, the second session goes on without the trial, at the full price.
+    const repriced = await checkout.confirmCheckout(second.sessionId);
+    expect(repriced).toMatchObject({
+      status: "requires_payment_method",
+      session: {
+        trialEndsAt: null,
+        trialRefusedReason: "ALREADY_CONSUMED",
+        dueToday: { total: 9900 },
+      },
+    });
+    await expect(checkout.getCheckoutSession(second.sessionId)).resolves.toMatchObject({
+      dueToday: { total: 9900 },
+    });
+    expect(double.state().customers).toHaveLength(1);
+
+    // After one, with the trial used up between two confirms, it asks the visitor to start again.
+    double.reset({ anonymousCheckout: true, signUp: true });
+    const third = await start(GROWTH_MONTHLY, { email: "grace@acme.test" });
+    const fourth = await start(GROWTH_MONTHLY, { email: "grace@acme.test" });
+    const page = await checkout.confirmCheckout(fourth.sessionId);
+    if (page.status !== "requires_payment_method") throw new Error("a setup page was expected");
+    await saveCard(page.setupUrl);
+    const sibling = await checkout.confirmCheckout(third.sessionId);
+    if (sibling.status !== "requires_payment_method") throw new Error("a setup page was expected");
+    await saveCard(sibling.setupUrl);
+    await checkout.confirmCheckout(third.sessionId);
+    await expect(checkout.confirmCheckout(fourth.sessionId)).rejects.toMatchObject({
+      status: 409,
+      code: "ConfirmCheckoutSession.DueTodayChanged",
+    });
+  });
+
+  test("says what the security check came to as Kaiten does, for as many verifications as a test scripts", async () => {
+    const { double, recorder, checkout, start } = visitorShop();
+
+    double.turnstile("fail", 1);
+    await expect(start(STARTER_PRICE)).rejects.toMatchObject({
+      status: 422,
+      code: "CreateCheckoutSession.TurnstileFailed",
+      name: "TurnstileFailedError",
+    });
+    // Nothing was written, and the next verification passes again.
+    expect(double.state().checkoutSessions).toEqual([]);
+    await expect(start(STARTER_PRICE)).resolves.toMatchObject({ status: "open" });
+
+    double.turnstile("unavailable", 1);
+    await expect(start(STARTER_PRICE)).rejects.toMatchObject({
+      status: 503,
+      code: "CreateCheckoutSession.TurnstileUnavailable",
+      retryAfterSeconds: 30,
+    });
+    double.turnstile("unconfigured");
+    for (const _ of [1, 2]) {
+      await expect(start(STARTER_PRICE)).rejects.toMatchObject({
+        status: 422,
+        code: "CreateCheckoutSession.TurnstileNotConfigured",
+      });
+    }
+    double.turnstile("pass");
+    await expect(
+      checkout.startCheckout({ turnstileToken: TOKEN, priceId: STARTER_PRICE, dryRun: true }),
+    ).resolves.toMatchObject({ status: "preview" });
+    expect(double.state().turnstileChecks).toBe(6);
+    expect(contractProblems(recorder)).toEqual([]);
+  });
+
+  test("prices a preview and writes nothing, and takes a plan by its version and period", async () => {
+    const { double, recorder, checkout } = visitorShop();
+    const preview = await checkout.startCheckout({
+      turnstileToken: TOKEN,
+      licenseSlug: "pro-v2",
+      billingPeriod: "ANNUAL",
+      dryRun: true,
+    });
+    expect(preview).toMatchObject({
+      status: "preview",
+      dueToday: { total: 49000 },
+      requiresPaymentMethod: true,
+    });
+    expect(double.state().checkoutSessions).toEqual([]);
+    expect(double.events()).toEqual([]);
+    expect(contractProblems(recorder)).toEqual([]);
+  });
+
+  test("refuses what Kaiten refuses at the start, with its codes, and every refusal fits the contract", async () => {
+    const { double, recorder, start, raw } = visitorShop();
+    const post = async (json: unknown, headers: Record<string, string> = {}) => {
+      const response = await raw("/public/checkout-sessions", {
+        method: "POST",
+        headers: { "X-Kaiten-Publishable-Key": PUBLISHABLE_KEY, ...headers },
+        json,
+      });
+      return { status: response.status, body: (await response.json()) as any };
+    };
+    const valid = {
+      turnstileToken: TOKEN,
+      priceId: PRO_MONTHLY,
+      email: "ada@acme.test",
+      returnUrl: RETURN_URL,
+    };
+
+    // The shape of the body.
+    for (const body of [
+      { priceId: PRO_MONTHLY },
+      { ...valid, surprise: true },
+      { ...valid, email: 12 },
+      { ...valid, turnstileToken: "" },
+      { ...valid, addOns: [{ addonSlug: "extra-seats-v1", quantity: 0 }] },
+      "not an object",
+    ]) {
+      const refused = await post(body);
+      expect(refused.status).toBe(422);
+      expect(refused.body).toMatchObject({ code: "CreateCheckoutSession.InvalidBody" });
+    }
+    // The price.
+    await expect(post({ ...valid, priceId: undefined })).resolves.toMatchObject({
+      status: 422,
+      body: { code: "CreateCheckoutSession.InvalidPriceSelection" },
+    });
+    await expect(
+      post({ ...valid, licenseSlug: "pro-v2", billingPeriod: "MONTHLY" }),
+    ).resolves.toMatchObject({
+      body: { code: "CreateCheckoutSession.InvalidPriceSelection" },
+    });
+    await expect(
+      post({ ...valid, priceId: "00000000-0000-4000-8000-0000000000ff" }),
+    ).resolves.toMatchObject({ body: { code: "CreateCheckoutSession.PriceNotPublic" } });
+    await expect(
+      post({ ...valid, priceId: "00000000-0000-4000-8000-000000000206" }),
+    ).resolves.toMatchObject({
+      body: { code: "CreateCheckoutSession.PriceNotFlatFee" },
+    });
+    // The add-ons.
+    await expect(
+      post({
+        ...valid,
+        priceId: GROWTH_MONTHLY,
+        addOns: [{ addonSlug: "gpu-pack-v1", quantity: 1 }],
+      }),
+    ).resolves.toMatchObject({ body: { code: "CreateCheckoutSession.AddonNotPublic" } });
+    await expect(
+      post({ ...valid, addOns: [{ addonSlug: "gpu-pack-v1", quantity: 1 }] }),
+    ).resolves.toMatchObject({ body: { code: "CreateCheckoutSession.CurrencyMismatch" } });
+    await expect(
+      post({ ...valid, addOns: [{ addonSlug: "extra-seats-v1", quantity: 51 }] }),
+    ).resolves.toMatchObject({ body: { code: "CreateCheckoutSession.QuantityExceedsMax" } });
+    await expect(
+      post({
+        ...valid,
+        priceId: STARTER_PRICE,
+        addOns: [{ addonSlug: "extra-seats-v1", quantity: 1 }],
+      }),
+    ).resolves.toMatchObject({ body: { code: "CreateCheckoutSession.AddonNotPublic" } });
+    // The visitor.
+    await expect(post({ ...valid, email: "nope" })).resolves.toMatchObject({
+      body: { code: "CreateCheckoutSession.InvalidEmail" },
+    });
+    await expect(post({ ...valid, email: undefined })).resolves.toMatchObject({
+      body: { code: "CreateCheckoutSession.InvalidEmail" },
+    });
+    await expect(post({ ...valid, returnUrl: undefined })).resolves.toMatchObject({
+      body: { code: "CreateCheckoutSession.InvalidReturnUrl" },
+    });
+    await expect(post({ ...valid, returnUrl: "http://shop.test/checkout" })).resolves.toMatchObject(
+      {
+        body: { code: "CreateCheckoutSession.InvalidReturnUrl" },
+      },
+    );
+    await expect(
+      post({ ...valid, returnUrl: "https://other.test/checkout" }, { Origin: ORIGIN }),
+    ).resolves.toMatchObject({ body: { code: "CreateCheckoutSession.InvalidReturnUrl" } });
+    // A voucher: Kaiten refuses every code of a visitor it knows nothing of.
+    await expect(post({ ...valid, voucherCode: "WELCOME20" })).resolves.toMatchObject({
+      status: 422,
+      body: { code: "CreateCheckoutSession.VoucherInvalid" },
+    });
+    // The credential.
+    await expect(post(valid, { Authorization: `Bearer ${SERVER_TOKEN}` })).resolves.toMatchObject({
+      status: 403,
+      body: { code: "Auth.WrongCredentialKind" },
+    });
+    await expect(
+      post(valid, { "X-Kaiten-Publishable-Key": `pk_${"x".repeat(43)}` }),
+    ).resolves.toMatchObject({
+      status: 401,
+      body: { code: "PublicAuth.InvalidCredential" },
+    });
+
+    // A paid plan needs a free plan to start the instance on; a catalogue without one has none to offer.
+    const plans = (acmeCatalog.plans as any[]).filter((plan) => plan.pricingType !== "FREE");
+    const lone = world({ ...acmeCatalog, plans });
+    lone.double.reset({ anonymousCheckout: true });
+    const loneStart = await lone.double.route(
+      new Request(`${API}/public/checkout-sessions`, {
+        method: "POST",
+        headers: {
+          "X-Kaiten-Publishable-Key": PUBLISHABLE_KEY,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ ...valid, dryRun: true }),
+      }),
+    );
+    expect(loneStart?.status).toBe(422);
+    expect(await loneStart!.json()).toMatchObject({
+      code: "CreateCheckoutSession.FallbackRequired",
+    });
+    // But a trial with nothing due needs none.
+    await start(GROWTH_MONTHLY);
+
+    // Of everything refused above, nothing was written; the one session is the trial's.
+    expect(double.state().checkoutSessions).toHaveLength(1);
+    expect(contractProblems(recorder)).toEqual([]);
+  });
+
+  test("is sent bodies that fit the contract's draft by its own client", async () => {
+    const { double, checkout } = visitorShop();
+    await checkout.startCheckout({
+      turnstileToken: TOKEN,
+      licenseSlug: "pro-v2",
+      billingPeriod: "MONTHLY",
+      addOns: [{ addonSlug: "extra-seats-v1", quantity: 1 }],
+      trial: false,
+      email: "ada@acme.test",
+      returnUrl: RETURN_URL,
+      clientReferenceId: "cart-9",
+    });
+    await checkout.startCheckout({ turnstileToken: TOKEN, priceId: PRO_MONTHLY, dryRun: true });
+    const starts = double.calls().filter((each) => each.path === "/public/checkout-sessions");
+    expect(starts).toHaveLength(2);
+    for (const call of starts) {
+      expect(schemaProblems("CheckoutSessionDraft", call.body)).toEqual([]);
+      expect(call.body).toMatchObject({ turnstileToken: "\u2026" });
+    }
+  });
+
+  test("refuses a credential of another class, another session's token and an unknown one on a session's routes", async () => {
+    const { double, checkout, start, raw } = visitorShop();
+    const one = await start(STARTER_PRICE);
+    const two = await start(STARTER_PRICE, { email: "grace@acme.test" });
+    const tokenOf = (sessionId: string) =>
+      // The client keeps the token it was given; the stand-in's own state does not show it.
+      (sessionId === one.sessionId ? one : two).token;
+    const read = (sessionId: string, headers: Record<string, string>) =>
+      raw(`/public/checkout-sessions/${sessionId}`, { headers });
+
+    expect(
+      (await read(one.sessionId, { Authorization: `Bearer ${tokenOf(one.sessionId)}` })).status,
+    ).toBe(200);
+    // Another session's id answers as an unknown token does.
+    expect(
+      (await read(two.sessionId, { Authorization: `Bearer ${tokenOf(one.sessionId)}` })).status,
+    ).toBe(401);
+    expect(
+      (await read(one.sessionId, { Authorization: `Bearer ksc_${"z".repeat(43)}` })).status,
+    ).toBe(401);
+    expect((await read(one.sessionId, {})).status).toBe(401);
+    // The wrong class: a publishable key, a customer's session, a server token.
+    expect(
+      (await read(one.sessionId, { "X-Kaiten-Publishable-Key": PUBLISHABLE_KEY })).status,
+    ).toBe(403);
+    expect(
+      (await read(one.sessionId, { Authorization: `Bearer kst_${"z".repeat(43)}` })).status,
+    ).toBe(403);
+    expect((await read(one.sessionId, { Authorization: `Bearer ${SERVER_TOKEN}` })).status).toBe(
+      403,
+    );
+    expect(double.state().customers).toEqual([]);
+    expect(checkout.holdsCheckoutSession(one.sessionId)).toBe(true);
+  });
+
+  test("closes a session that waits for too long, and says how", async () => {
+    const { double, recorder, checkout, start } = visitorShop();
+    expect(double.expireCheckout()).toEqual({ ok: false });
+
+    const opened = await start(PRO_MONTHLY);
+    expect(double.expireCheckout()).toMatchObject({ ok: true, status: "ABANDONED" });
+    await expect(checkout.getCheckoutSession(opened.sessionId)).resolves.toMatchObject({
+      status: "ABANDONED",
+      customerSlug: null,
+    });
+    await expect(checkout.confirmCheckout(opened.sessionId)).rejects.toMatchObject({
+      status: 409,
+      code: "ConfirmCheckoutSession.SessionClosed",
+      name: "CheckoutSessionClosedError",
+      sessionStatus: "ABANDONED",
+    });
+    expect(double.state().customers).toEqual([]);
+    expect(double.events().at(-1)).toMatchObject({ type: "checkout_session.abandoned" });
+    expect(double.expireCheckout()).toEqual({ ok: false });
+    expect(contractProblems(recorder)).toEqual([]);
+  });
+
+  test("turned off after the start, it refuses the confirm", async () => {
+    const { double, checkout, start } = visitorShop();
+    const opened = await start(STARTER_PRICE);
+    double.anonymousCheckout(false);
+    await expect(checkout.confirmCheckout(opened.sessionId)).rejects.toMatchObject({
+      status: 403,
+      code: "ConfirmCheckoutSession.AnonymousCheckoutDisabled",
+    });
+    expect(double.state().customers).toEqual([]);
+  });
+
+  test("answers a scripted refusal on a session's routes, whichever session", async () => {
+    const { double, checkout, start } = visitorShop();
+    const opened = await start(STARTER_PRICE);
+    double.script("POST /public/checkout-sessions/*/confirm", {
+      status: 409,
+      body: {
+        title: "Conflict",
+        status: 409,
+        detail: "changed",
+        code: "ConfirmCheckoutSession.DueTodayChanged",
+      },
+    });
+    await expect(checkout.confirmCheckout(opened.sessionId)).rejects.toMatchObject({
+      code: "ConfirmCheckoutSession.DueTodayChanged",
+      name: "DueTodayChangedError",
+    });
+    // The next call is the stand-in's own.
+    await expect(checkout.confirmCheckout(opened.sessionId)).resolves.toMatchObject({
+      status: "completed",
+    });
+  });
+
+  test("drives the controls over HTTP and refuses what makes no sense", async () => {
+    const { call } = visitorShop();
+    const post = (path: string, json?: unknown) =>
+      call(`/control${path}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(json ?? {}),
+      });
+    expect((await post("/anonymous-checkout", { enabled: "yes" })).status).toBe(400);
+    expect((await post("/turnstile", { verdict: "maybe" })).status).toBe(400);
+    expect((await post("/turnstile", { verdict: "fail", times: 0 })).status).toBe(400);
+    expect((await post("/checkout-sessions/expire")).status).toBe(409);
+    expect((await post("/anonymous-checkout", { enabled: false })).status).toBe(200);
+    expect((await post("/turnstile", { verdict: "fail", times: 2 })).status).toBe(200);
+    expect((await post("/reset", { anonymousCheckout: true })).status).toBe(200);
+    expect(await (await call("/control/state")).json()).toMatchObject({
+      anonymousCheckout: true,
+      turnstileChecks: 0,
+    });
   });
 });
