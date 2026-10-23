@@ -34,6 +34,7 @@ import { useFocusScope } from "../shared/focus.ts";
 import { KaitenBranding } from "../shared/kaiten-branding.tsx";
 import { PeriodChoice } from "../shared/period-choice.tsx";
 import { initialPrice, purchasablePrices } from "../shared/purchasable-prices.ts";
+import { useBefore } from "../shared/use-before.ts";
 import { Badge } from "../ui/badge.tsx";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "../ui/card.tsx";
 import { Input } from "../ui/input.tsx";
@@ -160,6 +161,21 @@ function safeHref(url: string | undefined): string | null {
   }
 }
 
+/**
+ * True while the wait a refusal for coming too often asked for is not over: the visitor is not let
+ * send the same call again before it. The wait starts when the refusal arrives, and a new refusal
+ * starts it again.
+ */
+function useRateLimitWait(error: unknown, problem: AnonymousCheckoutProblem | null): boolean {
+  const seconds =
+    problem?.kind === "rate_limited" ? Math.max(1, Math.ceil(problem.retryAfterSeconds)) : null;
+  const [until, setUntil] = React.useState<number | null>(null);
+  React.useEffect(() => {
+    setUntil(seconds === null ? null : Date.now() + seconds * 1000);
+  }, [error, seconds]);
+  return useBefore(until);
+}
+
 function AnonymousCheckoutView({
   plan,
   priceId,
@@ -216,6 +232,8 @@ function AnonymousCheckoutView({
   const free = chosen !== null && chosen.amount === 0;
 
   const problemText = useProblemText(words);
+  // A start or a confirm the API refused for coming too often is not sent again before the wait it gave.
+  const limited = useRateLimitWait(checkout.error, checkout.problem);
 
   // What the visitor has been told is wrong with the form: after they leave the e-mail field, or
   // press the button while something is missing. Not while they are still typing it.
@@ -419,7 +437,7 @@ function AnonymousCheckoutView({
         <Action
           unstyled={unstyled}
           variant="default"
-          busy={confirming}
+          busy={confirming || limited}
           onClick={() => void checkout.resume()}
         >
           {confirming ? busyLabel : checkoutWords.setupDone}
@@ -463,6 +481,7 @@ function AnonymousCheckoutView({
         unstyled={unstyled}
         words={words}
         busyLabel={busyLabel}
+        limited={limited}
         onCancel={onCancel}
       />,
     );
@@ -517,6 +536,7 @@ function AnonymousCheckoutView({
   // The first field the form draws carries the focus a new step sends the keyboard to.
   const firstField = companyKind !== "off" ? "company" : nameKind !== "off" ? "name" : "email";
   const submit = () => {
+    if (limited) return;
     if (ready) {
       void checkout.start();
       return;
@@ -688,8 +708,8 @@ function AnonymousCheckoutView({
           unstyled={unstyled}
           variant="default"
           fill
-          busy={starting}
-          unavailable={!starting && !ready}
+          busy={starting || limited}
+          unavailable={!starting && !limited && !ready}
           describedBy={describedBy}
           onClick={submit}
         >
@@ -1103,6 +1123,7 @@ function ReviewActions({
   unstyled,
   words,
   busyLabel,
+  limited,
   onCancel,
 }: {
   checkout: UseAnonymousCheckoutResult;
@@ -1110,6 +1131,8 @@ function ReviewActions({
   unstyled: boolean;
   words: KaitenAnonymousCheckoutWords;
   busyLabel: React.ReactNode;
+  /** The wait a refusal for coming too often asked for is not over. */
+  limited: boolean;
   onCancel?: () => void;
 }) {
   const checkoutWords = useCheckoutWords();
@@ -1127,7 +1150,7 @@ function ReviewActions({
             unstyled={unstyled}
             variant="default"
             fill
-            busy={confirming}
+            busy={confirming || limited}
             onClick={() => void checkout.confirm()}
           >
             {confirming

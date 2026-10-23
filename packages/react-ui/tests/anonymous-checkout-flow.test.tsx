@@ -15,6 +15,7 @@ import {
   CheckoutTokenMissingError,
   KaitenError,
   ProviderUnavailableError,
+  RateLimitedError,
   TurnstileFailedError,
 } from "@kaitencloud/client";
 import { createMockKaitenAnonymousCheckoutClient } from "@kaitencloud/client/testing";
@@ -1018,5 +1019,61 @@ describe("what the visitor is told", () => {
     fireEvent.click(go());
     const review = await screen.findByText(`For ${LONG_EMAIL}`);
     expect(review.className).toContain("[overflow-wrap:anywhere]");
+  });
+});
+
+describe("a refusal for coming too often", () => {
+  const limited = (code: string) =>
+    new RateLimitedError({ title: "rate limited", status: 429, code }, { retryAfterSeconds: 1 });
+  const sent = (method: string) =>
+    latestAnonymousClient().calls.filter((call) => call.method === method);
+
+  test("a start waits for the wait the API gave, and goes through after it", async () => {
+    mount(
+      { plan: growth },
+      {
+        fail: {
+          startCheckout: (call) =>
+            call === 1 ? limited("CreateCheckoutSession.RateLimited") : undefined,
+        },
+      },
+    );
+    await fillIn();
+    fireEvent.click(go());
+    await screen.findByText("Too many attempts. Try again in a moment.");
+    await waitFor(() => expect(off(go())).toBe(true));
+    // Pressed within the wait, nothing is sent.
+    fireEvent.click(go());
+    expect(sent("startCheckout")).toHaveLength(1);
+
+    await waitFor(() => expect(off(go())).toBe(false), { timeout: 3_000 });
+    fireEvent.click(go());
+    await screen.findByText(`For ${EMAIL}`);
+    expect(sent("startCheckout")).toHaveLength(2);
+  });
+
+  test("a confirm waits for it too, and keeps the review in the meantime", async () => {
+    mount(
+      { plan: growth },
+      {
+        fail: {
+          confirmCheckout: (call) =>
+            call === 1 ? limited("ConfirmCheckoutSession.RateLimited") : undefined,
+        },
+      },
+    );
+    await fillIn();
+    fireEvent.click(go());
+    await screen.findByText(`For ${EMAIL}`);
+    fireEvent.click(go("Continue to payment"));
+    await screen.findByText("Too many attempts. Try again in a moment.");
+    await waitFor(() => expect(off(go("Continue to payment"))).toBe(true));
+    fireEvent.click(go("Continue to payment"));
+    expect(sent("confirmCheckout")).toHaveLength(1);
+    expect(screen.getByText(`For ${EMAIL}`)).toBeTruthy();
+
+    await waitFor(() => expect(off(go("Continue to payment"))).toBe(false), { timeout: 3_000 });
+    fireEvent.click(go("Continue to payment"));
+    await waitFor(() => expect(sent("confirmCheckout")).toHaveLength(2));
   });
 });

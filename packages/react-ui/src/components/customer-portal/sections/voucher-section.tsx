@@ -20,6 +20,7 @@ import { usePortalBillingWords } from "../../shared/billing-words.ts";
 import { Action, Message } from "../../shared/feedback.tsx";
 import { useFocusScope } from "../../shared/focus.ts";
 import { KaitenBranding } from "../../shared/kaiten-branding.tsx";
+import { useBefore } from "../../shared/use-before.ts";
 import { Card, CardContent, CardHeader, CardTitle } from "../../ui/card.tsx";
 import { Input } from "../../ui/input.tsx";
 
@@ -197,17 +198,6 @@ function RedemptionList({
 // ---------------------------------------------------------------------------
 // The field
 // ---------------------------------------------------------------------------
-
-/** True until `until` (milliseconds since the epoch) has passed, and re-renders when it does. */
-function useBefore(until: number | null): boolean {
-  const [now, setNow] = React.useState(() => Date.now());
-  React.useEffect(() => {
-    if (until === null || until <= now) return;
-    const timer = setTimeout(() => setNow(Date.now()), until - now);
-    return () => clearTimeout(timer);
-  }, [until, now]);
-  return until !== null && until > now;
-}
 
 /** The whole seconds a wait is said in: never less than one. */
 const wholeSeconds = (seconds: number) => Math.max(1, Math.ceil(seconds));
