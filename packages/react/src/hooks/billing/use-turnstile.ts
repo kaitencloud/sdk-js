@@ -20,10 +20,11 @@ export type TurnstileStatus = "idle" | "loading" | "solving" | "solved" | "faile
 /** How the widget looks and speaks. All optional: Cloudflare's own defaults, but for the size. */
 export interface TurnstileOptions {
   /**
-   * `always` draws the widget as soon as it is rendered (the default), `interaction-only` only when
-   * the visitor has something to do, and `execute` after the page asks for it.
+   * `always` draws the widget as soon as it is rendered (the default), and `interaction-only` only
+   * when the visitor has something to do. Cloudflare's `execute`, which waits for the page to ask,
+   * is not offered: nothing here asks.
    */
-  appearance?: "always" | "execute" | "interaction-only";
+  appearance?: "always" | "interaction-only";
   /** `auto` follows the visitor's system. Default `auto`. */
   theme?: "auto" | "light" | "dark";
   /**

@@ -28,12 +28,13 @@ export type AnonymousCheckoutProblem =
   | { kind: "turnstile_unavailable"; retryAfterSeconds: number }
   /** Too many calls were made, from the visitor's address or with the publishable key: the same call goes through after the wait. */
   | { kind: "rate_limited"; retryAfterSeconds: number }
-  /** The payment provider, or the quota check, could not be reached: try again later. */
+  /** The payment provider, the quota check or the billing gate could not be reached: try again later. */
   | { kind: "unavailable"; retryAfterSeconds: number | null }
   /**
    * The publishable key does not allow an anonymous checkout, has no Turnstile secret, is not the
-   * kind of credential the start takes, or the `returnUrl` is not on its allowed origins. A
-   * configuration to fix, not a visitor's: trying again cannot help.
+   * kind of credential the start takes, this page's origin or the `returnUrl` is not on its allowed
+   * origins, or billing is off or not included for the organization. A configuration to fix, not a
+   * visitor's: trying again cannot help.
    */
   | { kind: "not_available" }
   /** The plan is sold by contact only. */
@@ -118,6 +119,9 @@ export function anonymousCheckoutProblem(
   }
   if (
     refusedAs(error, 403, ".AnonymousCheckoutDisabled") ||
+    refusedAs(error, 403, ".OriginNotAllowed") ||
+    refusedAs(error, 403, "Billing.Disabled") ||
+    refusedAs(error, 403, "Billing.NotEntitled") ||
     refusedAs(error, 422, ".TurnstileNotConfigured") ||
     refusedAs(error, 422, ".InvalidReturnUrl")
   ) {
@@ -143,7 +147,11 @@ export function anonymousCheckoutProblem(
   if (refusedAs(error, 422, ".VoucherInvalid")) return { kind: "voucher_invalid" };
   if (refusedAs(error, 422, ".InvalidEmail")) return { kind: "invalid_email" };
   if (refusedAs(error, 409, ".EntitlementLimitReached")) return { kind: "quota_reached" };
-  if (error.status === 503 && error.code === "Entitlement.VerificationUnavailable") {
+  if (
+    error.status === 503 &&
+    (error.code === "Entitlement.VerificationUnavailable" ||
+      error.code === "Billing.EntitlementCheckUnavailable")
+  ) {
     return { kind: "unavailable", retryAfterSeconds: error.retryAfterSeconds ?? null };
   }
   return { kind: "other" };

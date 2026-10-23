@@ -10,12 +10,13 @@
 // scripted where a scenario is out of its reach.
 
 import { act, cleanup, render } from "@testing-library/react";
-import { afterEach, beforeEach, expect, test, vi } from "vite-plus/test";
+import { afterEach, beforeEach, expect, expectTypeOf, test, vi } from "vite-plus/test";
 import {
   CheckoutTokenMissingError,
   KaitenError,
   KaitenNetworkError,
   TurnstileFailedError,
+  type CheckoutSession,
   type KaitenAnonymousCheckoutClientLike,
 } from "@kaitencloud/client";
 import {
@@ -31,6 +32,7 @@ import {
 import { KaitenProvider } from "../src/index.ts";
 import {
   useAnonymousCheckout,
+  type TurnstileOptions,
   type UseAnonymousCheckoutOptions,
   type UseAnonymousCheckoutResult,
 } from "../src/billing.ts";
@@ -412,7 +414,7 @@ test("a publishable key refused on the start is a configuration, not a checkout 
   expect(probe.now.problem).toEqual({ kind: "not_available" });
   expect(probe.now.error).toBeInstanceOf(KaitenError);
   // The same on a preview.
-  await act(async () => expect(await probe.now.preview()).toBeNull());
+  await act(async () => expect(await probe.now.previewQuote()).toBeNull());
   await flush();
   expect(probe.now.problem).toEqual({ kind: "not_available" });
 });
@@ -499,7 +501,7 @@ test("a preview asks what a selection would bill and writes nothing", async () =
   await flush();
 
   let preview: unknown;
-  await act(async () => (preview = await probe.now.preview()));
+  await act(async () => (preview = await probe.now.previewQuote()));
   await flush();
 
   expect(callsTo(client, "startCheckout")[0]!.args[0]).toMatchObject({
@@ -873,6 +875,10 @@ test("an amount that changes after the payment method was saved is not confirmed
 
   expect(probe.now.step).toBe("review");
   expect(probe.now.problem).toEqual({ kind: "due_today_changed" });
+  // The session was not written: a read would answer the figures the visitor saw, so none is made,
+  // and they are not offered as what is due now.
+  expect(callsTo(client, "getCheckoutSession")).toHaveLength(0);
+  expect(probe.now.changed).toBeNull();
   // The provider's page is behind the visitor: only `awaiting_payment_method` has one.
   expect(probe.now.setup).toBeNull();
   expect(probe.now.setupIncomplete).toBe(false);
@@ -1128,6 +1134,262 @@ test("a name left empty is not kept", async () => {
   const probe = await mount(doubleOf());
   await started(probe);
   expect(window.sessionStorage.getItem("kaiten:pending:anonymous-checkout")).toBeNull();
+});
+
+// ---------------------------------------------------------------------------
+// Before a token is spent
+// ---------------------------------------------------------------------------
+
+test("an address the API would refuse for its length is no start", async () => {
+  const probe = await mount(doubleOf());
+  await fill(probe, STARTER, `${"a".repeat(250)}@example.com`);
+  expect(probe.now.canStart).toBe(false);
+  act(() => probe.now.setEmail(`${"a".repeat(240)}@example.com`));
+  expect(probe.now.canStart).toBe(true);
+});
+
+test("a member the API would refuse for its shape is found out before the token is spent", async () => {
+  const client = doubleOf();
+  const probe = await mount(client, { clientReferenceId: "r".repeat(256) });
+  await fill(probe, STARTER);
+  const widget = turnstile.live()!;
+
+  await act(async () => expect(await probe.now.start()).toBeNull());
+  expect(probe.now.error).toBeInstanceOf(TypeError);
+  expect(probe.now.step).toBe("selecting");
+
+  // And a voucher code over the longest the API takes, which the visitor typed.
+  probe.unmount();
+  cleanup();
+  const other = await mount(client);
+  await fill(other, STARTER);
+  act(() => other.now.setVoucherCode("v".repeat(65)));
+  const second = turnstile.live()!;
+  await act(async () => expect(await other.now.start()).toBeNull());
+  await act(async () => expect(await other.now.previewQuote()).toBeNull());
+  await flush();
+
+  expect(other.now.error).toBeInstanceOf(TypeError);
+  expect(callsTo(client, "startCheckout")).toHaveLength(0);
+  // The tokens are still in hand: the widgets were not reset, and the visitor is not asked again.
+  expect(widget.resets).toBe(0);
+  expect(second.resets).toBe(0);
+  expect(other.now.canStart).toBe(true);
+});
+
+// ---------------------------------------------------------------------------
+// The way back from the popup, and the amount that changes
+// ---------------------------------------------------------------------------
+
+test("the return is listened for before the popup opens, not after the render that follows", async () => {
+  const order: string[] = [];
+  const Real = globalThis.BroadcastChannel;
+  vi.stubGlobal(
+    "BroadcastChannel",
+    class extends Real {
+      constructor(name: string) {
+        super(name);
+        order.push("listening");
+      }
+    },
+  );
+  vi.spyOn(window, "open").mockImplementation(() => {
+    order.push("opened");
+    return { opener: window } as unknown as Window;
+  });
+  try {
+    const client = doubleOf();
+    const probe = await mount(client);
+    await started(probe);
+    await act(async () => {
+      await probe.now.confirm();
+    });
+    await flush();
+
+    expect(order).toEqual(["listening", "opened"]);
+    expect(probe.now.step).toBe("awaiting_payment_method");
+  } finally {
+    vi.unstubAllGlobals();
+  }
+});
+
+test("a visitor who says they are back with nothing saved is still waited for in the popup", async () => {
+  popupOpens();
+  const client = doubleOf();
+  const probe = await mount(client);
+  await started(probe);
+  await act(async () => {
+    await probe.now.confirm();
+  });
+  await flush();
+  await act(async () => {
+    await probe.now.resume();
+  });
+  await flush();
+  expect(probe.now.setupIncomplete).toBe(true);
+
+  // They save the card after all: the popup says it is done, and the checkout goes on.
+  client.completeSetup("chk_mock_1");
+  await act(async () => {
+    void announceReturn("chk_mock_1");
+  });
+  await settle(300);
+
+  expect(probe.now.step).toBe("awaiting_payment");
+});
+
+test("a popup that is not waited for any more is not listened for", async () => {
+  popupOpens();
+  const client = doubleOf();
+  const probe = await mount(client);
+  await started(probe);
+  await act(async () => {
+    await probe.now.confirm();
+  });
+  await flush();
+  act(() => probe.now.reset());
+  await flush();
+  expect(probe.now.step).toBe("selecting");
+
+  let heard: boolean | undefined;
+  await act(async () => {
+    void announceReturn("chk_mock_1").then((waited) => (heard = waited));
+  });
+  await settle(400);
+
+  expect(heard).toBe(false);
+  expect(callsTo(client, "confirmCheckout")).toHaveLength(1);
+});
+
+/** The double, with what its confirm tells of the session changed: a change the double cannot make by itself. */
+function confirmingAs(
+  base: MockKaitenAnonymousCheckoutClient,
+  change: (session: CheckoutSession) => CheckoutSession,
+): MockKaitenAnonymousCheckoutClient {
+  return {
+    ...base,
+    async confirmCheckout(sessionId) {
+      const confirmation = await base.confirmCheckout(sessionId);
+      return { ...confirmation, session: change(confirmation.session) };
+    },
+  };
+}
+
+test.each([
+  [
+    "the currency",
+    (session: CheckoutSession) => ({
+      ...session,
+      dueToday: { ...session.dueToday, currencyCode: "EUR" },
+    }),
+  ],
+  [
+    "the end of the trial",
+    (session: CheckoutSession) => ({ ...session, trialEndsAt: "2026-12-01T00:00:00Z" }),
+  ],
+])(
+  "%s changing alone is a change the visitor sees before a payment method is asked for",
+  async (_, change) => {
+    const open = popupOpens();
+    const client = confirmingAs(doubleOf(), change);
+    const probe = await mount(client);
+    await started(probe);
+
+    await act(async () => {
+      await probe.now.confirm();
+    });
+    await flush();
+
+    expect(probe.now.step).toBe("review");
+    expect(probe.now.changed).not.toBeNull();
+    expect(probe.now.changed?.previous.dueToday.total).toBe(
+      probe.now.changed?.current.dueToday.total,
+    );
+    expect(open).not.toHaveBeenCalled();
+  },
+);
+
+test("an amount that did not change is no change", async () => {
+  const open = popupOpens();
+  const client = confirmingAs(doubleOf(), (session) => session);
+  const probe = await mount(client);
+  await started(probe);
+
+  await act(async () => {
+    await probe.now.confirm();
+  });
+  await flush();
+
+  expect(probe.now.changed).toBeNull();
+  expect(probe.now.step).toBe("awaiting_payment_method");
+  expect(open).toHaveBeenCalledTimes(1);
+});
+
+test("a page loaded back after the setup, where the amount changed, reads the session once for the figures it has none of", async () => {
+  popupBlocked();
+  const client = doubleOf(TRIAL_WITH_CARD);
+  const first = await mount(client, { navigate: vi.fn() });
+  await started(first, PRO);
+  await act(async () => {
+    await first.now.confirm();
+  });
+  await flush();
+  first.unmount();
+  cleanup();
+  client.completeSetup("chk_mock_1");
+  client.consumeTrial("chk_mock_1");
+
+  at("/pricing?kaiten_checkout_session=chk_mock_1");
+  const back = await mount(client);
+  await settle(300);
+
+  expect(back.now.step).toBe("review");
+  expect(back.now.problem).toEqual({ kind: "due_today_changed" });
+  expect(callsTo(client, "getCheckoutSession")).toHaveLength(1);
+  expect(back.now.quote).toMatchObject({ sessionId: "chk_mock_1" });
+  expect(back.now.changed).toBeNull();
+});
+
+// ---------------------------------------------------------------------------
+// What the hook keeps, and tells once
+// ---------------------------------------------------------------------------
+
+test("starting over forgets the name that was kept for the checkout given up", async () => {
+  const probe = await mount(doubleOf());
+  act(() => probe.now.setName("Ada"));
+  await started(probe);
+  expect(window.sessionStorage.getItem("kaiten:pending:anonymous-checkout")).not.toBeNull();
+
+  act(() => probe.now.reset());
+  await flush();
+
+  expect(window.sessionStorage.getItem("kaiten:pending:anonymous-checkout")).toBeNull();
+});
+
+test("the page is told of the completion once, however many times the closed session is read", async () => {
+  const onComplete = vi.fn();
+  const client = doubleOf();
+  const probe = await mount(client, { onComplete });
+  await started(probe, STARTER);
+  await act(async () => {
+    await probe.now.confirm();
+  });
+  await flush();
+  expect(probe.now.step).toBe("completed");
+
+  act(() => probe.now.check());
+  await flush();
+  act(() => probe.now.check());
+  await flush();
+
+  expect(callsTo(client, "getCheckoutSession").length).toBeGreaterThan(0);
+  expect(onComplete).toHaveBeenCalledTimes(1);
+});
+
+test("the widget's appearance is one the hook can honour", () => {
+  expectTypeOf<NonNullable<TurnstileOptions["appearance"]>>().toEqualTypeOf<
+    "always" | "interaction-only"
+  >();
 });
 
 // ---------------------------------------------------------------------------

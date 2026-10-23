@@ -32,9 +32,8 @@ import {
   openSetupPage,
   savePending,
   sendPageTo,
-  waitForReturn,
 } from "./setup-return.ts";
-import { useSetupReturn } from "./use-setup-return.ts";
+import { useReturnListener, useSetupReturn } from "./use-setup-return.ts";
 
 /**
  * The longest a refused change is waited out before it is sent again, in seconds. A refusal
@@ -494,6 +493,7 @@ export function usePaymentMethodSession(
     Pick<UsePaymentMethodSessionResult, "status" | "paymentMethod" | "error">
   >({ status: "idle", paymentMethod: null, error: null });
   const sessionId = React.useRef<string | null>(null);
+  const { listen: listenForReturn, stop: stopListening } = useReturnListener();
   const saved = React.useRef(options.onSaved);
   saved.current = options.onSaved;
 
@@ -540,8 +540,11 @@ export function usePaymentMethodSession(
       const pending: PendingPaymentMethod = { sessionId: session.sessionId };
       savePending("payment-method", session.sessionId, pending, session.expiresAt);
       setState({ status: "awaiting", paymentMethod: null, error: null });
-      if (opening === "popup") openSetupPage(session.url, navigate);
-      else sendPageTo(session.url, navigate);
+      if (opening === "popup") {
+        // Heard from before the page opens: a customer who is back before the next render is not missed.
+        listenForReturn(session.sessionId, () => void complete(session.sessionId));
+        openSetupPage(session.url, navigate);
+      } else sendPageTo(session.url, navigate);
     } catch (error) {
       setState({
         status: "failed",
@@ -549,20 +552,19 @@ export function usePaymentMethodSession(
         error: error instanceof Error ? error : new Error(String(error)),
       });
     }
-  }, [sessionClient, returnUrl, currencyCode, opening, navigate]);
+  }, [sessionClient, returnUrl, currencyCode, opening, navigate, listenForReturn, complete]);
 
   // The customer is back in this page: its address carries the session.
   useSetupReturn<{ "payment-method": PendingPaymentMethod }>({
     "payment-method": (id) => void complete(id),
   });
 
-  // The customer is done in the popup beside this page.
-  const awaiting = state.status === "awaiting" && opening === "popup";
+  // The customer is done in the popup beside this page, which says so: listened for from before the
+  // popup opened (see `start`), until the wait is over.
+  const awaiting = state.status === "awaiting";
   React.useEffect(() => {
-    const id = sessionId.current;
-    if (!awaiting || id === null) return;
-    return waitForReturn(id, () => void complete(id));
-  }, [awaiting, complete]);
+    if (!awaiting) stopListening();
+  }, [awaiting, stopListening]);
 
   return { ...state, start, complete: () => complete() };
 }

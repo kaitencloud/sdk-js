@@ -73,6 +73,21 @@ describe("the problems", () => {
     expect(redeemVoucherProblem(providerUnavailable(30))).toMatchObject({ kind: "unavailable" });
   });
 
+  test("a 429 is too many calls, whoever said so: a gateway's has no code", () => {
+    const bare = (retryAfterSeconds?: number, code?: string) =>
+      new KaitenError(
+        { title: "slow down", status: 429, code, detail: "slow down" },
+        retryAfterSeconds === undefined ? undefined : { retryAfterSeconds },
+      );
+
+    expect(redeemVoucherProblem(bare())).toEqual({ kind: "rate_limited", retryAfterSeconds: 60 });
+    expect(redeemVoucherProblem(bare(12, "Gateway.Throttled"))).toEqual({
+      kind: "rate_limited",
+      retryAfterSeconds: 12,
+    });
+    expect(redeemVoucherProblem(problem(503, "Gateway.Throttled"))).toEqual({ kind: "other" });
+  });
+
   test("anything else is other, and no error is no problem", () => {
     expect(redeemVoucherProblem(new Error("boom"))).toEqual({ kind: "other" });
     expect(redeemVoucherProblem(problem(500, "Whatever.Failed"))).toEqual({ kind: "other" });
@@ -192,6 +207,21 @@ describe("the hook", () => {
 
     expect(callsOf(client, "redeemVoucher")).toEqual([]);
     expect(view.result.current.redeem.status).toBe("idle");
+  });
+
+  test("an apply while the code is still being checked sends nothing", async () => {
+    const client = createMockKaitenSessionClient({ delayMs: 20 });
+    const view = mount(client);
+    await waitFor(() => expect(view.result.current.portal.data).toBeDefined());
+
+    await act(async () => {
+      const checking = view.result.current.redeem.check("WELCOME20");
+      await view.result.current.redeem.apply();
+      await checking;
+    });
+
+    expect(callsOf(client, "redeemVoucher")).toEqual([{ code: "WELCOME20", dryRun: true }]);
+    expect(view.result.current.redeem.status).toBe("preview");
   });
 
   test("an empty code sends nothing", async () => {

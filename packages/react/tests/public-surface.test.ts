@@ -38,6 +38,7 @@ const STYLED_SURFACE = [
   "AnonymousCheckoutFlow",
   "EntitlementStatusBar",
   "BillingSummary",
+  "TrialBanner",
 ] as const;
 
 const CORE_SURFACE = [

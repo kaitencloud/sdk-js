@@ -230,6 +230,7 @@ export const fr: KaitenLocalization = {
     checked: "Contrôle de sécurité réussi.",
     checkFailed:
       "Le contrôle de sécurité n'a pas pu se charger. Si un bloqueur de contenu ou un pare-feu l'en empêche, autorisez challenges.cloudflare.com, puis réessayez.",
+    checkError: "Le contrôle de sécurité a échoué. Relancez-le.",
     checkRetry: "Relancer le contrôle",
     checkFirst: "Le bouton est disponible une fois le contrôle de sécurité réussi.",
     continue: "Continuer",

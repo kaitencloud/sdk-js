@@ -18,6 +18,11 @@ components are in `@kaitencloud/react-ui`, which depends on this package and re-
   and `usePaywallTrigger` for gating, `useReportUsage`, `useFeatureFlag`, and `useUpgradeOptions`.
   Under a customer session the state of an entitlement says where its limit comes from
   (`source`, `provenance`).
+- **Flags, as an instance.** `useFeatureFlag` and `useFeatureFlags`, given a context, evaluate
+  live over OFREP and add the instance the provider is bound to as `kaiten: { instanceSlug }`
+  under `mode="authenticated"` with an `instanceId`, so that a flag granted on that instance
+  applies. The context you wrote wins, and `instanceId` must be the instance's slug. A
+  `customer-session` names no instance: OFREP has no route for a session's `kst_` yet.
 - **Control primitives.** `Gate`, `Show`, `KaitenLoaded`, `KaitenLoading`, `KaitenFailed` and
   `KaitenErrorBoundary`. A gate decides on the entitlements, as the server does, and the end of
   a licence is information for a screen to show, not a reason to close it.
@@ -35,7 +40,12 @@ components are in `@kaitencloud/react-ui`, which depends on this package and re-
   reviews what the server says is due, sends the visitor to the payment provider's page and
   sees the checkout through when they are back, and names every refusal. It is available only
   when the catalogue says the publishable key may start an anonymous checkout. It never starts a
-  second checkout for a page that came back without the session's token.
+  second checkout for a page that came back without the session's token. `previewQuote()` is its
+  `dryRun`, and `problem` is the way to branch on a refusal: the classes behind it
+  (`TurnstileFailedError`, `TurnstileUnavailableError`, `CheckoutSessionClosedError`,
+  `DueTodayChangedError`, `CheckoutTokenMissingError`) are `@kaitencloud/client`'s, reach `error`
+  as thrown, and are not re-exported here. A start the API would refuse for its shape is found
+  out before a Turnstile token is spent.
 - **Typed errors.** `QuotaExceededError`, `RateLimitedError`, `BoundaryPendingError`,
   `ProviderUnavailableError` and `TransactionIdReusedError` reach a hook's `error`, `onError`
   and rejections as the classes the client threw, with their fields.

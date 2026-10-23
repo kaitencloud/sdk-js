@@ -232,6 +232,7 @@ export const de: KaitenLocalization = {
     checked: "Sicherheitsprüfung bestanden.",
     checkFailed:
       "Die Sicherheitsprüfung konnte nicht geladen werden. Falls ein Inhaltsblocker oder eine Firewall sie verhindert, erlauben Sie challenges.cloudflare.com und versuchen Sie es erneut.",
+    checkError: "Die Sicherheitsprüfung ist fehlgeschlagen. Versuchen Sie es erneut.",
     checkRetry: "Prüfung wiederholen",
     checkFirst: "Die Schaltfläche ist verfügbar, sobald die Sicherheitsprüfung bestanden ist.",
     continue: "Weiter",

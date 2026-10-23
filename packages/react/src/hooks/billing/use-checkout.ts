@@ -26,7 +26,6 @@ import {
   currentPageUrl,
   openSetupPage,
   savePending,
-  waitForReturn,
   type SetupPageOpening,
 } from "./setup-return.ts";
 import {
@@ -35,7 +34,7 @@ import {
 } from "./use-portal-actions.ts";
 import { useCheckoutPreview, type CheckoutPreviewState } from "./use-checkout-preview.ts";
 import { useInvoiceSettlement, type InvoiceSettlement } from "./use-invoices.ts";
-import { useSetupReturn } from "./use-setup-return.ts";
+import { useReturnListener, useSetupReturn } from "./use-setup-return.ts";
 
 /**
  * Where a checkout stands:
@@ -234,6 +233,9 @@ export function useCheckout(options: UseCheckoutOptions = {}): UseCheckoutResult
   // The code the checkout itself refused, which a preview of the same selection had accepted.
   const [refusedVoucherCode, setRefusedVoucherCode] = React.useState<string | null>(null);
   const latest = React.useRef({ selection, flow, options, canSubmit: false });
+  const { listen: listenForReturn, stop: stopListening } = useReturnListener();
+  // `resume` is defined after the commit that opens the page, which listens for the return.
+  const resumeLater = React.useRef<() => Promise<void>>(async () => {});
 
   const select = React.useCallback(
     (patch: Partial<CheckoutSelection>) => setSelection((previous) => ({ ...previous, ...patch })),
@@ -325,7 +327,10 @@ export function useCheckout(options: UseCheckoutOptions = {}): UseCheckoutResult
           };
           const pending: PendingCheckout = { selection: chosen, setup: next };
           savePending("checkout", next.sessionId, pending, next.expiresAt);
+          // Heard from before the page opens: a customer who is back before the next render is not missed.
+          listenForReturn(next.sessionId, () => void resumeLater.current());
           const opening = openSetupPage(next.url, latest.current.options.navigate);
+          if (opening !== "popup") stopListening();
           setFlow({
             step: "awaiting_payment_method",
             setup: { ...next, opening },
@@ -368,6 +373,12 @@ export function useCheckout(options: UseCheckoutOptions = {}): UseCheckoutResult
             refusal?.kind === "unavailable" ||
             refusal?.kind === "rate_limited");
         if (!retryable) clearPending("checkout");
+        // A popup the customer goes back to is still listened for; anything else is not.
+        if (retryable && setup?.opening === "popup") {
+          listenForReturn(setup.sessionId, () => void resumeLater.current());
+        } else {
+          stopListening();
+        }
         setFlow(
           retryable
             ? { step: "awaiting_payment_method", setup, committed: chosen, result: null, error }
@@ -375,7 +386,7 @@ export function useCheckout(options: UseCheckoutOptions = {}): UseCheckoutResult
         );
       }
     },
-    [sessionClient, mutate, scopeKey],
+    [sessionClient, mutate, scopeKey, listenForReturn, stopListening],
   );
 
   const billingEmailMissing = needsBillingEmail && !isPlausibleEmail(selection.billingEmail);
@@ -450,15 +461,13 @@ export function useCheckout(options: UseCheckoutOptions = {}): UseCheckoutResult
     [],
   );
 
-  // The customer is done in the popup beside this page, which says so.
-  const popupSession =
-    flow.step === "awaiting_payment_method" && flow.setup?.opening === "popup"
-      ? flow.setup.sessionId
-      : null;
+  // The customer is done in the popup beside this page, which says so: listened for from before the
+  // popup opened (see `commit`), until the checkout leaves the wait.
+  resumeLater.current = resume;
+  const waiting = flow.step === "awaiting_payment_method" || flow.step === "submitting";
   React.useEffect(() => {
-    if (popupSession === null) return;
-    return waitForReturn(popupSession, () => void resume());
-  }, [popupSession, resume]);
+    if (!waiting) stopListening();
+  }, [waiting, stopListening]);
 
   const reset = React.useCallback(() => {
     clearPending("checkout");

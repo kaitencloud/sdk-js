@@ -54,7 +54,9 @@ integration points:
   one app still yields one provider and one context.
 - **Headless hooks** — they return data/decisions, you render:
   `useEntitlementCheck`, `usePaywallTrigger`, `useLicensingSnapshot`,
-  `useReportUsage`, `useFeatureFlag` / `useFeatureFlags`, `useLicense`,
+  `useReportUsage`, `useFeatureFlag` / `useFeatureFlags` (given a context, they evaluate live and
+  add the provider's instance to it as `kaiten.instanceSlug`, the host's own value winning; an
+  `instanceId` is that instance's slug), `useLicense`,
   `useInstance`, `useEntitlement`, `useUsage` / `useUsageGroup`, `usePlans`,
   `useCustomer`, `useEntitlements`, `useFlags`, `useAddOns`, `useCredits`,
   `useUpgradeOptions`, `useKaitenAvailable`, `useKaitenBranding`,
@@ -138,7 +140,7 @@ the rest of the blessed path:
   that sells to visitors and one that sells to customers each ship only theirs. It is `available`
   only when the catalogue says the publishable key may start one
   (`capabilities.anonymousCheckout`, with its `turnstileSiteKey`). It starts nothing by itself:
-  a start spends a Turnstile token, a `preview` too, and a page that comes back without the
+  a start spends a Turnstile token, a `previewQuote` too, and a page that comes back without the
   session's token is `lost` and never starts another checkout, which would create a second
   customer. The Turnstile widget (`turnstile`, with `TurnstileOptions` and `TurnstileWidget`)
   is part of it: its script is loaded once, from Cloudflare, the first time a widget is
@@ -147,7 +149,10 @@ the rest of the blessed path:
   (`AnonymousCheckoutProblem`), the way it opened the payment provider's page, how a payment is
   waited on and the state of the widget may gain a member in a minor release, by the rules of
   [Unions that grow](#unions-that-grow). The `name` it holds is the page's own: Kaiten has no
-  member for it, and it is never sent.
+  member for it, and it is never sent. `problem` is the way to branch on a refusal: the error classes
+  behind it are `@kaitencloud/client`'s and are not re-exported by this package. The widget's
+  `appearance` offers `always` and `interaction-only`; Cloudflare's `execute`, which needs the page to
+  ask for the check, is left out until a call exists to ask.
 
 ## Subpath exports
 

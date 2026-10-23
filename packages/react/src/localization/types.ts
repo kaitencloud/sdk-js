@@ -143,8 +143,10 @@ export interface KaitenAnonymousCheckoutWords {
   checking: string;
   /** Said when the security check passed. */
   checked: string;
-  /** Said when the security check could not load or run, with what to try. */
+  /** Said when the security check's script could not load, with what to try. */
   checkFailed: string;
+  /** Said when the security check loaded and failed itself: the widget reported an error. */
+  checkError: string;
   checkRetry: string;
   /** Said by the button that starts the checkout while the security check has not passed. */
   checkFirst: string;

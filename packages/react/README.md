@@ -477,7 +477,9 @@ const anonymousCheckoutClient = new KaitenAnonymousCheckoutClient({
 function Signup({ priceId }: { priceId: string }) {
   const checkout = useAnonymousCheckout({
     initial: { priceId },
-    onComplete: ({ sessionId, clientReferenceId }) => linkTheBuyer(sessionId, clientReferenceId),
+    // For the screen only. What a browser reports can be faked: your backend links the buyer to an
+    // account from the signed `checkout_session.v1.completed` event, not from this callback.
+    onComplete: ({ session }) => showWelcome(session.email),
   });
   if (!checkout.available) return null; // the catalogue says this key cannot start one
   if (checkout.step === "completed") return <p>Thank you, you are all set.</p>;
@@ -509,7 +511,7 @@ function Signup({ priceId }: { priceId: string }) {
   is back from the payment provider goes on whether it is or not.
 - **A token for each start.** A Turnstile token is single-use, a `dryRun` included. The widget is drawn in
   the element given to `turnstile.ref`; `canStart` is true once a token is in hand, and `start()` takes it
-  and has the widget produce the next. Nothing starts by itself, and `preview()` (a `dryRun`, which writes
+  and has the widget produce the next. Nothing starts by itself, and `previewQuote()` (a `dryRun`, which writes
   nothing) is for a page that wants a price before it asks for an e-mail, never one to run on every
   change. Cloudflare's script is loaded the first time a widget is drawn, once for the page, with
   explicit rendering; a script the page already has is used, and one that fails to load is tried again
@@ -517,14 +519,20 @@ function Signup({ priceId }: { priceId: string }) {
   `Content-Security-Policy`, for `script-src`, `frame-src` and `connect-src`, or the widget never
   appears and `turnstile.status` is `failed`. Turnstile's published test keys
   (`1x00000000000000000000AA` always passes) work for tests and staging; there is no bypass.
+- **A start the API would refuse for its shape is not made.** An address over 254 characters is not
+  plausible (`canStart` stays false), and a voucher code over 64, a reference over 255 or a
+  `returnUrl` over 2,048 characters is a `TypeError` on `error`, found out before the token is taken
+  from the widget: the token is still good.
 - **The server prices.** `quote.dueToday` is the start's: its lines and its total, a trial's
   `trialEndsAt` (or `null` with `trialRefusedReason: "ALREADY_CONSUMED"` when that e-mail already had
   the plan's trial), and `requiresPaymentMethod`. If the confirm finds another amount before any
   payment method is captured (a trial used up meanwhile, say), the step stays `review` with `changed`
   (what the visitor was shown, and what it is now), and confirming again accepts it. An amount that
   changes after the payment method was saved, or on a path that asks for none, is never accepted that
-  way: nothing was charged, the step is `review` with the `due_today_changed` problem, and the visitor
-  starts over with `reset()`. A free plan, and a trial that needs no payment method, complete at the
+  way: nothing was charged and nothing written, so the session still answers the amount the visitor
+  was shown and no read can tell the new one. The step is `review` with the `due_today_changed`
+  problem and the quote the visitor saw (a screen should not draw it as what is due now), and the
+  visitor starts over with `reset()` and sees the new amount at the next start. A free plan, and a trial that needs no payment method, complete at the
   first `confirm()`, and `payment.status` is then `not_required`.
 - **A payment method first.** `confirm()` sends the visitor to the payment provider's page: in a popup,
   or in place of the page when popups are blocked, as `useCheckout` does. The session's token stays in
@@ -537,20 +545,39 @@ function Signup({ priceId }: { priceId: string }) {
   `returnUrl` of your own is refused before a Turnstile token is spent). A page that is loaded back
   shows the wait from its first frame, not the form. `reset()` closes the popup the provider's page
   was opened in.
+- **Why its names differ from `useCheckout`'s.** The two hooks are two flows, and a name says which:
+  `useCheckout` names a price by `licensePriceId` and makes the checkout in one `submit()`, while
+  `useAnonymousCheckout` names it by `priceId` (or `licenseSlug` with `billingPeriod`, for a page
+  that does not read the catalogue) and is two calls, `start()` and `confirm()`, with a session
+  between them; `useCheckout().preview` is a state the hook keeps up to date as the customer
+  chooses, while `previewQuote()` is a call, because each one spends a Turnstile token and nothing
+  here runs by itself (its answer is `previewed`); `onSubscribed` says an instance is subscribed,
+  `onComplete` that the checkout completed for a buyer who is not an account yet. The same goes for
+  the vouchers: `useValidateVoucher` checks a code on its own, during a checkout, and
+  `useRedeemVoucher` previews, then redeems, a code on a live subscription. The names are stable
+  from the first release; a wider alignment would be a major one.
 - **A page that comes back without the token is `lost`.** Another browser, cleared storage, or a window of
   more than 24 hours: the checkout may have been paid for and completed. The hook never starts
   another by itself; the visitor decides (`reset()`).
 - **The name is yours.** Kaiten has no member for a buyer's name. `selection.name` is kept in the tab and
   given to `onStarted` and `onComplete`, and is never sent to Kaiten. The vendor links the buyer to an
-  account through the checkout's events, with `clientReferenceId` or the e-mail.
+  account through the checkout's signed events (`checkout_session.v1.completed`), with `clientReferenceId`
+  or the e-mail. `onComplete`, the outcome and a `clientReferenceId` read in the browser are the visitor's
+  to change: use them for the screen only, and give `clientReferenceId` a value of your own, never one
+  taken from a request parameter.
 - **Refusals have names.** `problem` classifies what the last attempt was refused with:
   `turnstile_failed`, `turnstile_unavailable` and `rate_limited` with their wait, `not_self_serve`,
   `plan_not_available`, `not_payable_online`, `addon_refused`, `voucher_invalid`, `invalid_email`,
   `quota_reached`, `session_closed`, `session_lost`, `due_today_changed`, `network`, `unavailable`,
   `not_available` (the key does not allow it, or the `returnUrl` is not on its allowed origins: a
-  host configuration to fix, on the start a refused publishable key too) and `other`. Its steps, its refusals, the way it opened the payment provider's
+  host configuration to fix, on the start a refused publishable key too; also this page's origin not
+  being allowed, and billing being off or not included) and `other`. Its steps, its refusals, the way it opened the payment provider's
   page, how the payment is waited on and the state of the widget may gain a member in a minor
-  release: keep a `default` branch ([STABILITY.md](STABILITY.md#unions-that-grow)).
+  release: keep a `default` branch ([STABILITY.md](STABILITY.md#unions-that-grow)). **`problem` is the
+  way to branch on a refusal.** The classes behind it (`TurnstileFailedError`,
+  `TurnstileUnavailableError`, `CheckoutSessionClosedError`, `DueTodayChangedError` and
+  `CheckoutTokenMissingError`) are `@kaitencloud/client`'s, reach `error` as thrown, and are not
+  re-exported by this package; a host that wants the class imports it from the client.
 
 #### Tokens that expire
 
@@ -717,6 +744,15 @@ function LicensingSidebar() {
   // Build your own UI from the embedded licensing snapshot and catalog data.
 }
 ```
+
+`useFeatureFlag(key, context)` and `useFeatureFlags(keys, context)` evaluate a flag live, over OFREP,
+when they are given a context. Under `mode="authenticated"` with an `instanceId`, the provider adds
+the instance to that context as `kaiten: { instanceSlug }`, so that a flag granted on that instance
+applies. What you wrote wins: a `kaiten.instanceSlug` of your own is kept, the other members of
+your `kaiten` stay, and nothing is added without an `instanceId`. The API reads the instance by its
+**slug**, so `instanceId` must be the instance's slug. Under `customer-session` no instance is named
+to OFREP: a session's `kst_` has no route there yet, and the session's snapshot carries no flags
+(see above).
 
 The rules the styled components apply are exported too, so a host's own UI reaches
 the same answers rather than re-deriving them: `formatKaitenMoney`,

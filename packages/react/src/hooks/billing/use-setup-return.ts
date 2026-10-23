@@ -8,6 +8,7 @@ import {
   clearKaitenParams,
   readPending,
   readSetupReturn,
+  waitForReturn,
   type PendingKind,
 } from "./setup-return.ts";
 
@@ -62,4 +63,31 @@ export function useSetupReturn<T extends Partial<Record<PendingKind, unknown>>>(
       cancelled = true;
     };
   }, [kinds, sessionId]);
+}
+
+/**
+ * Hearing that the customer is back from a popup, from before the popup opens. The page that
+ * comes back says so once, on a channel that keeps no history: a listener that subscribes in an
+ * effect, after the render that follows the opening, can miss a return that lands in between. So
+ * the flow calls `listen` first and opens the page after, and calls `stop` when the wait is over.
+ * One listener at a time: `listen` replaces the last, and unmounting stops it.
+ */
+export function useReturnListener(): {
+  listen: (sessionId: string, onReturn: () => void) => void;
+  stop: () => void;
+} {
+  const stopListening = React.useRef<(() => void) | null>(null);
+  const stop = React.useCallback(() => {
+    stopListening.current?.();
+    stopListening.current = null;
+  }, []);
+  const listen = React.useCallback(
+    (sessionId: string, onReturn: () => void) => {
+      stop();
+      stopListening.current = waitForReturn(sessionId, onReturn);
+    },
+    [stop],
+  );
+  React.useEffect(() => stop, [stop]);
+  return { listen, stop };
 }

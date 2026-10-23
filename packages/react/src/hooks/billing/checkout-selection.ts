@@ -42,9 +42,18 @@ export type CheckoutPreviewSelection = Pick<
   "licensePriceId" | "addOns" | "voucherCode" | "skipTrial" | "billingEmail"
 >;
 
-/** Whether a string can be an email address: one `@` with something on each side, and a dot after it. */
-export const isPlausibleEmail = (value: string): boolean =>
-  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+/** The longest address the API takes, in characters (an address, not UTF-16 units). */
+const EMAIL_MAX = 254;
+
+/**
+ * Whether a string can be an email address: one `@` with something on each side, a dot after it,
+ * and no more than the API takes. A longer one is not plausible, so that a start is never made on
+ * an address the API would refuse for its length once a Turnstile token is spent.
+ */
+export const isPlausibleEmail = (value: string): boolean => {
+  const email = value.trim();
+  return Array.from(email).length <= EMAIL_MAX && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+};
 
 export function emptyCheckoutSelection(
   initial: Partial<CheckoutSelection> = {},

@@ -231,6 +231,7 @@ export const es: KaitenLocalization = {
     checked: "Control de seguridad superado.",
     checkFailed:
       "No se pudo cargar el control de seguridad. Si un bloqueador de contenido o un cortafuegos lo impide, permita challenges.cloudflare.com y vuelva a intentarlo.",
+    checkError: "El control de seguridad ha fallado. Vuelva a intentarlo.",
     checkRetry: "Repetir el control",
     checkFirst: "El botón estará disponible cuando se supere el control de seguridad.",
     continue: "Continuar",

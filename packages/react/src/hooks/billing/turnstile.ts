@@ -27,7 +27,7 @@ export interface TurnstileRenderParameters {
   "timeout-callback"?: () => void;
   theme?: "auto" | "light" | "dark";
   size?: "normal" | "flexible" | "compact";
-  appearance?: "always" | "execute" | "interaction-only";
+  appearance?: "always" | "interaction-only";
   language?: string;
   "refresh-expired"?: "auto" | "manual" | "never";
   retry?: "auto" | "never";

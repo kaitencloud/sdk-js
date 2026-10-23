@@ -49,6 +49,11 @@ export function redeemVoucherProblem(error: unknown): RedeemVoucherProblem | nul
   if (error instanceof ProviderUnavailableError) {
     return { kind: "unavailable", retryAfterSeconds: error.retryAfterSeconds };
   }
+  // Too many calls, whoever said so: a gateway in front of the API answers a bare 429 with no code,
+  // which is not a `RateLimitedError`. The wait is the one it gave, else a minute.
+  if (error instanceof KaitenError && error.status === 429) {
+    return { kind: "rate_limited", retryAfterSeconds: error.retryAfterSeconds ?? 60 };
+  }
   return { kind: "other" };
 }
 

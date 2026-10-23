@@ -36,6 +36,7 @@ test("no error is no problem", () => {
 
 test.each([
   [403, "AnonymousCheckoutDisabled", "not_available"],
+  [403, "OriginNotAllowed", "not_available"],
   [422, "TurnstileNotConfigured", "not_available"],
   [422, "NotSelfServe", "not_self_serve"],
   [422, "PriceNotPublic", "plan_not_available"],
@@ -54,6 +55,26 @@ test.each([
   for (const useCase of ["CreateCheckoutSession", "ConfirmCheckoutSession", "Something.New"]) {
     expect(anonymousCheckoutProblem(refused(status, `${useCase}.${reason}`))).toEqual({ kind });
   }
+});
+
+test("the billing gate's refusals are a configuration, or a wait", () => {
+  // The gate's codes are not `<UseCase>.<Reason>`: the whole code names the refusal.
+  for (const operation of ["start", "session"] as const) {
+    expect(anonymousCheckoutProblem(refused(403, "Billing.Disabled"), operation)).toEqual({
+      kind: "not_available",
+    });
+    expect(anonymousCheckoutProblem(refused(403, "Billing.NotEntitled"), operation)).toEqual({
+      kind: "not_available",
+    });
+    expect(
+      anonymousCheckoutProblem(refused(503, "Billing.EntitlementCheckUnavailable"), operation),
+    ).toEqual({ kind: "unavailable", retryAfterSeconds: null });
+  }
+  // The same words under another status are not the gate's.
+  expect(anonymousCheckoutProblem(refused(409, "Billing.Disabled"))).toEqual({ kind: "other" });
+  expect(anonymousCheckoutProblem(refused(403, "Billing.EntitlementCheckUnavailable"))).toEqual({
+    kind: "other",
+  });
 });
 
 test("a code has to end in the reason, whole, and carry the status of the refusal", () => {

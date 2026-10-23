@@ -6,15 +6,18 @@ import * as React from "react";
 import {
   CheckoutSessionClosedError,
   DueTodayChangedError,
+  checkStartCheckoutInput,
   clearCheckoutReturn,
   readCheckoutReturn,
+  type CheckoutBillingPeriod,
   type CheckoutConfirmation,
   type CheckoutDueToday,
   type CheckoutPaymentStatus,
+  type CheckoutPriceChoice,
   type CheckoutSession,
   type CheckoutSessionOpened,
   type CheckoutSessionPreview,
-  type StartCheckoutInput,
+  type CheckoutSessionStatus,
   type TrialRefusedReason,
 } from "@kaitencloud/client";
 
@@ -31,9 +34,9 @@ import {
   openSetupPage,
   readPending,
   savePending,
-  waitForReturn,
   type SetupPageOpening,
 } from "./setup-return.ts";
+import { useReturnListener } from "./use-setup-return.ts";
 import { useTurnstile, type TurnstileOptions, type TurnstileWidget } from "./use-turnstile.ts";
 
 /**
@@ -72,7 +75,7 @@ export interface AnonymousCheckoutSelection {
    * that knows its plans and does not read the catalogue. Read when `priceId` is `null`.
    */
   licenseSlug: string | null;
-  billingPeriod: string | null;
+  billingPeriod: CheckoutBillingPeriod | null;
   /** The add-ons wanted, by slug, with how many units of each. A quantity of 0 is none. */
   addOns: Record<string, number>;
   /** The voucher code the visitor typed, `""` for none. It goes in the body of the start and nowhere else. */
@@ -143,7 +146,11 @@ export interface AnonymousCheckoutPayment {
 /** What `onComplete` is given: the checkout that completed. */
 export interface AnonymousCheckoutOutcome {
   sessionId: string;
-  /** The reference the page gave the start, echoed. Linking the buyer to an account is the vendor's, through the events. */
+  /**
+   * The reference the page gave the start, echoed. Linking the buyer to an account is the vendor's,
+   * through the signed `checkout_session.v1.completed` event its backend receives: this outcome is
+   * what a browser reports, and a visitor can fake it.
+   */
   clientReferenceId: string | null;
   /** The completed session: the e-mail, and the customer and instance slugs the completion created. */
   session: CheckoutSession;
@@ -163,7 +170,13 @@ export interface UseAnonymousCheckoutOptions {
    * from there.
    */
   returnUrl?: string;
-  /** Your own reference for the buyer, at most 255 characters. Echoed on the checkout's events. */
+  /**
+   * Your own reference for the buyer, at most 255 characters. Echoed on the checkout's events.
+   * Untrusted once it comes back through a browser: a visitor can change it, and a value taken from
+   * a request parameter of your page is the visitor's too. Link a buyer to an account from the
+   * signed `checkout_session.v1.completed` event your backend receives, never from this value read
+   * in the browser.
+   */
   clientReferenceId?: string;
   /** How the Turnstile widget looks. */
   turnstile?: TurnstileOptions;
@@ -217,8 +230,8 @@ export interface UseAnonymousCheckoutResult {
    * start does, so it is for a page that wants a price before it asks for an e-mail, never one to run
    * on every change. Resolves to the preview, or `null` when it was refused.
    */
-  preview: () => Promise<CheckoutSessionPreview | null>;
-  /** What the last {@link preview} computed for the current selection, `null` when none, or the selection moved. */
+  previewQuote: () => Promise<CheckoutSessionPreview | null>;
+  /** What the last {@link previewQuote} computed for the current selection, `null` when none, or the selection moved. */
   previewed: CheckoutSessionPreview | null;
   /** What is due, in `review` and after. */
   quote: AnonymousCheckoutQuote | null;
@@ -257,7 +270,7 @@ export interface UseAnonymousCheckoutResult {
   /** The checkout that completed, once it did. */
   outcome: AnonymousCheckoutOutcome | null;
   /** How the session ended, when `closed`: `ABANDONED` or `EXPIRED`. */
-  closedAs: string | null;
+  closedAs: CheckoutSessionStatus | null;
   /**
    * What the last attempt was refused with, for a screen to word. `null` after a success. A
    * widget that could not load is not here but in `turnstile.status`.
@@ -286,7 +299,7 @@ interface Flow {
   setup: AnonymousCheckoutSetup | null;
   setupIncomplete: boolean;
   session: CheckoutSession | null;
-  closedAs: string | null;
+  closedAs: CheckoutSessionStatus | null;
   outcome: AnonymousCheckoutOutcome | null;
   error: Error | null;
 }
@@ -330,9 +343,13 @@ const namesPrice = (selection: AnonymousCheckoutSelection): boolean =>
   (selection.licenseSlug !== null && selection.billingPeriod !== null);
 
 /** The part of the request a selection is: the price, the add-ons, the code and the trial. */
-function requestOf(
-  selection: AnonymousCheckoutSelection,
-): Omit<StartCheckoutInput, "turnstileToken"> {
+type SelectionRequest = CheckoutPriceChoice & {
+  addOns?: { addonSlug: string; quantity: number }[];
+  voucherCode?: string;
+  trial?: boolean;
+};
+
+function requestOf(selection: AnonymousCheckoutSelection): SelectionRequest {
   const addOns = Object.entries(selection.addOns)
     .filter(([, quantity]) => Number.isInteger(quantity) && quantity > 0)
     .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
@@ -406,7 +423,7 @@ const asError = (thrown: unknown): Error =>
  *
  * Nothing here adds a price up. The server computes `dueToday` at the start, a trial included, and
  * the checkout bills exactly that. A Turnstile token is single-use, so one start spends one, a
- * `preview` too; the hook never starts, or previews, by itself.
+ * `previewQuote` too; the hook never starts, or previews, by itself.
  *
  * The flow, for a plan that needs a payment method: `start()` makes the session and the visitor
  * reviews what is due; `confirm()` sends them to the provider's page, in a popup, or in place of
@@ -458,6 +475,9 @@ export function useAnonymousCheckout(
   );
   const { take: takeToken, reset: resetToken } = turnstile;
   const latest = React.useRef({ selection, flow, options, client, canStart: false });
+  const { listen: listenForReturn, stop: stopListening } = useReturnListener();
+  // `resume` is defined after what opens the page, which needs it for the return it listens for.
+  const resumeLater = React.useRef<() => Promise<void>>(async () => {});
 
   const select = React.useCallback(
     (patch: Partial<AnonymousCheckoutSelection>) =>
@@ -576,25 +596,26 @@ export function useAnonymousCheckout(
           }
         }
         if (error instanceof DueTodayChangedError) {
+          // Nothing was written and the session stays open at the amount the visitor was shown, so a
+          // read would answer the same figures: they are kept, flagged by the problem, and the visitor
+          // starts again to see the new amount. A page loaded back to the session has no figures yet,
+          // and reads them once.
           try {
-            const session = await current.getCheckoutSession(sessionId);
-            setFlow((previous) => {
-              const now = quoteOf(session, previous.quote?.email ?? "");
-              return {
-                ...previous,
-                step: "review",
-                sessionId,
-                quote: now,
-                changed:
-                  previous.quote && differs(previous.quote, now)
-                    ? { previous: previous.quote, current: now }
-                    : null,
-                setup: null,
-                setupIncomplete: false,
-                session,
-                error,
-              };
-            });
+            const session =
+              latest.current.flow.quote === null
+                ? await current.getCheckoutSession(sessionId)
+                : null;
+            setFlow((previous) => ({
+              ...previous,
+              step: "review",
+              sessionId,
+              quote: previous.quote ?? (session ? quoteOf(session, "") : null),
+              changed: null,
+              setup: null,
+              setupIncomplete: false,
+              session: session ?? previous.session,
+              error,
+            }));
             return;
           } catch (readFailure) {
             return refuse(readFailure, null, back);
@@ -632,20 +653,28 @@ export function useAnonymousCheckout(
       });
       return null;
     }
+    const email = chosen.email.trim();
+    const request = {
+      ...requestOf(chosen),
+      dryRun: false as const,
+      email,
+      returnUrl,
+      ...(current.clientReferenceId ? { clientReferenceId: current.clientReferenceId } : {}),
+    };
+    // Every other member the API would refuse for its shape, found out in the same way.
+    try {
+      checkStartCheckoutInput(request);
+    } catch (thrown) {
+      setFlow({ ...SELECTING, error: asError(thrown) });
+      return null;
+    }
     const token = takeToken();
     if (token === null) return null;
     const name = chosen.name.trim();
     setFlow({ ...SELECTING, step: "starting" });
     try {
-      const opened = await api.startCheckout({
-        ...requestOf(chosen),
-        turnstileToken: token,
-        dryRun: false,
-        email: chosen.email.trim(),
-        returnUrl,
-        ...(current.clientReferenceId ? { clientReferenceId: current.clientReferenceId } : {}),
-      });
-      const quote = quoteOf(opened, chosen.email.trim());
+      const opened = await api.startCheckout({ ...request, turnstileToken: token });
+      const quote = quoteOf(opened, email);
       if (name) savePending("anonymous-checkout", opened.sessionId, { name }, opened.expiresAt);
       setFlow({ ...SELECTING, step: "review", sessionId: opened.sessionId, quote });
       current.onStarted?.({
@@ -661,22 +690,28 @@ export function useAnonymousCheckout(
     }
   }, [takeToken]);
 
-  const preview = React.useCallback(async (): Promise<CheckoutSessionPreview | null> => {
+  const previewQuote = React.useCallback(async (): Promise<CheckoutSessionPreview | null> => {
     const { selection: chosen, client: api, flow: current } = latest.current;
     if (api === null || !available || current.step !== "selecting" || !namesPrice(chosen))
       return null;
-    const token = takeToken();
-    if (token === null) return null;
     const request = requestOf(chosen);
     const key = JSON.stringify(request);
+    const email = chosen.email.trim();
+    const dryRun = {
+      ...request,
+      ...(isPlausibleEmail(email) ? { email } : {}),
+      dryRun: true as const,
+    };
     try {
-      const email = chosen.email.trim();
-      const data = await api.startCheckout({
-        ...request,
-        turnstileToken: token,
-        ...(isPlausibleEmail(email) ? { email } : {}),
-        dryRun: true,
-      });
+      checkStartCheckoutInput(dryRun);
+    } catch (thrown) {
+      setFlow((previous) => ({ ...previous, error: asError(thrown) }));
+      return null;
+    }
+    const token = takeToken();
+    if (token === null) return null;
+    try {
+      const data = await api.startCheckout({ ...dryRun, turnstileToken: token });
       setPreviewState({ key, data });
       setFlow((previous) => (previous.error ? { ...previous, error: null } : previous));
       return data;
@@ -720,7 +755,11 @@ export function useAnonymousCheckout(
         return;
       }
       if (from === "awaiting_payment_method") {
-        // Back from the provider's page and no payment method was saved: nothing is opened for them.
+        // Back from the provider's page and no payment method was saved: nothing is opened for them,
+        // and a popup the visitor goes back to is still listened for.
+        if (latest.current.flow.setup?.opening === "popup") {
+          listenForReturn(confirmation.session.sessionId, () => void resumeLater.current());
+        }
         setFlow((previous) => ({
           ...previous,
           step: "awaiting_payment_method",
@@ -733,13 +772,17 @@ export function useAnonymousCheckout(
         }));
         return;
       }
+      // Heard from before the page opens: a visitor who is back before the next render is not missed.
+      listenForReturn(confirmation.session.sessionId, () => void resumeLater.current());
       let opening: SetupPageOpening;
       try {
         opening = openSetupPage(next.url, current.navigate);
       } catch (thrown) {
+        stopListening();
         setFlow((previous) => ({ ...previous, step: "review", error: asError(thrown) }));
         return;
       }
+      if (opening !== "popup") stopListening();
       setFlow((previous) => ({
         ...previous,
         step: "awaiting_payment_method",
@@ -835,15 +878,13 @@ export function useAnonymousCheckout(
     // Once, for the session the page was loaded with.
   }, [returned, client, confirmSession]);
 
-  // The visitor is done in the popup beside this page, which says so.
-  const popupSession =
-    flow.step === "awaiting_payment_method" && flow.setup?.opening === "popup"
-      ? flow.sessionId
-      : null;
+  // The visitor is done in the popup beside this page, which says so: listened for from before the
+  // popup opened (see `apply`), until the checkout leaves the wait.
+  resumeLater.current = resume;
+  const waiting = flow.step === "awaiting_payment_method" || flow.step === "confirming";
   React.useEffect(() => {
-    if (popupSession === null) return;
-    return waitForReturn(popupSession, () => void resume());
-  }, [popupSession, resume]);
+    if (!waiting) stopListening();
+  }, [waiting, stopListening]);
 
   // ---- The payment --------------------------------------------------------
 
@@ -966,7 +1007,7 @@ export function useAnonymousCheckout(
     step: flow.step,
     canStart,
     start,
-    preview,
+    previewQuote,
     previewed,
     quote: flow.quote,
     changed: flow.changed,
