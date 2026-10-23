@@ -22,7 +22,7 @@ import {
 } from "./support/session-harness.ts";
 
 // The public surface is the operations of the contract under `/public/`: the
-// catalogue, read with a publishable key, and the ten calls of a customer
+// catalogue, read with a publishable key, and the eleven calls of a customer
 // session. Each is one method, and a new one in the contract fails this file
 // until the SDK has its method.
 useSessionClock();
@@ -67,16 +67,8 @@ function publicOperations(yaml: string) {
   return operations;
 }
 
-/**
- * The methods of the session client whose route the specification gives and the contract snapshot
- * does not carry yet. They are held to the specification here, and `tests/spec-shapes.test.ts`
- * fails on the day the snapshot serves them, which is the day they join `OPERATION_OF`.
- */
-const SPECIFIED_ONLY = { redeemVoucher: "/public/session/vouchers/redeem" } as const;
-type Specified = keyof typeof SPECIFIED_ONLY;
-
 /** The operation each method of the session client is for. A method added to the interface needs a line. */
-const OPERATION_OF: Record<Exclude<keyof KaitenSessionClientLike, Specified>, string> = {
+const OPERATION_OF: Record<keyof KaitenSessionClientLike, string> = {
   getPortal: "getSessionPortal",
   listInvoices: "listSessionInvoices",
   checkout: "createSessionCheckout",
@@ -86,13 +78,14 @@ const OPERATION_OF: Record<Exclude<keyof KaitenSessionClientLike, Specified>, st
   createPaymentMethodSession: "createSessionPaymentMethodSession",
   completePaymentMethodSession: "completeSessionPaymentMethodSession",
   validateVoucher: "validateSessionVoucher",
+  redeemVoucher: "redeemSessionVoucher",
   setAddonQuantity: "setSessionAddonQuantity",
 };
 const CATALOG_OPERATION = "getPublicCatalog";
 
 /** What a call is given, and what the route answers: enough to make each method go through. */
 const CALLS: Record<
-  Exclude<keyof KaitenSessionClientLike, Specified>,
+  keyof KaitenSessionClientLike,
   {
     call: (client: KaitenSessionClientLike) => Promise<unknown>;
     reply: () => unknown;
@@ -128,6 +121,19 @@ const CALLS: Record<
     call: (c) => c.validateVoucher({ code: "WELCOME20" }),
     reply: () => answer("voucherRefused"),
   },
+  redeemVoucher: {
+    call: (c) => c.redeemVoucher({ code: "WELCOME20" }),
+    reply: () => ({
+      name: "Welcome 20%",
+      voucherType: "PRICE",
+      status: "ACTIVE",
+      appliesFromInvoice: "next",
+      applicationsCount: 0,
+      applicationsMax: 3,
+      effectiveStartsAt: "2026-10-06T10:00:00Z",
+      effectiveExpiresAt: null,
+    }),
+  },
   setAddonQuantity: {
     call: (c) => c.setAddonQuantity("extra-seats-v1", 1),
     reply: () => answer("addon"),
@@ -156,8 +162,8 @@ describe("the public operations of the contract", () => {
     ).toEqual(["confirmCheckoutSession", "createCheckoutSession", "getCheckoutSession"]);
   });
 
-  test("are the catalogue and the ten calls of a session: eleven", () => {
-    expect(operations).toHaveLength(11);
+  test("are the catalogue and the eleven calls of a session: twelve", () => {
+    expect(operations).toHaveLength(12);
     expect(operations.map((found) => found.operationId).sort()).toEqual(
       [CATALOG_OPERATION, ...Object.values(OPERATION_OF)].sort(),
     );
@@ -193,7 +199,7 @@ describe("each is one method", () => {
   });
 
   for (const [method, operationId] of Object.entries(OPERATION_OF) as [
-    Exclude<keyof KaitenSessionClientLike, Specified>,
+    keyof KaitenSessionClientLike,
     string,
   ][]) {
     test(`${method} is ${operationId}, on the route and with the verb the contract gives it`, async () => {
@@ -211,28 +217,8 @@ describe("each is one method", () => {
     });
   }
 
-  test("the specified routes the contract does not carry yet are sent as the specification gives them", async () => {
-    const { fetch, requests } = server(() =>
-      json({
-        name: "Welcome 20%",
-        voucherType: "PRICE",
-        status: "ACTIVE",
-        effectiveStartsAt: "2026-10-06T10:00:00Z",
-        effectiveExpiresAt: null,
-      }),
-    );
-    const client = sessionClient(fetch, sessions(session(KST_A, T0 + 30 * MINUTE)));
-
-    await client.redeemVoucher({ code: "WELCOME20" });
-
-    expect(requests.map((request) => [request.method, new URL(request.url).pathname])).toEqual([
-      ["POST", `/api${SPECIFIED_ONLY.redeemVoucher}`],
-    ]);
-    expect(requests[0]!.headers.get("Authorization")).toBe(`Bearer ${KST_A}`);
-  });
-
   test("the session client and its double have a method for each, and none more", () => {
-    const methods = [...Object.keys(OPERATION_OF), ...Object.keys(SPECIFIED_ONLY)].sort();
+    const methods = Object.keys(OPERATION_OF).sort();
     const double = createMockKaitenSessionClient();
 
     for (const method of methods) {

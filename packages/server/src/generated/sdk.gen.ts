@@ -252,6 +252,9 @@ import type {
   GetBillingSettingsData,
   GetBillingSettingsErrors,
   GetBillingSettingsResponses,
+  GetCheckoutSessionAdminData,
+  GetCheckoutSessionAdminErrors,
+  GetCheckoutSessionAdminResponses,
   GetCheckoutSessionData,
   GetCheckoutSessionErrors,
   GetCheckoutSessionResponses,
@@ -399,6 +402,9 @@ import type {
   ListAddonsData,
   ListAddonsErrors,
   ListAddonsResponses,
+  ListCheckoutSessionsData,
+  ListCheckoutSessionsErrors,
+  ListCheckoutSessionsResponses,
   ListComponentsData,
   ListComponentsErrors,
   ListComponentsResponses,
@@ -510,6 +516,9 @@ import type {
   RecomposeInvoiceData,
   RecomposeInvoiceErrors,
   RecomposeInvoiceResponses,
+  RedeemSessionVoucherData,
+  RedeemSessionVoucherErrors,
+  RedeemSessionVoucherResponses,
   RedeemVoucherData,
   RedeemVoucherErrors,
   RedeemVoucherResponses,
@@ -2172,6 +2181,58 @@ export class Billing {
         "Content-Type": "application/json",
         ...options.headers,
       },
+    });
+  }
+}
+
+export class CheckoutSessions {
+  /**
+   * List checkout sessions
+   *
+   * The organization's anonymous checkouts, newest first: how a vendor that missed or receives no checkout_session events links a buyer to its own account. Never a ksc_ or a voucher code. Requires billing to be enabled for the organization. 400 CheckoutSessions.InvalidCursor.
+   */
+  public static listCheckoutSessions<ThrowOnError extends boolean = false>(
+    options?: Options<ListCheckoutSessionsData, ThrowOnError>,
+  ): RequestResult<ListCheckoutSessionsResponses, ListCheckoutSessionsErrors, ThrowOnError> {
+    return (options?.client ?? client).get<
+      ListCheckoutSessionsResponses,
+      ListCheckoutSessionsErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/checkout-sessions",
+      ...options,
+    });
+  }
+
+  /**
+   * Get a checkout session
+   *
+   * One anonymous checkout, as the vendor reads it. Never a ksc_ or a voucher code. Requires billing to be enabled for the organization. 404 GetCheckoutSessionAdmin.NotFound, also for a session deleted 90 days after it closed.
+   */
+  public static getCheckoutSessionAdmin<ThrowOnError extends boolean = false>(
+    options: Options<GetCheckoutSessionAdminData, ThrowOnError>,
+  ): RequestResult<GetCheckoutSessionAdminResponses, GetCheckoutSessionAdminErrors, ThrowOnError> {
+    return (options.client ?? client).get<
+      GetCheckoutSessionAdminResponses,
+      GetCheckoutSessionAdminErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/checkout-sessions/{sessionId}",
+      ...options,
     });
   }
 }
@@ -5903,7 +5964,7 @@ export class Public {
   /**
    * Start an anonymous checkout
    *
-   * Starts a checkout for a visitor the vendor's backend does not know yet, with the publishable key and a Turnstile token. Writes one checkout session and nothing else: the customer, the instance and the subscription are created by the completion. Answers 201 status=open with the session's ksc_ token, returned once; with dryRun, 200 status=preview, writing and emitting nothing. dueToday is computed by the server. 403 .AnonymousCheckoutDisabled; 422 .TurnstileNotConfigured, .TurnstileFailed, .InvalidPriceSelection, .PriceNotPublic, .AddonNotPublic, .PriceNotFlatFee, .NotSelfServe, .ProviderCannotCapturePayment, .QuantityExceedsMax, .CurrencyMismatch, .InvalidEmail, .InvalidReturnUrl, .VoucherInvalid, .FallbackRequired; 503 .TurnstileUnavailable (Retry-After).
+   * Starts a checkout for a visitor the vendor's backend does not know yet, with the publishable key and a Turnstile token. Writes one checkout session and nothing else: the customer, the instance and the subscription are created by the completion. Answers 201 status=open with the session's ksc_ token, returned once; with dryRun, 200 status=preview, writing and emitting nothing. dueToday is computed by the server. 403 .AnonymousCheckoutDisabled; 422 .TurnstileNotConfigured, .TurnstileFailed, .InvalidPriceSelection, .PriceNotPublic, .AddonNotPublic, .PriceNotFlatFee, .NotSelfServe, .ProviderCannotCapturePayment, .QuantityExceedsMax, .CurrencyMismatch, .InvalidEmail, .InvalidReturnUrl, .VoucherInvalid, .FallbackRequired; 429 .RateLimited (Retry-After): 10 starts per 10 minutes and 30 an hour per visitor address, dryRun included, 1,000 an hour per key; 503 .TurnstileUnavailable (Retry-After).
    */
   public static createCheckoutSession<ThrowOnError extends boolean = false>(
     options: Options<CreateCheckoutSessionData, ThrowOnError>,
@@ -5951,7 +6012,7 @@ export class Public {
   /**
    * Confirm an anonymous checkout
    *
-   * Completes the session when nothing has to be captured -- a FREE plan, a trial on a plan that needs no payment method, nothing due -- creating the customer, the instance and the subscription in one transaction: status=completed. Otherwise answers status=requires_payment_method with a hosted setup page, keeps the ksc_ across its redirect, and completes on the next confirm: awaiting_payment while the first invoice is charged, completed once paid. No body. 403 .AnonymousCheckoutDisabled; 409 .SessionClosed (errors[0].value.status), .DueTodayChanged, .EntitlementLimitReached; 422 .PriceNotPublic, .AddonNotPublic, .FallbackRequired, .ProviderCannotCapturePayment, .VoucherInvalid; 503 .ProviderUnavailable (Retry-After), Entitlement.VerificationUnavailable.
+   * Completes the session when nothing has to be captured -- a FREE plan, a trial on a plan that needs no payment method, nothing due -- creating the customer, the instance and the subscription in one transaction: status=completed. Otherwise answers status=requires_payment_method with a hosted setup page, keeps the ksc_ across its redirect, and completes on the next confirm: awaiting_payment while the first invoice is charged, completed once paid. No body. 403 .AnonymousCheckoutDisabled; 409 .SessionClosed (errors[0].value.status), .DueTodayChanged, .EntitlementLimitReached; 422 .PriceNotPublic, .AddonNotPublic, .FallbackRequired, .ProviderCannotCapturePayment, .VoucherInvalid; 429 .RateLimited (Retry-After): 30 confirms per 10 minutes per visitor address, 1,000 an hour per key; 503 .ProviderUnavailable (Retry-After), Entitlement.VerificationUnavailable.
    */
   public static confirmCheckoutSession<ThrowOnError extends boolean = false>(
     options: Options<ConfirmCheckoutSessionData, ThrowOnError>,
@@ -6235,6 +6296,35 @@ export class Public {
       ],
       url: "/public/session/portal",
       ...options,
+    });
+  }
+
+  /**
+   * Redeem a voucher code
+   *
+   * Redeems a code on the session's instance, whose subscription is TRIAL, ACTIVE or PAST_DUE: 201 with the redemption, never the code; dryRun answers 200 with the redemption it would make and writes nothing. A PRICE voucher discounts from the next invoice composed (appliesFromInvoice: next), never one already issued; a boost applies at once. Every refusal of the code is the same 422 .VoucherInvalid. 409 .SubscriptionIncomplete (a checkout waits for its payment), .NoLiveSubscription; 422 .InstanceRequired (a session bound to the customer only); 429 .RateLimited, with Retry-After, past 10 attempts per 10 minutes per session or 30 an hour per customer, validate's included.
+   */
+  public static redeemSessionVoucher<ThrowOnError extends boolean = false>(
+    options: Options<RedeemSessionVoucherData, ThrowOnError>,
+  ): RequestResult<RedeemSessionVoucherResponses, RedeemSessionVoucherErrors, ThrowOnError> {
+    return (options.client ?? client).post<
+      RedeemSessionVoucherResponses,
+      RedeemSessionVoucherErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "customerSession",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/public/session/vouchers/redeem",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
     });
   }
 

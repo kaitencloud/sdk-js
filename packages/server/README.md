@@ -490,7 +490,7 @@ with its own credentials; this SDK does not model it (see
 [ARCHITECTURE.md](../../ARCHITECTURE.md)).
 
 **`Public` is not called with the token of `createKaitenClient`.** Its operations, the public
-catalog and the ten calls of a customer session, are what a browser calls with
+catalog and the eleven calls of a customer session, are what a browser calls with
 [`@kaitencloud/client`](../client). The catalog takes a publishable key and no
 `Authorization` header, and the session routes take a customer session (`kst_`): the API
 refuses a `ksh_` token on both with `Auth.WrongCredentialKind`. The class is generated because

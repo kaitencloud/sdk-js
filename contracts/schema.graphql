@@ -91,9 +91,25 @@ type AddonPrice {
 }
 
 """
+The user an audit entry is recorded under: a person, a service account, or
+Kaiten itself ("Kaiten (system)"), which records jobs and anonymous checkouts.
+"""
+type AuditActor {
+  id: UUID!
+
+  """USER, SERVICE or SYSTEM."""
+  kind: String!
+  name: String!
+}
+
+"""
 AuditTrail records a single domain event captured from the outbox CDC pipeline.
 """
 type AuditTrail {
+  """
+  Who the event is recorded under; null for an entry recorded before actors were.
+  """
+  actor: AuditActor
   eventName: String!
 
   """
@@ -798,11 +814,26 @@ enum MetadataFieldResourceType {
 }
 
 """
+The user an organization-wide audit entry is recorded under, as AuditActor.
+"""
+type OrganizationAuditActor {
+  id: UUID!
+
+  """USER, SERVICE or SYSTEM."""
+  kind: String!
+  name: String!
+}
+
+"""
 OrganizationAuditTrail is an organization-wide audit trail entry. Instance and
 customer context is only present for instance-scoped events; organization-level
 events (e.g. customer or entitlement lifecycle) carry null instance fields.
 """
 type OrganizationAuditTrail {
+  """
+  Who the event is recorded under; null for an entry recorded before actors were.
+  """
+  actor: OrganizationAuditActor
   customerId: UUID
   customerName: String
   customerSlug: String

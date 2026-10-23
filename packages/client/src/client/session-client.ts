@@ -31,13 +31,15 @@ import {
   mapVoucherValidation,
 } from "./session-mapping.ts";
 import type { WireCheckout } from "./session-mapping.ts";
-import type { WireRedemption, WireSessionPortal } from "./session-spec-shapes.ts";
 import type {
   CompletedPaymentMethodSession as WireCompletedPaymentMethodSession,
   PageSessionInvoice,
   PaymentMethodSession as WirePaymentMethodSession,
   PortalSession as WirePortalSession,
   SessionAddon as WireSessionAddon,
+  SessionPortal as WireSessionPortal,
+  SessionRedeem as WireRedeem,
+  SessionRedemption as WireRedemption,
   SessionSubscription as WireSubscription,
   SessionVoucherValidity,
 } from "../core/index.ts";
@@ -241,12 +243,14 @@ export class KaitenSessionClient implements KaitenSessionClientLike {
     if (typeof input?.code !== "string" || input.code.trim() === "") {
       throw new TypeError("Kaiten: redeemVoucher needs the code.");
     }
-    // The code travels in the body, as `validateVoucher`'s does, and is not kept.
+    // The code travels in the body, as `validateVoucher`'s does, and is not kept. The route answers
+    // 201 for a redemption made and 200 for a `dryRun`, with the same body.
+    const body: WireRedeem = {
+      code: input.code,
+      ...(input.dryRun ? { dryRun: true } : {}),
+    };
     return mapRedemption(
-      await this.call<WireRedemption>("POST", "vouchers/redeem", "redeemVoucher()", {
-        code: input.code,
-        ...(input.dryRun ? { dryRun: true } : {}),
-      }),
+      await this.call<WireRedemption>("POST", "vouchers/redeem", "redeemVoucher()", body),
     );
   }
 

@@ -17,7 +17,6 @@ import {
   mapBillingPrice,
 } from "./billing.ts";
 import { entitlementStatus } from "./normalize.ts";
-import type { WireRedemption, WireSessionPortal } from "./session-spec-shapes.ts";
 import type {
   CheckoutPreview,
   CheckoutResult,
@@ -204,10 +203,12 @@ export function mapSessionAddon(raw: Api.SessionAddon): SessionAddon {
 }
 
 /**
- * One redemption: a line of the portal's `vouchers`, or the answer of a redemption. The members a
- * server that predates them does not send stay absent rather than made up.
+ * One redemption: a line of the portal's `vouchers`, or the answer of `vouchers/redeem`, which are
+ * the contract's one `SessionRedemption`. The contract makes `appliesFromInvoice`,
+ * `applicationsCount` and `applicationsMax` required; a portal served by a Kaiten that predates
+ * them leaves them out, and they stay absent rather than made up.
  */
-export function mapRedemption(raw: WireRedemption): PortalVoucher {
+export function mapRedemption(raw: Api.SessionRedemption): PortalVoucher {
   return {
     name: raw.name,
     voucherType: raw.voucherType,
@@ -245,7 +246,7 @@ function mapTrial(raw: Api.PortalTrial): PortalTrial {
 }
 
 /** `GET /public/session/portal` as a `KaitenPortal`. */
-export function mapPortal(raw: WireSessionPortal): KaitenPortal {
+export function mapPortal(raw: Api.SessionPortal): KaitenPortal {
   const { customer, instance, upcomingInvoice, capabilities } = raw;
   return {
     customer: {

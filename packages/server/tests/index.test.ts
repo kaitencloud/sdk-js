@@ -17,6 +17,14 @@ import {
 import type {
   CreatedCustomerSession,
   CustomerSessionDraft,
+  DeploymentDelivered,
+  Deployment,
+  InstanceEntitlementValueGet,
+  InstanceEntitlementValueGetDelivered,
+  InstanceEntitlementValueGetDeliveredWritable,
+  InstanceEntitlementValueGetWritable,
+  SystemTokenIssuance,
+  SystemTokenIssuanceDelivered,
   Provenance,
   ReportedEntitlementUsage,
   ReportEntitlementUsageMetricData,
@@ -539,5 +547,27 @@ describe("usage report keys and the usage history", () => {
     expect(data).toBeInstanceOf(ReadableStream);
     // Typed as the body the contract declares; parseAs "stream" hands back the stream.
     expect(await new Response(data as unknown as ReadableStream).text()).toBe(csv);
+  });
+});
+
+describe("the names of the webhook payloads of 1.0.0", () => {
+  // The contract types a payload as it is delivered (`FooDelivered`); the names 1.0.0 published stay,
+  // as the delivered type, so that no export of 1.0.0 is gone.
+  test("are the delivered types, which only add optional members", () => {
+    expectTypeOf<SystemTokenIssuance>().toEqualTypeOf<SystemTokenIssuanceDelivered>();
+    expectTypeOf<Deployment>().toEqualTypeOf<DeploymentDelivered>();
+    expectTypeOf<InstanceEntitlementValueGet>().toEqualTypeOf<InstanceEntitlementValueGetDelivered>();
+    expectTypeOf<InstanceEntitlementValueGetWritable>().toEqualTypeOf<InstanceEntitlementValueGetDeliveredWritable>();
+
+    const issued: SystemTokenIssuance = {
+      credentialKind: "platform",
+      platformTokenId: "tok_platform",
+      issuedTokenId: "tok_minted",
+      name: "acme-automation",
+      slug: "system-kaiten-9f2c1a",
+      scopes: ["read:customers"],
+      issuedAt: "2026-08-17T10:24:32Z",
+    };
+    expect(issued.via).toBeUndefined();
   });
 });

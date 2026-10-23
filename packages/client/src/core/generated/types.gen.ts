@@ -176,6 +176,56 @@ export type AddonChanges = {
   versionName?: string;
 };
 
+export type AddonDelivered = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  readonly createdAt: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  description: string;
+  /**
+   * The family the version belongs to
+   */
+  familySlug: string;
+  readonly id: string;
+  /**
+   * The family's: how a mid-period increase or attachment of an ADVANCE add-on is billed. TRUE_UP adds a true-up line for the elapsed period at the next renewal; NEXT_BOUNDARY bills from the next boundary only
+   */
+  readonly increaseBilling: "TRUE_UP" | "NEXT_BOUNDARY";
+  /**
+   * The version the family resolves to. Only a PUBLISHED version.
+   */
+  isDefault: boolean;
+  /**
+   * A DRAFT can be attached to try it; an ARCHIVED version stays on the instances holding it but cannot be attached again.
+   */
+  lifecycleState: "DRAFT" | "PUBLISHED" | "ARCHIVED";
+  /**
+   * The largest quantity an instance can hold; unbounded when absent
+   */
+  maxQuantity?: number;
+  name: string;
+  pricingType: "FREE" | "PAID" | "CUSTOM";
+  /**
+   * The version's slug, unique in the organization
+   */
+  slug: string;
+  readonly updatedAt: string;
+  /**
+   * The version number in its family, assigned on create
+   */
+  readonly version: number;
+  versionName: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
 export type AddonEntitlement = {
   entitlementSlug: string;
   entitlementType: "BOOLEAN" | "NUMBER" | "CONFIG" | "NUMBER_AI_CREDIT";
@@ -249,11 +299,19 @@ export type AddonGrant = {
   };
 };
 
-export type AddonGrantUpdate = {
+export type AddonGrantUpdateDelivered = {
   /**
    * The add-on version the grant belongs to
    */
   addonSlug: string;
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
   entitlementSlug: string;
   entitlementType: "BOOLEAN" | "NUMBER" | "CONFIG" | "NUMBER_AI_CREDIT";
   readonly id: string;
@@ -271,9 +329,13 @@ export type AddonGrantUpdate = {
   value: {
     [key: string]: unknown;
   };
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
-export type AddonPriceUpdate = {
+export type AddonPriceUpdateDelivered = {
   /**
    * The add-on version the price belongs to
    */
@@ -290,11 +352,19 @@ export type AddonPriceUpdate = {
    * ADVANCE bills the period that starts; ARREARS the period that ended. Metered prices are always ARREARS.
    */
   billingTiming: "ADVANCE" | "ARREARS";
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
   readonly createdAt: string;
   /**
    * ISO 4217 code, upper case. One currency per licence version.
    */
   currency: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
   /**
    * When the price was deprecated
    */
@@ -332,22 +402,34 @@ export type AddonPriceUpdate = {
    */
   unitAmountDecimal: string;
   readonly updatedAt: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
 export type AddonQuantity = {
   quantity: number;
 };
 
-export type AddonUpdate = {
+export type AddonUpdateDelivered = {
   /**
    * The members the change touched, as the API names them
    */
   changedFields: Array<string> | null;
   /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
    * The licence families the version fits after the change
    */
   compatibleLicenseFamilies: Array<string> | null;
   readonly createdAt: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
   description: string;
   /**
    * The family the version belongs to
@@ -382,9 +464,29 @@ export type AddonUpdate = {
    */
   readonly version: number;
   versionName: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
+export type AuditActor = {
+  id: string;
+  /**
+   * USER: a person. SERVICE: a service account. SYSTEM: Kaiten itself -- jobs, and the anonymous checkouts no one of the organization makes
+   */
+  kind: "USER" | "SERVICE" | "SYSTEM";
+  /**
+   * The user's name; "Kaiten (system)" for the work Kaiten does itself
+   */
+  name: string;
 };
 
 export type AuditTrail = {
+  /**
+   * Who the event is recorded under; null for an entry recorded before actors were (E-27), or whose user is gone
+   */
+  actor: AuditActor | null;
   /**
    * Event name (e.g. ENTITLEMENT_VALUE_GET)
    */
@@ -536,7 +638,7 @@ export type BillingSettings = {
   handoffStripeInvoices: boolean;
 };
 
-export type BillingStarted = {
+export type BillingStartedDelivered = {
   /**
    * The instant its periods are counted from
    */
@@ -550,6 +652,10 @@ export type BillingStarted = {
   cancelRequestedAt: string | null;
   canceledAt: string | null;
   cancellationReason: string | null;
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
   /**
    * Effective: the subscription's own, else the organization's default
    */
@@ -566,6 +672,10 @@ export type BillingStarted = {
   currentPeriodEnd: string;
   currentPeriodStart: string;
   customerName: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
   customerSlug: string;
   /**
    * Effective: the subscription's own, else the organization's default
@@ -616,6 +726,10 @@ export type BillingStarted = {
    */
   trialEndsAt: string | null;
   updatedAt: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
 export type BooleanEntitlementValue = {
@@ -728,7 +842,7 @@ export type CanceledSubscription = {
   updatedAt: string;
 };
 
-export type Cancellation = {
+export type CancellationChangeDelivered = {
   /**
    * The instant its periods are counted from
    */
@@ -742,6 +856,10 @@ export type Cancellation = {
   cancelRequestedAt: string | null;
   canceledAt: string | null;
   cancellationReason: string | null;
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
   /**
    * Effective: the subscription's own, else the organization's default
    */
@@ -758,6 +876,104 @@ export type Cancellation = {
   currentPeriodEnd: string;
   currentPeriodStart: string;
   customerName: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  customerSlug: string;
+  /**
+   * Effective: the subscription's own, else the organization's default
+   */
+  daysUntilDue: number;
+  /**
+   * The subscription's own payment terms; null when it takes the organization's
+   */
+  daysUntilDueOverride: number | null;
+  /**
+   * The boundary the cancellation takes effect at
+   */
+  effectiveAt: string;
+  id: string;
+  /**
+   * When a checkout waiting for its payment ends unpaid: INCOMPLETE, or a free subscription that carries one
+   */
+  incompleteExpiresAt: string | null;
+  instanceName: string;
+  /**
+   * As it was at the subscription's last write
+   */
+  instanceSlug: string;
+  pastDueSince: string | null;
+  /**
+   * The licence version a checkout waiting for its payment moves the instance to once paid
+   */
+  pendingLicenseSlug: string | null;
+  /**
+   * Who collects its invoices. NOOP: the organization itself, through the handoff queue
+   */
+  providerKind: "NOOP" | "STRIPE";
+  /**
+   * When trial_will_end is (or was) emitted: trialEndsAt minus the family's trialReminderDays as it was when the trial started; set with trialEndsAt
+   */
+  reminderAt: string | null;
+  /**
+   * A plan change waiting for the next boundary
+   */
+  scheduledChange: ScheduledChange | null;
+  /**
+   * When billing started: usage before it is never billed
+   */
+  startedAt: string;
+  status: "INCOMPLETE" | "TRIAL" | "ACTIVE" | "PAST_DUE" | "CANCELED";
+  /**
+   * When the trial ends, or ended: usage before it is never billed
+   */
+  trialEndsAt: string | null;
+  updatedAt: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
+export type CancellationDelivered = {
+  /**
+   * The instant its periods are counted from
+   */
+  anchorAt: string;
+  /**
+   * The FLAT_FEE price the subscription is pinned to, deprecated or not
+   */
+  basePrice: Price;
+  billingPeriod: "MONTHLY" | "QUARTERLY" | "SEMI_ANNUAL" | "ANNUAL";
+  cancelAtPeriodEnd: boolean;
+  cancelRequestedAt: string | null;
+  canceledAt: string | null;
+  cancellationReason: string | null;
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * Effective: the subscription's own, else the organization's default
+   */
+  collectionMethod: "SEND_INVOICE" | "CHARGE_AUTOMATICALLY";
+  /**
+   * The subscription's own collection method; null when it takes the organization's
+   */
+  collectionMethodOverride: string | null;
+  createdAt: string;
+  currency: string;
+  /**
+   * The next boundary: the period closes, and its invoice is composed, after it
+   */
+  currentPeriodEnd: string;
+  currentPeriodStart: string;
+  customerName: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
   customerSlug: string;
   /**
    * Effective: the subscription's own, else the organization's default
@@ -812,88 +1028,10 @@ export type Cancellation = {
    */
   trialEndsAt: string | null;
   updatedAt: string;
-};
-
-export type CancellationChange = {
   /**
-   * The instant its periods are counted from
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
    */
-  anchorAt: string;
-  /**
-   * The FLAT_FEE price the subscription is pinned to, deprecated or not
-   */
-  basePrice: Price;
-  billingPeriod: "MONTHLY" | "QUARTERLY" | "SEMI_ANNUAL" | "ANNUAL";
-  cancelAtPeriodEnd: boolean;
-  cancelRequestedAt: string | null;
-  canceledAt: string | null;
-  cancellationReason: string | null;
-  /**
-   * Effective: the subscription's own, else the organization's default
-   */
-  collectionMethod: "SEND_INVOICE" | "CHARGE_AUTOMATICALLY";
-  /**
-   * The subscription's own collection method; null when it takes the organization's
-   */
-  collectionMethodOverride: string | null;
-  createdAt: string;
-  currency: string;
-  /**
-   * The next boundary: the period closes, and its invoice is composed, after it
-   */
-  currentPeriodEnd: string;
-  currentPeriodStart: string;
-  customerName: string;
-  customerSlug: string;
-  /**
-   * Effective: the subscription's own, else the organization's default
-   */
-  daysUntilDue: number;
-  /**
-   * The subscription's own payment terms; null when it takes the organization's
-   */
-  daysUntilDueOverride: number | null;
-  /**
-   * The boundary the cancellation takes effect at
-   */
-  effectiveAt: string;
-  id: string;
-  /**
-   * When a checkout waiting for its payment ends unpaid: INCOMPLETE, or a free subscription that carries one
-   */
-  incompleteExpiresAt: string | null;
-  instanceName: string;
-  /**
-   * As it was at the subscription's last write
-   */
-  instanceSlug: string;
-  pastDueSince: string | null;
-  /**
-   * The licence version a checkout waiting for its payment moves the instance to once paid
-   */
-  pendingLicenseSlug: string | null;
-  /**
-   * Who collects its invoices. NOOP: the organization itself, through the handoff queue
-   */
-  providerKind: "NOOP" | "STRIPE";
-  /**
-   * When trial_will_end is (or was) emitted: trialEndsAt minus the family's trialReminderDays as it was when the trial started; set with trialEndsAt
-   */
-  reminderAt: string | null;
-  /**
-   * A plan change waiting for the next boundary
-   */
-  scheduledChange: ScheduledChange | null;
-  /**
-   * When billing started: usage before it is never billed
-   */
-  startedAt: string;
-  status: "INCOMPLETE" | "TRIAL" | "ACTIVE" | "PAST_DUE" | "CANCELED";
-  /**
-   * When the trial ends, or ended: usage before it is never billed
-   */
-  trialEndsAt: string | null;
-  updatedAt: string;
+  via?: "customer_session" | "checkout_session";
 };
 
 export type CheckoutConfirmation = {
@@ -942,6 +1080,45 @@ export type CheckoutSession = {
   payment: CheckoutPayment | null;
   priceId: string;
   requiresPaymentMethod: boolean;
+  sessionId: string;
+  /**
+   * A session still OPEN after expiresAt reads ABANDONED
+   */
+  status: "OPEN" | "AWAITING_PAYMENT" | "COMPLETED" | "ABANDONED" | "EXPIRED";
+  trialEndsAt: string | null;
+  trialRefusedReason: string | null;
+};
+
+export type CheckoutSessionAdmin = {
+  addOns: Array<SessionAddonSelection>;
+  billingPeriod: string;
+  clientReferenceId: string | null;
+  /**
+   * When it became COMPLETED, ABANDONED or EXPIRED; null while OPEN or AWAITING_PAYMENT
+   */
+  closedAt: string | null;
+  completedAt: string | null;
+  createdAt: string;
+  /**
+   * Set by the completion
+   */
+  customerSlug: string | null;
+  dueToday: DueToday;
+  /**
+   * As the visitor gave it. Personal data
+   */
+  email: string;
+  expiresAt: string;
+  /**
+   * Set by the completion
+   */
+  instanceSlug: string | null;
+  licenseSlug: string;
+  priceId: string;
+  /**
+   * The key whose page started it
+   */
+  publishableKeyId: string;
   sessionId: string;
   /**
    * A session still OPEN after expiresAt reads ABANDONED
@@ -1127,6 +1304,53 @@ export type Component = {
   version: string;
 };
 
+export type ComponentDelivered = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * Timestamp when the component was created
+   */
+  readonly createdAt: string;
+  /**
+   * User who created this component
+   */
+  readonly createdBy: User;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  /**
+   * Description of the component
+   */
+  description?: string;
+  /**
+   * Unique identifier for the component
+   */
+  readonly id: string;
+  /**
+   * Name of the component
+   */
+  name: string;
+  /**
+   * Reference to the previous version of this component
+   */
+  previousComponentId?: string;
+  /**
+   * Optional URL-friendly identifier, unique per organization. Auto-generated if not provided.
+   */
+  slug?: string;
+  /**
+   * Version of the component
+   */
+  version: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
 export type ConfigEntitlementValue = {
   /**
    * Value type discriminator
@@ -1140,11 +1364,19 @@ export type ConfigEntitlementValue = {
   };
 };
 
-export type Connection = {
+export type ConnectionDelivered = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
   /**
    * The connector that configures it
    */
   connectorName: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
   /**
    * Whether the connection reaches the provider's live account rather than a test one
    */
@@ -1153,6 +1385,10 @@ export type Connection = {
    * The payment provider
    */
   providerKind: "STRIPE";
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
 export type Connector = {
@@ -1366,13 +1602,29 @@ export type CustomerBody = {
   webUrl?: string;
 };
 
-export type CustomerCreationRejected = {
+export type CustomerCreationRejectedDelivered = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
   name: string;
   reason: string;
   slug: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
-export type CustomerEvent = {
+export type CustomerEventDelivered = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
   /**
    * Timestamp when the customer was created
    */
@@ -1381,6 +1633,10 @@ export type CustomerEvent = {
    * User who created this customer
    */
   createdBy: User;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
   /**
    * Customer domain name
    */
@@ -1415,6 +1671,10 @@ export type CustomerEvent = {
    * User who last updated this customer
    */
   updatedBy: User;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
 export type CustomerInProvider = {
@@ -1514,13 +1774,29 @@ export type DefaultVariant =
       type: "rollout_percentage";
     } & RolloutPercentage);
 
-export type DeletedAddon = {
+export type DeletedAddonDelivered = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
   familySlug: string;
   id: string;
   slug: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
-export type Deployment = {
+export type DeploymentDelivered = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
   /**
    * Timestamp when the deployment was recorded
    */
@@ -1529,6 +1805,10 @@ export type Deployment = {
    * User who recorded this deployment
    */
   createdBy: User;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
   /**
    * Deployment zone the release was deployed to
    */
@@ -1541,6 +1821,10 @@ export type Deployment = {
    * Release that was deployed
    */
   releaseId: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
 export type DeploymentZone = {
@@ -1590,6 +1874,67 @@ export type DeploymentZone = {
    * User who last updated the deployment zone
    */
   readonly updatedBy: User;
+};
+
+export type DeploymentZoneDelivered = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * Timestamp when the deployment zone was created
+   */
+  readonly createdAt: string;
+  /**
+   * User who created this deployment zone
+   */
+  readonly createdBy: User;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  /**
+   * Description of the deployment zone
+   */
+  description: string;
+  /**
+   * Unique identifier for the deployment zone
+   */
+  readonly id: string;
+  /**
+   * Typed metadata for the deployment zone, validated against the org-scoped MetadataField schema
+   */
+  metadata?: {
+    [key: string]: unknown;
+  };
+  /**
+   * Name of the deployment zone
+   */
+  name: string;
+  /**
+   * Currently deployed release ID
+   */
+  releaseId?: string;
+  /**
+   * Optional URL-friendly identifier, unique per organization. Auto-generated if not provided.
+   */
+  slug?: string;
+  /**
+   * Environment class of the deployment zone. Free-form: any value is stored as sent, but production, staging and development are the ones the console labels, and feature-flag targeting rules match on this field as __kaiten.deploymentZone.type.
+   */
+  type: string;
+  /**
+   * Timestamp when the deployment zone was last updated
+   */
+  readonly updatedAt: string;
+  /**
+   * User who last updated the deployment zone
+   */
+  readonly updatedBy: User;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
 export type DiscountAllocation = {
@@ -1726,6 +2071,101 @@ export type Entitlement = {
   warningThresholdPercent?: number;
 };
 
+export type EntitlementDelivered = {
+  /**
+   * Method used to fold each reported usage value into the stored total (NUMBER only). Defaults to SUM.
+   */
+  aggregationMethod?: "COUNT" | "SUM" | "AVERAGE" | "MIN" | "MAX" | "LATEST";
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * Timestamp when this entitlement was created
+   */
+  readonly createdAt: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  /**
+   * Description of the entitlement
+   */
+  description: string | null;
+  /**
+   * Sort order of this entitlement in customer-facing components (ascending). Defaults to 0.
+   */
+  displayOrder?: number;
+  /**
+   * Groups associated with this entitlement
+   */
+  readonly entitlementGroups?: Array<EntitlementGroupSummary> | null;
+  /**
+   * Optional icon, stored as a provider-namespaced token (provider:name). Decoupled from any specific icon library.
+   */
+  icon?: string;
+  /**
+   * Unique identifier for the entitlement
+   */
+  readonly id: string;
+  /**
+   * Name of the entitlement
+   */
+  name: string;
+  /**
+   * Phase of the periodic usage window: CALENDAR (UTC calendar-aligned), LICENSE_START (phased off the instance's license start date) or BILLING_PERIOD (phased off the instance's live subscription's billing anchor, LICENSE_START without one; with resetPeriod MONTH or YEAR only). Required exactly when resetPeriod is set; defaults to CALENDAR when omitted. Immutable once set.
+   */
+  resetAnchor?: "CALENDAR" | "LICENSE_START" | "BILLING_PERIOD";
+  /**
+   * Cadence at which usage automatically resets for this NUMBER entitlement. NULL means a lifetime counter (default). Immutable once set -- a full-replace PUT must echo back the stored value.
+   */
+  resetPeriod?: "HOUR" | "DAY" | "WEEK" | "MONTH" | "YEAR";
+  /**
+   * Number of base units one sale unit represents (1 sale unit = N base units).
+   */
+  saleUnitFactor?: number;
+  /**
+   * Plural label of the unit this entitlement is sold in, when it differs from the base unit.
+   */
+  saleUnitPlural?: string;
+  /**
+   * Singular label of the unit this entitlement is sold in, when it differs from the base unit. Requires the base unit labels and the full sale unit trio (saleUnitSingular, saleUnitPlural, saleUnitFactor).
+   */
+  saleUnitSingular?: string;
+  /**
+   * Optional URL-friendly identifier, unique per organization. Auto-generated if not provided.
+   */
+  slug?: string;
+  /**
+   * Type of the entitlement
+   */
+  type?: "BOOLEAN" | "NUMBER" | "CONFIG" | "NUMBER_AI_CREDIT";
+  /**
+   * Plural label of the base unit this entitlement is measured in (NUMBER type only). Must be provided together with unitSingular.
+   */
+  unitPlural?: string;
+  /**
+   * Singular label of the base unit this entitlement is measured in (NUMBER type only). Must be provided together with unitPlural.
+   */
+  unitSingular?: string;
+  /**
+   * Timestamp when this entitlement was last updated
+   */
+  readonly updatedAt: string;
+  /**
+   * Whether this entitlement is displayed in customer-facing components (e.g. plan and pricing pages). Defaults to false.
+   */
+  userFacing?: boolean;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+  /**
+   * Percentage of the cap at which an early-warning event fires before the cap is reached. 0 disables the warning (default).
+   */
+  warningThresholdPercent?: number;
+};
+
 export type EntitlementGroup = {
   /**
    * Description of the entitlement group
@@ -1743,6 +2183,37 @@ export type EntitlementGroup = {
    * URL-friendly identifier, unique per organization. Auto-generated if not provided.
    */
   slug?: string;
+};
+
+export type EntitlementGroupDelivered = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  /**
+   * Description of the entitlement group
+   */
+  description: string | null;
+  /**
+   * Unique identifier for the entitlement group
+   */
+  readonly id: string;
+  /**
+   * Name of the entitlement group
+   */
+  name: string;
+  /**
+   * URL-friendly identifier, unique per organization. Auto-generated if not provided.
+   */
+  slug?: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
 export type EntitlementGroupSummary = {
@@ -1878,6 +2349,83 @@ export type EntitlementUsage = {
       } & ConfigEntitlementValue);
 };
 
+export type EntitlementUsageDelivered = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * End of the current usage window (exclusive). Null for a lifetime entitlement (no configured reset period).
+   */
+  currentPeriodEnd?: string;
+  /**
+   * Start of the current usage window (inclusive). Null for a lifetime entitlement (no configured reset period).
+   */
+  currentPeriodStart?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  /**
+   * Unique identifier for the entitlement
+   */
+  entitlementId: string;
+  /**
+   * URL-friendly identifier of the entitlement
+   */
+  entitlementSlug: string;
+  /**
+   * Unique identifier for the license to which this entitlement usage belongs
+   */
+  licenseId: string;
+  /**
+   * URL-friendly identifier of the license
+   */
+  licenseSlug: string;
+  /**
+   * The effective value this usage is measured against (the licence's grant, with the instance's add-ons and boosts applied; source and provenance say which), discriminated by the 'type' field. Absent when nothing grants the entitlement a value; -1 means unlimited for a NUMBER entitlement.
+   */
+  limit?:
+    | ({
+        type: "number";
+      } & NumberEntitlementValue)
+    | ({
+        type: "boolean";
+      } & BooleanEntitlementValue)
+    | ({
+        type: "object";
+      } & ConfigEntitlementValue);
+  /**
+   * How far above limit usage is still accepted, in percent: -1 unlimited, 0 a hard limit. Absent for BOOLEAN and CONFIG.
+   */
+  limitCapExceededOveragePercent?: number;
+  /**
+   * What the licence, the add-ons and the boosts each contribute
+   */
+  provenance?: Provenance;
+  /**
+   * license: the licence grants it (add-ons and boosts may change it); addon: only add-ons do
+   */
+  source: "license" | "addon";
+  /**
+   * Resolved entitlement value, discriminated by the 'type' field
+   */
+  value:
+    | ({
+        type: "number";
+      } & NumberEntitlementValue)
+    | ({
+        type: "boolean";
+      } & BooleanEntitlementValue)
+    | ({
+        type: "object";
+      } & ConfigEntitlementValue);
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
 export type ErrorDetail = {
   /**
    * Where the error occurred, e.g. 'body.items[3].tags' or 'path.thing-id'
@@ -1965,7 +2513,15 @@ export type EventHeaders = {
   [key: string]: unknown;
 };
 
-export type ExceptionEvent = {
+export type ExceptionEventDelivered = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
   /**
    * Null: no end
    */
@@ -1981,18 +2537,46 @@ export type ExceptionEvent = {
    * The exception's value: a number for NUMBER and NUMBER_AI_CREDIT, a boolean for BOOLEAN, the CONFIG document as an object; null for UNLIMITED
    */
   value: unknown | null;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
-export type ExhaustedEvent = {
+export type ExhaustedEventDelivered = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
   id: string;
   maxRedemptions?: number;
   name: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
-export type ExpiredEvent = {
+export type ExpiredEventDelivered = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
   expiresAt: string;
   id: string;
   name: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
 export type ExtraDiscount = {
@@ -2017,7 +2601,43 @@ export type FeatureFlag = {
   variants: Array<Variant> | null;
 };
 
-export type FeatureFlagEvaluated = {
+export type FeatureFlagDelivered = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  default_variant: DefaultVariant;
+  description: string | null;
+  enabled: boolean;
+  event_name: string;
+  readonly id: string;
+  metadata: {
+    [key: string]: unknown;
+  };
+  name: string;
+  slug?: string;
+  targetings: Targetings;
+  type: "boolean" | "string" | "number" | "object";
+  variants: Array<Variant> | null;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
+export type FeatureFlagEvaluatedDelivered = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
   /**
    * Set when the evaluation failed and the default was returned
    */
@@ -2046,6 +2666,10 @@ export type FeatureFlagEvaluated = {
    * Name of the resolved variant, when the flag has one
    */
   variant?: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
 export type Grant = {
@@ -2060,13 +2684,25 @@ export type Grant = {
   modifierValue?: string;
 };
 
-export type HandoffAcknowledgement = {
+export type HandoffAcknowledgementDelivered = {
   acknowledgedBy: string;
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
   /**
    * The invoice's number in the organization's accounting system
    */
   externalReference?: string;
   invoiceId: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
 export type HandoffBacklog = {
@@ -2111,15 +2747,23 @@ export type HandoffClaimSize = {
   limit?: number;
 };
 
-export type HeldInvoice = {
+export type HeldInvoiceDelivered = {
   /**
    * The boundary the invoice bills. With the kind, it identifies the invoice within its subscription
    */
   boundaryAt: string;
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
   collectionMethod: "SEND_INVOICE" | "CHARGE_AUTOMATICALLY";
   createdAt: string;
   currency: string;
   customerName: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
   /**
    * As it was when the invoice was composed
    */
@@ -2197,6 +2841,10 @@ export type HeldInvoice = {
    */
   total: number;
   updatedAt: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
 export type HeldInvoices = {
@@ -2379,10 +3027,18 @@ export type InstanceAddon = {
   removedAt?: string;
 };
 
-export type InstanceAddonUpdate = {
+export type InstanceAddonUpdateDelivered = {
   addonId: string;
   addonSlug: string;
   attachedAt: string;
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
   familySlug: string;
   readonly id: string;
   instanceSlug: string;
@@ -2405,6 +3061,10 @@ export type InstanceAddonUpdate = {
   prices: Array<Price>;
   quantity: number;
   removedAt?: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
 export type InstanceBilling = {
@@ -2540,7 +3200,114 @@ export type InstanceBody = {
   webUrl?: string;
 };
 
-export type InstanceEntitlementCapExceeded = {
+export type InstanceDelivered = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * Timestamp when the instance was created
+   */
+  readonly createdAt: string;
+  /**
+   * User who created this instance
+   */
+  readonly createdBy: User;
+  /**
+   * ID of the customer associated with this instance
+   */
+  customerId: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  /**
+   * Slug of the customer associated with this instance
+   */
+  readonly customerSlug: string;
+  /**
+   * ID of the deployment zone associated with this instance (optional)
+   */
+  deploymentZoneId?: string;
+  /**
+   * Slug of the deployment zone associated with this instance (optional)
+   */
+  readonly deploymentZoneSlug?: string;
+  /**
+   * Brief description of the instance
+   */
+  description: string;
+  /**
+   * End date of the license for this instance
+   */
+  endLicenseDate: string;
+  /**
+   * Unique identifier for the instance
+   */
+  readonly id: string;
+  /**
+   * Integrations grouped by adapter name
+   */
+  integrations?: {
+    [key: string]: InstanceIntegration;
+  };
+  /**
+   * ID of the license version this instance is pinned to. An ARCHIVED version cannot be assigned, on create or by changing the license (CreateInstance.LicenseArchived, UpdateInstance.LicenseArchived); an instance already on a version that is archived later keeps it. A DRAFT version can be assigned, to try it before publishing.
+   */
+  licenseId: string;
+  /**
+   * Slug of the license associated with this instance
+   */
+  readonly licenseSlug: string;
+  /**
+   * Commercial lifecycle stage of the instance (free-form; suggested: TRIAL, ACTIVE, AT_RISK, CHURNED)
+   */
+  readonly lifecycleStage?: string;
+  /**
+   * Metadata for the instance
+   */
+  metadata?: {
+    [key: string]: unknown;
+  };
+  /**
+   * Name of the instance
+   */
+  name: string;
+  /**
+   * Optional URL-friendly identifier, unique per organization. Auto-generated if not provided.
+   */
+  slug?: string;
+  /**
+   * Start date of the license for this instance
+   */
+  startLicenseDate: string;
+  /**
+   * Operational status of the instance
+   */
+  readonly status?: "HEALTHY" | "DEGRADED" | "INCIDENT" | "MAINTENANCE";
+  /**
+   * Timestamp when the instance was last updated
+   */
+  readonly updatedAt: string;
+  /**
+   * User who last updated this instance
+   */
+  readonly updatedBy: User;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
+export type InstanceEntitlementCapExceededDelivered = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
   /**
    * URL-friendly identifier of the entitlement
    */
@@ -2557,11 +3324,23 @@ export type InstanceEntitlementCapExceeded = {
    * Current usage value, including overage
    */
   value: number;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
-export type InstanceEntitlementUsagePeriodRolledOver = {
+export type InstanceEntitlementUsagePeriodRolledOverDelivered = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
   closed_period_end: string | null;
   closed_period_start: string | null;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
   entitlement_id: string;
   entitlement_slug: string;
   event_count: number;
@@ -2569,13 +3348,25 @@ export type InstanceEntitlementUsagePeriodRolledOver = {
   is_synthetic: boolean;
   new_period_start: string;
   value: number;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
-export type InstanceEntitlementUsageReportAccepted = {
+export type InstanceEntitlementUsageReportAcceptedDelivered = {
   /**
    * Report behavior: append folds the value into the stored total, set overwrites it
    */
   behavior: "append" | "set";
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
   /**
    * URL-friendly identifier of the entitlement the usage was reported against
    */
@@ -2592,13 +3383,25 @@ export type InstanceEntitlementUsageReportAccepted = {
    * Value carried by the report
    */
   value: number;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
-export type InstanceEntitlementUsageWarningThresholdReached = {
+export type InstanceEntitlementUsageWarningThresholdReachedDelivered = {
   /**
    * Usage value at which the warning fires (cap * warningThresholdPercent / 100)
    */
   boundary: number;
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
   /**
    * URL-friendly identifier of the entitlement
    */
@@ -2611,9 +3414,21 @@ export type InstanceEntitlementUsageWarningThresholdReached = {
    * Current usage value
    */
   value: number;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
-export type InstanceEntitlementValueGet = {
+export type InstanceEntitlementValueGetDelivered = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
   /**
    * Unique identifier for the entitlement
    */
@@ -2655,6 +3470,10 @@ export type InstanceEntitlementValueGet = {
     | ({
         type: "object";
       } & ConfigEntitlementValue);
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
 export type InstanceIntegration = {
@@ -2731,21 +3550,49 @@ export type InstanceIntegrationResource = {
   webUrl?: string;
 };
 
-export type InstanceLifecycleStageChanged = {
+export type InstanceLifecycleStageChangedDelivered = {
   changed_by: string;
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
   instance_id: string;
   new_lifecycle_stage: string | null;
   previous_lifecycle_stage: string | null;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
-export type InstanceStatusChanged = {
+export type InstanceStatusChangedDelivered = {
   changed_by: string;
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
   instance_id: string;
   new_status: "HEALTHY" | "DEGRADED" | "INCIDENT" | "MAINTENANCE";
   previous_status: "HEALTHY" | "DEGRADED" | "INCIDENT" | "MAINTENANCE";
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
-export type InstanceUpdate = {
+export type InstanceUpdateDelivered = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
   /**
    * Timestamp when the instance was created
    */
@@ -2758,6 +3605,10 @@ export type InstanceUpdate = {
    * ID of the customer associated with this instance
    */
   customerId: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
   /**
    * Slug of the customer associated with this instance
    */
@@ -2834,6 +3685,10 @@ export type InstanceUpdate = {
    * User who last updated this instance
    */
   readonly updatedBy: User;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
 export type Invoice = {
@@ -3396,15 +4251,23 @@ export type InvoiceWriteOff = {
   reason: string;
 };
 
-export type IssuedInvoice = {
+export type IssuedInvoiceDelivered = {
   /**
    * The boundary the invoice bills. With the kind, it identifies the invoice within its subscription
    */
   boundaryAt: string;
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
   collectionMethod: "SEND_INVOICE" | "CHARGE_AUTOMATICALLY";
   createdAt: string;
   currency: string;
   customerName: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
   /**
    * As it was when the invoice was composed
    */
@@ -3487,6 +4350,10 @@ export type IssuedInvoice = {
    */
   total: number;
   updatedAt: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
 export type License = {
@@ -3556,6 +4423,85 @@ export type License = {
   versionName?: string;
 };
 
+export type LicenseDelivered = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * Timestamp when this license was created
+   */
+  readonly createdAt: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  /**
+   * Detailed description of the license capabilities and restrictions
+   */
+  description: string;
+  /**
+   * Identifier of the license family this license is a version of. Stable across renames and new versions: two licenses sharing it are the same product. Always present in responses. On create, optional: names the family this license is a new version of, as familySlug does by slug; omit both to create a new family. On update, optional and must be the license's own family: a version cannot move between families (UpdateLicense.FamilyNotReassignable).
+   */
+  familyId?: string;
+  /**
+   * Unique identifier for the license
+   */
+  readonly id: string;
+  /**
+   * Whether this version is the one its family puts forward: at most one version per family, and only a PUBLISHED one (CreateLicense.DefaultMustBePublished, UpdateLicense.DefaultMustBePublished). Resolution hands it out ahead of the highest-numbered published version, so it keeps being served when a newer version is published. Setting it takes the flag from the family's previous default, which gets a LICENSE_UPDATED event of its own. On update, sending false unsets it; the default cannot be archived until another version takes its place or the flag is unset (ArchiveLicense.DefaultMustBePublished).
+   */
+  isDefault: boolean;
+  /**
+   * Whether this version may be served. Always present in responses. Optional on create, where it is DRAFT or PUBLISHED and PUBLISHED when omitted; ARCHIVED is refused (CreateLicense.LifecycleStateNotSettable), since a version is archived by withdrawing it from sale. After that it changes only through publish-license (DRAFT to PUBLISHED), archive-license (PUBLISHED to ARCHIVED) and unarchive-license (ARCHIVED to PUBLISHED); update accepts the stored state and refuses any other (UpdateLicense.LifecycleStateNotSettable). Only a PUBLISHED version can be the family's default. An ARCHIVED version cannot be assigned to an instance (CreateInstance.LicenseArchived, UpdateInstance.LicenseArchived); instances already on it keep it.
+   */
+  lifecycleState?: "DRAFT" | "PUBLISHED" | "ARCHIVED";
+  /**
+   * Display name of the license
+   */
+  name: string;
+  /**
+   * How this version is sold. FREE and PAID can be bought self-serve; CUSTOM sends a buyer to selfServeCtaUrl or a conversation. Always present in responses. On create it defaults to CUSTOM; on update, omit it to keep the stored value.
+   */
+  pricingType?: "FREE" | "PAID" | "CUSTOM";
+  /**
+   * Whether self-serve signup captures a payment method before activation. Always present in responses; false when omitted on create. On update, omit it to keep the stored value.
+   */
+  requiresPaymentMethod?: boolean;
+  /**
+   * Where a buyer is sent when this version cannot be bought self-serve: an http(s) URL of at most 2048 characters (CreateLicense.InvalidSelfServeCtaUrl). Absent when there is none. On update, omit it to keep the stored value, or send an empty string to remove it.
+   */
+  selfServeCtaUrl?: string;
+  /**
+   * Optional URL-friendly identifier, unique per organization. When omitted, a new version of an existing family takes {familySlug}-v{version}, and any other license gets one generated from its name. A license that opens a new family gives the family its slug.
+   */
+  slug?: string;
+  /**
+   * Trial length, in days, a subscription to this version starts with by default. Absent when there is none. From 1 to 365 (CreateLicense.InvalidTrialDays, UpdateLicense.InvalidTrialDays). On update, omit it to keep the stored value, or send 0 to remove the trial.
+   */
+  trialPeriodDays?: number;
+  /**
+   * Type of the license determining its capabilities and restrictions
+   */
+  type: "DEVELOPMENT" | "TRIAL" | "PAID" | "COMMUNITY";
+  /**
+   * Timestamp when this license was last updated
+   */
+  readonly updatedAt: string;
+  /**
+   * Version of the license within its family, assigned by the server when the version is created and never changed afterwards: the version's derived slug ({familySlug}-v{version}, see slug) is built from it. A number is never reused within a family, even after its version is deleted. Create refuses any value (CreateLicense.VersionNotSettable); update accepts only the stored one, so a representation can be written back as it was read (UpdateLicense.VersionNotSettable).
+   */
+  readonly version: string;
+  /**
+   * Optional human-readable name for the license version. Defaults to "Version - <version>".
+   */
+  versionName?: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
 export type LicenseEntitlement = {
   /**
    * Timestamp when this entitlement was created
@@ -3614,6 +4560,78 @@ export type LicenseEntitlement = {
     | ({
         type: "object";
       } & ConfigEntitlementValue);
+};
+
+export type LicenseEntitlementDelivered = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * Timestamp when this entitlement was created
+   */
+  readonly createdAt: string;
+  /**
+   * User who created this entitlement
+   */
+  readonly createdBy: User;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  /**
+   * Groups associated with this entitlement
+   */
+  readonly entitlementGroups?: Array<EntitlementGroupSummary> | null;
+  /**
+   * Name of the entitlement feature or service
+   */
+  readonly entitlementName: string;
+  /**
+   * URL-friendly identifier for the entitlement
+   */
+  entitlementSlug?: string;
+  /**
+   * Type of entitlement (BOOLEAN, NUMBER, or CONFIG)
+   */
+  readonly entitlementType?: "BOOLEAN" | "NUMBER" | "CONFIG";
+  /**
+   * Unique identifier for the license this entitlement belongs to
+   */
+  readonly licenseId: string;
+  /**
+   * URL-friendly identifier for the license this entitlement belongs to
+   */
+  readonly licenseSlug: string;
+  /**
+   * Derives this grant's enforcement from its own numeric value: -1 when the value is unlimited (no cap, no overage); otherwise 0 rejects usage above the value (hard limit) and a positive percentage allows usage to exceed it by that much before being rejected (soft limit). Null for non-numeric (BOOLEAN/CONFIG) grants.
+   */
+  limitCapExceededOveragePercent?: number;
+  /**
+   * Timestamp when this entitlement was last updated
+   */
+  readonly updatedAt: string;
+  /**
+   * User who last updated this entitlement
+   */
+  readonly updatedBy: User;
+  /**
+   * Typed entitlement value. Supported shapes: {type:number,value:number}, {type:boolean,value:boolean}, {type:object,value:{...}}
+   */
+  value:
+    | ({
+        type: "number";
+      } & NumberEntitlementValue)
+    | ({
+        type: "boolean";
+      } & BooleanEntitlementValue)
+    | ({
+        type: "object";
+      } & ConfigEntitlementValue);
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
 export type LicenseFamilyUpdate = {
@@ -3682,6 +4700,65 @@ export type LicenseFamilyView = {
   versions?: Array<License>;
 };
 
+export type LicenseFamilyViewDelivered = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * Timestamp when this family was created
+   */
+  readonly createdAt: string;
+  /**
+   * The version this read is about. By default the version the family resolves to: its default version if it has one, otherwise its highest-numbered PUBLISHED version. Under ?version=N it is the version asked for instead, whatever its lifecycle state. Absent when the family has no PUBLISHED version, which only a list or an include=versions read returns.
+   */
+  currentVersion?: License;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  /**
+   * The FREE family whose default PUBLISHED version an instance of this family moves to when its subscription ends; null without one
+   */
+  fallbackLicenseFamilySlug: string | null;
+  /**
+   * Unique identifier for the license family
+   */
+  readonly id: string;
+  /**
+   * Whether the family's default PUBLISHED version is listed in the public catalogue. Private by default.
+   */
+  isPublic: boolean;
+  /**
+   * URL-friendly identifier of the family, unique per organization and stable across renames and new versions. Deleting the family's last version deletes the family and frees the slug.
+   */
+  slug: string;
+  /**
+   * What a trial charged automatically with a total above 0 becomes at its end when the customer has no ACTIVE payment method: CANCEL (the default) or CONVERT
+   */
+  trialEndWithoutPaymentMethod: "CANCEL" | "CONVERT";
+  /**
+   * How many days before a trial's end trial_will_end fires, for the trials started after it was set. 3 by default.
+   */
+  trialReminderDays: number;
+  /**
+   * Timestamp when a version was last added to this family, or when the family was created. Renames, lifecycle moves and default changes update the versions' own updatedAt, not this one.
+   */
+  readonly updatedAt: string;
+  /**
+   * Number of versions in this family, whatever their lifecycle state
+   */
+  versionCount: number;
+  /**
+   * Every version of the family, oldest first. Only returned when explicitly requested with include=versions, and then never null: a family always has at least one version.
+   */
+  versions?: Array<License>;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
 export type LicensePriceChanges = {
   /**
    * See createLicensePrice.
@@ -3704,7 +4781,7 @@ export type LicensePriceChanges = {
   unitAmountDecimal?: string;
 };
 
-export type LicensePriceEvent = {
+export type LicensePriceEventDelivered = {
   /**
    * FLAT_FEE: an amount per billing period. USAGE_BASED: an amount per sale unit of the metered entitlement's usage. OVERAGE: an amount per sale unit of the usage above the licence's limit.
    */
@@ -3717,11 +4794,19 @@ export type LicensePriceEvent = {
    * ADVANCE bills the period that starts; ARREARS the period that ended. Metered prices are always ARREARS.
    */
   billingTiming: "ADVANCE" | "ARREARS";
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
   readonly createdAt: string;
   /**
    * ISO 4217 code, upper case. One currency per licence version.
    */
   currency: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
   /**
    * When the price was deprecated
    */
@@ -3767,9 +4852,13 @@ export type LicensePriceEvent = {
    */
   unitAmountDecimal: string;
   readonly updatedAt: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
-export type LicensePriceUpdatedEvent = {
+export type LicensePriceUpdatedEventDelivered = {
   /**
    * FLAT_FEE: an amount per billing period. USAGE_BASED: an amount per sale unit of the metered entitlement's usage. OVERAGE: an amount per sale unit of the usage above the licence's limit.
    */
@@ -3786,11 +4875,19 @@ export type LicensePriceUpdatedEvent = {
    * The members the update changed, as the API names them
    */
   changedFields: Array<string> | null;
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
   readonly createdAt: string;
   /**
    * ISO 4217 code, upper case. One currency per licence version.
    */
   currency: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
   /**
    * When the price was deprecated
    */
@@ -3836,6 +4933,10 @@ export type LicensePriceUpdatedEvent = {
    */
   unitAmountDecimal: string;
   readonly updatedAt: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
 export type LineDifference = {
@@ -3961,11 +5062,84 @@ export type MetadataField = {
   readonly updatedBy: User;
 };
 
-export type MetadataFieldReordered = {
+export type MetadataFieldDelivered = {
+  /**
+   * Timestamp when the field was archived (soft delete). Absent if active.
+   */
+  readonly archivedAt?: string;
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * Timestamp when the field was created
+   */
+  readonly createdAt: string;
+  /**
+   * User who created this field
+   */
+  readonly createdBy: User;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  /**
+   * Sort order in the admin UI; ties are broken by createdAt ASC. Settable only through POST /metadata-fields/reorder; never echoed back on update.
+   */
+  displayOrder?: number;
+  /**
+   * Unique identifier
+   */
+  readonly id: string;
+  /**
+   * JSON Schema 2020-12 document describing the value space. Example: {"type":"string","enum":["a","b"]}
+   */
+  jsonSchema: {
+    [key: string]: unknown;
+  };
+  /**
+   * Stable identifier, unique per (organization, resource type) on non-archived rows. Immutable after creation; update must echo back the stored value.
+   */
+  key: string;
+  /**
+   * Human-readable label shown in the admin UI
+   */
+  label: string;
+  /**
+   * Resource type this field applies to. Immutable after creation; update must echo back the stored value.
+   */
+  resourceType: "DEPLOYMENT_ZONE" | "INSTANCE";
+  /**
+   * Timestamp when the field was last updated
+   */
+  readonly updatedAt: string;
+  /**
+   * User who last updated this field
+   */
+  readonly updatedBy: User;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
+export type MetadataFieldReorderedDelivered = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
   /**
    * Metadata field ids in their new display order
    */
   ids: Array<string> | null;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
 export type MetadataFieldSchemaProposal = {
@@ -3985,15 +5159,23 @@ export type MinimumAmount = {
   unitAmountDecimal: string;
 };
 
-export type MismatchedInvoice = {
+export type MismatchedInvoiceDelivered = {
   /**
    * The boundary the invoice bills. With the kind, it identifies the invoice within its subscription
    */
   boundaryAt: string;
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
   collectionMethod: "SEND_INVOICE" | "CHARGE_AUTOMATICALLY";
   createdAt: string;
   currency: string;
   customerName: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
   /**
    * As it was when the invoice was composed
    */
@@ -4071,6 +5253,10 @@ export type MismatchedInvoice = {
    */
   total: number;
   updatedAt: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
 export type NewAddon = {
@@ -4382,6 +5568,18 @@ export type PageAuditTrail = {
   nextCursor?: string;
 };
 
+export type PageCheckoutSessionAdmin = {
+  /**
+   * Whether more rows exist beyond this page.
+   */
+  hasMore: boolean;
+  items: Array<CheckoutSessionAdmin>;
+  /**
+   * Opaque cursor for the next page. Absent when hasMore is false.
+   */
+  nextCursor?: string;
+};
+
 export type PageComponent = {
   /**
    * Whether more rows exist beyond this page.
@@ -4634,15 +5832,23 @@ export type PageVoucher = {
   nextCursor?: string;
 };
 
-export type PaidInvoice = {
+export type PaidInvoiceDelivered = {
   /**
    * The boundary the invoice bills. With the kind, it identifies the invoice within its subscription
    */
   boundaryAt: string;
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
   collectionMethod: "SEND_INVOICE" | "CHARGE_AUTOMATICALLY";
   createdAt: string;
   currency: string;
   customerName: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
   /**
    * As it was when the invoice was composed
    */
@@ -4728,6 +5934,10 @@ export type PaidInvoice = {
    */
   total: number;
   updatedAt: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
 export type PatchInstanceBody = {
@@ -4749,15 +5959,23 @@ export type Payment = {
   status: "paid" | "requires_action" | "failed" | "processing" | "not_required";
 };
 
-export type PaymentFailedInvoice = {
+export type PaymentFailedInvoiceDelivered = {
   /**
    * The boundary the invoice bills. With the kind, it identifies the invoice within its subscription
    */
   boundaryAt: string;
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
   collectionMethod: "SEND_INVOICE" | "CHARGE_AUTOMATICALLY";
   createdAt: string;
   currency: string;
   customerName: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
   /**
    * As it was when the invoice was composed
    */
@@ -4842,27 +6060,67 @@ export type PaymentFailedInvoice = {
    */
   total: number;
   updatedAt: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
-export type PaymentMethodAttached = {
+export type PaymentMethodAttachedDelivered = {
   attachedAt: string;
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
   customerSlug: string;
   providerKind: "STRIPE";
   status: "ACTIVE";
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
-export type PaymentMethodDetached = {
+export type PaymentMethodDetachedDelivered = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
   customerSlug: string;
   providerKind: "STRIPE";
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
-export type PaymentMethodExpiring = {
+export type PaymentMethodExpiringDelivered = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
   customerSlug: string;
   /**
    * The last instant of the payment method's expiry month
    */
   expiresAt: string;
   providerKind: "STRIPE";
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
 export type PaymentMethodLabels = {
@@ -4906,7 +6164,15 @@ export type PlainToken = {
   readonly token?: string;
 };
 
-export type PlanChange = {
+export type PlanChangeDelivered = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
   fromLicenseSlug: string;
   fromPriceId: string;
   instanceSlug: string;
@@ -4916,13 +6182,29 @@ export type PlanChange = {
   invoiceId: string;
   toLicenseSlug: string;
   toPriceId: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
-export type PlanChangeSchedule = {
+export type PlanChangeScheduleDelivered = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
   effectiveAt: string;
   fromPriceId: string;
   instanceSlug: string;
   toPriceId: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
 export type PlanChangeTarget = {
@@ -5080,17 +6362,6 @@ export type PortalUpcomingInvoice = {
    * Minor units
    */
   total: number;
-};
-
-export type PortalVoucher = {
-  /**
-   * When a boost stops applying; null when it does not expire, and for a PRICE voucher, counted in invoices
-   */
-  effectiveExpiresAt: string | null;
-  effectiveStartsAt: string;
-  name: string;
-  status: "ACTIVE" | "EXPIRED" | "REVOKED";
-  voucherType: "PRICE" | "ENTITLEMENT_BOOST";
 };
 
 export type PreferenceChoices = {
@@ -5340,7 +6611,15 @@ export type ProviderCapabilities = {
   paymentMethodCapture: boolean;
 };
 
-export type ProviderChange = {
+export type ProviderChangeDelivered = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
   /**
    * Invoices already composed keep their provider
    */
@@ -5348,6 +6627,10 @@ export type ProviderChange = {
   from: "NOOP" | "STRIPE";
   instanceSlug: string;
   to: "NOOP" | "STRIPE";
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
 export type ProviderLineLimit = {
@@ -5727,9 +7010,17 @@ export type PublishableKeyDraft = {
   turnstileSiteKey?: string;
 };
 
-export type PublishableKeyEvent = {
+export type PublishableKeyEventDelivered = {
   allowedOrigins: Array<string>;
   anonymousCheckout: boolean;
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
   id: string;
   /**
    * The last four characters of the key
@@ -5738,6 +7029,10 @@ export type PublishableKeyEvent = {
   label: string;
   revokedAt?: string;
   turnstileSiteKey: string | null;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
 export type PublishableKeyPatch = {
@@ -5763,15 +7058,23 @@ export type PublishableKeyPatch = {
   turnstileSiteKey?: string;
 };
 
-export type PushFailedInvoice = {
+export type PushFailedInvoiceDelivered = {
   /**
    * The boundary the invoice bills. With the kind, it identifies the invoice within its subscription
    */
   boundaryAt: string;
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
   collectionMethod: "SEND_INVOICE" | "CHARGE_AUTOMATICALLY";
   createdAt: string;
   currency: string;
   customerName: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
   /**
    * As it was when the invoice was composed
    */
@@ -5853,6 +7156,10 @@ export type PushFailedInvoice = {
    */
   total: number;
   updatedAt: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
 export type PushFailures = {
@@ -5860,15 +7167,23 @@ export type PushFailures = {
   oldestFailedAt?: string;
 };
 
-export type PushedInvoice = {
+export type PushedInvoiceDelivered = {
   /**
    * The boundary the invoice bills. With the kind, it identifies the invoice within its subscription
    */
   boundaryAt: string;
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
   collectionMethod: "SEND_INVOICE" | "CHARGE_AUTOMATICALLY";
   createdAt: string;
   currency: string;
   customerName: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
   /**
    * As it was when the invoice was composed
    */
@@ -5947,6 +7262,10 @@ export type PushedInvoice = {
    */
   total: number;
   updatedAt: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
 export type QueuedInvoice = {
@@ -6112,6 +7431,45 @@ export type Redemption = {
   voucherType: "PRICE" | "ENTITLEMENT_BOOST";
 };
 
+export type RedemptionDelivered = {
+  /**
+   * Invoices a PRICE voucher discounted
+   */
+  applicationsCount: number;
+  /**
+   * 1 for ONE_TIME, durationInPeriods for REPEATING; null for FOREVER
+   */
+  applicationsMax: number | null;
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  codeHint: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  /**
+   * When a boost stops applying; null for a PRICE voucher, counted in invoices, and for FOREVER
+   */
+  effectiveExpiresAt: string | null;
+  effectiveStartsAt: string;
+  expiredAt: string | null;
+  readonly id: string;
+  instanceSlug: string;
+  redeemedAt: string;
+  revokedAt: string | null;
+  revokedReason: string | null;
+  status: "ACTIVE" | "EXPIRED" | "REVOKED";
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+  voucherId: string;
+  voucherName: string;
+  voucherType: "PRICE" | "ENTITLEMENT_BOOST";
+};
+
 export type RedemptionRules = {
   /**
    * Only for an instance with a live ANNUAL subscription
@@ -6158,15 +7516,66 @@ export type Release = {
   version: string;
 };
 
-export type ReleasedInvoice = {
+export type ReleaseDelivered = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * List of components included in this release, fixed at creation
+   */
+  readonly components?: Array<Component> | null;
+  /**
+   * Timestamp when the release was created
+   */
+  readonly createdAt: string;
+  /**
+   * User who created this release
+   */
+  readonly createdBy: User;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  /**
+   * Description of the release
+   */
+  description?: string;
+  /**
+   * Unique identifier for the release
+   */
+  readonly id: string;
+  /**
+   * Optional URL-friendly identifier, unique per organization. Auto-generated if not provided.
+   */
+  slug?: string;
+  /**
+   * Version of the release
+   */
+  version: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
+export type ReleasedInvoiceDelivered = {
   /**
    * The boundary the invoice bills. With the kind, it identifies the invoice within its subscription
    */
   boundaryAt: string;
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
   collectionMethod: "SEND_INVOICE" | "CHARGE_AUTOMATICALLY";
   createdAt: string;
   currency: string;
   customerName: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
   /**
    * As it was when the invoice was composed
    */
@@ -6252,6 +7661,10 @@ export type ReleasedInvoice = {
    */
   total: number;
   updatedAt: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
 export type ReorderMetadataFieldsInput = {
@@ -6591,12 +8004,20 @@ export type SessionDiscount = {
   value: string;
 };
 
-export type SessionEvent = {
+export type SessionEventDelivered = {
   billingPeriod: "MONTHLY" | "QUARTERLY" | "SEMI_ANNUAL" | "ANNUAL";
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
   /**
    * The vendor's opaque reference, as given at the start
    */
   clientReferenceId: string | null;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
   /**
    * The customer the completion created; null before
    */
@@ -6615,6 +8036,10 @@ export type SessionEvent = {
    * OPEN on started, COMPLETED on completed; on abandoned, ABANDONED (never completed, slugs null) or EXPIRED (its INCOMPLETE subscription expired or was canceled unpaid, slugs set)
    */
   status: "OPEN" | "COMPLETED" | "ABANDONED" | "EXPIRED";
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
 export type SessionInvoice = {
@@ -6717,9 +8142,43 @@ export type SessionPortal = {
    */
   updatedAt: string;
   /**
-   * The vouchers the instance redeemed. Never a code.
+   * The instance's ACTIVE redemptions. Never a code.
    */
-  vouchers: Array<PortalVoucher>;
+  vouchers: Array<SessionRedemption>;
+};
+
+export type SessionRedeem = {
+  /**
+   * The code as the customer typed it; case and separators do not matter
+   */
+  code: string;
+  /**
+   * Check, and answer the redemption the call would make, without making it; counts as one attempt
+   */
+  dryRun?: boolean;
+};
+
+export type SessionRedemption = {
+  /**
+   * Invoices its PRICE part discounted; 0 without one
+   */
+  applicationsCount: number;
+  /**
+   * How many it discounts in all: 1 for ONE_TIME, its periods for REPEATING; null for FOREVER and without a PRICE part
+   */
+  applicationsMax: number | null;
+  /**
+   * next: a PRICE part that has not discounted an invoice yet -- it applies from the next invoice composed, never to one already issued; null otherwise
+   */
+  appliesFromInvoice: "next" | null;
+  /**
+   * When a boost or a flag grant stops applying; null when it does not expire, and for a PRICE voucher, counted in invoices
+   */
+  effectiveExpiresAt: string | null;
+  effectiveStartsAt: string;
+  name: string;
+  status: "ACTIVE" | "EXPIRED" | "REVOKED";
+  voucherType: "PRICE" | "ENTITLEMENT_BOOST" | "FLAG_GRANT" | "COMPOSITE";
 };
 
 export type SessionScheduledChange = {
@@ -6875,12 +8334,24 @@ export type StartedSubscription = {
   updatedAt: string;
 };
 
-export type StatusChange = {
+export type StatusChangeDelivered = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
   from: "INCOMPLETE" | "TRIAL" | "ACTIVE" | "PAST_DUE" | "CANCELED";
   instanceBillingId: string;
   instanceSlug: string;
   reason: "TRIAL_ENDED" | "INVOICE_OVERDUE" | "PAYMENT_FAILED" | "SETTLED";
   to: "INCOMPLETE" | "TRIAL" | "ACTIVE" | "PAST_DUE" | "CANCELED";
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
 export type SubscriptionAddon = {
@@ -6917,22 +8388,42 @@ export type SubscriptionTerms = {
   providerKind?: "NOOP" | "STRIPE";
 };
 
-export type SyncFailure = {
+export type SyncFailureDelivered = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
   consecutiveFailures: number;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
   lastSyncError: string;
   lastSyncedAt: string;
   providerKind: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
 export type SyncReport = {
   providers: Array<Outcome>;
 };
 
-export type SystemTokenIssuance = {
+export type SystemTokenIssuanceDelivered = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
   /**
    * Credential class that performed the mint; "platform" is the system:kaiten identity
    */
   credentialKind: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
   /**
    * Absent when the minted credential does not expire
    */
@@ -6961,6 +8452,10 @@ export type SystemTokenIssuance = {
    * Server-assigned identifier of the minted credential
    */
   slug: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
 export type TargetingContext = {
@@ -7148,7 +8643,7 @@ export type TrialPaymentMethod = {
   last4: string | null;
 };
 
-export type TrialWillEnd = {
+export type TrialWillEndDelivered = {
   /**
    * The instant its periods are counted from
    */
@@ -7167,6 +8662,10 @@ export type TrialWillEnd = {
    */
   charge: TrialCharge | null;
   /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
    * Effective: the subscription's own, else the organization's default
    */
   collectionMethod: "SEND_INVOICE" | "CHARGE_AUTOMATICALLY";
@@ -7183,6 +8682,10 @@ export type TrialWillEnd = {
   currentPeriodStart: string;
   customer: TrialCustomer;
   customerName: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
   customerSlug: string;
   /**
    * Whole days from the event to trialEndsAt, rounded up; 0 once it passed
@@ -7246,17 +8749,29 @@ export type TrialWillEnd = {
    */
   trialEndsAt: string | null;
   updatedAt: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
-export type UncollectibleInvoice = {
+export type UncollectibleInvoiceDelivered = {
   /**
    * The boundary the invoice bills. With the kind, it identifies the invoice within its subscription
    */
   boundaryAt: string;
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
   collectionMethod: "SEND_INVOICE" | "CHARGE_AUTOMATICALLY";
   createdAt: string;
   currency: string;
   customerName: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
   /**
    * As it was when the invoice was composed
    */
@@ -7334,6 +8849,10 @@ export type UncollectibleInvoice = {
    */
   total: number;
   updatedAt: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
 export type UsageReport = {
@@ -7491,15 +9010,23 @@ export type Variant = {
   value: unknown;
 };
 
-export type VoidedInvoice = {
+export type VoidedInvoiceDelivered = {
   /**
    * The boundary the invoice bills. With the kind, it identifies the invoice within its subscription
    */
   boundaryAt: string;
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
   collectionMethod: "SEND_INVOICE" | "CHARGE_AUTOMATICALLY";
   createdAt: string;
   currency: string;
   customerName: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
   /**
    * As it was when the invoice was composed
    */
@@ -7576,6 +9103,10 @@ export type VoidedInvoice = {
    */
   total: number;
   updatedAt: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
   voidReason: string;
 };
 
@@ -7651,6 +9182,74 @@ export type VoucherCode = {
   code: string;
 };
 
+export type VoucherDelivered = {
+  /**
+   * Only instances holding one of these add-on versions can redeem it; any when empty
+   */
+  applicableAddonIds: Array<string>;
+  applicableAddonPriceIds: Array<string>;
+  /**
+   * Only instances on these licence versions can redeem it; any when empty
+   */
+  applicableLicenseIds: Array<string>;
+  applicableLicensePriceIds: Array<string>;
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * The code to redeem. Returned to read:vouchers callers only; never in an event.
+   */
+  code?: string;
+  /**
+   * The last four characters of the normalized code
+   */
+  codeHint: string;
+  readonly createdAt: string;
+  /**
+   * The currency of a FIXED_AMOUNT discount
+   */
+  currency?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  description?: string;
+  /**
+   * PRICE: how many invoices it discounts (one, durationInPeriods, or every one). BOOST: how long a redemption lasts, in the subscription's billing periods.
+   */
+  duration: "ONE_TIME" | "REPEATING" | "FOREVER";
+  durationInPeriods?: number;
+  expiresAt?: string;
+  /**
+   * What an ENTITLEMENT_BOOST changes
+   */
+  grants: Array<Grant>;
+  readonly id: string;
+  maxRedemptions?: number;
+  name: string;
+  priceAppliesTo?: "LICENSE_BASE" | "ADDONS" | "BOTH" | "SELECTED_PRICES";
+  priceDiscountType?: "PERCENTAGE" | "FIXED_AMOUNT";
+  /**
+   * A percentage in (0, 100], or an integer amount in minor units of currency
+   */
+  priceDiscountValue?: string;
+  redemptionRules: RedemptionRules;
+  redemptionsCount: number;
+  /**
+   * Only this customer's instances can redeem it
+   */
+  restrictedCustomerSlug?: string;
+  startsAt?: string;
+  status: "DRAFT" | "ACTIVE" | "EXPIRED" | "EXHAUSTED" | "ARCHIVED";
+  readonly updatedAt: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+  voucherType: "PRICE" | "ENTITLEMENT_BOOST";
+};
+
 export type VoucherDraft = {
   applicableAddonIds?: Array<string> | null;
   /**
@@ -7722,6 +9321,45 @@ export type AddonWritable = {
   versionName: string;
 };
 
+export type AddonDeliveredWritable = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  description: string;
+  /**
+   * The family the version belongs to
+   */
+  familySlug: string;
+  /**
+   * The version the family resolves to. Only a PUBLISHED version.
+   */
+  isDefault: boolean;
+  /**
+   * A DRAFT can be attached to try it; an ARCHIVED version stays on the instances holding it but cannot be attached again.
+   */
+  lifecycleState: "DRAFT" | "PUBLISHED" | "ARCHIVED";
+  /**
+   * The largest quantity an instance can hold; unbounded when absent
+   */
+  maxQuantity?: number;
+  name: string;
+  pricingType: "FREE" | "PAID" | "CUSTOM";
+  /**
+   * The version's slug, unique in the organization
+   */
+  slug: string;
+  versionName: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
 export type AddonEntitlementWritable = {
   entitlementSlug: string;
   entitlementType: "BOOLEAN" | "NUMBER" | "CONFIG" | "NUMBER_AI_CREDIT";
@@ -7765,11 +9403,19 @@ export type AddonFamilyWritable = {
   versions: Array<AddonWritable> | null;
 };
 
-export type AddonGrantUpdateWritable = {
+export type AddonGrantUpdateDeliveredWritable = {
   /**
    * The add-on version the grant belongs to
    */
   addonSlug: string;
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
   entitlementSlug: string;
   entitlementType: "BOOLEAN" | "NUMBER" | "CONFIG" | "NUMBER_AI_CREDIT";
   /**
@@ -7786,9 +9432,13 @@ export type AddonGrantUpdateWritable = {
   value: {
     [key: string]: unknown;
   };
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
-export type AddonPriceUpdateWritable = {
+export type AddonPriceUpdateDeliveredWritable = {
   /**
    * The add-on version the price belongs to
    */
@@ -7806,9 +9456,17 @@ export type AddonPriceUpdateWritable = {
    */
   billingTiming: "ADVANCE" | "ARREARS";
   /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
    * ISO 4217 code, upper case. One currency per licence version.
    */
   currency: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
   /**
    * When the price was deprecated
    */
@@ -7841,17 +9499,29 @@ export type AddonPriceUpdateWritable = {
    * Amount in the currency's minor units (cents for EUR): per period for FLAT_FEE, per sale unit for metered prices. Up to 12 decimal places.
    */
   unitAmountDecimal: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
-export type AddonUpdateWritable = {
+export type AddonUpdateDeliveredWritable = {
   /**
    * The members the change touched, as the API names them
    */
   changedFields: Array<string> | null;
   /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
    * The licence families the version fits after the change
    */
   compatibleLicenseFamilies: Array<string> | null;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
   description: string;
   /**
    * The family the version belongs to
@@ -7876,9 +9546,13 @@ export type AddonUpdateWritable = {
    */
   slug: string;
   versionName: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
-export type BillingStartedWritable = {
+export type BillingStartedDeliveredWritable = {
   /**
    * The instant its periods are counted from
    */
@@ -7892,6 +9566,10 @@ export type BillingStartedWritable = {
   cancelRequestedAt: string | null;
   canceledAt: string | null;
   cancellationReason: string | null;
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
   /**
    * Effective: the subscription's own, else the organization's default
    */
@@ -7908,6 +9586,10 @@ export type BillingStartedWritable = {
   currentPeriodEnd: string;
   currentPeriodStart: string;
   customerName: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
   customerSlug: string;
   /**
    * Effective: the subscription's own, else the organization's default
@@ -7958,6 +9640,10 @@ export type BillingStartedWritable = {
    */
   trialEndsAt: string | null;
   updatedAt: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
 export type CanceledSubscriptionWritable = {
@@ -8042,7 +9728,7 @@ export type CanceledSubscriptionWritable = {
   updatedAt: string;
 };
 
-export type CancellationWritable = {
+export type CancellationChangeDeliveredWritable = {
   /**
    * The instant its periods are counted from
    */
@@ -8056,6 +9742,10 @@ export type CancellationWritable = {
   cancelRequestedAt: string | null;
   canceledAt: string | null;
   cancellationReason: string | null;
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
   /**
    * Effective: the subscription's own, else the organization's default
    */
@@ -8072,6 +9762,104 @@ export type CancellationWritable = {
   currentPeriodEnd: string;
   currentPeriodStart: string;
   customerName: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  customerSlug: string;
+  /**
+   * Effective: the subscription's own, else the organization's default
+   */
+  daysUntilDue: number;
+  /**
+   * The subscription's own payment terms; null when it takes the organization's
+   */
+  daysUntilDueOverride: number | null;
+  /**
+   * The boundary the cancellation takes effect at
+   */
+  effectiveAt: string;
+  id: string;
+  /**
+   * When a checkout waiting for its payment ends unpaid: INCOMPLETE, or a free subscription that carries one
+   */
+  incompleteExpiresAt: string | null;
+  instanceName: string;
+  /**
+   * As it was at the subscription's last write
+   */
+  instanceSlug: string;
+  pastDueSince: string | null;
+  /**
+   * The licence version a checkout waiting for its payment moves the instance to once paid
+   */
+  pendingLicenseSlug: string | null;
+  /**
+   * Who collects its invoices. NOOP: the organization itself, through the handoff queue
+   */
+  providerKind: "NOOP" | "STRIPE";
+  /**
+   * When trial_will_end is (or was) emitted: trialEndsAt minus the family's trialReminderDays as it was when the trial started; set with trialEndsAt
+   */
+  reminderAt: string | null;
+  /**
+   * A plan change waiting for the next boundary
+   */
+  scheduledChange: ScheduledChangeWritable | null;
+  /**
+   * When billing started: usage before it is never billed
+   */
+  startedAt: string;
+  status: "INCOMPLETE" | "TRIAL" | "ACTIVE" | "PAST_DUE" | "CANCELED";
+  /**
+   * When the trial ends, or ended: usage before it is never billed
+   */
+  trialEndsAt: string | null;
+  updatedAt: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
+export type CancellationDeliveredWritable = {
+  /**
+   * The instant its periods are counted from
+   */
+  anchorAt: string;
+  /**
+   * The FLAT_FEE price the subscription is pinned to, deprecated or not
+   */
+  basePrice: PriceWritable;
+  billingPeriod: "MONTHLY" | "QUARTERLY" | "SEMI_ANNUAL" | "ANNUAL";
+  cancelAtPeriodEnd: boolean;
+  cancelRequestedAt: string | null;
+  canceledAt: string | null;
+  cancellationReason: string | null;
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * Effective: the subscription's own, else the organization's default
+   */
+  collectionMethod: "SEND_INVOICE" | "CHARGE_AUTOMATICALLY";
+  /**
+   * The subscription's own collection method; null when it takes the organization's
+   */
+  collectionMethodOverride: string | null;
+  createdAt: string;
+  currency: string;
+  /**
+   * The next boundary: the period closes, and its invoice is composed, after it
+   */
+  currentPeriodEnd: string;
+  currentPeriodStart: string;
+  customerName: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
   customerSlug: string;
   /**
    * Effective: the subscription's own, else the organization's default
@@ -8126,88 +9914,10 @@ export type CancellationWritable = {
    */
   trialEndsAt: string | null;
   updatedAt: string;
-};
-
-export type CancellationChangeWritable = {
   /**
-   * The instant its periods are counted from
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
    */
-  anchorAt: string;
-  /**
-   * The FLAT_FEE price the subscription is pinned to, deprecated or not
-   */
-  basePrice: PriceWritable;
-  billingPeriod: "MONTHLY" | "QUARTERLY" | "SEMI_ANNUAL" | "ANNUAL";
-  cancelAtPeriodEnd: boolean;
-  cancelRequestedAt: string | null;
-  canceledAt: string | null;
-  cancellationReason: string | null;
-  /**
-   * Effective: the subscription's own, else the organization's default
-   */
-  collectionMethod: "SEND_INVOICE" | "CHARGE_AUTOMATICALLY";
-  /**
-   * The subscription's own collection method; null when it takes the organization's
-   */
-  collectionMethodOverride: string | null;
-  createdAt: string;
-  currency: string;
-  /**
-   * The next boundary: the period closes, and its invoice is composed, after it
-   */
-  currentPeriodEnd: string;
-  currentPeriodStart: string;
-  customerName: string;
-  customerSlug: string;
-  /**
-   * Effective: the subscription's own, else the organization's default
-   */
-  daysUntilDue: number;
-  /**
-   * The subscription's own payment terms; null when it takes the organization's
-   */
-  daysUntilDueOverride: number | null;
-  /**
-   * The boundary the cancellation takes effect at
-   */
-  effectiveAt: string;
-  id: string;
-  /**
-   * When a checkout waiting for its payment ends unpaid: INCOMPLETE, or a free subscription that carries one
-   */
-  incompleteExpiresAt: string | null;
-  instanceName: string;
-  /**
-   * As it was at the subscription's last write
-   */
-  instanceSlug: string;
-  pastDueSince: string | null;
-  /**
-   * The licence version a checkout waiting for its payment moves the instance to once paid
-   */
-  pendingLicenseSlug: string | null;
-  /**
-   * Who collects its invoices. NOOP: the organization itself, through the handoff queue
-   */
-  providerKind: "NOOP" | "STRIPE";
-  /**
-   * When trial_will_end is (or was) emitted: trialEndsAt minus the family's trialReminderDays as it was when the trial started; set with trialEndsAt
-   */
-  reminderAt: string | null;
-  /**
-   * A plan change waiting for the next boundary
-   */
-  scheduledChange: ScheduledChangeWritable | null;
-  /**
-   * When billing started: usage before it is never billed
-   */
-  startedAt: string;
-  status: "INCOMPLETE" | "TRIAL" | "ACTIVE" | "PAST_DUE" | "CANCELED";
-  /**
-   * When the trial ends, or ended: usage before it is never billed
-   */
-  trialEndsAt: string | null;
-  updatedAt: string;
+  via?: "customer_session" | "checkout_session";
 };
 
 export type ComponentWritable = {
@@ -8231,6 +9941,41 @@ export type ComponentWritable = {
    * Version of the component
    */
   version: string;
+};
+
+export type ComponentDeliveredWritable = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  /**
+   * Description of the component
+   */
+  description?: string;
+  /**
+   * Name of the component
+   */
+  name: string;
+  /**
+   * Reference to the previous version of this component
+   */
+  previousComponentId?: string;
+  /**
+   * Optional URL-friendly identifier, unique per organization. Auto-generated if not provided.
+   */
+  slug?: string;
+  /**
+   * Version of the component
+   */
+  version: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
 export type ConnectorSettingsWritable = {
@@ -8271,7 +10016,11 @@ export type CustomerWritable = {
   slug?: string;
 };
 
-export type CustomerEventWritable = {
+export type CustomerEventDeliveredWritable = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
   /**
    * Timestamp when the customer was created
    */
@@ -8280,6 +10029,10 @@ export type CustomerEventWritable = {
    * User who created this customer
    */
   createdBy: User;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
   /**
    * Customer domain name
    */
@@ -8314,6 +10067,10 @@ export type CustomerEventWritable = {
    * User who last updated this customer
    */
   updatedBy: User;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
 export type CustomerIntegrationWritable = {
@@ -8364,6 +10121,47 @@ export type DeploymentZoneWritable = {
    * Environment class of the deployment zone. Free-form: any value is stored as sent, but production, staging and development are the ones the console labels, and feature-flag targeting rules match on this field as __kaiten.deploymentZone.type.
    */
   type: string;
+};
+
+export type DeploymentZoneDeliveredWritable = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  /**
+   * Description of the deployment zone
+   */
+  description: string;
+  /**
+   * Typed metadata for the deployment zone, validated against the org-scoped MetadataField schema
+   */
+  metadata?: {
+    [key: string]: unknown;
+  };
+  /**
+   * Name of the deployment zone
+   */
+  name: string;
+  /**
+   * Currently deployed release ID
+   */
+  releaseId?: string;
+  /**
+   * Optional URL-friendly identifier, unique per organization. Auto-generated if not provided.
+   */
+  slug?: string;
+  /**
+   * Environment class of the deployment zone. Free-form: any value is stored as sent, but production, staging and development are the ones the console labels, and feature-flag targeting rules match on this field as __kaiten.deploymentZone.type.
+   */
+  type: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
 export type EntitlementWritable = {
@@ -8437,6 +10235,89 @@ export type EntitlementWritable = {
   warningThresholdPercent?: number;
 };
 
+export type EntitlementDeliveredWritable = {
+  /**
+   * Method used to fold each reported usage value into the stored total (NUMBER only). Defaults to SUM.
+   */
+  aggregationMethod?: "COUNT" | "SUM" | "AVERAGE" | "MIN" | "MAX" | "LATEST";
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  /**
+   * Description of the entitlement
+   */
+  description: string | null;
+  /**
+   * Sort order of this entitlement in customer-facing components (ascending). Defaults to 0.
+   */
+  displayOrder?: number;
+  /**
+   * Groups associated with this entitlement, identified by slug
+   */
+  groupSlugs?: Array<string> | null;
+  /**
+   * Optional icon, stored as a provider-namespaced token (provider:name). Decoupled from any specific icon library.
+   */
+  icon?: string;
+  /**
+   * Name of the entitlement
+   */
+  name: string;
+  /**
+   * Phase of the periodic usage window: CALENDAR (UTC calendar-aligned), LICENSE_START (phased off the instance's license start date) or BILLING_PERIOD (phased off the instance's live subscription's billing anchor, LICENSE_START without one; with resetPeriod MONTH or YEAR only). Required exactly when resetPeriod is set; defaults to CALENDAR when omitted. Immutable once set.
+   */
+  resetAnchor?: "CALENDAR" | "LICENSE_START" | "BILLING_PERIOD";
+  /**
+   * Cadence at which usage automatically resets for this NUMBER entitlement. NULL means a lifetime counter (default). Immutable once set -- a full-replace PUT must echo back the stored value.
+   */
+  resetPeriod?: "HOUR" | "DAY" | "WEEK" | "MONTH" | "YEAR";
+  /**
+   * Number of base units one sale unit represents (1 sale unit = N base units).
+   */
+  saleUnitFactor?: number;
+  /**
+   * Plural label of the unit this entitlement is sold in, when it differs from the base unit.
+   */
+  saleUnitPlural?: string;
+  /**
+   * Singular label of the unit this entitlement is sold in, when it differs from the base unit. Requires the base unit labels and the full sale unit trio (saleUnitSingular, saleUnitPlural, saleUnitFactor).
+   */
+  saleUnitSingular?: string;
+  /**
+   * Optional URL-friendly identifier, unique per organization. Auto-generated if not provided.
+   */
+  slug?: string;
+  /**
+   * Type of the entitlement
+   */
+  type?: "BOOLEAN" | "NUMBER" | "CONFIG" | "NUMBER_AI_CREDIT";
+  /**
+   * Plural label of the base unit this entitlement is measured in (NUMBER type only). Must be provided together with unitSingular.
+   */
+  unitPlural?: string;
+  /**
+   * Singular label of the base unit this entitlement is measured in (NUMBER type only). Must be provided together with unitPlural.
+   */
+  unitSingular?: string;
+  /**
+   * Whether this entitlement is displayed in customer-facing components (e.g. plan and pricing pages). Defaults to false.
+   */
+  userFacing?: boolean;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+  /**
+   * Percentage of the cap at which an early-warning event fires before the cap is reached. 0 disables the warning (default).
+   */
+  warningThresholdPercent?: number;
+};
+
 export type EntitlementGroupWritable = {
   /**
    * Description of the entitlement group
@@ -8450,6 +10331,33 @@ export type EntitlementGroupWritable = {
    * URL-friendly identifier, unique per organization. Auto-generated if not provided.
    */
   slug?: string;
+};
+
+export type EntitlementGroupDeliveredWritable = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  /**
+   * Description of the entitlement group
+   */
+  description: string | null;
+  /**
+   * Name of the entitlement group
+   */
+  name: string;
+  /**
+   * URL-friendly identifier, unique per organization. Auto-generated if not provided.
+   */
+  slug?: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
 export type EntitlementGroupUsageWritable = {
@@ -8570,6 +10478,83 @@ export type EntitlementUsageWritable = {
       } & ConfigEntitlementValue);
 };
 
+export type EntitlementUsageDeliveredWritable = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * End of the current usage window (exclusive). Null for a lifetime entitlement (no configured reset period).
+   */
+  currentPeriodEnd?: string;
+  /**
+   * Start of the current usage window (inclusive). Null for a lifetime entitlement (no configured reset period).
+   */
+  currentPeriodStart?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  /**
+   * Unique identifier for the entitlement
+   */
+  entitlementId: string;
+  /**
+   * URL-friendly identifier of the entitlement
+   */
+  entitlementSlug: string;
+  /**
+   * Unique identifier for the license to which this entitlement usage belongs
+   */
+  licenseId: string;
+  /**
+   * URL-friendly identifier of the license
+   */
+  licenseSlug: string;
+  /**
+   * The effective value this usage is measured against (the licence's grant, with the instance's add-ons and boosts applied; source and provenance say which), discriminated by the 'type' field. Absent when nothing grants the entitlement a value; -1 means unlimited for a NUMBER entitlement.
+   */
+  limit?:
+    | ({
+        type: "number";
+      } & NumberEntitlementValueWritable)
+    | ({
+        type: "boolean";
+      } & BooleanEntitlementValue)
+    | ({
+        type: "object";
+      } & ConfigEntitlementValue);
+  /**
+   * How far above limit usage is still accepted, in percent: -1 unlimited, 0 a hard limit. Absent for BOOLEAN and CONFIG.
+   */
+  limitCapExceededOveragePercent?: number;
+  /**
+   * What the licence, the add-ons and the boosts each contribute
+   */
+  provenance?: ProvenanceWritable;
+  /**
+   * license: the licence grants it (add-ons and boosts may change it); addon: only add-ons do
+   */
+  source: "license" | "addon";
+  /**
+   * Resolved entitlement value, discriminated by the 'type' field
+   */
+  value:
+    | ({
+        type: "number";
+      } & NumberEntitlementValueWritable)
+    | ({
+        type: "boolean";
+      } & BooleanEntitlementValue)
+    | ({
+        type: "object";
+      } & ConfigEntitlementValue);
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
 export type FeatureFlagWritable = {
   default_variant: DefaultVariant;
   description: string | null;
@@ -8583,6 +10568,33 @@ export type FeatureFlagWritable = {
   targetings: Targetings;
   type: "boolean" | "string" | "number" | "object";
   variants: Array<Variant> | null;
+};
+
+export type FeatureFlagDeliveredWritable = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  default_variant: DefaultVariant;
+  description: string | null;
+  enabled: boolean;
+  event_name: string;
+  metadata: {
+    [key: string]: unknown;
+  };
+  name: string;
+  slug?: string;
+  targetings: Targetings;
+  type: "boolean" | "string" | "number" | "object";
+  variants: Array<Variant> | null;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
 export type HandoffClaimWritable = {
@@ -8669,10 +10681,18 @@ export type InstanceAddonWritable = {
   removedAt?: string;
 };
 
-export type InstanceAddonUpdateWritable = {
+export type InstanceAddonUpdateDeliveredWritable = {
   addonId: string;
   addonSlug: string;
   attachedAt: string;
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
   familySlug: string;
   instanceSlug: string;
   maxQuantity?: number;
@@ -8694,6 +10714,10 @@ export type InstanceAddonUpdateWritable = {
   prices: Array<PriceWritable>;
   quantity: number;
   removedAt?: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
 export type InstanceBillingWritable = {
@@ -8774,7 +10798,74 @@ export type InstanceBillingWritable = {
   updatedAt: string;
 };
 
-export type InstanceEntitlementValueGetWritable = {
+export type InstanceDeliveredWritable = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * ID of the customer associated with this instance
+   */
+  customerId: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  /**
+   * ID of the deployment zone associated with this instance (optional)
+   */
+  deploymentZoneId?: string;
+  /**
+   * Brief description of the instance
+   */
+  description: string;
+  /**
+   * End date of the license for this instance
+   */
+  endLicenseDate: string;
+  /**
+   * Integrations grouped by adapter name
+   */
+  integrations?: {
+    [key: string]: InstanceIntegrationWritable;
+  };
+  /**
+   * ID of the license version this instance is pinned to. An ARCHIVED version cannot be assigned, on create or by changing the license (CreateInstance.LicenseArchived, UpdateInstance.LicenseArchived); an instance already on a version that is archived later keeps it. A DRAFT version can be assigned, to try it before publishing.
+   */
+  licenseId: string;
+  /**
+   * Metadata for the instance
+   */
+  metadata?: {
+    [key: string]: unknown;
+  };
+  /**
+   * Name of the instance
+   */
+  name: string;
+  /**
+   * Optional URL-friendly identifier, unique per organization. Auto-generated if not provided.
+   */
+  slug?: string;
+  /**
+   * Start date of the license for this instance
+   */
+  startLicenseDate: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
+export type InstanceEntitlementValueGetDeliveredWritable = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
   /**
    * Unique identifier for the entitlement
    */
@@ -8816,6 +10907,10 @@ export type InstanceEntitlementValueGetWritable = {
     | ({
         type: "object";
       } & ConfigEntitlementValue);
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
 export type InstanceIntegrationWritable = {
@@ -8839,11 +10934,19 @@ export type InstanceIntegrationWritable = {
   web_url?: string;
 };
 
-export type InstanceUpdateWritable = {
+export type InstanceUpdateDeliveredWritable = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
   /**
    * ID of the customer associated with this instance
    */
   customerId: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
   /**
    * ID of the deployment zone associated with this instance (optional)
    */
@@ -8888,6 +10991,10 @@ export type InstanceUpdateWritable = {
    * Start date of the license for this instance
    */
   startLicenseDate: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
 export type InvoiceWritable = {
@@ -9193,15 +11300,23 @@ export type InvoicePreviewWritable = {
   wouldHold: Array<InvoiceHold>;
 };
 
-export type IssuedInvoiceWritable = {
+export type IssuedInvoiceDeliveredWritable = {
   /**
    * The boundary the invoice bills. With the kind, it identifies the invoice within its subscription
    */
   boundaryAt: string;
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
   collectionMethod: "SEND_INVOICE" | "CHARGE_AUTOMATICALLY";
   createdAt: string;
   currency: string;
   customerName: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
   /**
    * As it was when the invoice was composed
    */
@@ -9284,6 +11399,10 @@ export type IssuedInvoiceWritable = {
    */
   total: number;
   updatedAt: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
 export type LicenseWritable = {
@@ -9341,6 +11460,73 @@ export type LicenseWritable = {
   versionName?: string;
 };
 
+export type LicenseDeliveredWritable = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  /**
+   * Detailed description of the license capabilities and restrictions
+   */
+  description: string;
+  /**
+   * Identifier of the license family this license is a version of. Stable across renames and new versions: two licenses sharing it are the same product. Always present in responses. On create, optional: names the family this license is a new version of, as familySlug does by slug; omit both to create a new family. On update, optional and must be the license's own family: a version cannot move between families (UpdateLicense.FamilyNotReassignable).
+   */
+  familyId?: string;
+  /**
+   * Write-only on create: slug of the family this license is a new version of. familyId names the same family by identifier; sent together they must agree. Omit both to create a new family, of which this license becomes version 1. Never returned -- see familyId. Refused on update: a version cannot move between families.
+   */
+  familySlug?: string;
+  /**
+   * Whether this version is the one its family puts forward: at most one version per family, and only a PUBLISHED one (CreateLicense.DefaultMustBePublished, UpdateLicense.DefaultMustBePublished). Resolution hands it out ahead of the highest-numbered published version, so it keeps being served when a newer version is published. Setting it takes the flag from the family's previous default, which gets a LICENSE_UPDATED event of its own. On update, sending false unsets it; the default cannot be archived until another version takes its place or the flag is unset (ArchiveLicense.DefaultMustBePublished).
+   */
+  isDefault: boolean;
+  /**
+   * Whether this version may be served. Always present in responses. Optional on create, where it is DRAFT or PUBLISHED and PUBLISHED when omitted; ARCHIVED is refused (CreateLicense.LifecycleStateNotSettable), since a version is archived by withdrawing it from sale. After that it changes only through publish-license (DRAFT to PUBLISHED), archive-license (PUBLISHED to ARCHIVED) and unarchive-license (ARCHIVED to PUBLISHED); update accepts the stored state and refuses any other (UpdateLicense.LifecycleStateNotSettable). Only a PUBLISHED version can be the family's default. An ARCHIVED version cannot be assigned to an instance (CreateInstance.LicenseArchived, UpdateInstance.LicenseArchived); instances already on it keep it.
+   */
+  lifecycleState?: "DRAFT" | "PUBLISHED" | "ARCHIVED";
+  /**
+   * Display name of the license
+   */
+  name: string;
+  /**
+   * How this version is sold. FREE and PAID can be bought self-serve; CUSTOM sends a buyer to selfServeCtaUrl or a conversation. Always present in responses. On create it defaults to CUSTOM; on update, omit it to keep the stored value.
+   */
+  pricingType?: "FREE" | "PAID" | "CUSTOM";
+  /**
+   * Whether self-serve signup captures a payment method before activation. Always present in responses; false when omitted on create. On update, omit it to keep the stored value.
+   */
+  requiresPaymentMethod?: boolean;
+  /**
+   * Where a buyer is sent when this version cannot be bought self-serve: an http(s) URL of at most 2048 characters (CreateLicense.InvalidSelfServeCtaUrl). Absent when there is none. On update, omit it to keep the stored value, or send an empty string to remove it.
+   */
+  selfServeCtaUrl?: string;
+  /**
+   * Optional URL-friendly identifier, unique per organization. When omitted, a new version of an existing family takes {familySlug}-v{version}, and any other license gets one generated from its name. A license that opens a new family gives the family its slug.
+   */
+  slug?: string;
+  /**
+   * Trial length, in days, a subscription to this version starts with by default. Absent when there is none. From 1 to 365 (CreateLicense.InvalidTrialDays, UpdateLicense.InvalidTrialDays). On update, omit it to keep the stored value, or send 0 to remove the trial.
+   */
+  trialPeriodDays?: number;
+  /**
+   * Type of the license determining its capabilities and restrictions
+   */
+  type: "DEVELOPMENT" | "TRIAL" | "PAID" | "COMMUNITY";
+  /**
+   * Optional human-readable name for the license version. Defaults to "Version - <version>".
+   */
+  versionName?: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
 export type LicenseEntitlementWritable = {
   /**
    * URL-friendly identifier for the entitlement
@@ -9363,6 +11549,42 @@ export type LicenseEntitlementWritable = {
     | ({
         type: "object";
       } & ConfigEntitlementValue);
+};
+
+export type LicenseEntitlementDeliveredWritable = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  /**
+   * URL-friendly identifier for the entitlement
+   */
+  entitlementSlug?: string;
+  /**
+   * Derives this grant's enforcement from its own numeric value: -1 when the value is unlimited (no cap, no overage); otherwise 0 rejects usage above the value (hard limit) and a positive percentage allows usage to exceed it by that much before being rejected (soft limit). Null for non-numeric (BOOLEAN/CONFIG) grants.
+   */
+  limitCapExceededOveragePercent?: number;
+  /**
+   * Typed entitlement value. Supported shapes: {type:number,value:number}, {type:boolean,value:boolean}, {type:object,value:{...}}
+   */
+  value:
+    | ({
+        type: "number";
+      } & NumberEntitlementValueWritable)
+    | ({
+        type: "boolean";
+      } & BooleanEntitlementValue)
+    | ({
+        type: "object";
+      } & ConfigEntitlementValue);
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
 export type LicenseFamilyViewWritable = {
@@ -9400,7 +11622,54 @@ export type LicenseFamilyViewWritable = {
   versions?: Array<LicenseWritable>;
 };
 
-export type LicensePriceEventWritable = {
+export type LicenseFamilyViewDeliveredWritable = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * The version this read is about. By default the version the family resolves to: its default version if it has one, otherwise its highest-numbered PUBLISHED version. Under ?version=N it is the version asked for instead, whatever its lifecycle state. Absent when the family has no PUBLISHED version, which only a list or an include=versions read returns.
+   */
+  currentVersion?: LicenseWritable;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  /**
+   * The FREE family whose default PUBLISHED version an instance of this family moves to when its subscription ends; null without one
+   */
+  fallbackLicenseFamilySlug: string | null;
+  /**
+   * Whether the family's default PUBLISHED version is listed in the public catalogue. Private by default.
+   */
+  isPublic: boolean;
+  /**
+   * URL-friendly identifier of the family, unique per organization and stable across renames and new versions. Deleting the family's last version deletes the family and frees the slug.
+   */
+  slug: string;
+  /**
+   * What a trial charged automatically with a total above 0 becomes at its end when the customer has no ACTIVE payment method: CANCEL (the default) or CONVERT
+   */
+  trialEndWithoutPaymentMethod: "CANCEL" | "CONVERT";
+  /**
+   * How many days before a trial's end trial_will_end fires, for the trials started after it was set. 3 by default.
+   */
+  trialReminderDays: number;
+  /**
+   * Number of versions in this family, whatever their lifecycle state
+   */
+  versionCount: number;
+  /**
+   * Every version of the family, oldest first. Only returned when explicitly requested with include=versions, and then never null: a family always has at least one version.
+   */
+  versions?: Array<LicenseWritable>;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
+export type LicensePriceEventDeliveredWritable = {
   /**
    * FLAT_FEE: an amount per billing period. USAGE_BASED: an amount per sale unit of the metered entitlement's usage. OVERAGE: an amount per sale unit of the usage above the licence's limit.
    */
@@ -9414,9 +11683,17 @@ export type LicensePriceEventWritable = {
    */
   billingTiming: "ADVANCE" | "ARREARS";
   /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
    * ISO 4217 code, upper case. One currency per licence version.
    */
   currency: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
   /**
    * When the price was deprecated
    */
@@ -9457,9 +11734,13 @@ export type LicensePriceEventWritable = {
    * Amount in the currency's minor units (cents for EUR): per period for FLAT_FEE, per sale unit for metered prices. Up to 12 decimal places.
    */
   unitAmountDecimal: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
-export type LicensePriceUpdatedEventWritable = {
+export type LicensePriceUpdatedEventDeliveredWritable = {
   /**
    * FLAT_FEE: an amount per billing period. USAGE_BASED: an amount per sale unit of the metered entitlement's usage. OVERAGE: an amount per sale unit of the usage above the licence's limit.
    */
@@ -9477,9 +11758,17 @@ export type LicensePriceUpdatedEventWritable = {
    */
   changedFields: Array<string> | null;
   /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
    * ISO 4217 code, upper case. One currency per licence version.
    */
   currency: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
   /**
    * When the price was deprecated
    */
@@ -9520,6 +11809,10 @@ export type LicensePriceUpdatedEventWritable = {
    * Amount in the currency's minor units (cents for EUR): per period for FLAT_FEE, per sale unit for metered prices. Up to 12 decimal places.
    */
   unitAmountDecimal: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
 export type MetadataFieldWritable = {
@@ -9545,6 +11838,43 @@ export type MetadataFieldWritable = {
    * Resource type this field applies to. Immutable after creation; update must echo back the stored value.
    */
   resourceType: "DEPLOYMENT_ZONE" | "INSTANCE";
+};
+
+export type MetadataFieldDeliveredWritable = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  /**
+   * Sort order in the admin UI; ties are broken by createdAt ASC. Settable only through POST /metadata-fields/reorder; never echoed back on update.
+   */
+  displayOrder?: number;
+  /**
+   * JSON Schema 2020-12 document describing the value space. Example: {"type":"string","enum":["a","b"]}
+   */
+  jsonSchema: {
+    [key: string]: unknown;
+  };
+  /**
+   * Stable identifier, unique per (organization, resource type) on non-archived rows. Immutable after creation; update must echo back the stored value.
+   */
+  key: string;
+  /**
+   * Human-readable label shown in the admin UI
+   */
+  label: string;
+  /**
+   * Resource type this field applies to. Immutable after creation; update must echo back the stored value.
+   */
+  resourceType: "DEPLOYMENT_ZONE" | "INSTANCE";
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
 export type NumberEntitlementValueWritable = {
@@ -10003,6 +12333,44 @@ export type RedemptionWritable = {
   voucherType: "PRICE" | "ENTITLEMENT_BOOST";
 };
 
+export type RedemptionDeliveredWritable = {
+  /**
+   * Invoices a PRICE voucher discounted
+   */
+  applicationsCount: number;
+  /**
+   * 1 for ONE_TIME, durationInPeriods for REPEATING; null for FOREVER
+   */
+  applicationsMax: number | null;
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  codeHint: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  /**
+   * When a boost stops applying; null for a PRICE voucher, counted in invoices, and for FOREVER
+   */
+  effectiveExpiresAt: string | null;
+  effectiveStartsAt: string;
+  expiredAt: string | null;
+  instanceSlug: string;
+  redeemedAt: string;
+  revokedAt: string | null;
+  revokedReason: string | null;
+  status: "ACTIVE" | "EXPIRED" | "REVOKED";
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+  voucherId: string;
+  voucherName: string;
+  voucherType: "PRICE" | "ENTITLEMENT_BOOST";
+};
+
 export type ReleaseWritable = {
   /**
    * List of component IDs to link to this release
@@ -10020,6 +12388,37 @@ export type ReleaseWritable = {
    * Version of the release
    */
   version: string;
+};
+
+export type ReleaseDeliveredWritable = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * List of component IDs to link to this release
+   */
+  componentIds?: Array<string> | null;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  /**
+   * Description of the release
+   */
+  description?: string;
+  /**
+   * Optional URL-friendly identifier, unique per organization. Auto-generated if not provided.
+   */
+  slug?: string;
+  /**
+   * Version of the release
+   */
+  version: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
 export type ReportEntitlementUsageBodyWritable = {
@@ -10182,9 +12581,9 @@ export type SessionPortalWritable = {
    */
   updatedAt: string;
   /**
-   * The vouchers the instance redeemed. Never a code.
+   * The instance's ACTIVE redemptions. Never a code.
    */
-  vouchers: Array<PortalVoucher>;
+  vouchers: Array<SessionRedemption>;
 };
 
 export type StartedSubscriptionWritable = {
@@ -10279,7 +12678,7 @@ export type TokenWritable = {
   slug?: string;
 };
 
-export type TrialWillEndWritable = {
+export type TrialWillEndDeliveredWritable = {
   /**
    * The instant its periods are counted from
    */
@@ -10298,6 +12697,10 @@ export type TrialWillEndWritable = {
    */
   charge: TrialCharge | null;
   /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
    * Effective: the subscription's own, else the organization's default
    */
   collectionMethod: "SEND_INVOICE" | "CHARGE_AUTOMATICALLY";
@@ -10314,6 +12717,10 @@ export type TrialWillEndWritable = {
   currentPeriodStart: string;
   customer: TrialCustomer;
   customerName: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
   customerSlug: string;
   /**
    * Whole days from the event to trialEndsAt, rounded up; 0 once it passed
@@ -10377,6 +12784,10 @@ export type TrialWillEndWritable = {
    */
   trialEndsAt: string | null;
   updatedAt: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
 export type ValidityWritable = {
@@ -10460,6 +12871,71 @@ export type VoucherWritable = {
   restrictedCustomerSlug?: string;
   startsAt?: string;
   status: "DRAFT" | "ACTIVE" | "EXPIRED" | "EXHAUSTED" | "ARCHIVED";
+  voucherType: "PRICE" | "ENTITLEMENT_BOOST";
+};
+
+export type VoucherDeliveredWritable = {
+  /**
+   * Only instances holding one of these add-on versions can redeem it; any when empty
+   */
+  applicableAddonIds: Array<string>;
+  applicableAddonPriceIds: Array<string>;
+  /**
+   * Only instances on these licence versions can redeem it; any when empty
+   */
+  applicableLicenseIds: Array<string>;
+  applicableLicensePriceIds: Array<string>;
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * The code to redeem. Returned to read:vouchers callers only; never in an event.
+   */
+  code?: string;
+  /**
+   * The last four characters of the normalized code
+   */
+  codeHint: string;
+  /**
+   * The currency of a FIXED_AMOUNT discount
+   */
+  currency?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  description?: string;
+  /**
+   * PRICE: how many invoices it discounts (one, durationInPeriods, or every one). BOOST: how long a redemption lasts, in the subscription's billing periods.
+   */
+  duration: "ONE_TIME" | "REPEATING" | "FOREVER";
+  durationInPeriods?: number;
+  expiresAt?: string;
+  /**
+   * What an ENTITLEMENT_BOOST changes
+   */
+  grants: Array<Grant>;
+  maxRedemptions?: number;
+  name: string;
+  priceAppliesTo?: "LICENSE_BASE" | "ADDONS" | "BOTH" | "SELECTED_PRICES";
+  priceDiscountType?: "PERCENTAGE" | "FIXED_AMOUNT";
+  /**
+   * A percentage in (0, 100], or an integer amount in minor units of currency
+   */
+  priceDiscountValue?: string;
+  redemptionRules: RedemptionRules;
+  redemptionsCount: number;
+  /**
+   * Only this customer's instances can redeem it
+   */
+  restrictedCustomerSlug?: string;
+  startsAt?: string;
+  status: "DRAFT" | "ACTIVE" | "EXPIRED" | "EXHAUSTED" | "ARCHIVED";
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
   voucherType: "PRICE" | "ENTITLEMENT_BOOST";
 };
 
@@ -12198,6 +14674,127 @@ export type SyncBillingProviderResponses = {
 
 export type SyncBillingProviderResponse =
   SyncBillingProviderResponses[keyof SyncBillingProviderResponses];
+
+export type ListCheckoutSessionsData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Repeatable; a session OPEN past expiresAt is ABANDONED
+     */
+    status?: Array<"OPEN" | "AWAITING_PAYMENT" | "COMPLETED" | "ABANDONED" | "EXPIRED"> | null;
+    /**
+     * The visitor's e-mail, in any letter case
+     */
+    email?: string;
+    /**
+     * The vendor's own reference, exactly
+     */
+    clientReferenceId?: string;
+    /**
+     * Opaque pagination cursor from a previous response's nextCursor
+     */
+    cursor?: string;
+    /**
+     * Maximum number of entries to return (default 50, max 200)
+     */
+    limit?: number;
+  };
+  url: "/checkout-sessions";
+};
+
+export type ListCheckoutSessionsErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type ListCheckoutSessionsError =
+  ListCheckoutSessionsErrors[keyof ListCheckoutSessionsErrors];
+
+export type ListCheckoutSessionsResponses = {
+  /**
+   * OK
+   */
+  200: PageCheckoutSessionAdmin;
+};
+
+export type ListCheckoutSessionsResponse =
+  ListCheckoutSessionsResponses[keyof ListCheckoutSessionsResponses];
+
+export type GetCheckoutSessionAdminData = {
+  body?: never;
+  path: {
+    sessionId: string;
+  };
+  query?: never;
+  url: "/checkout-sessions/{sessionId}";
+};
+
+export type GetCheckoutSessionAdminErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type GetCheckoutSessionAdminError =
+  GetCheckoutSessionAdminErrors[keyof GetCheckoutSessionAdminErrors];
+
+export type GetCheckoutSessionAdminResponses = {
+  /**
+   * OK
+   */
+  200: CheckoutSessionAdmin;
+};
+
+export type GetCheckoutSessionAdminResponse =
+  GetCheckoutSessionAdminResponses[keyof GetCheckoutSessionAdminResponses];
 
 export type ListComponentsData = {
   body?: never;
@@ -20435,6 +23032,61 @@ export type GetSessionPortalResponses = {
 
 export type GetSessionPortalResponse = GetSessionPortalResponses[keyof GetSessionPortalResponses];
 
+export type RedeemSessionVoucherData = {
+  body: SessionRedeem;
+  path?: never;
+  query?: never;
+  url: "/public/session/vouchers/redeem";
+};
+
+export type RedeemSessionVoucherErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Too Many Requests
+   */
+  429: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type RedeemSessionVoucherError =
+  RedeemSessionVoucherErrors[keyof RedeemSessionVoucherErrors];
+
+export type RedeemSessionVoucherResponses = {
+  /**
+   * Created
+   */
+  201: SessionRedemption;
+};
+
+export type RedeemSessionVoucherResponse =
+  RedeemSessionVoucherResponses[keyof RedeemSessionVoucherResponses];
+
 export type ValidateSessionVoucherData = {
   body: SessionVoucherCheck;
   path?: never;
@@ -22588,7 +25240,7 @@ export type ListVoucherRedemptionsResponse =
   ListVoucherRedemptionsResponses[keyof ListVoucherRedemptionsResponses];
 
 export type OnAddonEntitlementAssignedWebhookPayload = {
-  data: AddonGrantUpdateWritable;
+  data: AddonGrantUpdateDeliveredWritable;
   headers?: EventHeaders;
   /**
    * Event name
@@ -22608,7 +25260,7 @@ export type OnAddonEntitlementAssignedWebhookRequest = {
 };
 
 export type OnAddonEntitlementUnassignedWebhookPayload = {
-  data: AddonGrantUpdateWritable;
+  data: AddonGrantUpdateDeliveredWritable;
   headers?: EventHeaders;
   /**
    * Event name
@@ -22628,7 +25280,7 @@ export type OnAddonEntitlementUnassignedWebhookRequest = {
 };
 
 export type OnAddonEntitlementUpdatedWebhookPayload = {
-  data: AddonGrantUpdateWritable;
+  data: AddonGrantUpdateDeliveredWritable;
   headers?: EventHeaders;
   /**
    * Event name
@@ -22648,7 +25300,7 @@ export type OnAddonEntitlementUpdatedWebhookRequest = {
 };
 
 export type OnAddonPriceCreatedWebhookPayload = {
-  data: AddonPriceUpdateWritable;
+  data: AddonPriceUpdateDeliveredWritable;
   headers?: EventHeaders;
   /**
    * Event name
@@ -22668,7 +25320,7 @@ export type OnAddonPriceCreatedWebhookRequest = {
 };
 
 export type OnAddonPriceDeprecatedWebhookPayload = {
-  data: AddonPriceUpdateWritable;
+  data: AddonPriceUpdateDeliveredWritable;
   headers?: EventHeaders;
   /**
    * Event name
@@ -22688,7 +25340,7 @@ export type OnAddonPriceDeprecatedWebhookRequest = {
 };
 
 export type OnAddonArchivedWebhookPayload = {
-  data: AddonWritable;
+  data: AddonDeliveredWritable;
   headers?: EventHeaders;
   /**
    * Event name
@@ -22708,7 +25360,7 @@ export type OnAddonArchivedWebhookRequest = {
 };
 
 export type OnAddonCreatedWebhookPayload = {
-  data: AddonWritable;
+  data: AddonDeliveredWritable;
   headers?: EventHeaders;
   /**
    * Event name
@@ -22728,7 +25380,7 @@ export type OnAddonCreatedWebhookRequest = {
 };
 
 export type OnAddonDeletedWebhookPayload = {
-  data: DeletedAddon;
+  data: DeletedAddonDelivered;
   headers?: EventHeaders;
   /**
    * Event name
@@ -22748,7 +25400,7 @@ export type OnAddonDeletedWebhookRequest = {
 };
 
 export type OnAddonPublishedWebhookPayload = {
-  data: AddonWritable;
+  data: AddonDeliveredWritable;
   headers?: EventHeaders;
   /**
    * Event name
@@ -22768,7 +25420,7 @@ export type OnAddonPublishedWebhookRequest = {
 };
 
 export type OnAddonUnarchivedWebhookPayload = {
-  data: AddonWritable;
+  data: AddonDeliveredWritable;
   headers?: EventHeaders;
   /**
    * Event name
@@ -22788,7 +25440,7 @@ export type OnAddonUnarchivedWebhookRequest = {
 };
 
 export type OnAddonUpdatedWebhookPayload = {
-  data: AddonUpdateWritable;
+  data: AddonUpdateDeliveredWritable;
   headers?: EventHeaders;
   /**
    * Event name
@@ -22808,7 +25460,7 @@ export type OnAddonUpdatedWebhookRequest = {
 };
 
 export type OnBillingProviderConnectedWebhookPayload = {
-  data: Connection;
+  data: ConnectionDelivered;
   headers?: EventHeaders;
   /**
    * Event name
@@ -22828,7 +25480,7 @@ export type OnBillingProviderConnectedWebhookRequest = {
 };
 
 export type OnBillingProviderDisconnectedWebhookPayload = {
-  data: Connection;
+  data: ConnectionDelivered;
   headers?: EventHeaders;
   /**
    * Event name
@@ -22848,7 +25500,7 @@ export type OnBillingProviderDisconnectedWebhookRequest = {
 };
 
 export type OnBillingProviderSyncFailedWebhookPayload = {
-  data: SyncFailure;
+  data: SyncFailureDelivered;
   headers?: EventHeaders;
   /**
    * Event name
@@ -22868,7 +25520,7 @@ export type OnBillingProviderSyncFailedWebhookRequest = {
 };
 
 export type OnCheckoutSessionAbandonedWebhookPayload = {
-  data: SessionEvent;
+  data: SessionEventDelivered;
   headers?: EventHeaders;
   /**
    * Event name
@@ -22888,7 +25540,7 @@ export type OnCheckoutSessionAbandonedWebhookRequest = {
 };
 
 export type OnCheckoutSessionCompletedWebhookPayload = {
-  data: SessionEvent;
+  data: SessionEventDelivered;
   headers?: EventHeaders;
   /**
    * Event name
@@ -22908,7 +25560,7 @@ export type OnCheckoutSessionCompletedWebhookRequest = {
 };
 
 export type OnCheckoutSessionStartedWebhookPayload = {
-  data: SessionEvent;
+  data: SessionEventDelivered;
   headers?: EventHeaders;
   /**
    * Event name
@@ -22928,7 +25580,7 @@ export type OnCheckoutSessionStartedWebhookRequest = {
 };
 
 export type OnComponentCreatedWebhookPayload = {
-  data: ComponentWritable;
+  data: ComponentDeliveredWritable;
   headers?: EventHeaders;
   /**
    * Event name
@@ -22948,7 +25600,7 @@ export type OnComponentCreatedWebhookRequest = {
 };
 
 export type OnComponentDeletedWebhookPayload = {
-  data: ComponentWritable;
+  data: ComponentDeliveredWritable;
   headers?: EventHeaders;
   /**
    * Event name
@@ -22968,7 +25620,7 @@ export type OnComponentDeletedWebhookRequest = {
 };
 
 export type OnComponentUpdatedWebhookPayload = {
-  data: ComponentWritable;
+  data: ComponentDeliveredWritable;
   headers?: EventHeaders;
   /**
    * Event name
@@ -22988,7 +25640,7 @@ export type OnComponentUpdatedWebhookRequest = {
 };
 
 export type OnCustomerPaymentMethodAttachedWebhookPayload = {
-  data: PaymentMethodAttached;
+  data: PaymentMethodAttachedDelivered;
   headers?: EventHeaders;
   /**
    * Event name
@@ -23008,7 +25660,7 @@ export type OnCustomerPaymentMethodAttachedWebhookRequest = {
 };
 
 export type OnCustomerPaymentMethodDetachedWebhookPayload = {
-  data: PaymentMethodDetached;
+  data: PaymentMethodDetachedDelivered;
   headers?: EventHeaders;
   /**
    * Event name
@@ -23028,7 +25680,7 @@ export type OnCustomerPaymentMethodDetachedWebhookRequest = {
 };
 
 export type OnCustomerPaymentMethodExpiringWebhookPayload = {
-  data: PaymentMethodExpiring;
+  data: PaymentMethodExpiringDelivered;
   headers?: EventHeaders;
   /**
    * Event name
@@ -23048,7 +25700,7 @@ export type OnCustomerPaymentMethodExpiringWebhookRequest = {
 };
 
 export type OnCustomerCreatedWebhookPayload = {
-  data: CustomerEventWritable;
+  data: CustomerEventDeliveredWritable;
   headers?: EventHeaders;
   /**
    * Event name
@@ -23068,7 +25720,7 @@ export type OnCustomerCreatedWebhookRequest = {
 };
 
 export type OnCustomerCreationRejectedWebhookPayload = {
-  data: CustomerCreationRejected;
+  data: CustomerCreationRejectedDelivered;
   headers?: EventHeaders;
   /**
    * Event name
@@ -23088,7 +25740,7 @@ export type OnCustomerCreationRejectedWebhookRequest = {
 };
 
 export type OnCustomerDeletedWebhookPayload = {
-  data: CustomerEventWritable;
+  data: CustomerEventDeliveredWritable;
   headers?: EventHeaders;
   /**
    * Event name
@@ -23108,7 +25760,7 @@ export type OnCustomerDeletedWebhookRequest = {
 };
 
 export type OnCustomerUpdatedWebhookPayload = {
-  data: CustomerEventWritable;
+  data: CustomerEventDeliveredWritable;
   headers?: EventHeaders;
   /**
    * Event name
@@ -23128,7 +25780,7 @@ export type OnCustomerUpdatedWebhookRequest = {
 };
 
 export type OnDeploymentZoneCreatedWebhookPayload = {
-  data: DeploymentZoneWritable;
+  data: DeploymentZoneDeliveredWritable;
   headers?: EventHeaders;
   /**
    * Event name
@@ -23148,7 +25800,7 @@ export type OnDeploymentZoneCreatedWebhookRequest = {
 };
 
 export type OnDeploymentZoneDeletedWebhookPayload = {
-  data: DeploymentZoneWritable;
+  data: DeploymentZoneDeliveredWritable;
   headers?: EventHeaders;
   /**
    * Event name
@@ -23168,7 +25820,7 @@ export type OnDeploymentZoneDeletedWebhookRequest = {
 };
 
 export type OnReleaseDeployedWebhookPayload = {
-  data: Deployment;
+  data: DeploymentDelivered;
   headers?: EventHeaders;
   /**
    * Event name
@@ -23188,7 +25840,7 @@ export type OnReleaseDeployedWebhookRequest = {
 };
 
 export type OnDeploymentZoneUpdatedWebhookPayload = {
-  data: DeploymentZoneWritable;
+  data: DeploymentZoneDeliveredWritable;
   headers?: EventHeaders;
   /**
    * Event name
@@ -23208,7 +25860,7 @@ export type OnDeploymentZoneUpdatedWebhookRequest = {
 };
 
 export type OnEntitlementCreatedWebhookPayload = {
-  data: EntitlementWritable;
+  data: EntitlementDeliveredWritable;
   headers?: EventHeaders;
   /**
    * Event name
@@ -23228,7 +25880,7 @@ export type OnEntitlementCreatedWebhookRequest = {
 };
 
 export type OnEntitlementDeletedWebhookPayload = {
-  data: EntitlementWritable;
+  data: EntitlementDeliveredWritable;
   headers?: EventHeaders;
   /**
    * Event name
@@ -23248,7 +25900,7 @@ export type OnEntitlementDeletedWebhookRequest = {
 };
 
 export type OnEntitlementUpdatedWebhookPayload = {
-  data: EntitlementWritable;
+  data: EntitlementDeliveredWritable;
   headers?: EventHeaders;
   /**
    * Event name
@@ -23268,7 +25920,7 @@ export type OnEntitlementUpdatedWebhookRequest = {
 };
 
 export type OnEntitlementGroupCreatedWebhookPayload = {
-  data: EntitlementGroupWritable;
+  data: EntitlementGroupDeliveredWritable;
   headers?: EventHeaders;
   /**
    * Event name
@@ -23288,7 +25940,7 @@ export type OnEntitlementGroupCreatedWebhookRequest = {
 };
 
 export type OnEntitlementGroupDeletedWebhookPayload = {
-  data: EntitlementGroupWritable;
+  data: EntitlementGroupDeliveredWritable;
   headers?: EventHeaders;
   /**
    * Event name
@@ -23308,7 +25960,7 @@ export type OnEntitlementGroupDeletedWebhookRequest = {
 };
 
 export type OnEntitlementGroupUpdatedWebhookPayload = {
-  data: EntitlementGroupWritable;
+  data: EntitlementGroupDeliveredWritable;
   headers?: EventHeaders;
   /**
    * Event name
@@ -23328,7 +25980,7 @@ export type OnEntitlementGroupUpdatedWebhookRequest = {
 };
 
 export type OnFeatureFlagCreatedWebhookPayload = {
-  data: FeatureFlagWritable;
+  data: FeatureFlagDeliveredWritable;
   headers?: EventHeaders;
   /**
    * Event name
@@ -23348,7 +26000,7 @@ export type OnFeatureFlagCreatedWebhookRequest = {
 };
 
 export type OnFeatureFlagDeletedWebhookPayload = {
-  data: FeatureFlagWritable;
+  data: FeatureFlagDeliveredWritable;
   headers?: EventHeaders;
   /**
    * Event name
@@ -23368,7 +26020,7 @@ export type OnFeatureFlagDeletedWebhookRequest = {
 };
 
 export type OnFeatureFlagEvaluatedWebhookPayload = {
-  data: FeatureFlagEvaluated;
+  data: FeatureFlagEvaluatedDelivered;
   headers?: EventHeaders;
   /**
    * Event name
@@ -23388,7 +26040,7 @@ export type OnFeatureFlagEvaluatedWebhookRequest = {
 };
 
 export type OnFeatureFlagUpdatedWebhookPayload = {
-  data: FeatureFlagWritable;
+  data: FeatureFlagDeliveredWritable;
   headers?: EventHeaders;
   /**
    * Event name
@@ -23408,7 +26060,7 @@ export type OnFeatureFlagUpdatedWebhookRequest = {
 };
 
 export type OnSystemOrganizationTokenIssuedWebhookPayload = {
-  data: SystemTokenIssuance;
+  data: SystemTokenIssuanceDelivered;
   headers?: EventHeaders;
   /**
    * Event name
@@ -23428,7 +26080,7 @@ export type OnSystemOrganizationTokenIssuedWebhookRequest = {
 };
 
 export type OnInstanceAddonAddedWebhookPayload = {
-  data: InstanceAddonUpdateWritable;
+  data: InstanceAddonUpdateDeliveredWritable;
   headers?: EventHeaders;
   /**
    * Event name
@@ -23448,7 +26100,7 @@ export type OnInstanceAddonAddedWebhookRequest = {
 };
 
 export type OnInstanceAddonQuantityChangedWebhookPayload = {
-  data: InstanceAddonUpdateWritable;
+  data: InstanceAddonUpdateDeliveredWritable;
   headers?: EventHeaders;
   /**
    * Event name
@@ -23468,7 +26120,7 @@ export type OnInstanceAddonQuantityChangedWebhookRequest = {
 };
 
 export type OnInstanceAddonRemovedWebhookPayload = {
-  data: InstanceAddonUpdateWritable;
+  data: InstanceAddonUpdateDeliveredWritable;
   headers?: EventHeaders;
   /**
    * Event name
@@ -23488,7 +26140,7 @@ export type OnInstanceAddonRemovedWebhookRequest = {
 };
 
 export type OnInstanceBillingCanceledWebhookPayload = {
-  data: CancellationWritable;
+  data: CancellationDeliveredWritable;
   headers?: EventHeaders;
   /**
    * Event name
@@ -23508,7 +26160,7 @@ export type OnInstanceBillingCanceledWebhookRequest = {
 };
 
 export type OnInstanceBillingCancellationRevertedWebhookPayload = {
-  data: CancellationChangeWritable;
+  data: CancellationChangeDeliveredWritable;
   headers?: EventHeaders;
   /**
    * Event name
@@ -23528,7 +26180,7 @@ export type OnInstanceBillingCancellationRevertedWebhookRequest = {
 };
 
 export type OnInstanceBillingCancellationScheduledWebhookPayload = {
-  data: CancellationChangeWritable;
+  data: CancellationChangeDeliveredWritable;
   headers?: EventHeaders;
   /**
    * Event name
@@ -23548,7 +26200,7 @@ export type OnInstanceBillingCancellationScheduledWebhookRequest = {
 };
 
 export type OnInstanceBillingPlanChangeCanceledWebhookPayload = {
-  data: PlanChangeSchedule;
+  data: PlanChangeScheduleDelivered;
   headers?: EventHeaders;
   /**
    * Event name
@@ -23568,7 +26220,7 @@ export type OnInstanceBillingPlanChangeCanceledWebhookRequest = {
 };
 
 export type OnInstanceBillingPlanChangeScheduledWebhookPayload = {
-  data: PlanChangeSchedule;
+  data: PlanChangeScheduleDelivered;
   headers?: EventHeaders;
   /**
    * Event name
@@ -23588,7 +26240,7 @@ export type OnInstanceBillingPlanChangeScheduledWebhookRequest = {
 };
 
 export type OnInstanceBillingPlanChangedWebhookPayload = {
-  data: PlanChange;
+  data: PlanChangeDelivered;
   headers?: EventHeaders;
   /**
    * Event name
@@ -23608,7 +26260,7 @@ export type OnInstanceBillingPlanChangedWebhookRequest = {
 };
 
 export type OnInstanceBillingProviderChangedWebhookPayload = {
-  data: ProviderChange;
+  data: ProviderChangeDelivered;
   headers?: EventHeaders;
   /**
    * Event name
@@ -23628,7 +26280,7 @@ export type OnInstanceBillingProviderChangedWebhookRequest = {
 };
 
 export type OnInstanceBillingStartedWebhookPayload = {
-  data: BillingStartedWritable;
+  data: BillingStartedDeliveredWritable;
   headers?: EventHeaders;
   /**
    * Event name
@@ -23648,7 +26300,7 @@ export type OnInstanceBillingStartedWebhookRequest = {
 };
 
 export type OnInstanceBillingStatusChangedWebhookPayload = {
-  data: StatusChange;
+  data: StatusChangeDelivered;
   headers?: EventHeaders;
   /**
    * Event name
@@ -23668,7 +26320,7 @@ export type OnInstanceBillingStatusChangedWebhookRequest = {
 };
 
 export type OnInstanceBillingTrialWillEndWebhookPayload = {
-  data: TrialWillEndWritable;
+  data: TrialWillEndDeliveredWritable;
   headers?: EventHeaders;
   /**
    * Event name
@@ -23688,7 +26340,7 @@ export type OnInstanceBillingTrialWillEndWebhookRequest = {
 };
 
 export type OnInstanceEntitlementCapExceededWebhookPayload = {
-  data: InstanceEntitlementCapExceeded;
+  data: InstanceEntitlementCapExceededDelivered;
   headers?: EventHeaders;
   /**
    * Event name
@@ -23708,7 +26360,7 @@ export type OnInstanceEntitlementCapExceededWebhookRequest = {
 };
 
 export type OnInstanceEntitlementUsagePeriodRolledOverWebhookPayload = {
-  data: InstanceEntitlementUsagePeriodRolledOver;
+  data: InstanceEntitlementUsagePeriodRolledOverDelivered;
   headers?: EventHeaders;
   /**
    * Event name
@@ -23728,7 +26380,7 @@ export type OnInstanceEntitlementUsagePeriodRolledOverWebhookRequest = {
 };
 
 export type OnInstanceEntitlementUsageReachedWebhookPayload = {
-  data: EntitlementUsageWritable;
+  data: EntitlementUsageDeliveredWritable;
   headers?: EventHeaders;
   /**
    * Event name
@@ -23748,7 +26400,7 @@ export type OnInstanceEntitlementUsageReachedWebhookRequest = {
 };
 
 export type OnInstanceEntitlementUsageReportAcceptedWebhookPayload = {
-  data: InstanceEntitlementUsageReportAccepted;
+  data: InstanceEntitlementUsageReportAcceptedDelivered;
   headers?: EventHeaders;
   /**
    * Event name
@@ -23768,7 +26420,7 @@ export type OnInstanceEntitlementUsageReportAcceptedWebhookRequest = {
 };
 
 export type OnInstanceEntitlementUsageReportRejectedWebhookPayload = {
-  data: InstanceEntitlementUsageReportAccepted;
+  data: InstanceEntitlementUsageReportAcceptedDelivered;
   headers?: EventHeaders;
   /**
    * Event name
@@ -23788,7 +26440,7 @@ export type OnInstanceEntitlementUsageReportRejectedWebhookRequest = {
 };
 
 export type OnInstanceEntitlementUsageWarningThresholdReachedWebhookPayload = {
-  data: InstanceEntitlementUsageWarningThresholdReached;
+  data: InstanceEntitlementUsageWarningThresholdReachedDelivered;
   headers?: EventHeaders;
   /**
    * Event name
@@ -23808,7 +26460,7 @@ export type OnInstanceEntitlementUsageWarningThresholdReachedWebhookRequest = {
 };
 
 export type OnInstanceEntitlementValueGetWebhookPayload = {
-  data: InstanceEntitlementValueGetWritable;
+  data: InstanceEntitlementValueGetDeliveredWritable;
   headers?: EventHeaders;
   /**
    * Event name
@@ -23828,7 +26480,7 @@ export type OnInstanceEntitlementValueGetWebhookRequest = {
 };
 
 export type OnInstanceEntitlementExceptionCreatedWebhookPayload = {
-  data: ExceptionEvent;
+  data: ExceptionEventDelivered;
   headers?: EventHeaders;
   /**
    * Event name
@@ -23848,7 +26500,7 @@ export type OnInstanceEntitlementExceptionCreatedWebhookRequest = {
 };
 
 export type OnInstanceEntitlementExceptionExpiredWebhookPayload = {
-  data: ExceptionEvent;
+  data: ExceptionEventDelivered;
   headers?: EventHeaders;
   /**
    * Event name
@@ -23868,7 +26520,7 @@ export type OnInstanceEntitlementExceptionExpiredWebhookRequest = {
 };
 
 export type OnInstanceEntitlementExceptionRevokedWebhookPayload = {
-  data: ExceptionEvent;
+  data: ExceptionEventDelivered;
   headers?: EventHeaders;
   /**
    * Event name
@@ -23888,7 +26540,7 @@ export type OnInstanceEntitlementExceptionRevokedWebhookRequest = {
 };
 
 export type OnInstanceInvoiceHandoffAcknowledgedWebhookPayload = {
-  data: HandoffAcknowledgement;
+  data: HandoffAcknowledgementDelivered;
   headers?: EventHeaders;
   /**
    * Event name
@@ -23908,7 +26560,7 @@ export type OnInstanceInvoiceHandoffAcknowledgedWebhookRequest = {
 };
 
 export type OnInstanceInvoiceHeldWebhookPayload = {
-  data: HeldInvoice;
+  data: HeldInvoiceDelivered;
   headers?: EventHeaders;
   /**
    * Event name
@@ -23928,7 +26580,7 @@ export type OnInstanceInvoiceHeldWebhookRequest = {
 };
 
 export type OnInstanceInvoiceIssuedWebhookPayload = {
-  data: IssuedInvoiceWritable;
+  data: IssuedInvoiceDeliveredWritable;
   headers?: EventHeaders;
   /**
    * Event name
@@ -23948,7 +26600,7 @@ export type OnInstanceInvoiceIssuedWebhookRequest = {
 };
 
 export type OnInstanceInvoiceMarkedUncollectibleWebhookPayload = {
-  data: UncollectibleInvoice;
+  data: UncollectibleInvoiceDelivered;
   headers?: EventHeaders;
   /**
    * Event name
@@ -23968,7 +26620,7 @@ export type OnInstanceInvoiceMarkedUncollectibleWebhookRequest = {
 };
 
 export type OnInstanceInvoicePaidWebhookPayload = {
-  data: PaidInvoice;
+  data: PaidInvoiceDelivered;
   headers?: EventHeaders;
   /**
    * Event name
@@ -23988,7 +26640,7 @@ export type OnInstanceInvoicePaidWebhookRequest = {
 };
 
 export type OnInstanceInvoicePaymentFailedWebhookPayload = {
-  data: PaymentFailedInvoice;
+  data: PaymentFailedInvoiceDelivered;
   headers?: EventHeaders;
   /**
    * Event name
@@ -24008,7 +26660,7 @@ export type OnInstanceInvoicePaymentFailedWebhookRequest = {
 };
 
 export type OnInstanceInvoicePushFailedWebhookPayload = {
-  data: PushFailedInvoice;
+  data: PushFailedInvoiceDelivered;
   headers?: EventHeaders;
   /**
    * Event name
@@ -24028,7 +26680,7 @@ export type OnInstanceInvoicePushFailedWebhookRequest = {
 };
 
 export type OnInstanceInvoicePushedWebhookPayload = {
-  data: PushedInvoice;
+  data: PushedInvoiceDelivered;
   headers?: EventHeaders;
   /**
    * Event name
@@ -24048,7 +26700,7 @@ export type OnInstanceInvoicePushedWebhookRequest = {
 };
 
 export type OnInstanceInvoiceReconciliationMismatchWebhookPayload = {
-  data: MismatchedInvoice;
+  data: MismatchedInvoiceDelivered;
   headers?: EventHeaders;
   /**
    * Event name
@@ -24068,7 +26720,7 @@ export type OnInstanceInvoiceReconciliationMismatchWebhookRequest = {
 };
 
 export type OnInstanceInvoiceReleasedWebhookPayload = {
-  data: ReleasedInvoice;
+  data: ReleasedInvoiceDelivered;
   headers?: EventHeaders;
   /**
    * Event name
@@ -24088,7 +26740,7 @@ export type OnInstanceInvoiceReleasedWebhookRequest = {
 };
 
 export type OnInstanceInvoiceVoidedWebhookPayload = {
-  data: VoidedInvoice;
+  data: VoidedInvoiceDelivered;
   headers?: EventHeaders;
   /**
    * Event name
@@ -24108,7 +26760,7 @@ export type OnInstanceInvoiceVoidedWebhookRequest = {
 };
 
 export type OnInstanceCreatedWebhookPayload = {
-  data: InstanceWritable;
+  data: InstanceDeliveredWritable;
   headers?: EventHeaders;
   /**
    * Event name
@@ -24128,7 +26780,7 @@ export type OnInstanceCreatedWebhookRequest = {
 };
 
 export type OnInstanceDeletedWebhookPayload = {
-  data: InstanceWritable;
+  data: InstanceDeliveredWritable;
   headers?: EventHeaders;
   /**
    * Event name
@@ -24148,7 +26800,7 @@ export type OnInstanceDeletedWebhookRequest = {
 };
 
 export type OnInstanceDeployedWebhookPayload = {
-  data: InstanceWritable;
+  data: InstanceDeliveredWritable;
   headers?: EventHeaders;
   /**
    * Event name
@@ -24168,7 +26820,7 @@ export type OnInstanceDeployedWebhookRequest = {
 };
 
 export type OnInstanceLifecycleStageChangedWebhookPayload = {
-  data: InstanceLifecycleStageChanged;
+  data: InstanceLifecycleStageChangedDelivered;
   headers?: EventHeaders;
   /**
    * Event name
@@ -24188,7 +26840,7 @@ export type OnInstanceLifecycleStageChangedWebhookRequest = {
 };
 
 export type OnInstanceMigratedWebhookPayload = {
-  data: InstanceWritable;
+  data: InstanceDeliveredWritable;
   headers?: EventHeaders;
   /**
    * Event name
@@ -24208,7 +26860,7 @@ export type OnInstanceMigratedWebhookRequest = {
 };
 
 export type OnInstanceStatusChangedWebhookPayload = {
-  data: InstanceStatusChanged;
+  data: InstanceStatusChangedDelivered;
   headers?: EventHeaders;
   /**
    * Event name
@@ -24228,7 +26880,7 @@ export type OnInstanceStatusChangedWebhookRequest = {
 };
 
 export type OnInstanceUpdatedWebhookPayload = {
-  data: InstanceUpdateWritable;
+  data: InstanceUpdateDeliveredWritable;
   headers?: EventHeaders;
   /**
    * Event name
@@ -24248,7 +26900,7 @@ export type OnInstanceUpdatedWebhookRequest = {
 };
 
 export type OnInstanceVoucherExpiredWebhookPayload = {
-  data: RedemptionWritable;
+  data: RedemptionDeliveredWritable;
   headers?: EventHeaders;
   /**
    * Event name
@@ -24268,7 +26920,7 @@ export type OnInstanceVoucherExpiredWebhookRequest = {
 };
 
 export type OnInstanceVoucherRedeemedWebhookPayload = {
-  data: RedemptionWritable;
+  data: RedemptionDeliveredWritable;
   headers?: EventHeaders;
   /**
    * Event name
@@ -24288,7 +26940,7 @@ export type OnInstanceVoucherRedeemedWebhookRequest = {
 };
 
 export type OnInstanceVoucherRevokedWebhookPayload = {
-  data: RedemptionWritable;
+  data: RedemptionDeliveredWritable;
   headers?: EventHeaders;
   /**
    * Event name
@@ -24308,7 +26960,7 @@ export type OnInstanceVoucherRevokedWebhookRequest = {
 };
 
 export type OnLicenseEntitlementAssignedWebhookPayload = {
-  data: LicenseEntitlementWritable;
+  data: LicenseEntitlementDeliveredWritable;
   headers?: EventHeaders;
   /**
    * Event name
@@ -24328,7 +26980,7 @@ export type OnLicenseEntitlementAssignedWebhookRequest = {
 };
 
 export type OnLicenseEntitlementUnassignedWebhookPayload = {
-  data: LicenseEntitlementWritable;
+  data: LicenseEntitlementDeliveredWritable;
   headers?: EventHeaders;
   /**
    * Event name
@@ -24348,7 +27000,7 @@ export type OnLicenseEntitlementUnassignedWebhookRequest = {
 };
 
 export type OnLicenseEntitlementUpdatedWebhookPayload = {
-  data: LicenseEntitlementWritable;
+  data: LicenseEntitlementDeliveredWritable;
   headers?: EventHeaders;
   /**
    * Event name
@@ -24368,7 +27020,7 @@ export type OnLicenseEntitlementUpdatedWebhookRequest = {
 };
 
 export type OnLicensePriceCreatedWebhookPayload = {
-  data: LicensePriceEventWritable;
+  data: LicensePriceEventDeliveredWritable;
   headers?: EventHeaders;
   /**
    * Event name
@@ -24388,7 +27040,7 @@ export type OnLicensePriceCreatedWebhookRequest = {
 };
 
 export type OnLicensePriceDeprecatedWebhookPayload = {
-  data: LicensePriceEventWritable;
+  data: LicensePriceEventDeliveredWritable;
   headers?: EventHeaders;
   /**
    * Event name
@@ -24408,7 +27060,7 @@ export type OnLicensePriceDeprecatedWebhookRequest = {
 };
 
 export type OnLicensePriceUpdatedWebhookPayload = {
-  data: LicensePriceUpdatedEventWritable;
+  data: LicensePriceUpdatedEventDeliveredWritable;
   headers?: EventHeaders;
   /**
    * Event name
@@ -24428,7 +27080,7 @@ export type OnLicensePriceUpdatedWebhookRequest = {
 };
 
 export type OnLicenseArchivedWebhookPayload = {
-  data: LicenseWritable;
+  data: LicenseDeliveredWritable;
   headers?: EventHeaders;
   /**
    * Event name
@@ -24448,7 +27100,7 @@ export type OnLicenseArchivedWebhookRequest = {
 };
 
 export type OnLicenseCreatedWebhookPayload = {
-  data: LicenseWritable;
+  data: LicenseDeliveredWritable;
   headers?: EventHeaders;
   /**
    * Event name
@@ -24468,7 +27120,7 @@ export type OnLicenseCreatedWebhookRequest = {
 };
 
 export type OnLicenseDeletedWebhookPayload = {
-  data: LicenseWritable;
+  data: LicenseDeliveredWritable;
   headers?: EventHeaders;
   /**
    * Event name
@@ -24488,7 +27140,7 @@ export type OnLicenseDeletedWebhookRequest = {
 };
 
 export type OnLicensePublishedWebhookPayload = {
-  data: LicenseWritable;
+  data: LicenseDeliveredWritable;
   headers?: EventHeaders;
   /**
    * Event name
@@ -24508,7 +27160,7 @@ export type OnLicensePublishedWebhookRequest = {
 };
 
 export type OnLicenseUnarchivedWebhookPayload = {
-  data: LicenseWritable;
+  data: LicenseDeliveredWritable;
   headers?: EventHeaders;
   /**
    * Event name
@@ -24528,7 +27180,7 @@ export type OnLicenseUnarchivedWebhookRequest = {
 };
 
 export type OnLicenseUpdatedWebhookPayload = {
-  data: LicenseWritable;
+  data: LicenseDeliveredWritable;
   headers?: EventHeaders;
   /**
    * Event name
@@ -24548,7 +27200,7 @@ export type OnLicenseUpdatedWebhookRequest = {
 };
 
 export type OnLicenseFamilyCreatedWebhookPayload = {
-  data: LicenseFamilyViewWritable;
+  data: LicenseFamilyViewDeliveredWritable;
   headers?: EventHeaders;
   /**
    * Event name
@@ -24568,7 +27220,7 @@ export type OnLicenseFamilyCreatedWebhookRequest = {
 };
 
 export type OnLicenseFamilyDeletedWebhookPayload = {
-  data: LicenseFamilyViewWritable;
+  data: LicenseFamilyViewDeliveredWritable;
   headers?: EventHeaders;
   /**
    * Event name
@@ -24588,7 +27240,7 @@ export type OnLicenseFamilyDeletedWebhookRequest = {
 };
 
 export type OnLicenseFamilyUpdatedWebhookPayload = {
-  data: LicenseFamilyViewWritable;
+  data: LicenseFamilyViewDeliveredWritable;
   headers?: EventHeaders;
   /**
    * Event name
@@ -24608,7 +27260,7 @@ export type OnLicenseFamilyUpdatedWebhookRequest = {
 };
 
 export type OnMetadataFieldArchivedWebhookPayload = {
-  data: MetadataFieldWritable;
+  data: MetadataFieldDeliveredWritable;
   headers?: EventHeaders;
   /**
    * Event name
@@ -24628,7 +27280,7 @@ export type OnMetadataFieldArchivedWebhookRequest = {
 };
 
 export type OnMetadataFieldCreatedWebhookPayload = {
-  data: MetadataFieldWritable;
+  data: MetadataFieldDeliveredWritable;
   headers?: EventHeaders;
   /**
    * Event name
@@ -24648,7 +27300,7 @@ export type OnMetadataFieldCreatedWebhookRequest = {
 };
 
 export type OnMetadataFieldReorderedWebhookPayload = {
-  data: MetadataFieldReordered;
+  data: MetadataFieldReorderedDelivered;
   headers?: EventHeaders;
   /**
    * Event name
@@ -24668,7 +27320,7 @@ export type OnMetadataFieldReorderedWebhookRequest = {
 };
 
 export type OnMetadataFieldUnarchivedWebhookPayload = {
-  data: MetadataFieldWritable;
+  data: MetadataFieldDeliveredWritable;
   headers?: EventHeaders;
   /**
    * Event name
@@ -24688,7 +27340,7 @@ export type OnMetadataFieldUnarchivedWebhookRequest = {
 };
 
 export type OnMetadataFieldUpdatedWebhookPayload = {
-  data: MetadataFieldWritable;
+  data: MetadataFieldDeliveredWritable;
   headers?: EventHeaders;
   /**
    * Event name
@@ -24708,7 +27360,7 @@ export type OnMetadataFieldUpdatedWebhookRequest = {
 };
 
 export type OnPublishableKeyCreatedWebhookPayload = {
-  data: PublishableKeyEvent;
+  data: PublishableKeyEventDelivered;
   headers?: EventHeaders;
   /**
    * Event name
@@ -24728,7 +27380,7 @@ export type OnPublishableKeyCreatedWebhookRequest = {
 };
 
 export type OnPublishableKeyRevokedWebhookPayload = {
-  data: PublishableKeyEvent;
+  data: PublishableKeyEventDelivered;
   headers?: EventHeaders;
   /**
    * Event name
@@ -24748,7 +27400,7 @@ export type OnPublishableKeyRevokedWebhookRequest = {
 };
 
 export type OnReleaseCreatedWebhookPayload = {
-  data: ReleaseWritable;
+  data: ReleaseDeliveredWritable;
   headers?: EventHeaders;
   /**
    * Event name
@@ -24768,7 +27420,7 @@ export type OnReleaseCreatedWebhookRequest = {
 };
 
 export type OnReleaseDeletedWebhookPayload = {
-  data: ReleaseWritable;
+  data: ReleaseDeliveredWritable;
   headers?: EventHeaders;
   /**
    * Event name
@@ -24788,7 +27440,7 @@ export type OnReleaseDeletedWebhookRequest = {
 };
 
 export type OnVoucherArchivedWebhookPayload = {
-  data: VoucherWritable;
+  data: VoucherDeliveredWritable;
   headers?: EventHeaders;
   /**
    * Event name
@@ -24808,7 +27460,7 @@ export type OnVoucherArchivedWebhookRequest = {
 };
 
 export type OnVoucherCreatedWebhookPayload = {
-  data: VoucherWritable;
+  data: VoucherDeliveredWritable;
   headers?: EventHeaders;
   /**
    * Event name
@@ -24828,7 +27480,7 @@ export type OnVoucherCreatedWebhookRequest = {
 };
 
 export type OnVoucherExhaustedWebhookPayload = {
-  data: ExhaustedEvent;
+  data: ExhaustedEventDelivered;
   headers?: EventHeaders;
   /**
    * Event name
@@ -24848,7 +27500,7 @@ export type OnVoucherExhaustedWebhookRequest = {
 };
 
 export type OnVoucherExpiredWebhookPayload = {
-  data: ExpiredEvent;
+  data: ExpiredEventDelivered;
   headers?: EventHeaders;
   /**
    * Event name
@@ -24868,7 +27520,7 @@ export type OnVoucherExpiredWebhookRequest = {
 };
 
 export type OnVoucherPublishedWebhookPayload = {
-  data: VoucherWritable;
+  data: VoucherDeliveredWritable;
   headers?: EventHeaders;
   /**
    * Event name
@@ -24888,7 +27540,7 @@ export type OnVoucherPublishedWebhookRequest = {
 };
 
 export type OnVoucherUpdatedWebhookPayload = {
-  data: VoucherWritable;
+  data: VoucherDeliveredWritable;
   headers?: EventHeaders;
   /**
    * Event name

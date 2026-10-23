@@ -171,6 +171,7 @@ describe("the classes of the billing routes", () => {
   test.for([
     "addons",
     "billing",
+    "checkout-sessions",
     "customer-sessions",
     "public",
     "publishable-keys",
@@ -197,6 +198,13 @@ describe("the classes of the billing routes", () => {
       .filter((member) => typeof (cls as Record<string, unknown>)[member] === "function")
       .sort(byName);
 
+  test("the anonymous checkouts are listed and read by the vendor, and nothing else", () => {
+    expect(methodsOf(server.CheckoutSessions)).toEqual([
+      "getCheckoutSessionAdmin",
+      "listCheckoutSessions",
+    ]);
+  });
+
   test("the customer sessions are minted and revoked, and nothing else", () => {
     expect(methodsOf(server.CustomerSessions)).toEqual([
       "createCustomerSession",
@@ -213,7 +221,7 @@ describe("the classes of the billing routes", () => {
     ]);
   });
 
-  test("the public surface is the catalogue, the ten calls of a customer session and the three of an anonymous checkout", () => {
+  test("the public surface is the catalogue, the eleven calls of a customer session and the three of an anonymous checkout", () => {
     const publicOperations = ALL.filter((operation) => operation.tags.includes("public"));
 
     expect(
@@ -232,6 +240,7 @@ describe("the classes of the billing routes", () => {
         "POST /public/session/billing/portal-session",
         "POST /public/session/billing/reactivate",
         "POST /public/session/checkout",
+        "POST /public/session/vouchers/redeem",
         "POST /public/session/vouchers/validate",
         "PUT /public/session/addons/{addonSlug}",
       ].sort(byName),

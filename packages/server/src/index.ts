@@ -149,4 +149,5 @@ export {
   type KaitenWebhookType,
   type VerifyWebhookInput,
 } from "./webhooks.ts";
+export type * from "./payload-names.ts";
 export * from "./generated/index.ts";

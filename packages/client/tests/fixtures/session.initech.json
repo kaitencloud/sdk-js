@@ -845,6 +845,9 @@
         "name": "Double API calls",
         "voucherType": "ENTITLEMENT_BOOST",
         "status": "ACTIVE",
+        "appliesFromInvoice": null,
+        "applicationsCount": 0,
+        "applicationsMax": null,
         "effectiveStartsAt": "2026-10-06T09:00:00Z",
         "effectiveExpiresAt": null
       },
@@ -852,6 +855,9 @@
         "name": "Welcome 20%",
         "voucherType": "PRICE",
         "status": "ACTIVE",
+        "appliesFromInvoice": "next",
+        "applicationsCount": 0,
+        "applicationsMax": 3,
         "effectiveStartsAt": "2026-10-01T00:00:00Z",
         "effectiveExpiresAt": null
       }
@@ -1199,6 +1205,9 @@
         "name": "Double API calls",
         "voucherType": "ENTITLEMENT_BOOST",
         "status": "ACTIVE",
+        "appliesFromInvoice": null,
+        "applicationsCount": 0,
+        "applicationsMax": null,
         "effectiveStartsAt": "2026-10-06T09:00:00Z",
         "effectiveExpiresAt": null
       },
@@ -1206,6 +1215,9 @@
         "name": "Welcome 20%",
         "voucherType": "PRICE",
         "status": "ACTIVE",
+        "appliesFromInvoice": "next",
+        "applicationsCount": 0,
+        "applicationsMax": 3,
         "effectiveStartsAt": "2026-10-01T00:00:00Z",
         "effectiveExpiresAt": null
       }
@@ -1660,6 +1672,9 @@
         "name": "Double API calls",
         "voucherType": "ENTITLEMENT_BOOST",
         "status": "ACTIVE",
+        "appliesFromInvoice": null,
+        "applicationsCount": 0,
+        "applicationsMax": null,
         "effectiveStartsAt": "2026-10-06T09:00:00Z",
         "effectiveExpiresAt": null
       },
@@ -1667,6 +1682,9 @@
         "name": "Welcome 20%",
         "voucherType": "PRICE",
         "status": "ACTIVE",
+        "appliesFromInvoice": "next",
+        "applicationsCount": 0,
+        "applicationsMax": 3,
         "effectiveStartsAt": "2026-10-01T00:00:00Z",
         "effectiveExpiresAt": null
       }
@@ -2022,6 +2040,9 @@
         "name": "Double API calls",
         "voucherType": "ENTITLEMENT_BOOST",
         "status": "ACTIVE",
+        "appliesFromInvoice": null,
+        "applicationsCount": 0,
+        "applicationsMax": null,
         "effectiveStartsAt": "2026-10-06T09:00:00Z",
         "effectiveExpiresAt": null
       },
@@ -2029,6 +2050,9 @@
         "name": "Welcome 20%",
         "voucherType": "PRICE",
         "status": "ACTIVE",
+        "appliesFromInvoice": "next",
+        "applicationsCount": 0,
+        "applicationsMax": 3,
         "effectiveStartsAt": "2026-10-01T00:00:00Z",
         "effectiveExpiresAt": null
       }
