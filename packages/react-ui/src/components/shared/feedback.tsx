@@ -17,10 +17,15 @@ export type Tone = "info" | "success" | "error" | "muted";
 
 // A success is not said in the success colour: that green is 4.2:1 on the card's secondary
 // surface, under what text needs. It is the mark beside the sentence that is green.
+//
+// Every tone that paints a fill says the text colour that goes with it. A box that sets only
+// `bg-secondary` inherits the page's foreground, which a dark theme can make as light as its
+// secondary surface (1.00:1 in two of the storefront's), and which the contrast check cannot see:
+// it pairs a `text-` token with a `bg-` token only when one className names both.
 export const TONES: Record<Tone, string> = {
-  info: "rounded-lg border bg-secondary p-3 text-sm",
+  info: "rounded-lg border bg-secondary p-3 text-sm text-secondary-foreground",
   success:
-    "flex items-center gap-2 rounded-lg border border-ktn-success/30 bg-secondary p-3 text-sm font-medium",
+    "flex items-center gap-2 rounded-lg border border-ktn-success/30 bg-secondary p-3 text-sm font-medium text-secondary-foreground",
   error:
     "rounded-lg border border-destructive-subtle-foreground/30 bg-destructive-subtle p-3 text-sm text-destructive-subtle-foreground",
   muted: "text-sm text-ktn-muted-foreground",
