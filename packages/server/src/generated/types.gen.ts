@@ -5451,7 +5451,7 @@ export type NewSubscription = {
    */
   startAt?: string;
   /**
-   * Days of trial from the anchor, 1 to 365: nothing is billed, and no usage counts, until it ends; the period close then issues the first invoice. 0 is no trial; any other value is refused (SubscribeInstance.InvalidTrialDays). Omitted: the licence's trialPeriodDays, else no trial.
+   * Days of trial from the anchor, 1 to 365: nothing is billed, and no usage counts, until it ends; the period close then issues the first invoice. 0 is no trial; any other value is refused (SubscribeInstance.InvalidTrialDays). Omitted: the licence's trialPeriodDays, else no trial; none either when the customer already had a trial of the licence's family (one per customer and family).
    */
   trialDays?: number;
   /**
