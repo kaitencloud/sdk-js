@@ -7,11 +7,16 @@ import { isHttpUrl } from "@kaitencloud/react/internal";
 
 import { useIcons } from "../../appearance/icons.tsx";
 import { cn } from "../../lib/utils.ts";
+import { useCheckoutWords } from "../checkout-flow/words.ts";
 import { Button, buttonVariants } from "../ui/button.tsx";
 
 // What the billing screens say to a customer and what they offer them to do: a sentence in one of
 // four tones, and a button or a link. They are the checkout's and the portal's both, so that a
 // refusal and a way out look the same wherever the customer meets them.
+//
+// A sentence breaks wherever it has to. A customer's e-mail address is the longest word these
+// screens print and it has no space to break at: left alone it runs out of the card and the page
+// scrolls sideways on a phone.
 
 export type Tone = "info" | "success" | "error" | "muted";
 
@@ -23,12 +28,12 @@ export type Tone = "info" | "success" | "error" | "muted";
 // secondary surface (1.00:1 in two of the storefront's), and which the contrast check cannot see:
 // it pairs a `text-` token with a `bg-` token only when one className names both.
 export const TONES: Record<Tone, string> = {
-  info: "rounded-lg border bg-secondary p-3 text-sm text-secondary-foreground",
+  info: "rounded-lg border bg-secondary p-3 text-sm text-secondary-foreground [overflow-wrap:anywhere]",
   success:
-    "flex items-center gap-2 rounded-lg border border-ktn-success/30 bg-secondary p-3 text-sm font-medium text-secondary-foreground",
+    "flex items-center gap-2 rounded-lg border border-ktn-success/30 bg-secondary p-3 text-sm font-medium text-secondary-foreground [overflow-wrap:anywhere]",
   error:
-    "rounded-lg border border-destructive-subtle-foreground/30 bg-destructive-subtle p-3 text-sm text-destructive-subtle-foreground",
-  muted: "text-sm text-ktn-muted-foreground",
+    "rounded-lg border border-destructive-subtle-foreground/30 bg-destructive-subtle p-3 text-sm text-destructive-subtle-foreground [overflow-wrap:anywhere]",
+  muted: "text-sm text-ktn-muted-foreground [overflow-wrap:anywhere]",
 };
 
 /** A sentence for the customer: said politely, and said at once when it is a refusal. */
@@ -98,6 +103,8 @@ export interface ActionProps {
   busy?: boolean;
   /** Marks the control as somewhere focus can be sent to (see `useFocusScope`). */
   focusKey?: string;
+  /** The id of the sentence that says what the control waits for, read after its name. */
+  describedBy?: string;
 }
 
 export function Action({
@@ -114,15 +121,19 @@ export function Action({
   busy,
   unavailable,
   focusKey,
+  describedBy,
 }: ActionProps) {
+  const { opensInNewTab } = useCheckoutWords();
+  const newTabHint = React.useId();
   if (href !== undefined) {
     // A link to the provider's page comes from the API: it is followed only when it is a web address.
     if (external && !isHttpUrl(href)) return null;
-    return (
+    const link = (
       <a
         href={href}
         {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
         aria-label={label}
+        aria-describedby={external ? newTabHint : undefined}
         data-focus={focusKey}
         onClick={onClick}
         className={
@@ -132,6 +143,18 @@ export function Action({
         {children}
       </a>
     );
+    // A tab of its own is a change of place, which the link's name does not say: it is its description,
+    // read after the name, and nothing on the screen.
+    return external ? (
+      <>
+        {link}
+        <span id={newTabHint} hidden>
+          {opensInNewTab}
+        </span>
+      </>
+    ) : (
+      link
+    );
   }
   const press = busy ? undefined : onClick;
   return unstyled ? (
@@ -140,6 +163,7 @@ export function Action({
       disabled={disabled}
       aria-disabled={busy || unavailable || undefined}
       aria-label={label}
+      aria-describedby={describedBy}
       data-focus={focusKey}
       onClick={press}
     >
@@ -152,6 +176,7 @@ export function Action({
       disabled={disabled}
       aria-disabled={busy || unavailable || undefined}
       aria-label={label}
+      aria-describedby={describedBy}
       data-focus={focusKey}
       onClick={press}
       className={fill ? "flex-1" : undefined}

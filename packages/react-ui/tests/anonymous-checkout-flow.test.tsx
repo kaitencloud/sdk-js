@@ -11,7 +11,11 @@
 
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vite-plus/test";
-import { CheckoutTokenMissingError, KaitenError } from "@kaitencloud/client";
+import {
+  CheckoutTokenMissingError,
+  KaitenError,
+  ProviderUnavailableError,
+} from "@kaitencloud/client";
 import { createMockKaitenAnonymousCheckoutClient } from "@kaitencloud/client/testing";
 import { fr } from "@kaitencloud/react/locales";
 
@@ -541,5 +545,104 @@ describe("markup", () => {
     await screen.findByText("Contrôle de sécurité réussi.");
     expect(screen.getByLabelText("E-mail")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Commencer gratuitement" })).toBeTruthy();
+  });
+});
+
+describe("what the visitor is told", () => {
+  const LONG_EMAIL = "ada.lovelace.with.a.very.long.address@subdomain.example-company.test";
+
+  test("a provider that cannot be reached is said once, with the wait", async () => {
+    const Decorated = anonymousCheckoutDecorator({
+      fail: {
+        startCheckout: new ProviderUnavailableError(
+          { title: "unavailable", status: 503, code: "CreateCheckoutSession.ProviderUnavailable" },
+          { retryAfterSeconds: 5 },
+        ),
+      },
+    });
+    render(Decorated(() => <AnonymousCheckoutFlow plan={growth} />));
+    await fillIn();
+    fireEvent.click(go());
+    const refusal = await screen.findByRole("alert");
+    expect(refusal.textContent).toBe(
+      "The payment provider can't be reached right now. Try again in 5 seconds.",
+    );
+  });
+
+  test("a provider that cannot be reached, with no wait to announce, says to try again once", async () => {
+    const Decorated = anonymousCheckoutDecorator({
+      fail: {
+        startCheckout: new KaitenError({
+          title: "unavailable",
+          status: 503,
+          code: "Entitlement.VerificationUnavailable",
+        }),
+      },
+    });
+    render(Decorated(() => <AnonymousCheckoutFlow plan={growth} />));
+    await fillIn();
+    fireEvent.click(go());
+    expect((await screen.findByRole("alert")).textContent).toBe(
+      "The payment provider can't be reached right now. Try again in a moment.",
+    );
+  });
+
+  test("a button that is not available says why, in a sentence tied to it", async () => {
+    mount();
+    await passed();
+    // Nothing typed: the address is what is missing, and the button says so.
+    const hint = () => document.getElementById(go().getAttribute("aria-describedby") ?? "");
+    expect(hint()?.textContent).toBe("Enter your email address to continue.");
+    // Once the field shows its own error, the sentence is not said twice.
+    fireEvent.change(email(), { target: { value: "ada@" } });
+    fireEvent.blur(email());
+    expect(go().getAttribute("aria-describedby")).toBeNull();
+    fireEvent.change(email(), { target: { value: EMAIL } });
+    await waitFor(() => expect(off(go())).toBe(false));
+    expect(go().getAttribute("aria-describedby")).toBeNull();
+  });
+
+  test("a name that is missing is the reason the button gives, once the check passed", async () => {
+    mount({ plan: growth, collectName: true });
+    await passed();
+    fireEvent.change(email(), { target: { value: EMAIL } });
+    const hint = document.getElementById(go().getAttribute("aria-describedby") ?? "");
+    expect(hint?.textContent).toBe("Enter your name.");
+  });
+
+  test("a link to the provider's page says that it opens a tab of its own", async () => {
+    mount({ plan: growth }, { visitor: "stays" });
+    await fillIn();
+    fireEvent.click(go());
+    await screen.findByText(`For ${EMAIL}`);
+    fireEvent.click(go("Continue to payment"));
+    const again = await screen.findByRole("link", { name: "Open the page again" });
+    expect(again.getAttribute("target")).toBe("_blank");
+    const description = document.getElementById(again.getAttribute("aria-describedby") ?? "");
+    expect(description?.textContent).toBe("opens in a new tab");
+    // A description, not a part of the name, and nothing to see.
+    expect((description as HTMLElement).hidden).toBe(true);
+  });
+
+  test("a card that was declined leaves a way out beside the invoice, not a second checkout", async () => {
+    const onCancel = vi.fn();
+    mount({ plan: growth, onCancel }, { visitor: "saves", payment: "failed" });
+    await fillIn();
+    fireEvent.click(go());
+    await screen.findByText(`For ${EMAIL}`);
+    fireEvent.click(go("Continue to payment"));
+    await screen.findByText("Your card was declined.", {}, { timeout: 4_000 });
+    expect(screen.getByRole("link", { name: "Pay invoice" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Start again" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(onCancel).toHaveBeenCalledTimes(1);
+  });
+
+  test("an address with no place to break is still wrapped by the sentences that print it", async () => {
+    mount({ plan: growth }, {});
+    await fillIn(LONG_EMAIL);
+    fireEvent.click(go());
+    const review = await screen.findByText(`For ${LONG_EMAIL}`);
+    expect(review.className).toContain("[overflow-wrap:anywhere]");
   });
 });

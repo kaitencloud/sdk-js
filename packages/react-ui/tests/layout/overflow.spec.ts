@@ -168,6 +168,15 @@ const STORIES: Array<{ name: string; storyId: string }> = [
     storyId: "flows-anonymouscheckoutflow--security-check-blocked",
   },
   { name: "anonymous-checkout-flow (review)", storyId: "flows-anonymouscheckoutflow--review" },
+  // The longest word a checkout prints is the visitor's own address, which has no space to break at.
+  {
+    name: "anonymous-checkout-flow (review-of-a-long-address)",
+    storyId: "flows-anonymouscheckoutflow--review-of-a-long-address",
+  },
+  {
+    name: "anonymous-checkout-flow (bought-for-a-long-address)",
+    storyId: "flows-anonymouscheckoutflow--bought-for-a-long-address",
+  },
   {
     name: "anonymous-checkout-flow (changing-the-choices)",
     storyId: "flows-anonymouscheckoutflow--changing-the-choices",

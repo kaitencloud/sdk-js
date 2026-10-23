@@ -74,7 +74,7 @@ export interface AnonymousCheckoutFlowProps {
   onStarted?: UseAnonymousCheckoutOptions["onStarted"];
   /** Called once when the checkout completes, in this window, whether the visitor paid here or came back. */
   onComplete?: UseAnonymousCheckoutOptions["onComplete"];
-  /** Adds a cancel button while the visitor is choosing. */
+  /** Adds a cancel button while the visitor is choosing, and beside the invoice of a card that was declined. */
   onCancel?: () => void;
   appearance?: KaitenAppearance;
   unstyled?: boolean;
@@ -187,6 +187,7 @@ function AnonymousCheckoutView({
   const [emailLeft, setEmailLeft] = React.useState(false);
   const [attempted, setAttempted] = React.useState(false);
   const form = React.useRef<HTMLFormElement>(null);
+  const formId = React.useId();
 
   // A free plan has nothing to review: starting it is confirming it, once.
   const confirmed = React.useRef<string | null>(null);
@@ -349,7 +350,7 @@ function AnonymousCheckoutView({
   }
 
   if (step === "awaiting_payment") {
-    return frame(<PaymentWait checkout={checkout} unstyled={unstyled} />);
+    return frame(<PaymentWait checkout={checkout} unstyled={unstyled} onCancel={onCancel} />);
   }
 
   // The visitor is on the payment provider's page: in the popup beside this one, or they were sent
@@ -468,6 +469,25 @@ function AnonymousCheckoutView({
     }
   };
 
+  // What the button waits for, said in words and tied to it: the keyboard and the screen reader reach
+  // a button that is not available, and its name alone would not say why. Not said while the form
+  // shows the same thing next to the field that has to change.
+  const waitingFor =
+    starting || ready
+      ? null
+      : !solved && checkout.turnstile.status !== "failed" && checkout.selection.priceId !== null
+        ? words.checkFirst
+        : nameMissing
+          ? showNameError
+            ? null
+            : words.nameRequired
+          : emailBad
+            ? showEmailError
+              ? null
+              : words.emailFirst
+            : null;
+  const waitingId = `${formId}-waiting`;
+
   return frame(
     <form
       ref={form}
@@ -543,9 +563,9 @@ function AnonymousCheckoutView({
         <Message unstyled={unstyled} tone="error" text={checkoutWords.error} focusKey="error" />
       ) : null}
 
-      {!solved && checkout.turnstile.status !== "failed" && checkout.selection.priceId !== null ? (
-        <p className={unstyled ? undefined : "text-xs text-ktn-muted-foreground"}>
-          {words.checkFirst}
+      {waitingFor !== null ? (
+        <p id={waitingId} className={unstyled ? undefined : "text-xs text-ktn-muted-foreground"}>
+          {waitingFor}
         </p>
       ) : null}
 
@@ -558,6 +578,7 @@ function AnonymousCheckoutView({
           fill
           busy={starting}
           unavailable={!starting && !ready}
+          describedBy={waitingFor !== null ? waitingId : undefined}
           onClick={submit}
         >
           {starting ? (
@@ -638,9 +659,10 @@ function useProblemText(
         case "rate_limited":
           return `${words.rateLimited} ${words.tryAgainIn(problem.retryAfterSeconds)}`;
         case "unavailable":
+          // The wait is said once: the sentence that asks to try again is the wait's own when it is known.
           return problem.retryAfterSeconds === null
             ? checkoutWords.unavailable
-            : `${checkoutWords.unavailable} ${words.tryAgainIn(problem.retryAfterSeconds)}`;
+            : `${words.providerUnavailable} ${words.tryAgainIn(problem.retryAfterSeconds)}`;
         case "not_available":
           return words.notAvailable;
         case "not_self_serve":
@@ -959,9 +981,11 @@ function ReviewActions({
 function PaymentWait({
   checkout,
   unstyled,
+  onCancel,
 }: {
   checkout: UseAnonymousCheckoutResult;
   unstyled: boolean;
+  onCancel?: () => void;
 }) {
   const checkoutWords = useCheckoutWords();
   const { payment } = checkout;
@@ -995,9 +1019,17 @@ function PaymentWait({
         </Action>
       ) : null}
       {url && payment?.status === "failed" ? (
-        <Action unstyled={unstyled} variant="default" href={url} external>
-          {checkoutWords.payInvoice}
-        </Action>
+        <div className={unstyled ? undefined : "flex flex-wrap gap-2"}>
+          <Action unstyled={unstyled} variant="default" href={url} external>
+            {checkoutWords.payInvoice}
+          </Action>
+          {/* A way out of a checkout that the card did not pay. It is not a new start: the customer and its instance exist by now, and a second checkout would make others. */}
+          {onCancel ? (
+            <Action unstyled={unstyled} variant="outline" onClick={onCancel}>
+              {checkoutWords.cancel}
+            </Action>
+          ) : null}
+        </div>
       ) : null}
     </>
   );

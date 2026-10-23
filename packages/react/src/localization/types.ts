@@ -82,6 +82,8 @@ export interface KaitenCheckoutWords {
   paymentNote: string;
   awaitingPaymentMethod: string;
   reopenSetup: string;
+  /** Said to a screen reader after the name of a link that opens in a tab of its own: "(opens in a new tab)". */
+  opensInNewTab: string;
   setupDone: string;
   setupIncomplete: string;
   subscribed: string;
@@ -202,6 +204,10 @@ export interface KaitenAnonymousCheckoutWords {
   invalidEmail: string;
   quotaReached: string;
   notAvailable: string;
+  /** Said when the payment provider cannot be reached. Ends the sentence: the wait to announce follows it. */
+  providerUnavailable: string;
+  /** Said by the button that starts the checkout, while the e-mail field is empty or not an address. */
+  emailFirst: string;
   sessionClosed: string;
   dueTodayChanged: string;
   network: string;

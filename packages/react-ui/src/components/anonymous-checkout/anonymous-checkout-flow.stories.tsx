@@ -18,6 +18,8 @@ import {
 import { AnonymousCheckoutFlow } from "./anonymous-checkout-flow.tsx";
 
 const EMAIL = "ada@example.com";
+/** An address that is valid and has no space to break at: the longest word a checkout prints. */
+const LONG_EMAIL = "ada.lovelace.with.a.very.long.address@subdomain.example-company.test";
 
 // Module constants, not built inside a decorator or a render: a new client is a new checkout.
 const standard = anonymousCheckoutDecorator();
@@ -66,9 +68,13 @@ const available = (button: HTMLElement) =>
   waitFor(() => expect(button).not.toHaveAttribute("aria-disabled"), SLOW);
 
 /** Fills the form in and presses the button that starts the checkout. */
-async function start(canvasElement: HTMLElement, button: string | RegExp = "Continue") {
+async function start(
+  canvasElement: HTMLElement,
+  button: string | RegExp = "Continue",
+  email = EMAIL,
+) {
   const canvas = await checked(canvasElement);
-  await typeEmail(canvas);
+  await typeEmail(canvas, email);
   const go = canvas.getByRole("button", { name: button });
   await available(go);
   await userEvent.click(go);
@@ -76,9 +82,9 @@ async function start(canvasElement: HTMLElement, button: string | RegExp = "Cont
 }
 
 /** The review of what is due, once the checkout is started. */
-async function reviewed(canvasElement: HTMLElement) {
-  const canvas = await start(canvasElement);
-  await expect(await canvas.findByText(`For ${EMAIL}`, {}, SLOW)).toBeInTheDocument();
+async function reviewed(canvasElement: HTMLElement, email = EMAIL) {
+  const canvas = await start(canvasElement, "Continue", email);
+  await expect(await canvas.findByText(`For ${email}`, {}, SLOW)).toBeInTheDocument();
   return canvas;
 }
 
@@ -155,6 +161,16 @@ export const Review: Story = {
   },
 };
 
+export const ReviewOfALongAddress: Story = {
+  decorators: [standard],
+  name: "Reviewing an order for a very long address",
+  play: async ({ canvasElement }) => {
+    const canvas = await reviewed(canvasElement, LONG_EMAIL);
+    // The address wraps inside the card: the page does not scroll sideways (see tests/layout).
+    await expect(canvas.getByText(`For ${LONG_EMAIL}`)).toBeInTheDocument();
+  },
+};
+
 export const ChangingTheChoices: Story = {
   decorators: [standard],
   name: "Going back to change the choices",
@@ -217,6 +233,20 @@ export const Bought: Story = {
     );
     await expect(canvas.queryByText(/registered for ada@example.com/)).toBeNull();
     await waitFor(() => expect(args.onComplete).toHaveBeenCalledTimes(1), SLOW);
+  },
+};
+
+export const BoughtForALongAddress: Story = {
+  name: "Bought, with the order registered for a very long address",
+  args: { successUrl: undefined },
+  decorators: [anonymousCheckoutDecorator({ visitor: "saves", payment: "paid" })],
+  play: async ({ canvasElement }) => {
+    const canvas = await reviewed(canvasElement, LONG_EMAIL);
+    await userEvent.click(canvas.getByRole("button", { name: "Continue to payment" }));
+    await expect(await canvas.findByText("You're subscribed", {}, SLOW)).toBeInTheDocument();
+    await expect(
+      canvas.getByText(`Your order is registered for ${LONG_EMAIL}.`),
+    ).toBeInTheDocument();
   },
 };
 

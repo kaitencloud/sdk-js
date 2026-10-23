@@ -61,7 +61,9 @@ export const englishAnonymousCheckoutWords: KaitenAnonymousCheckoutWords = {
   addonRefused: "One of the options you chose can't be bought with this plan.",
   invalidEmail: "This email address isn't valid.",
   quotaReached: "We can't take new sign-ups right now. Please contact us.",
-  notAvailable: "Online sign-up isn't available right now.",
+  notAvailable: "Online checkout isn't available right now.",
+  providerUnavailable: "The payment provider can't be reached right now.",
+  emailFirst: "Enter your email address to continue.",
   sessionClosed: "This checkout is already closed.",
   dueTodayChanged:
     "The amount due changed after your payment method was saved. Nothing was charged. Start again to see the new amount.",

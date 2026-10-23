@@ -192,6 +192,7 @@ export const de: KaitenLocalization = {
     awaitingPaymentMethod:
       "Speichern Sie Ihre Zahlungsmethode in dem geöffneten Fenster. Wir machen weiter, sobald Sie zurück sind.",
     reopenSetup: "Seite erneut öffnen",
+    opensInNewTab: "öffnet in einem neuen Tab",
     setupDone: "Ich habe meine Zahlungsmethode gespeichert",
     setupIncomplete:
       "Wir haben noch keine Zahlungsmethode erhalten. Öffnen Sie die Seite erneut oder prüfen Sie noch einmal.",
@@ -273,7 +274,9 @@ export const de: KaitenLocalization = {
     addonRefused: "Eine der gewählten Optionen kann mit diesem Tarif nicht gekauft werden.",
     invalidEmail: "Diese E-Mail-Adresse ist nicht gültig.",
     quotaReached: "Wir können im Moment keine neuen Anmeldungen annehmen. Kontaktieren Sie uns.",
-    notAvailable: "Die Online-Anmeldung ist im Moment nicht verfügbar.",
+    notAvailable: "Der Online-Kauf ist im Moment nicht verfügbar.",
+    providerUnavailable: "Der Zahlungsdienstleister ist gerade nicht erreichbar.",
+    emailFirst: "Geben Sie Ihre E-Mail-Adresse ein, um fortzufahren.",
     sessionClosed: "Dieser Abschluss ist bereits geschlossen.",
     dueTodayChanged:
       "Der fällige Betrag hat sich geändert, nachdem Ihre Zahlungsmethode gespeichert wurde. Es wurde nichts abgebucht. Beginnen Sie neu, um den neuen Betrag zu sehen.",

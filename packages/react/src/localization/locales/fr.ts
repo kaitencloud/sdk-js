@@ -190,6 +190,7 @@ export const fr: KaitenLocalization = {
     awaitingPaymentMethod:
       "Enregistrez votre moyen de paiement dans la fenêtre que nous avons ouverte. Nous continuons dès votre retour.",
     reopenSetup: "Rouvrir la page",
+    opensInNewTab: "s'ouvre dans un nouvel onglet",
     setupDone: "J'ai enregistré mon moyen de paiement",
     setupIncomplete:
       "Nous n'avons pas encore reçu de moyen de paiement. Rouvrez la page, ou vérifiez à nouveau.",
@@ -268,7 +269,9 @@ export const fr: KaitenLocalization = {
     invalidEmail: "Cette adresse e-mail n'est pas valide.",
     quotaReached:
       "Nous ne pouvons pas accepter de nouvelle inscription pour le moment. Contactez-nous.",
-    notAvailable: "L'inscription en ligne n'est pas disponible pour le moment.",
+    notAvailable: "La commande en ligne n'est pas disponible pour le moment.",
+    providerUnavailable: "Le prestataire de paiement est injoignable pour le moment.",
+    emailFirst: "Saisissez votre adresse e-mail pour continuer.",
     sessionClosed: "Cette commande est déjà fermée.",
     dueTodayChanged:
       "Le montant dû a changé après l'enregistrement de votre moyen de paiement. Rien n'a été prélevé. Recommencez pour voir le nouveau montant.",

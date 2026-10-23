@@ -44,6 +44,7 @@ export const englishCheckoutWords: KaitenCheckoutWords = {
   awaitingPaymentMethod:
     "Save your payment method in the window we opened. We'll continue as soon as you're back.",
   reopenSetup: "Open the page again",
+  opensInNewTab: "opens in a new tab",
   setupDone: "I've saved my payment method",
   setupIncomplete:
     "We haven't received a payment method yet. Open the page again, or check once more.",

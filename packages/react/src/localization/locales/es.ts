@@ -191,6 +191,7 @@ export const es: KaitenLocalization = {
     awaitingPaymentMethod:
       "Guarde su método de pago en la ventana que abrimos. Continuaremos en cuanto vuelva.",
     reopenSetup: "Abrir la página de nuevo",
+    opensInNewTab: "se abre en una pestaña nueva",
     setupDone: "Ya guardé mi método de pago",
     setupIncomplete:
       "Todavía no hemos recibido un método de pago. Abra la página de nuevo o compruebe otra vez.",
@@ -266,7 +267,9 @@ export const es: KaitenLocalization = {
     addonRefused: "Una de las opciones elegidas no se puede comprar con este plan.",
     invalidEmail: "Esta dirección de correo no es válida.",
     quotaReached: "No podemos aceptar nuevas altas por ahora. Contáctenos.",
-    notAvailable: "El alta en línea no está disponible en este momento.",
+    notAvailable: "La compra en línea no está disponible en este momento.",
+    providerUnavailable: "No se puede contactar con el proveedor de pagos ahora mismo.",
+    emailFirst: "Introduzca su correo electrónico para continuar.",
     sessionClosed: "Este pedido ya está cerrado.",
     dueTodayChanged:
       "El importe a pagar cambió después de guardar su medio de pago. No se cobró nada. Empiece de nuevo para ver el nuevo importe.",
