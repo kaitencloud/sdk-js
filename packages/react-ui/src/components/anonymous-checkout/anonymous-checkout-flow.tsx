@@ -438,18 +438,33 @@ function AnonymousCheckoutView({
   // ---- Choosing -------------------------------------------------------------------
 
   if (!plan) return null;
-  if (prices.length === 0) {
-    return frame(<Message unstyled={unstyled} tone="error" text={checkoutWords.notSold} />);
-  }
+  // Sold by contact, with or without a price on the page: say so and offer the way to ask. A plan
+  // that has no price to buy and no way to ask is the one that cannot be bought online.
+  const back = onCancel ? (
+    <Action unstyled={unstyled} variant="outline" onClick={onCancel}>
+      {checkoutWords.cancel}
+    </Action>
+  ) : null;
   if (plan.selfServe === false) {
     return frame(
       <>
         <Message unstyled={unstyled} tone="info" text={words.notSelfServe} />
-        {safeHref(plan.selfServeCtaUrl ?? undefined) ? (
-          <Action unstyled={unstyled} variant="default" href={plan.selfServeCtaUrl!}>
-            {localization.pricingTable.contactUs}
-          </Action>
-        ) : null}
+        <div className={unstyled ? undefined : "flex flex-wrap gap-2"}>
+          {safeHref(plan.selfServeCtaUrl ?? undefined) ? (
+            <Action unstyled={unstyled} variant="default" href={plan.selfServeCtaUrl!}>
+              {localization.pricingTable.contactUs}
+            </Action>
+          ) : null}
+          {back}
+        </div>
+      </>,
+    );
+  }
+  if (prices.length === 0) {
+    return frame(
+      <>
+        <Message unstyled={unstyled} tone="error" text={checkoutWords.notSold} />
+        {back}
       </>,
     );
   }

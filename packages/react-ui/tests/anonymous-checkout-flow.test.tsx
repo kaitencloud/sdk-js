@@ -251,15 +251,32 @@ describe("choosing", () => {
     expect(screen.queryByLabelText("Email")).toBeNull();
   });
 
+  test("a plan sold by contact with no price on the page is still sold by contact, and leads back", async () => {
+    const onCancel = vi.fn();
+    mount({ plan: { ...enterprise, billingPrices: [], prices: [] }, onCancel });
+    await screen.findByText("This plan isn't sold online. Contact us to get it.");
+    expect(screen.queryByText("This plan can't be bought online.")).toBeNull();
+    expect(screen.getByRole("link", { name: "Contact us" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(onCancel).toHaveBeenCalledTimes(1);
+  });
+
   test("a plan whose way to ask is not a web address is not offered one", async () => {
     mount({ plan: { ...enterprise, selfServeCtaUrl: "javascript:alert(1)" } });
     await screen.findByText("This plan isn't sold online. Contact us to get it.");
     expect(screen.queryByRole("link", { name: "Contact us" })).toBeNull();
   });
 
-  test("a plan with no price to buy says it cannot be bought online", async () => {
+  test("a plan with no price to buy says it cannot be bought online, and leads back when the page can", async () => {
+    const onCancel = vi.fn();
+    mount({ plan: { ...growth, billingPrices: [] }, onCancel });
+    await screen.findByText("This plan can't be bought online.");
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(onCancel).toHaveBeenCalledTimes(1);
+    cleanup();
     mount({ plan: { ...growth, billingPrices: [] } });
     await screen.findByText("This plan can't be bought online.");
+    expect(screen.queryByRole("button", { name: "Cancel" })).toBeNull();
   });
 
   test("nothing is drawn without a plan to sell, or when the key cannot start a checkout", async () => {
