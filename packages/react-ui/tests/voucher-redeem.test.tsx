@@ -263,6 +263,21 @@ describe("a live subscription", () => {
     expect(await screen.findByText(/Five off appliqué\./)).toBeTruthy();
   });
 
+  test("a subscription whose last payment failed is live too: a code can still be redeemed", async () => {
+    const server = sessionServer({
+      portal: trialPortal({}, (portal) => {
+        portal.subscription.status = "PAST_DUE";
+        portal.trial = null;
+      }),
+    });
+    mount(server, <VoucherEntry />);
+
+    await check("FIVEOFF");
+
+    expect(await screen.findByRole("button", { name: "Apply" })).toBeTruthy();
+    expect(server.to("POST", "vouchers/validate")).toHaveLength(0);
+  });
+
   test("a trial is a live subscription too", async () => {
     const server = sessionServer({ portal: trialPortal() });
     mount(server, <VoucherEntry />);

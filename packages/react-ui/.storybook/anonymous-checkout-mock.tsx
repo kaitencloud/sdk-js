@@ -124,12 +124,27 @@ export function latestAnonymousClient(): MockKaitenAnonymousCheckoutClient {
 
 const sessionOf = (url: unknown) => String(url).split("/").pop() ?? "";
 
-/** The page the visitor lands on in the popup says it is back: what the waiting window hears. */
+/**
+ * The page the visitor lands on in the popup says it is back: what the waiting window hears. The
+ * channel keeps no history, so a message sent before the window listens is lost; the page says it
+ * again until the window acknowledges it, as a real page that is still loading would not give up
+ * after one try, and the story does not depend on how busy the machine is.
+ */
 function announceReturn(sessionId: string) {
   if (typeof BroadcastChannel !== "function") return;
   const channel = new BroadcastChannel("kaiten:setup-return");
-  channel.postMessage({ kaiten: "setup-returned", sessionId });
-  setTimeout(() => channel.close(), 1_000);
+  const say = () => channel.postMessage({ kaiten: "setup-returned", sessionId });
+  const stop = () => {
+    clearInterval(repeat);
+    clearTimeout(giveUp);
+    channel.close();
+  };
+  channel.onmessage = (event: MessageEvent<{ kaiten?: string; sessionId?: string } | null>) => {
+    if (event.data?.kaiten === "setup-acknowledged" && event.data.sessionId === sessionId) stop();
+  };
+  const repeat = setInterval(say, 100);
+  const giveUp = setTimeout(stop, 10_000);
+  say();
 }
 
 /** The double, with the two things a story scripts. */

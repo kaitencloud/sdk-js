@@ -41,8 +41,10 @@ re-exports: an app that draws with Kaiten's components imports everything from h
   and with no subscription a code is only checked, as before.
 - **The trial.** `TrialBanner` shows the trial a customer session's instance is in: a countdown
   to its end, what the end charges and to which card (the server's figure, or that nothing will
-  be charged), a prompt to add a card when there is none, "Add a card" through the provider's page
-  and back, and "Cancel", which asks first and says the trial ends at once with nothing charged.
+  be charged when the server says so, and nothing about the charge when it names none), a prompt
+  to add a card when there is none, "Add a card" through the provider's page and back, and
+  "Cancel", which asks first and says the trial ends at once with nothing charged, then calls
+  `onTrialEnded`.
   It draws nothing outside a trial, and has words in English, French, Spanish and German.
 - **Summaries.** `BillingSummary`, `CurrentPlan` and `Paywall` say where a subscription stands
   (running, in its trial, canceled and ending, past due, over, or waiting for the first payment of

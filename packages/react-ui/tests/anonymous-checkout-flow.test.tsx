@@ -15,6 +15,7 @@ import {
   CheckoutTokenMissingError,
   KaitenError,
   ProviderUnavailableError,
+  TurnstileFailedError,
 } from "@kaitencloud/client";
 import { createMockKaitenAnonymousCheckoutClient } from "@kaitencloud/client/testing";
 import { fr } from "@kaitencloud/react/locales";
@@ -302,14 +303,45 @@ describe("the security check", () => {
   });
 
   test("a check that cannot run says what to allow, and can be run again", async () => {
-    mount({ plan: starter }, { widget: "blocks" });
+    mount({ plan: starter }, { widget: "unloadable" });
     expect(await screen.findByText(/allow challenges\.cloudflare\.com/)).toBeTruthy();
     expect(screen.getByRole("alert").textContent).toMatch(/security check could not load/);
     expect(off(screen.getByRole("button", { name: "Try the check again" }))).toBe(false);
   });
 
-  test("a check that cannot run keeps no room for a widget that is not drawn, and the button points at why", async () => {
+  test("a check that loaded and failed does not blame what the visitor blocked", async () => {
     mount({ plan: starter }, { widget: "blocks" });
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toBe("The security check failed. Try it again.");
+    expect(screen.queryByText(/challenges\.cloudflare\.com/)).toBeNull();
+    expect(off(screen.getByRole("button", { name: "Try the check again" }))).toBe(false);
+  });
+
+  test("a check that passed is not said so beside the refusal of the start that used it", async () => {
+    const refused = new TurnstileFailedError({
+      title: "turnstile",
+      status: 422,
+      code: "CreateCheckoutSession.TurnstileFailed",
+    });
+    mount(
+      { plan: starter },
+      { fail: { startCheckout: (call) => (call === 1 ? refused : undefined) } },
+    );
+    await fillIn();
+    expect(screen.getByText("Security check passed.")).toBeTruthy();
+
+    fireEvent.click(go("Start for free"));
+
+    expect((await screen.findByRole("alert")).textContent).toBe(
+      "We couldn't verify the security check. Please complete it again.",
+    );
+    // A new check was passed behind the refusal, and the button is back; the sentence is not.
+    await waitFor(() => expect(off(go("Start for free"))).toBe(false));
+    expect(screen.queryByText("Security check passed.")).toBeNull();
+  });
+
+  test("a check that cannot run keeps no room for a widget that is not drawn, and the button points at why", async () => {
+    mount({ plan: starter }, { widget: "unloadable" });
     const alert = await screen.findByRole("alert");
     const room = document.querySelector('[data-slot="anonymous-checkout-turnstile"]')!;
     expect(room.className).not.toMatch(/min-h-/);
@@ -510,6 +542,28 @@ describe("what is due", () => {
     expect(screen.queryByText(/^Then /)).toBeNull();
   });
 
+  test("an amount that changed after the payment method was saved is not drawn as what is due", async () => {
+    // The visitor saves the card in the popup a moment after it opens, and the trial is used up first.
+    mount({ plan: pro }, { visitor: "saves" });
+    await fillIn();
+    fireEvent.click(go());
+    await screen.findByText(`For ${EMAIL}`);
+    expect(await screen.findByText("$0.00 today")).toBeTruthy();
+    expect(screen.getByText(/^Then \$49\.00\/month from /)).toBeTruthy();
+    fireEvent.click(go("Continue to payment"));
+    await screen.findByText(/Save your payment method in the window we opened/);
+    latestAnonymousClient().consumeTrial("chk_mock_1");
+
+    const alert = await screen.findByRole("alert");
+
+    expect(alert.textContent).toMatch(/amount due changed after your payment method was saved/);
+    // What the visitor was shown is not what is due now, and is not drawn as if it were.
+    expect(screen.queryByText("$0.00 today")).toBeNull();
+    expect(screen.queryByText(/^Then \$49\.00/)).toBeNull();
+    expect(screen.getByRole("button", { name: "Start again" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Continue to payment" })).toBeNull();
+  });
+
   test("changing the choices from the review goes back to the form with a security check to pass", async () => {
     mount();
     await fillIn();
@@ -521,6 +575,26 @@ describe("what is due", () => {
     await waitFor(() => expect(off(go())).toBe(false));
     // The session that was left is not read or confirmed again.
     expect(latestAnonymousClient().holdsCheckoutSession("chk_mock_1")).toBe(false);
+  });
+});
+
+describe("one checkout for one plan", () => {
+  test("another plan is another checkout, from the start; the same plan drawn again is the same one", async () => {
+    const client = createMockKaitenAnonymousCheckoutClient();
+    const uninstall = installTurnstileDouble();
+    const view = render(plainProvider(client)(<AnonymousCheckoutFlow plan={growth} />));
+    await fillIn();
+    expect(email().value).toBe(EMAIL);
+
+    // The same plan with another prop: the checkout goes on, and so does what was typed.
+    view.rerender(
+      plainProvider(client)(<AnonymousCheckoutFlow plan={growth} onCancel={() => {}} />),
+    );
+    expect(email().value).toBe(EMAIL);
+
+    view.rerender(plainProvider(client)(<AnonymousCheckoutFlow plan={starter} />));
+    await waitFor(() => expect(email().value).toBe(""));
+    uninstall();
   });
 });
 

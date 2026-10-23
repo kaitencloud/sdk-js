@@ -62,7 +62,9 @@ export interface AnonymousCheckoutFlowProps {
    * Where "Continue" sends the visitor once the checkout completed: a page of the host's. Without
    * it, the visitor is told that the order is registered for their address, and nothing more:
    * Kaiten sends no e-mail to a vendor's buyers. A host whose own e-mail follows says so in
-   * `localization.anonymousCheckout.completedFor`. An address that is not http(s) is not offered.
+   * `localization.anonymousCheckout.completedFor`. An address that is not http(s) is not offered; any
+   * http(s) address is, as written, so write it yourself: never from a request parameter of the page,
+   * which would make the link an open redirect.
    */
   successUrl?: string;
   /**
@@ -70,7 +72,13 @@ export interface AnonymousCheckoutFlowProps {
    * member for it, so it is never sent to Kaiten. Default `false`.
    */
   collectName?: boolean;
-  /** Your own reference for the buyer, at most 255 characters. Echoed on the checkout's events. */
+  /**
+   * Your own reference for the buyer, at most 255 characters. Echoed on the checkout's events.
+   * Untrusted once it comes back through a browser: a visitor can change it, and a value taken from
+   * a request parameter of your page is the visitor's too. Link a buyer to an account from the
+   * signed `checkout_session.v1.completed` event your backend receives, never from this value read
+   * in the browser.
+   */
   clientReferenceId?: string;
   /** Called once when a checkout is started, with its id, before the visitor is sent anywhere. */
   onStarted?: UseAnonymousCheckoutOptions["onStarted"];
@@ -579,7 +587,13 @@ function AnonymousCheckoutView({
         onChange={checkout.setEmail}
       />
 
-      <TurnstileCheck checkout={checkout} unstyled={unstyled} words={words} messageId={checkId} />
+      <TurnstileCheck
+        checkout={checkout}
+        unstyled={unstyled}
+        words={words}
+        messageId={checkId}
+        refused={checkout.error !== null}
+      />
 
       {checkout.problem ? (
         <Message
@@ -806,12 +820,15 @@ function TurnstileCheck({
   unstyled,
   words,
   messageId,
+  refused,
 }: {
   checkout: UseAnonymousCheckoutResult;
   unstyled: boolean;
   words: KaitenAnonymousCheckoutWords;
   /** The id of the sentence that says where the check stands, for the button to be described by. */
   messageId: string;
+  /** Whether a refusal of the last attempt is on screen: the check is not said to have passed beside it. */
+  refused: boolean;
 }) {
   const { turnstile } = checkout;
   const legend = React.useId();
@@ -819,10 +836,18 @@ function TurnstileCheck({
   // The compact widget is taller than the normal one: its room is kept, or the form jumps when it
   // appears. A check that failed drew nothing, and keeps none: the message would float in a gap.
   const room = failed ? "" : turnstile.size === "compact" ? "min-h-[140px]" : "min-h-[65px]";
+  // Two ways to fail: the script never loaded (a blocker, a firewall), or it loaded and the widget
+  // reported an error, which carries a code. The advice for the first would be wrong for the second.
+  // A check that passed is not said so beside a refusal of the attempt that used it: the visitor
+  // has a fresh one in hand, and the refusal says what to do.
   const text = failed
-    ? words.checkFailed
+    ? turnstile.errorCode !== null
+      ? words.checkError
+      : words.checkFailed
     : turnstile.status === "solved"
-      ? words.checked
+      ? refused
+        ? ""
+        : words.checked
       : words.checking;
   return (
     <div
@@ -918,6 +943,7 @@ function Review({
 }) {
   const localization = useLocalization();
   const { changed } = checkout;
+  const stale = checkout.problem?.kind === "due_today_changed";
   const money = (amount: number, currency: string) => localization.formatMoney(amount, currency);
   return (
     <>
@@ -943,31 +969,36 @@ function Review({
           }
         />
       ) : null}
-      {quote.trialRefusedReason === "ALREADY_CONSUMED" ? (
-        <Message unstyled={unstyled} tone="info" text={words.trialAlreadyUsed} />
-      ) : null}
-      <CheckoutSummaryBody preview={previewOf(quote)} unstyled={unstyled} lineDetail={false} />
-      {renewal !== null ? (
-        <Message
-          unstyled={unstyled}
-          tone="muted"
-          text={words.renewsAt(renewal.price, renewal.isoDate)}
-        />
-      ) : null}
-      {/* What the card is for: the server's `dueToday` has no line for a trial, the catalogue's price is the one said. */}
-      {price !== null && quote.trialEndsAt !== null ? (
-        <Message
-          unstyled={unstyled}
-          tone="muted"
-          text={words.thenPrice(price, quote.trialEndsAt)}
-        />
-      ) : null}
-      {quote.requiresPaymentMethod ? null : (
-        <Message
-          unstyled={unstyled}
-          tone="muted"
-          text={quote.trialEndsAt !== null ? words.noCardTrial : words.noCardNeeded}
-        />
+      {/* The amount changed after the payment method was saved and nothing was written: these figures are the ones the visitor was shown, not what is due now, and are not drawn as if they were. */}
+      {stale ? null : (
+        <>
+          {quote.trialRefusedReason === "ALREADY_CONSUMED" ? (
+            <Message unstyled={unstyled} tone="info" text={words.trialAlreadyUsed} />
+          ) : null}
+          <CheckoutSummaryBody preview={previewOf(quote)} unstyled={unstyled} lineDetail={false} />
+          {renewal !== null ? (
+            <Message
+              unstyled={unstyled}
+              tone="muted"
+              text={words.renewsAt(renewal.price, renewal.isoDate)}
+            />
+          ) : null}
+          {/* What the card is for: the server's `dueToday` has no line for a trial, the catalogue's price is the one said. */}
+          {price !== null && quote.trialEndsAt !== null ? (
+            <Message
+              unstyled={unstyled}
+              tone="muted"
+              text={words.thenPrice(price, quote.trialEndsAt)}
+            />
+          ) : null}
+          {quote.requiresPaymentMethod ? null : (
+            <Message
+              unstyled={unstyled}
+              tone="muted"
+              text={quote.trialEndsAt !== null ? words.noCardTrial : words.noCardNeeded}
+            />
+          )}
+        </>
       )}
       {checkout.error ? (
         <Message

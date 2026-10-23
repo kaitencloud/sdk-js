@@ -135,9 +135,24 @@ export const InteractiveSecurityCheck: Story = {
   },
 };
 
+export const SecurityCheckFailed: Story = {
+  name: "A security check that failed",
+  decorators: [anonymousCheckoutDecorator({ widget: "blocks" })],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    // The script loaded and the widget reported an error: not the advice for a script that is blocked.
+    await expect(
+      await canvas.findByText("The security check failed. Try it again.", {}, SLOW),
+    ).toBeInTheDocument();
+    await expect(canvas.queryByText(/challenges\.cloudflare\.com/)).toBeNull();
+    await expect(canvas.getByRole("button", { name: "Try the check again" })).toBeEnabled();
+    await unavailable(canvas.getByRole("button", { name: "Continue" }));
+  },
+};
+
 export const SecurityCheckBlocked: Story = {
   name: "A security check that cannot run",
-  decorators: [anonymousCheckoutDecorator({ widget: "blocks" })],
+  decorators: [anonymousCheckoutDecorator({ widget: "unloadable" })],
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(
@@ -488,6 +503,8 @@ export const TurnstileRefused: Story = {
       () => expect(canvas.getByRole("button", { name: "Continue" })).toBeEnabled(),
       SLOW,
     );
+    // The new check passed, and the refusal is not contradicted by saying so beside it.
+    await expect(canvas.queryByText("Security check passed.")).toBeNull();
   },
 };
 

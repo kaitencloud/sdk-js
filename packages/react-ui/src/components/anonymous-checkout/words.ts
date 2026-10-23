@@ -25,6 +25,7 @@ export const englishAnonymousCheckoutWords: KaitenAnonymousCheckoutWords = {
   checked: "Security check passed.",
   checkFailed:
     "The security check could not load. If a content blocker or a firewall is in the way, allow challenges.cloudflare.com, then try again.",
+  checkError: "The security check failed. Try it again.",
   checkRetry: "Try the check again",
   checkFirst: "The button is available once the security check passes.",
   continue: "Continue",

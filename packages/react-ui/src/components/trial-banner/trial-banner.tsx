@@ -51,7 +51,7 @@ export interface TrialBannerProps {
   /** What sends the page to the provider's. Default `location.assign`. */
   navigate?: (url: string) => void;
   /** Called once the customer ended their trial, after the portal was read again. */
-  onCanceled?: () => void;
+  onTrialEnded?: () => void;
 }
 
 /**
@@ -77,7 +77,7 @@ export function TrialBanner({
   now: fixedNow,
   returnUrl,
   navigate,
-  onCanceled,
+  onTrialEnded,
 }: TrialBannerProps) {
   useAssertWrappedByKaitenProvider("TrialBanner");
   useTrackComponent("TrialBanner");
@@ -166,7 +166,7 @@ export function TrialBanner({
     try {
       await cancel.mutateAsync();
       setConfirming(false);
-      onCanceled?.();
+      onTrialEnded?.();
     } catch (error) {
       setFailure(
         error instanceof BoundaryPendingError

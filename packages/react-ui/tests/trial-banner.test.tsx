@@ -80,6 +80,22 @@ describe("what it says", () => {
     );
   });
 
+  test("says nothing of the charge when the server names none: that is not a promise that nothing is charged", async () => {
+    mount(
+      sessionServer({
+        portal: trialPortal({}, (portal) => {
+          delete portal["trial"].charge;
+        }),
+      }),
+      banner(),
+    );
+
+    expect(await screen.findByText("Your trial ends in 5 days")).toBeTruthy();
+    expect(screen.queryByText(/Nothing will be charged/)).toBeNull();
+    expect(screen.queryByText(/will be charged on/)).toBeNull();
+    expect(document.querySelector('[data-slot="trial-banner-charge"]')).toBeNull();
+  });
+
   test("says nothing will be charged when the end charges nothing", async () => {
     mount(sessionServer({ portal: trialPortal({ charge: null }) }), banner());
 
@@ -291,15 +307,15 @@ describe("Cancel", () => {
   });
 
   test("ends the trial: the portal is read again, the banner is gone, the host is told", async () => {
-    const onCanceled = vi.fn();
+    const onTrialEnded = vi.fn();
     const server = sessionServer({ portal: trialPortal() });
-    const { container } = mount(server, banner({ onCanceled }));
+    const { container } = mount(server, banner({ onTrialEnded }));
     await press("Cancel");
     await press("End my trial");
 
     expect(server.to("POST", "billing/cancel")).toHaveLength(1);
     await waitFor(() => expect(container.textContent).toBe(""));
-    expect(onCanceled).toHaveBeenCalledTimes(1);
+    expect(onTrialEnded).toHaveBeenCalledTimes(1);
   });
 
   test("a refusal is said, and the question stays", async () => {

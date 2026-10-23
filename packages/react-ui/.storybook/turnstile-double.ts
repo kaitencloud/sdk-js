@@ -8,7 +8,9 @@
 // It plays what Turnstile's published test keys do: `1x00000000000000000000AA` always passes,
 // `2x00000000000000000000AB` always blocks, `3x00000000000000000000FF` asks the visitor to interact.
 // The site key given to the widget decides, as it does at Cloudflare, unless the story says
-// otherwise.
+// otherwise. A script that cannot be loaded (a blocker, a firewall) is a behaviour of its own,
+// `unloadable`: the stand-in defines no `window.turnstile`, and the loader is told, with no network,
+// that the script it waits for failed.
 
 /** The part of what `turnstile.render` takes that the stand-in plays. */
 interface RenderParameters {
@@ -31,7 +33,7 @@ export const TURNSTILE_TEST_KEYS = {
   forcesInteraction: "3x00000000000000000000FF",
 } as const;
 
-export type TurnstileBehaviour = "passes" | "blocks" | "interactive" | "never";
+export type TurnstileBehaviour = "passes" | "blocks" | "interactive" | "never" | "unloadable";
 
 const BEHAVIOUR_OF_KEY: Record<string, TurnstileBehaviour> = {
   [TURNSTILE_TEST_KEYS.alwaysPasses]: "passes",
@@ -52,6 +54,7 @@ interface Drawn {
  * names. Tokens are `story-turnstile-token-<n>`: single-use in spirit, a new one per solve.
  */
 export function installTurnstileDouble(behaviour?: TurnstileBehaviour): () => void {
+  if (behaviour === "unloadable") return installUnloadableScript();
   const drawn: Drawn[] = [];
   let tokens = 0;
 
@@ -121,4 +124,22 @@ export function installTurnstileDouble(behaviour?: TurnstileBehaviour): () => vo
       delete (globalThis as { turnstile?: TurnstileApi }).turnstile;
     }
   };
+}
+
+/**
+ * The page already holds Cloudflare's script, as a host's own would, and it fails: an inert element
+ * (a type no browser runs, so nothing is fetched) that reports an error each time the loader
+ * listens for one. The loader uses an element it finds instead of adding its own.
+ */
+function installUnloadableScript(): () => void {
+  const script = document.createElement("script");
+  script.type = "text/plain";
+  script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+  const listen = script.addEventListener.bind(script);
+  script.addEventListener = ((type: string, listener: EventListenerOrEventListenerObject) => {
+    listen(type, listener);
+    if (type === "error") setTimeout(() => script.dispatchEvent(new Event("error")), 0);
+  }) as typeof script.addEventListener;
+  document.head.appendChild(script);
+  return () => script.remove();
 }
