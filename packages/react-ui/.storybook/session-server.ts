@@ -233,22 +233,26 @@ export function sessionServer(
       );
       if (!voucher || held) return refusal("redeemVoucherInvalid");
       const prices = voucher.voucherType === "PRICE";
-      const redemption = {
-        name: voucher.name,
-        voucherType: voucher.voucherType,
-        status: "ACTIVE",
-        appliesFromInvoice: prices ? "next" : null,
-        applicationsCount: 0,
-        applicationsMax: !prices
-          ? null
-          : voucher.duration === "ONE_TIME"
-            ? 1
-            : voucher.duration === "REPEATING"
-              ? voucher.durationInPeriods
-              : null,
-        effectiveStartsAt: "2026-10-23T09:00:00Z",
-        effectiveExpiresAt: null,
-      };
+      // A boost answers as the recorded one does: it takes effect now, for a window that ends.
+      const redemption =
+        voucher.voucherType === "ENTITLEMENT_BOOST"
+          ? { ...answers.redemptionBoost, name: voucher.name }
+          : {
+              name: voucher.name,
+              voucherType: voucher.voucherType,
+              status: "ACTIVE",
+              appliesFromInvoice: prices ? "next" : null,
+              applicationsCount: 0,
+              applicationsMax: !prices
+                ? null
+                : voucher.duration === "ONE_TIME"
+                  ? 1
+                  : voucher.duration === "REPEATING"
+                    ? voucher.durationInPeriods
+                    : null,
+              effectiveStartsAt: "2026-10-23T09:00:00Z",
+              effectiveExpiresAt: null,
+            };
       if (!body.dryRun) change({ vouchers: [redemption, ...portal.vouchers] });
       return { status: body.dryRun ? 200 : 201, body: redemption };
     }

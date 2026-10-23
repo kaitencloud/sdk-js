@@ -709,7 +709,11 @@ export const VoucherApplied: Story = {
     const canvas = await check(canvasElement, "LAUNCHBOOST");
     await userEvent.click(await canvas.findByRole("button", { name: "Apply" }, SLOW));
     await expect(
-      await canvas.findByText("Launch boost applied. Takes effect now.", {}, SLOW),
+      await canvas.findByText(
+        "Launch boost applied. Takes effect now. Until Nov 6, 2026.",
+        {},
+        SLOW,
+      ),
     ).toBeInTheDocument();
     // In force now: listed, with no code.
     await expect(canvas.getByText("Active vouchers")).toBeInTheDocument();

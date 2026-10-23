@@ -65,7 +65,9 @@ describe("a live subscription", () => {
 
     await press("Apply");
 
-    expect(await screen.findByText("Launch boost applied. Takes effect now.")).toBeTruthy();
+    expect(
+      await screen.findByText("Launch boost applied. Takes effect now. Until Nov 6, 2026."),
+    ).toBeTruthy();
     const calls = server.to("POST", "vouchers/redeem");
     expect(calls.map((call) => call.body)).toEqual([
       { code: "LAUNCHBOOST", dryRun: true },
@@ -171,7 +173,9 @@ describe("a live subscription", () => {
     ).toBeTruthy();
   });
 
-  test("a session bound to the customer alone has no instance to apply a code to", async () => {
+  test("a refusal that names no instance is read as there being no subscription", async () => {
+    // A mapping test: the entry never reaches a live portal without an instance, but a refusal that
+    // says so is still said in the entry's words.
     const server = sessionServer();
     server.script("POST vouchers/redeem", refusal("redeemInstanceRequired"));
     mount(server, <VoucherEntry />);
@@ -179,6 +183,47 @@ describe("a live subscription", () => {
     await check("FIVEOFF");
 
     expect(await screen.findByText("There is no subscription to apply a code to.")).toBeTruthy();
+  });
+
+  test("a session bound to the customer alone checks a code and has none to redeem", async () => {
+    const server = sessionServer({ portal: "portalCustomerWide" });
+    expect(server.portal().instance).toBeNull();
+    mount(server, <VoucherEntry />);
+
+    await check("FIVEOFF");
+
+    await waitFor(() => expect(server.to("POST", "vouchers/validate")).toHaveLength(1));
+    expect(server.to("POST", "vouchers/redeem")).toHaveLength(0);
+    expect(screen.queryByRole("button", { name: "Apply" })).toBeNull();
+  });
+
+  test("a code refused for coming too often when it is applied is gone, and the wait is kept", async () => {
+    vi.useFakeTimers(FAKE_TIMERS);
+    const server = sessionServer();
+    mount(server, <VoucherEntry />);
+    await settle();
+    type("Voucher code", "FIVEOFF");
+    fireEvent.click(screen.getByRole("button", { name: "Check" }));
+    await settle();
+    expect(screen.getByRole("button", { name: "Apply" })).toBeTruthy();
+    server.script("POST vouchers/redeem", refusal("redeemRateLimited"));
+
+    fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+    await settle();
+
+    expect(screen.getByText("Too many attempts. Try again in 2 minutes.")).toBeTruthy();
+    // The code is not kept for a second try: the field is back, empty, and waits.
+    expect(screen.queryByRole("button", { name: "Apply" })).toBeNull();
+    expect((screen.getByLabelText("Voucher code") as HTMLInputElement).value).toBe("");
+    expect(document.body.innerHTML).not.toContain("FIVEOFF");
+    type("Voucher code", "FIVEOFF");
+    expect(off(screen.getByRole("button", { name: "Check" }))).toBe(true);
+    expect(server.to("POST", "vouchers/redeem").map((call) => call.body)).toEqual([
+      { code: "FIVEOFF", dryRun: true },
+      { code: "FIVEOFF" },
+    ]);
+    await settle(121_000);
+    expect(off(screen.getByRole("button", { name: "Check" }))).toBe(false);
   });
 
   test("a code refused when it is applied is refused like any other, and nothing is listed", async () => {
