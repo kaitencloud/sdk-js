@@ -66,7 +66,7 @@ retryAfter }`, where `retryAfter` is the `Retry-After` header in seconds. The
 routes' own declared members are all there: a member the API sends as `null` is
 `null`, and a member it leaves out is absent.
 
-It is not written by hand. Kaiten's own code produced it: the portal's
+Most of it is not written by hand. Kaiten's own code produced it: the portal's
 entitlements and payment method go through the functions the portal route
 builds them with, the subscription, the invoices and the add-ons through the
 projections the session routes share, the checkout and the voucher check through
@@ -80,20 +80,23 @@ The members the contract added after that run are in by hand, with the value of 
 none of the feature: `trial: null` and `branding.poweredByRemovable: false` on every portal, and
 `pendingQuantity: null` on every add-on. The next regeneration replaces them with its own.
 
-The redemption of a code (`POST /public/session/vouchers/redeem`) is in by hand, as the route's code
-builds it and the contract's `SessionRedemption` allows: `redemption` (a price voucher, applied from
-the next invoice) and `redemptionBoost` (a boost with an end), and the five refusals `redeem*` in
-`errors`, with the codes and details its use case gives. The `appliesFromInvoice`, `applicationsCount`
-and `applicationsMax` the contract made required on the portal's vouchers are in by hand on every
-portal that lists one. The next regeneration replaces all of them with its own. The contract declares
+The redemption of a code (`POST /public/session/vouchers/redeem`) is written by hand, from the
+route's use case and checked against the contract's `SessionRedemption` and `Problem`: `redemption` (a
+price voucher, applied from the next invoice) and `redemptionBoost` (a boost with an end), and the five
+refusals `redeem*` in `errors`, with the codes and details the use case gives. The `appliesFromInvoice`,
+`applicationsCount` and `applicationsMax` the contract made required on the portal's vouchers are in by
+hand on every portal that lists one. The recipe below does not produce any of them, so a regeneration
+must keep them, carried over from the previous file: `fixtures-contract.test.ts`, the
+tests that read the answers through `support/session-answers.ts` and the Storybook server of
+`@kaitencloud/react-ui` read them, and fail without. The contract declares
 the 201 of the route only, and Kaiten answers a `dryRun` with a 200 that carries the same body. A portal in
 its trial is not recorded: the tests build one from `portal` and the trial block the contract names.
 
 To regenerate it after the contract moves, from a checkout of Kaiten at the new
 commit, run a throwaway test in the package of the portal route that assembles
 the scenario below with those functions and writes
-`json.MarshalIndent(fixtures, "", "  ")`, then format the file with `vp fmt`.
-Do not edit it by hand.
+`json.MarshalIndent(fixtures, "", "  ")`, then format the file with `vp fmt`, and put back the
+hand-written keys above. Do not edit the other keys by hand.
 
 | Key                                                                         | What it shows                                                                                                                                                    |
 | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
