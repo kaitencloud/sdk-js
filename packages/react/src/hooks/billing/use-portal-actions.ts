@@ -11,6 +11,7 @@ import type {
   PortalSession,
   PortalSubscription,
   SessionAddon,
+  SessionRedemption,
   VoucherValidation,
 } from "@kaitencloud/client";
 
@@ -19,6 +20,11 @@ import { useTrackHook } from "../../telemetry/context.tsx";
 import { useKaitenMutation, type UseKaitenMutationResult } from "../use-kaiten-query.ts";
 import { kaitenKeys } from "../query-keys.ts";
 import { invalidateInvoices, invalidatePortal } from "./invalidate.ts";
+import {
+  initialRedeemVoucherState,
+  redeemVoucherReducer,
+  type RedeemVoucherState,
+} from "./redeem-voucher-state.ts";
 import { addonQuantityProblem, type AddonQuantityProblem } from "./refusals.ts";
 import {
   clearPending,
@@ -275,6 +281,120 @@ export function useValidateVoucher(
     call: (client, input) => client.validateVoucher(input),
     ...options,
   });
+}
+
+export interface UseRedeemVoucherResult extends RedeemVoucherState {
+  /**
+   * Asks what a code gives on the session's live subscription, and changes nothing: the state
+   * becomes `preview` with the `redemption` it would make, or `refused` with the `problem`. It
+   * counts as an attempt, like a redemption. The code is held, in memory only, until it is
+   * applied or the state is reset.
+   */
+  check: (code: string) => Promise<void>;
+  /** Redeems the code the last `check` previewed: `applied` with the redemption, or `refused`. */
+  apply: () => Promise<void>;
+  /** Forgets the code and what it showed, and goes back to `idle`. */
+  reset: () => void;
+}
+
+/**
+ * Redeems a voucher code on the subscription of a customer session, in two steps: `check(code)`
+ * previews what it gives, and `apply()` redeems it. It is for a subscription that is live (in its
+ * trial, active or past due); before one exists a code is checked with {@link useValidateVoucher}
+ * and redeemed by the checkout that carries it. A subscription still waiting for its first payment
+ * refuses (`problem.kind === "subscription_incomplete"`).
+ *
+ * The code is typed once. It travels in the body of the calls and is held in a ref between the
+ * preview and the apply, never in state, in an address or in storage. A price part applies from the
+ * next invoice (`redemption.appliesFromInvoice`); the current period is never invoiced again. An
+ * applied code reads the portal again before `apply` resolves. A refusal is on `problem` and
+ * `error`, never a rejection.
+ *
+ * Needs the first Kaiten release with billing (see STABILITY.md).
+ */
+export function useRedeemVoucher(
+  options: { onApplied?: (redemption: SessionRedemption) => void } = {},
+): UseRedeemVoucherResult {
+  useTrackHook("useRedeemVoucher");
+
+  const { sessionClient, scopeKey, mode } = useKaitenContext();
+  const { mutate } = useSWRConfig();
+  const [state, dispatch] = React.useReducer(redeemVoucherReducer, initialRedeemVoucherState);
+  const code = React.useRef<string | null>(null);
+  // Which attempt an answer belongs to: the answer of one that was reset meanwhile is dropped.
+  const attempt = React.useRef(0);
+  const onApplied = React.useRef(options.onApplied);
+  onApplied.current = options.onApplied;
+  const status = React.useRef(state.status);
+  status.current = state.status;
+
+  const forget = React.useCallback(() => {
+    attempt.current += 1;
+    code.current = null;
+  }, []);
+  // A code that was typed is not kept past the screen it was typed on.
+  React.useEffect(() => forget, [forget]);
+
+  const requireClient = React.useCallback(() => {
+    if (!sessionClient) {
+      throw new Error(
+        `useRedeemVoucher is only available under mode="customer-session", not under mode="${mode}".`,
+      );
+    }
+    return sessionClient;
+  }, [sessionClient, mode]);
+
+  const check = React.useCallback(
+    async (typed: string) => {
+      const client = requireClient();
+      const trimmed = typed.trim();
+      if (trimmed === "" || status.current === "checking" || status.current === "applying") return;
+      forget();
+      const mine = attempt.current;
+      code.current = trimmed;
+      status.current = "checking";
+      dispatch({ type: "check" });
+      try {
+        const redemption = await client.redeemVoucher({ code: trimmed, dryRun: true });
+        if (attempt.current === mine) dispatch({ type: "checked", redemption });
+      } catch (error) {
+        if (attempt.current !== mine) return;
+        code.current = null;
+        dispatch({ type: "refused", error: error as Error, now: Date.now() });
+      }
+    },
+    [requireClient, forget],
+  );
+
+  const apply = React.useCallback(async () => {
+    const client = requireClient();
+    const held = code.current;
+    if (held === null || status.current !== "preview") return;
+    const mine = attempt.current;
+    status.current = "applying";
+    dispatch({ type: "apply" });
+    // From here on the code is the request's alone.
+    code.current = null;
+    try {
+      const redemption = await client.redeemVoucher({ code: held });
+      if (attempt.current !== mine) return;
+      // The portal says what the redemption did: it is read again before this resolves.
+      await invalidatePortal(mutate, scopeKey);
+      if (attempt.current !== mine) return;
+      dispatch({ type: "applied", redemption });
+      onApplied.current?.(redemption);
+    } catch (error) {
+      if (attempt.current === mine)
+        dispatch({ type: "refused", error: error as Error, now: Date.now() });
+    }
+  }, [requireClient, mutate, scopeKey]);
+
+  const reset = React.useCallback(() => {
+    forget();
+    dispatch({ type: "reset" });
+  }, [forget]);
+
+  return { ...state, check, apply, reset };
 }
 
 // ---------------------------------------------------------------------------

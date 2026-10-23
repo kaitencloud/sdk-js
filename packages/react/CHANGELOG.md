@@ -24,7 +24,8 @@ components are in `@kaitencloud/react-ui`, which depends on this package and re-
 - **Billing hooks**, in their own entry, `@kaitencloud/react/billing`, so a host that offers
   neither a checkout nor a portal bundles none of them: `useCheckout` and `useCheckoutPreview`,
   `useInvoices`, `useCancelSubscription` and `useReactivateSubscription`, `useSetAddonQuantity`,
-  `usePaymentMethodSession`, `useBillingPortal` and `useValidateVoucher`. Every amount they
+  `usePaymentMethodSession`, `useBillingPortal`, `useValidateVoucher` and `useRedeemVoucher`, which
+  previews what a code gives on a subscription that is live and then redeems it. Every amount they
   carry is the server's, from a checkout's `dryRun` or an invoice; none is added up in the
   browser.
 - **The anonymous checkout**, `useAnonymousCheckout` in the same entry, for a visitor with no

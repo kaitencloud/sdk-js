@@ -23,6 +23,7 @@ const BILLING_SURFACE = [
   "useInvoices",
   "usePaymentMethodSession",
   "useReactivateSubscription",
+  "useRedeemVoucher",
   "useSetAddonQuantity",
   "useValidateVoucher",
 ] as const;
@@ -59,6 +60,8 @@ test("STABILITY.md names every export of the billing entry, and says it is stabl
     'CheckoutAddonRefusal["reason"]',
     "CheckoutStep",
     "CheckoutVoucherState",
+    "RedeemVoucherStatus",
+    "RedeemVoucherProblem",
     'InvoiceSettlement["status"]',
     'UsePaymentMethodSessionResult["status"]',
     'CheckoutSetup["opening"]',

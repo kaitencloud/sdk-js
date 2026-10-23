@@ -353,6 +353,7 @@ drawn.
 | `useCancelSubscription`, `useReactivateSubscription`, `useSetAddonQuantity` | A change to the subscription; the portal is read again before it resolves       |
 | `useBillingPortal`, `usePaymentMethodSession`                               | The provider's billing portal; a hosted page to add or replace a payment method |
 | `useValidateVoucher`                                                        | A voucher code checked on its own                                               |
+| `useRedeemVoucher`                                                          | A code previewed, then redeemed, on a live subscription                         |
 | `useAnonymousCheckout`                                                      | A visitor's checkout with no account, with the Turnstile check, under `public`  |
 
 ```tsx

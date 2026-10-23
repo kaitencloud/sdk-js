@@ -161,9 +161,12 @@ const SCENARIOS = [
     // provider's page. A host that draws a customer's checkout and not a visitor's does not pay for
     // it: the scenario above is where it is measured out.
     // Measured at 22 913 bytes, up from 22 461: what the hook of the anonymous checkout grew by, as above.
+    // Measured at 23 542 bytes, up from 22 913: the hook that redeems a code on a live subscription,
+    // with the states of a redemption and the refusals it names. Only the entry that exports every
+    // hook pays for it: the scenarios of one hook above did not move.
     name: "billing · everything",
     code: `import * as all from "@kaitencloud/react/billing"; console.log(all);`,
-    budgetGzip: 23_000,
+    budgetGzip: 23_650,
     unstyled: true,
   },
   {

@@ -14,6 +14,7 @@ import type { ReactNode } from "react";
 import { cleanup, render, renderHook, screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vite-plus/test";
 import { KaitenSessionClient, type KaitenSessionClientLike } from "@kaitencloud/client";
+import { createMockKaitenSessionClient, demoTrialPortal } from "@kaitencloud/client/testing";
 
 import sessionAnswers from "../../client/tests/fixtures/session.initech.json" with { type: "json" };
 import acmeCatalog from "../../client/tests/fixtures/public-catalog.acme.json" with { type: "json" };
@@ -100,6 +101,22 @@ afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+});
+
+test("carries the trial of the bound instance when the portal has one, and says nothing when it does not", async () => {
+  const { snapshot, portal } = await snapshotOf("portal");
+  expect(portal).not.toHaveProperty("trial");
+  expect(snapshot.data).not.toHaveProperty("trial");
+
+  const trialing = renderHook(() => useLicensingSnapshot(), {
+    wrapper: wrapperFor(createMockKaitenSessionClient({ portal: demoTrialPortal() })),
+  });
+  await waitFor(() => expect(trialing.result.current.data).toBeDefined());
+  expect(trialing.result.current.data?.trial).toMatchObject({
+    endsAt: "2026-01-29T09:00:00.000Z",
+    charge: { amount: 7900, currencyCode: "USD", billingInterval: "month" },
+    paymentMethod: null,
+  });
 });
 
 test("names the plan of the bound instance and its subscription, as the portal does", async () => {

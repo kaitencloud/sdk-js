@@ -121,12 +121,12 @@ the rest of the blessed path:
   does not reach for: `useCheckout`, `useCheckoutPreview`, `useInvoices`,
   `useInvoiceSettlement`, `useCancelSubscription`, `useReactivateSubscription`,
   `useSetAddonQuantity`, `useBillingPortal`, `usePaymentMethodSession`,
-  `useValidateVoucher`, `useAnonymousCheckout` and `isPlausibleEmail`, the rule they apply
+  `useValidateVoucher`, `useRedeemVoucher`, `useAnonymousCheckout` and `isPlausibleEmail`, the rule they apply
   to a billing email, with the types of their options and results. All but
   `useAnonymousCheckout` need `mode="customer-session"`. Every amount they carry is the
   server's, from a checkout's `dryRun` or an invoice, and none is added up. The refusals they
-  name, a checkout's steps, and the states of a voucher code, of a payment being waited on and
-  of a payment-method page may gain a member in a minor release, by the rules of
+  name, a checkout's steps, and the states of a voucher code, of a redemption, of a payment
+  being waited on and of a payment-method page may gain a member in a minor release, by the rules of
   [Unions that grow](#unions-that-grow).
 - **The anonymous checkout** — `useAnonymousCheckout`, a visitor's checkout with no account,
   and the `anonymousCheckoutClient` prop (`KaitenAnonymousCheckoutProps`) of a `public` or
@@ -301,6 +301,8 @@ each member to its own fields, and may still gain members:
   refused each add-on of an `addon_refused`;
 - `CheckoutStep`, where a checkout stands, and `CheckoutVoucherState`, where its voucher code
   stands;
+- of redeeming a code on a live subscription (`useRedeemVoucher`): `RedeemVoucherStatus`, where the
+  redemption stands, and `RedeemVoucherProblem`, the refusals it names;
 - `InvoiceSettlement["status"]`, what waiting on an invoice has come to (a checkout's
   `payment.settlement` is one), and `UsePaymentMethodSessionResult["status"]`, where the
   provider's page for a payment method stands;
@@ -335,6 +337,11 @@ For all of them:
   case from `polling` and never from a completed checkout: `outcome` says it completed, and `check()` reads
   the session again. A state of the widget takes its case from `solving`: `canStart` says
   whether a token is in hand.
+- **A new state of a redemption takes its case from `idle`, never from `applied`.** A host that
+  knows only the states of 1.0 never takes a code that was not redeemed for redeemed: it shows
+  the redemption as `redemption` and `applied` say it, and nothing else. A refusal a minor release
+  adds comes out of `other`. The code is never in the state: the hook holds it, in memory, between
+  `check` and `apply`, and forgets it when the redemption is applied, refused or reset.
 - **A new way of opening the provider's page changes nothing else of the checkout.** The hook
   opens the page, waits for the customer and goes on by itself, whichever way it took, and the
   step is `awaiting_payment_method` all the same, with `setup.url` and `resume()`.

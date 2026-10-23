@@ -6,6 +6,7 @@ import type {
   KaitenPortal,
   LicensingSnapshot,
   PortalSubscription,
+  PortalTrial,
 } from "../types.ts";
 
 /**
@@ -28,6 +29,12 @@ export interface SessionSnapshotMembers {
    * ends there (`cancelAtPeriodEnd`) and any plan change scheduled (`scheduledChange`).
    */
   subscription?: PortalSubscription | null;
+  /**
+   * The trial the bound instance is in: when it ends, what its end charges and the card it goes
+   * to. `null` outside a trial; absent under any other mode, and from a server that does not
+   * serve it.
+   */
+  trial?: PortalTrial | null;
 }
 
 /**
@@ -69,5 +76,6 @@ export function snapshotFromPortal(
     branding: catalog?.branding,
     currentPlan: instance && { slug: instance.licenseSlug, name: instance.licenseName },
     subscription: portal.subscription,
+    ...(portal.trial !== undefined ? { trial: portal.trial } : {}),
   };
 }

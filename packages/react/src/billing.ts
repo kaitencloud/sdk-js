@@ -69,11 +69,17 @@ export {
   type UseInvoicesOptions,
   type UseInvoicesResult,
 } from "./hooks/billing/use-invoices.ts";
+export type {
+  RedeemVoucherProblem,
+  RedeemVoucherState,
+  RedeemVoucherStatus,
+} from "./hooks/billing/redeem-voucher-state.ts";
 export {
   useBillingPortal,
   useCancelSubscription,
   usePaymentMethodSession,
   useReactivateSubscription,
+  useRedeemVoucher,
   useSetAddonQuantity,
   useValidateVoucher,
   type UseBillingPortalOptions,
@@ -81,5 +87,6 @@ export {
   type UsePaymentMethodSessionOptions,
   type UsePaymentMethodSessionResult,
   type UsePortalActionResult,
+  type UseRedeemVoucherResult,
   type UseSetAddonQuantityResult,
 } from "./hooks/billing/use-portal-actions.ts";
