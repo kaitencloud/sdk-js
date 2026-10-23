@@ -136,6 +136,16 @@ const refusal = (status: number, code: string, detail: string) =>
 
 const DAY_MS = 86_400_000;
 
+/** How many calendar months a billing period of the API lasts. */
+const MONTHS: Record<string, number> = { MONTHLY: 1, QUARTERLY: 3, SEMI_ANNUAL: 6, ANNUAL: 12 };
+
+/** The end of the first period a plan bills, `months` after the demo instant, UTC. */
+function periodEnd(months: number): string {
+  const end = new Date(DEMO_SESSION_NOW);
+  end.setUTCMonth(end.getUTCMonth() + months);
+  return end.toISOString();
+}
+
 /**
  * A `KaitenAnonymousCheckoutClient` backed by in-memory state instead of an API: a
  * checkout for a visitor with no account to build against, with no Kaiten account
@@ -239,12 +249,13 @@ export function createMockKaitenAnonymousCheckoutClient(
                 seq: 1,
                 type: "BASE",
                 label: plan.licenseSlug,
-                description: "",
+                // The server's own arithmetic, in its own format: "1 × 79.00 USD".
+                description: `1 × ${(total / 100).toFixed(2)} ${plan.currencyCode}`,
                 quantity: "1",
                 unitAmountDecimal: `${total}`,
                 amount: total,
                 serviceFrom: DEMO_SESSION_NOW,
-                serviceTo: DEMO_SESSION_NOW,
+                serviceTo: periodEnd(MONTHS[plan.billingPeriod] ?? 1),
               },
             ],
     };

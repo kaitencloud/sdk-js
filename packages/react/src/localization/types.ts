@@ -162,6 +162,12 @@ export interface KaitenAnonymousCheckoutWords {
   reviewFor: (email: string) => string;
   /** Said of a plan with no card to give: nothing is asked for a payment method. */
   noCardNeeded: string;
+  /**
+   * Said of a trial that asks for no payment method, in place of `noCardNeeded`: nothing is charged
+   * unless the visitor adds one. It says no more than that, as the start's answer says no more about
+   * what the end of such a trial does.
+   */
+  noCardTrial: string;
   /** Said when this e-mail already had the plan's trial: the first period is due today. */
   trialAlreadyUsed: string;
   /** Said when the amount due changed between what was shown and the confirm. Receives both amounts, formatted. */
@@ -174,6 +180,12 @@ export interface KaitenAnonymousCheckoutWords {
    * ("$49.00 / month"), and the RAW ISO date the trial ends on.
    */
   thenPrice: (price: string, isoDate: string) => string;
+  /**
+   * Said in the review of a paid plan: what it renews at and when, from the catalogue's price
+   * and the end of the period the server billed. Receives that price with its period,
+   * formatted ("$49.00/month"), and the RAW ISO date the period ends on.
+   */
+  renewsAt: (price: string, isoDate: string) => string;
   /**
    * Said once the checkout completed, when the host gave no page to go on to. Receives the e-mail
    * address the order is for. The default promises no e-mail, since Kaiten sends none: a host that

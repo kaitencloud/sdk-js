@@ -111,7 +111,7 @@ export const WaitingForTheSecurityCheck: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await typeEmail(canvas);
-    await expect(await canvas.findByText("Running the security check...")).toBeInTheDocument();
+    await expect(await canvas.findByText("Running the security check…")).toBeInTheDocument();
     await unavailable(canvas.getByRole("button", { name: "Continue" }));
     await expect(
       canvas.getByText("The button is available once the security check passes."),
@@ -290,7 +290,9 @@ export const FreeTrial: Story = {
     const canvas = await reviewed(canvasElement);
     await expect(await canvas.findByText("$0.00 today", {}, SLOW)).toBeInTheDocument();
     await expect(canvas.getByText(/^Trial ends on /)).toBeInTheDocument();
-    await expect(canvas.getByText("No payment method is asked for.")).toBeInTheDocument();
+    await expect(
+      canvas.getByText("No payment method is asked for. Nothing is charged unless you add one."),
+    ).toBeInTheDocument();
     await userEvent.click(canvas.getByRole("button", { name: "Start free trial" }));
     await expect(await canvas.findByText("You're subscribed", {}, SLOW)).toBeInTheDocument();
     await expect(canvas.getAllByText(/^Trial ends on /).length).toBeGreaterThan(0);

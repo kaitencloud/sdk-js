@@ -32,6 +32,7 @@ import {
 import { installTurnstileDouble, TURNSTILE_TEST_KEYS } from "../.storybook/turnstile-double.ts";
 import {
   AnonymousCheckoutFlow,
+  formatKaitenDate,
   KaitenProvider,
   KaitenStyleRoot,
   type AnonymousCheckoutFlowProps,
@@ -188,6 +189,24 @@ describe("choosing", () => {
     ).toHaveLength(1);
   });
 
+  test("the button that is not available can be pressed by a mouse or a finger, to be told what is missing", async () => {
+    mount();
+    await passed();
+    // The base style takes a press away from any control that is `aria-disabled`; this one asks for it back.
+    expect(go().className).toContain("aria-disabled:pointer-events-auto");
+    expect(go().className).not.toContain("aria-disabled:pointer-events-none");
+  });
+
+  test("a button that waits for its answer cannot be pressed again", async () => {
+    mount({ plan: starter }, { delayMs: 200 });
+    await fillIn();
+    fireEvent.click(go("Start for free"));
+    const busy = await screen.findByRole("button", { name: /Processing/ });
+    expect(busy.getAttribute("aria-disabled")).toBe("true");
+    expect(busy.className).toContain("aria-disabled:pointer-events-none");
+    expect(busy.className).not.toContain("pointer-events-auto");
+  });
+
   test("a form that is not ready is not submitted", async () => {
     mount({ plan: starter });
     await passed();
@@ -258,7 +277,7 @@ describe("the security check", () => {
   test("a check that is not passed keeps the button off, and says so", async () => {
     mount({ plan: starter }, { widget: "never" });
     fireEvent.change(email(), { target: { value: EMAIL } });
-    expect(await screen.findByText("Running the security check...")).toBeTruthy();
+    expect(await screen.findByText("Running the security check…")).toBeTruthy();
     expect(off(go("Start for free"))).toBe(true);
     expect(
       screen.getByText("The button is available once the security check passes."),
@@ -270,6 +289,24 @@ describe("the security check", () => {
     expect(await screen.findByText(/allow challenges\.cloudflare\.com/)).toBeTruthy();
     expect(screen.getByRole("alert").textContent).toMatch(/security check could not load/);
     expect(off(screen.getByRole("button", { name: "Try the check again" }))).toBe(false);
+  });
+
+  test("a check that cannot run keeps no room for a widget that is not drawn, and the button points at why", async () => {
+    mount({ plan: starter }, { widget: "blocks" });
+    const alert = await screen.findByRole("alert");
+    const room = document.querySelector('[data-slot="anonymous-checkout-turnstile"]')!;
+    expect(room.className).not.toMatch(/min-h-/);
+    // The button is described by the sentence that says the check failed.
+    fireEvent.change(email(), { target: { value: EMAIL } });
+    expect(go("Start for free").getAttribute("aria-describedby")).toContain(alert.id);
+  });
+
+  test("while it runs the room for the widget is kept, so that the form does not jump", async () => {
+    mount({ plan: starter }, { widget: "never" });
+    await screen.findByText("Running the security check…");
+    expect(document.querySelector('[data-slot="anonymous-checkout-turnstile"]')!.className).toMatch(
+      /min-h-/,
+    );
   });
 
   test("the widget is drawn with the site key the catalogue gave, and the colour of the page", async () => {
@@ -373,6 +410,79 @@ describe("what is due", () => {
     expect(
       screen.getByText(/^Then \$49\.00\/month from .+, unless you cancel before\.$/),
     ).toBeTruthy();
+  });
+
+  test("a paid plan names its price as the card does, with its period, and when it renews", async () => {
+    mount();
+    await fillIn();
+    fireEvent.click(go());
+    await screen.findByText(`For ${EMAIL}`);
+
+    // The server's arithmetic is in its own format ("1 × 79.00 USD"); the amount is the card's.
+    expect(screen.queryByText(/1 × /)).toBeNull();
+    expect(screen.queryByText(/79\.00 USD/)).toBeNull();
+    const renews = new Date("2026-01-15T09:00:00.000Z");
+    renews.setUTCMonth(renews.getUTCMonth() + 1);
+    expect(screen.getByText(`Renews at $79.00/month on ${formatKaitenDate(renews)}.`)).toBeTruthy();
+  });
+
+  test("a yearly period says it is yearly", async () => {
+    mount();
+    await passed();
+    fireEvent.click(screen.getByRole("radio", { name: /\$790\.00\/year/ }));
+    fireEvent.change(email(), { target: { value: EMAIL } });
+    await waitFor(() => expect(off(go())).toBe(false));
+    fireEvent.click(go());
+    await screen.findByText(`For ${EMAIL}`);
+
+    const renews = new Date("2026-01-15T09:00:00.000Z");
+    renews.setUTCMonth(renews.getUTCMonth() + 12);
+    expect(screen.getByText(`Renews at $790.00/year on ${formatKaitenDate(renews)}.`)).toBeTruthy();
+  });
+
+  test("a trial that asks for a card does not say it renews: it says what follows the trial", async () => {
+    mount({ plan: pro });
+    await fillIn();
+    fireEvent.click(go());
+    await screen.findByText(`For ${EMAIL}`);
+    expect(screen.queryByText(/^Renews at /)).toBeNull();
+  });
+
+  test("a trial that asks for no card says nothing is charged unless the visitor adds one, in the review and after", async () => {
+    mount({ plan: lite });
+    await fillIn();
+    fireEvent.click(go());
+    await screen.findByText(`For ${EMAIL}`);
+    const said = "No payment method is asked for. Nothing is charged unless you add one.";
+    expect(screen.getByText(said)).toBeTruthy();
+    expect(screen.queryByText("No payment method is asked for.")).toBeNull();
+
+    fireEvent.click(go("Start free trial"));
+    await screen.findByText("You're subscribed");
+    expect(screen.getByText(said)).toBeTruthy();
+  });
+
+  test("a free plan only says no payment method is asked for", async () => {
+    mount({ plan: starter });
+    await fillIn();
+    fireEvent.click(go("Start for free"));
+    await screen.findByText("You're subscribed");
+    expect(screen.queryByText(/Nothing is charged unless/)).toBeNull();
+  });
+
+  test("an amount that changed is a warning that is not skimmed past, announced as a status and focused", async () => {
+    mount({ plan: pro });
+    await fillIn();
+    fireEvent.click(go());
+    await screen.findByText(`For ${EMAIL}`);
+    // Another checkout for the same email takes the trial first.
+    latestAnonymousClient().consumeTrial("chk_mock_1");
+    fireEvent.click(go("Continue to payment"));
+
+    const changed = await screen.findByText(/The amount due changed from \$0\.00 to \$49\.00/);
+    expect(changed.getAttribute("data-tone")).toBe("warning");
+    expect(changed.getAttribute("role")).toBe("status");
+    await waitFor(() => expect(document.activeElement).toBe(changed));
   });
 
   test("a trial that asks for no card does not promise a charge", async () => {

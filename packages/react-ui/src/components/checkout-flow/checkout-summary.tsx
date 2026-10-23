@@ -218,6 +218,12 @@ export interface CheckoutSummaryBodyProps {
   unstyled?: boolean;
   /** Add-ons the host handed the flow: a refusal of one says the name given there. */
   addOns?: readonly Addon[];
+  /**
+   * Whether a line says the server's arithmetic under its name ("1 × 49.00 EUR"), which is written
+   * in the server's own format. Default `true`. A screen that words the price itself, in the host's
+   * money format, leaves it out so that the two are not both on the card.
+   */
+  lineDetail?: boolean;
 }
 
 /**
@@ -229,6 +235,7 @@ export function CheckoutSummaryBody({
   preview,
   unstyled = false,
   addOns,
+  lineDetail = true,
 }: CheckoutSummaryBodyProps) {
   const localization = useLocalization();
   const words = useCheckoutWords();
@@ -323,7 +330,7 @@ export function CheckoutSummaryBody({
           {dueToday.lines.map((line) => (
             <li key={line.seq}>
               {line.label}
-              {line.description ? ` (${line.description})` : ""}: {money(line.amount)}
+              {lineDetail && line.description ? ` (${line.description})` : ""}: {money(line.amount)}
             </li>
           ))}
         </ul>
@@ -347,7 +354,7 @@ export function CheckoutSummaryBody({
         <div key={line.seq} className="flex items-start justify-between gap-4 text-sm">
           <div className="flex min-w-0 flex-col">
             <span className="break-words">{line.label}</span>
-            {line.description ? (
+            {lineDetail && line.description ? (
               <span className="text-xs break-words text-ktn-muted-foreground">
                 {line.description}
               </span>

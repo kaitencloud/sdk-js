@@ -241,6 +241,8 @@ export const de: KaitenLocalization = {
     change: "Meine Auswahl ändern",
     reviewFor: (email) => `Für ${email}`,
     noCardNeeded: "Es wird keine Zahlungsmethode verlangt.",
+    noCardTrial:
+      "Es wird keine Zahlungsmethode verlangt. Es wird nichts abgebucht, solange Sie keine hinzufügen.",
     trialAlreadyUsed:
       "Diese E-Mail-Adresse hat die Testphase dieses Tarifs bereits genutzt, daher wird die erste Periode heute fällig.",
     amountChanged: (was, now) =>
@@ -249,6 +251,8 @@ export const de: KaitenLocalization = {
       "Die Bedingungen Ihrer Bestellung haben sich geändert. Prüfen Sie sie, bevor Sie fortfahren.",
     thenPrice: (price, isoDate) =>
       `Danach ${price} ab dem ${formatKaitenDate(isoDate, { locale: "de-DE" })}, sofern Sie nicht vorher kündigen.`,
+    renewsAt: (price, isoDate) =>
+      `Verlängert sich am ${formatKaitenDate(isoDate, { locale: "de-DE" })} zu ${price}.`,
     completedFor: (email) => `Ihre Bestellung ist für ${email} erfasst.`,
     continueLink: "Weiter",
     closedAbandoned:

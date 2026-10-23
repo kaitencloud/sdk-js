@@ -15,7 +15,9 @@ import {
 import {
   formatKaitenPrice,
   useLocalization,
+  type BillingPrice,
   type KaitenAnonymousCheckoutWords,
+  type KaitenLocalization,
   type Plan,
 } from "@kaitencloud/react";
 import { isHttpUrl, useKaitenDataContext, useTrackComponent } from "@kaitencloud/react/internal";
@@ -296,6 +298,9 @@ function AnonymousCheckoutView({
                 : checkoutWords.nothingDue
           }
         />
+        {session?.trialEndsAt && quote?.requiresPaymentMethod === false ? (
+          <Message unstyled={unstyled} tone="muted" text={words.noCardTrial} />
+        ) : null}
         {href === null && email ? (
           <Message unstyled={unstyled} tone="info" text={words.completedFor(email)} />
         ) : null}
@@ -417,6 +422,7 @@ function AnonymousCheckoutView({
               null)
             : null
         }
+        renewal={renewalOf(quote!, chosen, localization, shown?.entitlements)}
       />,
       <ReviewActions
         checkout={checkout}
@@ -487,6 +493,15 @@ function AnonymousCheckoutView({
               : words.emailFirst
             : null;
   const waitingId = `${formId}-waiting`;
+  const checkId = `${formId}-check`;
+  // A check that failed says why in its own sentence, and the button that waits on it points there.
+  const describedBy =
+    [
+      waitingFor !== null ? waitingId : null,
+      checkout.turnstile.status === "failed" ? checkId : null,
+    ]
+      .filter(Boolean)
+      .join(" ") || undefined;
 
   return frame(
     <form
@@ -549,7 +564,7 @@ function AnonymousCheckoutView({
         onChange={checkout.setEmail}
       />
 
-      <TurnstileCheck checkout={checkout} unstyled={unstyled} words={words} />
+      <TurnstileCheck checkout={checkout} unstyled={unstyled} words={words} messageId={checkId} />
 
       {checkout.problem ? (
         <Message
@@ -578,7 +593,7 @@ function AnonymousCheckoutView({
           fill
           busy={starting}
           unavailable={!starting && !ready}
-          describedBy={waitingFor !== null ? waitingId : undefined}
+          describedBy={describedBy}
           onClick={submit}
         >
           {starting ? (
@@ -673,8 +688,6 @@ function useProblemText(
           return checkoutWords.notSold;
         case "addon_refused":
           return words.addonRefused;
-        case "voucher_invalid":
-          return checkoutWords.voucherInvalid;
         case "invalid_email":
           return words.invalidEmail;
         case "quota_reached":
@@ -777,16 +790,20 @@ function TurnstileCheck({
   checkout,
   unstyled,
   words,
+  messageId,
 }: {
   checkout: UseAnonymousCheckoutResult;
   unstyled: boolean;
   words: KaitenAnonymousCheckoutWords;
+  /** The id of the sentence that says where the check stands, for the button to be described by. */
+  messageId: string;
 }) {
   const { turnstile } = checkout;
   const legend = React.useId();
-  // The compact widget is taller than the normal one: its room is kept, or the form jumps when it appears.
-  const room = turnstile.size === "compact" ? "min-h-[140px]" : "min-h-[65px]";
   const failed = turnstile.status === "failed";
+  // The compact widget is taller than the normal one: its room is kept, or the form jumps when it
+  // appears. A check that failed drew nothing, and keeps none: the message would float in a gap.
+  const room = failed ? "" : turnstile.size === "compact" ? "min-h-[140px]" : "min-h-[65px]";
   const text = failed
     ? words.checkFailed
     : turnstile.status === "solved"
@@ -809,6 +826,7 @@ function TurnstileCheck({
         className={cn("ktn-own", unstyled ? undefined : cn(room, "max-w-full overflow-x-auto"))}
       />
       <p
+        id={messageId}
         role={failed ? "alert" : "status"}
         aria-live="polite"
         className={
@@ -846,6 +864,23 @@ function previewOf(quote: AnonymousCheckoutQuote): CheckoutPreviewState {
   };
 }
 
+/**
+ * What a paid plan renews at and when, for the review: the catalogue's price with its period, and the
+ * day the period the server billed ends, from its base line. Nothing when the plan is free, starts
+ * with a trial (the review says what follows it already) or the server named no period.
+ */
+function renewalOf(
+  quote: AnonymousCheckoutQuote,
+  chosen: BillingPrice | null,
+  localization: KaitenLocalization,
+  entitlements: Plan["entitlements"] | undefined,
+): { price: string; isoDate: string } | null {
+  if (chosen === null || quote.trialEndsAt !== null || quote.dueToday.total <= 0) return null;
+  const base = quote.dueToday.lines.find((line) => line.type === "BASE");
+  const price = formatKaitenPrice(chosen, localization, { entitlements });
+  return base && price !== null ? { price, isoDate: base.serviceTo } : null;
+}
+
 /** The review of a started checkout: who it is for, what is due, and what changed since it was shown. */
 function Review({
   checkout,
@@ -854,6 +889,7 @@ function Review({
   words,
   problemText,
   price,
+  renewal,
 }: {
   checkout: UseAnonymousCheckoutResult;
   quote: AnonymousCheckoutQuote;
@@ -862,6 +898,8 @@ function Review({
   problemText: (problem: AnonymousCheckoutProblem | null) => string;
   /** The catalogue price the plan is bought at, with its period, when a trial that asks for a card is on screen. */
   price: string | null;
+  /** What a paid plan renews at and when, for the paid plan on screen. */
+  renewal: { price: string; isoDate: string } | null;
 }) {
   const localization = useLocalization();
   const { changed } = checkout;
@@ -877,7 +915,7 @@ function Review({
       {changed ? (
         <Message
           unstyled={unstyled}
-          tone="info"
+          tone="warning"
           focusKey="step"
           text={
             changed.previous.dueToday.total !== changed.current.dueToday.total ||
@@ -893,7 +931,14 @@ function Review({
       {quote.trialRefusedReason === "ALREADY_CONSUMED" ? (
         <Message unstyled={unstyled} tone="info" text={words.trialAlreadyUsed} />
       ) : null}
-      <CheckoutSummaryBody preview={previewOf(quote)} unstyled={unstyled} />
+      <CheckoutSummaryBody preview={previewOf(quote)} unstyled={unstyled} lineDetail={false} />
+      {renewal !== null ? (
+        <Message
+          unstyled={unstyled}
+          tone="muted"
+          text={words.renewsAt(renewal.price, renewal.isoDate)}
+        />
+      ) : null}
       {/* What the card is for: the server's `dueToday` has no line for a trial, the catalogue's price is the one said. */}
       {price !== null && quote.trialEndsAt !== null ? (
         <Message
@@ -903,7 +948,11 @@ function Review({
         />
       ) : null}
       {quote.requiresPaymentMethod ? null : (
-        <Message unstyled={unstyled} tone="muted" text={words.noCardNeeded} />
+        <Message
+          unstyled={unstyled}
+          tone="muted"
+          text={quote.trialEndsAt !== null ? words.noCardTrial : words.noCardNeeded}
+        />
       )}
       {checkout.error ? (
         <Message

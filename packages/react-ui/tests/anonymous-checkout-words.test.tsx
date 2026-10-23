@@ -64,6 +64,9 @@ test("a sentence around a name, an address or an amount carries it, in every lan
     const then = pack.thenPrice("PRICE", "2026-11-04T00:00:00Z");
     expect(then).toContain("PRICE");
     expect(then).toContain("2026");
+    const renews = pack.renewsAt("PRICE", "2026-11-04T00:00:00Z");
+    expect(renews).toContain("PRICE");
+    expect(renews).toContain("2026");
     const changed = pack.amountChanged("WAS", "NOW");
     expect(changed).toContain("WAS");
     expect(changed).toContain("NOW");

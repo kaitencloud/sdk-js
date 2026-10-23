@@ -21,7 +21,7 @@ export const englishAnonymousCheckoutWords: KaitenAnonymousCheckoutWords = {
   emailHint: "This address is used for your account and your billing.",
   nameRequired: "Enter your name.",
   humanCheck: "Security check",
-  checking: "Running the security check...",
+  checking: "Running the security check…",
   checked: "Security check passed.",
   checkFailed:
     "The security check could not load. If a content blocker or a firewall is in the way, allow challenges.cloudflare.com, then try again.",
@@ -34,6 +34,7 @@ export const englishAnonymousCheckoutWords: KaitenAnonymousCheckoutWords = {
   change: "Change my choices",
   reviewFor: (email) => `For ${email}`,
   noCardNeeded: "No payment method is asked for.",
+  noCardTrial: "No payment method is asked for. Nothing is charged unless you add one.",
   trialAlreadyUsed:
     "This email has already had this plan's trial, so the first period is due today.",
   amountChanged: (was, now) =>
@@ -41,6 +42,7 @@ export const englishAnonymousCheckoutWords: KaitenAnonymousCheckoutWords = {
   detailsChanged: "The terms of your order changed. Check them before you continue.",
   thenPrice: (price, isoDate) =>
     `Then ${price} from ${formatKaitenDate(isoDate)}, unless you cancel before.`,
+  renewsAt: (price, isoDate) => `Renews at ${price} on ${formatKaitenDate(isoDate)}.`,
   completedFor: (email) => `Your order is registered for ${email}.`,
   continueLink: "Continue",
   closedAbandoned: "This checkout stayed open for too long and was closed. Nothing was charged.",

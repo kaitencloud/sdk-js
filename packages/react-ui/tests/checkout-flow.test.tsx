@@ -232,7 +232,9 @@ describe("choosing", () => {
       "$790.00/year",
     ]);
     expect(periods.map((radio) => radio.getAttribute("aria-checked"))).toEqual(["true", "false"]);
-    expect(root.getByRole("group", { name: "Billing interval" })).toBeTruthy();
+    // Named once: the radio group, and not the fieldset around it as a group of the same name.
+    expect(root.getByRole("radiogroup", { name: "Billing interval" })).toBeTruthy();
+    expect(root.queryByRole("group", { name: "Billing interval" })).toBeNull();
     expect(root.getByRole("radiogroup", { name: "Billing interval" })).toBeTruthy();
     // The add-on, its price, and a quantity of none.
     expect(root.getByText("Extra seats")).toBeTruthy();
@@ -1571,7 +1573,7 @@ describe("the other ways to draw it", () => {
     await draw(client, {}, { locale: fr });
 
     const root = within(flow());
-    expect(root.getByRole("group", { name: "Période de facturation" })).toBeTruthy();
+    expect(root.getByRole("radiogroup", { name: "Période de facturation" })).toBeTruthy();
     expect(root.getByLabelText("Code promo")).toBeTruthy();
     expect(root.getByText("À payer aujourd'hui")).toBeTruthy();
     expect(total()).toMatch(/^79,00\s\$US$/);

@@ -18,7 +18,7 @@ import { useOpensInNewTab } from "./new-tab-hint.ts";
 // screens print and it has no space to break at: left alone it runs out of the card and the page
 // scrolls sideways on a phone.
 
-export type Tone = "info" | "success" | "error" | "muted";
+export type Tone = "info" | "success" | "warning" | "error" | "muted";
 
 // A success is not said in the success colour: that green is 4.2:1 on the card's secondary
 // surface, under what text needs. It is the mark beside the sentence that is green.
@@ -31,6 +31,9 @@ export const TONES: Record<Tone, string> = {
   info: "rounded-lg border bg-secondary p-3 text-sm text-secondary-foreground [overflow-wrap:anywhere]",
   success:
     "flex items-center gap-2 rounded-lg border border-ktn-success/30 bg-secondary p-3 text-sm font-medium text-secondary-foreground [overflow-wrap:anywhere]",
+  // What must not be skimmed past, yet is not a refusal: a stronger border and the warning pair.
+  warning:
+    "flex items-start gap-2 rounded-lg border-2 border-warning-subtle-foreground/50 bg-warning-subtle p-3 text-sm font-medium text-warning-subtle-foreground [overflow-wrap:anywhere]",
   error:
     "rounded-lg border border-destructive-subtle-foreground/30 bg-destructive-subtle p-3 text-sm text-destructive-subtle-foreground [overflow-wrap:anywhere]",
   muted: "text-sm text-ktn-muted-foreground [overflow-wrap:anywhere]",
@@ -54,7 +57,9 @@ export function Message({
   /** Marks the sentence as somewhere focus can be sent to (see `useFocusScope`), and makes it able to take it. */
   focusKey?: string;
 }) {
-  const CheckIcon = useIcons().check;
+  const icons = useIcons();
+  const CheckIcon = icons.check;
+  const WarningIcon = icons.alertTriangle;
   return (
     <p
       data-slot={slot}
@@ -68,6 +73,7 @@ export function Message({
       {tone === "success" && !unstyled ? (
         <CheckIcon className="size-4 shrink-0 text-ktn-success" />
       ) : null}
+      {tone === "warning" && !unstyled ? <WarningIcon className="mt-0.5 size-4 shrink-0" /> : null}
       {text}
     </p>
   );
@@ -179,7 +185,12 @@ export function Action({
       aria-describedby={describedBy}
       data-focus={focusKey}
       onClick={press}
-      className={fill ? "flex-1" : undefined}
+      className={cn(
+        fill ? "flex-1" : undefined,
+        // Pressed while something is missing, it says what: the base style takes a press away from
+        // every control that is `aria-disabled`, which is right for one that waits on its answer.
+        unavailable && !busy ? "aria-disabled:pointer-events-auto" : undefined,
+      )}
     >
       {children}
     </Button>

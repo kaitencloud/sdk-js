@@ -231,9 +231,11 @@ const SCENARIOS = [
     // Measured at 66 625 bytes, up from 66 391: the refusals of an anonymous checkout, as above.
     // Measured at 66 832 bytes, up from 66 625: the text colours the feedback tones gained and the
     // new-tab description of the "Powered by" link, which the customer's checkout shares.
+    // Measured at 66 962 bytes, up from 66 832: the warning tone of the shared messages and the
+    // press an unavailable button keeps.
     name: "react-ui · CheckoutFlow + KaitenProvider + KaitenStyleRoot",
     code: `import { CheckoutFlow, KaitenProvider, KaitenStyleRoot } from "@kaitencloud/react-ui"; console.log(CheckoutFlow, KaitenProvider, KaitenStyleRoot);`,
-    budgetGzip: 66_950,
+    budgetGzip: 67_100,
   },
   {
     // What a host that sells to visitors ships: the flow, the hook it is made of with the loader of
@@ -243,9 +245,12 @@ const SCENARIOS = [
     // that is wrong, a trial's price, and the form's own messages.
     // Measured at 68 606 bytes, up from 68 337: what the flow says of what it knows and no more,
     // the steps it shows a visitor, and the new-tab description of the "Powered by" link.
+    // Measured at 68 963 bytes, up from 68 606: the review of a paid plan (its renewal, its price in
+    // the card's format), the warning tone of an amount that changed, and the sentence about a trial
+    // that asks for no card.
     name: "react-ui · AnonymousCheckoutFlow + KaitenProvider + KaitenStyleRoot",
     code: `import { AnonymousCheckoutFlow, KaitenProvider, KaitenStyleRoot } from "@kaitencloud/react-ui"; console.log(AnonymousCheckoutFlow, KaitenProvider, KaitenStyleRoot);`,
-    budgetGzip: 68_700,
+    budgetGzip: 69_100,
   },
   {
     // What a host that shows a customer how they pay ships: the card, the billing hooks that add or
@@ -255,9 +260,10 @@ const SCENARIOS = [
     // new-tab description of links. The jump to 47 193 that an earlier note blamed on the tones was the
     // checkout's English words, which the shared action imported for that one description: it reads
     // it from a module of its own now.
+    // Measured at 46 375 bytes, up from 46 263: the warning tone of the shared messages.
     name: "react-ui · PaymentMethodCard + KaitenProvider + KaitenStyleRoot",
     code: `import { PaymentMethodCard, KaitenProvider, KaitenStyleRoot } from "@kaitencloud/react-ui"; console.log(PaymentMethodCard, KaitenProvider, KaitenStyleRoot);`,
-    budgetGzip: 46_350,
+    budgetGzip: 46_500,
   },
   {
     // What a host that shows a customer their trial ships: the banner, the billing hooks that add a
@@ -324,9 +330,10 @@ const SCENARIOS = [
     // Measured at 108 472 bytes, up from 106 964: the trial banner, with the hooks and the words it
     // is made of.
     // Measured at 110 468 bytes, up from 108 472: redeeming a code, as above.
+    // Measured at 110 793 bytes, up from 110 468: the anonymous checkout's review and the warning tone.
     name: "react-ui · everything",
     code: `import * as all from "@kaitencloud/react-ui"; console.log(all);`,
-    budgetGzip: 110_600,
+    budgetGzip: 111_000,
   },
   {
     name: "client · KaitenClient alone",

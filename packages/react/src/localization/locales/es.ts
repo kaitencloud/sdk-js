@@ -240,6 +240,7 @@ export const es: KaitenLocalization = {
     change: "Cambiar mis elecciones",
     reviewFor: (email) => `Para ${email}`,
     noCardNeeded: "No se pide ningún medio de pago.",
+    noCardTrial: "No se pide ningún medio de pago. No se cobra nada mientras no añada uno.",
     trialAlreadyUsed:
       "Este correo ya disfrutó de la prueba de este plan, así que el primer periodo se paga hoy.",
     amountChanged: (was, now) =>
@@ -247,6 +248,8 @@ export const es: KaitenLocalization = {
     detailsChanged: "Las condiciones de su pedido han cambiado. Compruébelas antes de continuar.",
     thenPrice: (price, isoDate) =>
       `Después, ${price} a partir del ${formatKaitenDate(isoDate, { locale: "es-ES" })}, salvo que cancele antes.`,
+    renewsAt: (price, isoDate) =>
+      `Se renueva a ${price} el ${formatKaitenDate(isoDate, { locale: "es-ES" })}.`,
     completedFor: (email) => `Su pedido está registrado para ${email}.`,
     continueLink: "Continuar",
     closedAbandoned: "Este pedido estuvo abierto demasiado tiempo y se cerró. No se cobró nada.",

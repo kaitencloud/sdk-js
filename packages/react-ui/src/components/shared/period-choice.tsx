@@ -43,6 +43,10 @@ export function PeriodChoice({
       data-slot="checkout-flow-period"
       className={cn("ktn-own", unstyled ? undefined : "flex flex-col gap-2")}
       disabled={disabled}
+      // Styled, the radio group below is named by the legend: the fieldset would say the same name a
+      // second time as a group, to a screen reader. Unstyled, the native radios have no group of their
+      // own and the fieldset is the one.
+      role={unstyled ? undefined : "none"}
     >
       <legend id={legendId} className={unstyled ? undefined : "mb-2 text-sm font-medium"}>
         {legend}

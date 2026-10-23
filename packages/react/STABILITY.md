@@ -208,11 +208,15 @@ the core lists here that `@kaitencloud/react-ui` imports only grows within a maj
     gives, or a sentence that makes no promise of e-mail, which Kaiten does not send). It is a component of its own and not a `mode` of `CheckoutFlow`, which is
     a customer's and needs a session, so that a host that sells to one kind of buyer ships
     only that flow. It renders nothing unless the catalogue says the publishable key may start an
-    anonymous checkout.
+    anonymous checkout. The styled flow is the plan, the billing period, the e-mail and, if the
+    page asks, the name: it has no field for a voucher code or for add-ons, which a page that
+    sells either builds on the hook (`setVoucherCode`, `setAddonQuantity`, and the problems
+    `voucher_invalid` and `addon_refused`).
   - **The billing sections of `CustomerPortal`** (`@kaitencloud/react-ui`), under `mode="customer-session"`:
     `InvoiceList` (the customer's invoices, newest first as the API serves them, a link to pay an
-    open one and to the PDF of those that have one), `VoucherEntry` (a field that only checks a code,
-    which a checkout redeems), the add-ons panel that `AddOns` and `CurrentPlan` open (quantities
+    open one and to the PDF of those that have one), `VoucherEntry` (a field for a code: on a live
+    subscription it shows what the code gives and applies it when the customer says so, with no
+    subscription it only checks it, and a checkout redeems it), the add-ons panel that `AddOns` and `CurrentPlan` open (quantities
     set there and confirmed together, one change per add-on), the cancel and reactivate controls
     of `CurrentPlan` (its `manage` prop, which `CustomerPortal` sets) and the note on a limit that
     says where it comes from. Their amounts are the server's and nothing in them is added up; a
