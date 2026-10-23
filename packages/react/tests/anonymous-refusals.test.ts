@@ -48,6 +48,7 @@ test.each([
   [422, "CurrencyMismatch", "addon_refused"],
   [422, "VoucherInvalid", "voucher_invalid"],
   [422, "InvalidEmail", "invalid_email"],
+  [422, "InvalidReturnUrl", "not_available"],
   [409, "EntitlementLimitReached", "quota_reached"],
 ] as const)("%i .%s is %s, under the start and the confirm alike", (status, reason, kind) => {
   for (const useCase of ["CreateCheckoutSession", "ConfirmCheckoutSession", "Something.New"]) {
@@ -121,9 +122,33 @@ test("a session closed says how it closed, when the API said", () => {
   expect(anonymousCheckoutProblem(closed())).toEqual({ kind: "session_closed", status: null });
 });
 
-test("a token the API refuses is a session this browser lost, whatever route refused it", () => {
+test("a token the API refuses is a session this browser lost, on a confirm or a read", () => {
+  expect(anonymousCheckoutProblem(refused(401, "PublicAuth.InvalidCredential"), "session")).toEqual(
+    {
+      kind: "session_lost",
+    },
+  );
+  // The operation defaults to a call about a session.
   expect(anonymousCheckoutProblem(refused(401, "PublicAuth.InvalidCredential"))).toEqual({
     kind: "session_lost",
+  });
+});
+
+test("a publishable key the API refuses on the start is a configuration, not a lost session", () => {
+  expect(anonymousCheckoutProblem(refused(401, "PublicAuth.InvalidCredential"), "start")).toEqual({
+    kind: "not_available",
+  });
+  expect(anonymousCheckoutProblem(refused(403, "Auth.WrongCredentialKind"), "start")).toEqual({
+    kind: "not_available",
+  });
+  // The reasons a start is refused for are the same whichever operation names them.
+  expect(
+    anonymousCheckoutProblem(refused(422, "CreateCheckoutSession.InvalidReturnUrl"), "start"),
+  ).toEqual({ kind: "not_available" });
+  expect(
+    anonymousCheckoutProblem(refused(422, "CreateCheckoutSession.InvalidEmail"), "start"),
+  ).toEqual({
+    kind: "invalid_email",
   });
 });
 

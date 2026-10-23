@@ -94,3 +94,21 @@ test("the host's own script is waited for, not loaded again", async () => {
   // A host's script that stays is not ours to remove.
   expect(scripts()).toHaveLength(1);
 });
+
+test("a host's own script that fails is left in its page, and the next try is a new load", async () => {
+  const own = document.createElement("script");
+  own.src = `${TURNSTILE_SCRIPT_URL}?onload=ready`;
+  document.head.appendChild(own);
+
+  const failed = loadTurnstile();
+  own.dispatchEvent(new Event("error"));
+  await expect(failed).rejects.toThrow(/could not be loaded/);
+  // Not ours to remove.
+  expect(scripts()).toEqual([own]);
+
+  const again = loadTurnstile();
+  expect(scripts()).toEqual([own]);
+  (globalThis as { turnstile?: TurnstileApi }).turnstile = api;
+  own.dispatchEvent(new Event("load"));
+  await expect(again).resolves.toBe(api);
+});

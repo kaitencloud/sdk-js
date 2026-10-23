@@ -167,6 +167,25 @@ export function clearPending(kind: PendingKind): void {
  */
 export type SetupPageOpening = "popup" | "redirect";
 
+/** The popup this page opened the setup page in, kept to close it, and nothing else. */
+let openedPopup: Window | null = null;
+
+/**
+ * Closes the popup {@link openSetupPage} opened, if it is still open: for a customer who gave up the
+ * checkout it was opened for, so that nothing finished in it goes on. A page that was sent away in
+ * place of a popup has nothing to close.
+ */
+export function closeSetupPage(): void {
+  const popup = openedPopup;
+  openedPopup = null;
+  if (!popup) return;
+  try {
+    if (!popup.closed) popup.close();
+  } catch {
+    // A window the browser has already taken back has nothing left to close.
+  }
+}
+
 /**
  * Opens the provider's setup page: in a popup when the browser allows one, so that the
  * customer's selection stays on screen, and by sending the page itself there when it
@@ -185,6 +204,7 @@ export function openSetupPage(url: string, navigate?: (url: string) => void): Se
     } catch {
       // A browser that forbids it has already cut the popup off.
     }
+    openedPopup = popup;
     return "popup";
   }
   sendPageTo(url, navigate);

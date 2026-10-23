@@ -217,6 +217,38 @@ test("a narrow container gets the compact widget", async () => {
   expect(turnstile.live()!.parameters.size).toBe("compact");
 });
 
+test("the widget is drawn again at the size its container comes to, and says how much room it needs", async () => {
+  let width = 400;
+  vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockImplementation(() => width);
+  const observers: Array<() => void> = [];
+  vi.stubGlobal(
+    "ResizeObserver",
+    class {
+      constructor(callback: () => void) {
+        observers.push(callback);
+      }
+      observe() {}
+      disconnect() {}
+    },
+  );
+  try {
+    const probe = await mount(doubleOf());
+    expect(turnstile.live()!.parameters.size).toBe("normal");
+    expect(probe.now.turnstile.size).toBe("normal");
+    const first = turnstile.live()!;
+
+    width = 272;
+    act(() => observers.forEach((notify) => notify()));
+    await flush();
+
+    expect(first.removed).toBe(true);
+    expect(turnstile.live()!.parameters.size).toBe("compact");
+    expect(probe.now.turnstile.size).toBe("compact");
+  } finally {
+    vi.unstubAllGlobals();
+  }
+});
+
 test("the visitor can start only with a price, a plausible address and a token in hand", async () => {
   const probe = await mount(doubleOf());
   expect(probe.now.canStart).toBe(false);
@@ -360,6 +392,76 @@ test("a start is refused for a token that Turnstile refused: back to choosing, a
   expect(probe.now.problem).toBeNull();
 });
 
+test("a publishable key refused on the start is a configuration, not a checkout this browser lost", async () => {
+  const client = createMockKaitenAnonymousCheckoutClient({
+    fail: {
+      startCheckout: () =>
+        new KaitenError({
+          title: "unauthorized",
+          status: 401,
+          code: "PublicAuth.InvalidCredential",
+        }),
+    },
+  });
+  const probe = await mount(client);
+  await fill(probe, STARTER);
+  await act(async () => expect(await probe.now.start()).toBeNull());
+  await flush();
+
+  expect(probe.now.step).toBe("selecting");
+  expect(probe.now.problem).toEqual({ kind: "not_available" });
+  expect(probe.now.error).toBeInstanceOf(KaitenError);
+  // The same on a preview.
+  await act(async () => expect(await probe.now.preview()).toBeNull());
+  await flush();
+  expect(probe.now.problem).toEqual({ kind: "not_available" });
+});
+
+test("a return address that is not on the key's origins is a configuration, not a visitor's to retry", async () => {
+  const client = createMockKaitenAnonymousCheckoutClient({
+    fail: {
+      startCheckout: () =>
+        new KaitenError({
+          title: "invalid",
+          status: 422,
+          code: "CreateCheckoutSession.InvalidReturnUrl",
+        }),
+    },
+  });
+  const probe = await mount(client);
+  await fill(probe, STARTER);
+  await act(async () => expect(await probe.now.start()).toBeNull());
+  await flush();
+  expect(probe.now.problem).toEqual({ kind: "not_available" });
+});
+
+test("a return address of the page's own that is too long is refused before a token is spent", async () => {
+  const client = doubleOf();
+  const probe = await mount(client, { returnUrl: `https://shop.example.com/${"a".repeat(2_100)}` });
+  await fill(probe, STARTER);
+  const widget = turnstile.live()!;
+  await act(async () => expect(await probe.now.start()).toBeNull());
+  await flush();
+
+  expect(probe.now.error).toBeInstanceOf(TypeError);
+  expect(probe.now.step).toBe("selecting");
+  expect(callsTo(client, "startCheckout")).toHaveLength(0);
+  // The token is still in hand: the widget was not reset, and the visitor is not asked again.
+  expect(widget.resets).toBe(0);
+  expect(probe.now.canStart).toBe(true);
+});
+
+test("the default return address leaves the query out when the page's would be too long to send", async () => {
+  at(`/pricing?utm=${"a".repeat(2_100)}#top`);
+  const client = doubleOf();
+  const probe = await mount(client);
+  await started(probe, STARTER);
+
+  expect(probe.now.step).toBe("review");
+  const sent = callsTo(client, "startCheckout")[0]!.args[0] as { returnUrl: string };
+  expect(sent.returnUrl).toBe(`${window.location.origin}/pricing`);
+});
+
 test("the voucher code, the add-ons and a declined trial go in the body of the start, and nowhere else", async () => {
   const client = createMockKaitenAnonymousCheckoutClient({
     fail: {
@@ -448,6 +550,12 @@ test("a free plan completes at the first confirm, and the page is told once, wit
     session: { status: "COMPLETED", customerSlug: "customer-chk_mock_1" },
   });
   expect(onComplete).toHaveBeenCalledTimes(1);
+  // Nothing was due, and nothing is waited on: the payment is not "processing".
+  expect(probe.now.payment).toEqual({
+    status: "not_required",
+    hostedInvoiceUrl: null,
+    settlement: "idle",
+  });
   // Nothing opened, and nothing was waited on.
   expect(callsTo(client, "getCheckoutSession")).toHaveLength(0);
   // The name was kept for the page until it was handed over, and is gone from the tab.
@@ -475,6 +583,11 @@ test("a trial that needs no payment method starts at the first confirm and says 
   await flush();
   expect(probe.now.step).toBe("completed");
   expect(probe.now.session?.trialEndsAt).toBe(probe.now.quote?.trialEndsAt);
+  expect(probe.now.payment).toEqual({
+    status: "not_required",
+    hostedInvoiceUrl: null,
+    settlement: "idle",
+  });
 });
 
 test("a second trial for an e-mail that had one is refused, and the amount due is shown", async () => {
@@ -546,6 +659,7 @@ test("a paid plan sends the visitor to the provider's page in a popup, and goes 
   expect(onComplete).toHaveBeenCalledTimes(1);
   expect(probe.now.outcome?.session.customerSlug).toBe("customer-chk_mock_1");
   expect(probe.now.payment?.settlement).toBe("idle");
+  expect(probe.now.payment?.status).not.toBe("processing");
 });
 
 test("the visitor who says they are back before they saved anything is told so and is not sent away again", async () => {
@@ -606,6 +720,31 @@ test("a blocked popup sends this page itself, and the page loaded back goes on f
   await settle(5_000);
   expect(back.now.step).toBe("completed");
   expect(onComplete).toHaveBeenCalledTimes(1);
+});
+
+test("a page loaded back shows the wait at once: no form, and no security check drawn for nothing", async () => {
+  popupBlocked();
+  const client = doubleOf();
+  const first = await mount(client, { navigate: () => {} });
+  await started(first);
+  await act(async () => {
+    await first.now.confirm();
+  });
+  await flush();
+  first.unmount();
+  cleanup();
+  turnstile.widgets.length = 0;
+
+  client.completeSetup("chk_mock_1");
+  at("/pricing?kaiten_checkout_session=chk_mock_1");
+  const back = await mount(client);
+  // Before the window that sent the visitor away has been waited for.
+  expect(back.now.step).toBe("confirming");
+  expect(document.querySelector('[data-testid="widget"]')).toBeNull();
+  expect(turnstile.widgets).toHaveLength(0);
+  await settle(300);
+  expect(back.now.step).toBe("awaiting_payment");
+  expect(turnstile.widgets).toHaveLength(0);
 });
 
 test("a page loaded back, where the provider has no payment method yet, is told so and sent nowhere", async () => {
@@ -734,6 +873,9 @@ test("an amount that changes after the payment method was saved is not confirmed
 
   expect(probe.now.step).toBe("review");
   expect(probe.now.problem).toEqual({ kind: "due_today_changed" });
+  // The provider's page is behind the visitor: only `awaiting_payment_method` has one.
+  expect(probe.now.setup).toBeNull();
+  expect(probe.now.setupIncomplete).toBe(false);
   const confirms = callsTo(client, "confirmCheckout").length;
   await act(async () => {
     await probe.now.confirm();
@@ -905,6 +1047,33 @@ test("starting over is refused while a call is in flight, a payment is made, or 
   act(() => probe.now.reset());
   expect(probe.now.step).toBe("completed");
   expect(client.holdsCheckoutSession("chk_mock_1")).toBe(true);
+});
+
+test("starting over closes the popup the provider's page is in, so a card saved there completes nothing", async () => {
+  const close = vi.fn();
+  vi.spyOn(window, "open").mockReturnValue({
+    opener: window,
+    close,
+    closed: false,
+  } as unknown as Window);
+  const client = doubleOf();
+  const probe = await mount(client);
+  await started(probe);
+  await act(async () => {
+    await probe.now.confirm();
+  });
+  await flush();
+  expect(probe.now.setup?.opening).toBe("popup");
+  expect(close).not.toHaveBeenCalled();
+
+  act(() => probe.now.reset());
+  await flush();
+
+  expect(close).toHaveBeenCalledTimes(1);
+  expect(probe.now.step).toBe("selecting");
+  expect(probe.now.setup).toBeNull();
+  // The session is forgotten with it: a page loaded back to it would find no token.
+  expect(client.holdsCheckoutSession("chk_mock_1")).toBe(false);
 });
 
 test("a confirm that fails for want of a network leaves the visitor where they were, to try again", async () => {

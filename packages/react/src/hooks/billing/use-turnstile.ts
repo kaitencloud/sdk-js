@@ -28,7 +28,8 @@ export interface TurnstileOptions {
   theme?: "auto" | "light" | "dark";
   /**
    * `normal` is 300 px wide, `compact` 150 px, `flexible` fills its container from 300 px. Default:
-   * `compact` in a container narrower than 300 px, else `normal`.
+   * `compact` in a container narrower than 300 px, else `normal`, chosen again when the container
+   * crosses 300 px (a rotation, a drawer): the widget is then drawn again, and solves again.
    */
   size?: "normal" | "compact" | "flexible";
   /** A language code such as `fr`, or `auto` for the visitor's browser. Default `auto`. */
@@ -44,6 +45,12 @@ export interface TurnstileWidget {
    */
   ref: (element: HTMLElement | null) => void;
   status: TurnstileStatus;
+  /**
+   * The size the widget is drawn at, `normal` until it is known. Keep this much height for the
+   * element, so that the page does not jump when the widget appears: 65 px for `normal` and
+   * `flexible`, 140 px for `compact`.
+   */
+  size: "normal" | "compact" | "flexible";
   /** The code Cloudflare gave for a widget that failed, `null` when none was given or it did not fail. */
   errorCode: string | null;
   /** Draws the widget again after it `failed`: loads the script once more if that was what failed. */
@@ -79,11 +86,28 @@ export function useTurnstile(
   const [attempt, setAttempt] = React.useState(0);
   const token = React.useRef<string | null>(null);
   const widget = React.useRef<{ api: TurnstileApi; id: string } | null>(null);
-  const { appearance, theme, size, language } = options;
+  // How wide the container is, for a host that did not say: re-read when it is resized.
+  const [measured, setMeasured] = React.useState<"compact" | "normal" | null>(null);
+  const { appearance, theme, size: chosenSize, language } = options;
+  const size = chosenSize ?? measured;
+
+  React.useEffect(() => {
+    if (container === null || chosenSize !== undefined) {
+      setMeasured(null);
+      return;
+    }
+    const measure = () =>
+      setMeasured(container.clientWidth > 0 && container.clientWidth < 300 ? "compact" : "normal");
+    measure();
+    if (typeof ResizeObserver !== "function") return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [container, chosenSize]);
 
   React.useEffect(() => {
     token.current = null;
-    if (container === null || siteKey === null) {
+    if (container === null || siteKey === null || size === null) {
       setStatus("idle");
       setErrorCode(null);
       return;
@@ -97,9 +121,7 @@ export function useTurnstile(
         const parameters: TurnstileRenderParameters = {
           sitekey: siteKey,
           theme: theme ?? "auto",
-          size:
-            size ??
-            (container.clientWidth > 0 && container.clientWidth < 300 ? "compact" : "normal"),
+          size,
           appearance: appearance ?? "always",
           ...(language ? { language } : {}),
           "refresh-expired": "auto",
@@ -185,5 +207,14 @@ export function useTurnstile(
 
   const retry = React.useCallback(() => setAttempt((count) => count + 1), []);
 
-  return { siteKey, ref: setContainer, status, errorCode, retry, take, reset };
+  return {
+    siteKey,
+    ref: setContainer,
+    status,
+    size: size ?? "normal",
+    errorCode,
+    retry,
+    take,
+    reset,
+  };
 }

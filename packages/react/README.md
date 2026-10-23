@@ -458,7 +458,7 @@ import { KaitenAnonymousCheckoutClient } from "@kaitencloud/client";
 import { KaitenProvider, formatKaitenMoney } from "@kaitencloud/react";
 import { useAnonymousCheckout } from "@kaitencloud/react/billing";
 
-// Once, outside render: the provider's scope follows this object. The same publishable key as the provider's.
+// Once, outside render: a new object is a new client, which has not the tokens the old one held. The same publishable key as the provider's.
 const anonymousCheckoutClient = new KaitenAnonymousCheckoutClient({
   apiUrl: "https://kaiten.example.com/api",
   publishableKey: "pk_…",
@@ -479,7 +479,7 @@ function Signup({ priceId }: { priceId: string }) {
     onComplete: ({ sessionId, clientReferenceId }) => linkTheBuyer(sessionId, clientReferenceId),
   });
   if (!checkout.available) return null; // the catalogue says this key cannot start one
-  if (checkout.step === "completed") return <p>Thank you: check your e-mail.</p>;
+  if (checkout.step === "completed") return <p>Thank you, you are all set.</p>;
   if (checkout.step === "review") {
     const due = checkout.quote!.dueToday; // the server's total, never computed here
     return (
@@ -518,15 +518,24 @@ function Signup({ priceId }: { priceId: string }) {
   (`1x00000000000000000000AA` always passes) work for tests and staging; there is no bypass.
 - **The server prices.** `quote.dueToday` is the start's: its lines and its total, a trial's
   `trialEndsAt` (or `null` with `trialRefusedReason: "ALREADY_CONSUMED"` when that e-mail already had
-  the plan's trial), and `requiresPaymentMethod`. If the confirm finds another amount, the step stays
-  `review` with `changed` (what the visitor was shown, and what it is now), and confirming again
-  accepts it. A free plan, and a trial that needs no payment method, complete at the first `confirm()`.
+  the plan's trial), and `requiresPaymentMethod`. If the confirm finds another amount before any
+  payment method is captured (a trial used up meanwhile, say), the step stays `review` with `changed`
+  (what the visitor was shown, and what it is now), and confirming again accepts it. An amount that
+  changes after the payment method was saved, or on a path that asks for none, is never accepted that
+  way: nothing was charged, the step is `review` with the `due_today_changed` problem, and the visitor
+  starts over with `reset()`. A free plan, and a trial that needs no payment method, complete at the
+  first `confirm()`, and `payment.status` is then `not_required`.
 - **A payment method first.** `confirm()` sends the visitor to the payment provider's page: in a popup,
   or in place of the page when popups are blocked, as `useCheckout` does. The session's token stays in
   the client, in memory and the tab's `sessionStorage`, never in a URL; the page they come back to
   (`returnUrl`, this page by default, with `kaiten_checkout_session` added) confirms again and reads
   the session until the payment settles (`payment`: `processing`, `requires_action` and
-  `failed` with `hostedInvoiceUrl`). **Mount the hook on the page they come back to.**
+  `failed` with `hostedInvoiceUrl`). **Mount the hook on the page they come back to.** The default
+  `returnUrl` is this page without its fragment and its `kaiten_*` parameters, and without its query
+  too when the address is too long to send (the API takes 2,048 characters at most; a longer
+  `returnUrl` of your own is refused before a Turnstile token is spent). A page that is loaded back
+  shows the wait from its first frame, not the form. `reset()` closes the popup the provider's page
+  was opened in.
 - **A page that comes back without the token is `lost`.** Another browser, cleared storage, or a window of
   more than 24 hours: the checkout may have been paid for and completed. The hook never starts
   another by itself; the visitor decides (`reset()`).
@@ -537,7 +546,8 @@ function Signup({ priceId }: { priceId: string }) {
   `turnstile_failed`, `turnstile_unavailable` and `rate_limited` with their wait, `not_self_serve`,
   `plan_not_available`, `not_payable_online`, `addon_refused`, `voucher_invalid`, `invalid_email`,
   `quota_reached`, `session_closed`, `session_lost`, `due_today_changed`, `network`, `unavailable`,
-  `not_available` and `other`. Its steps, its refusals, the way it opened the payment provider's
+  `not_available` (the key does not allow it, or the `returnUrl` is not on its allowed origins: a
+  host configuration to fix, on the start a refused publishable key too) and `other`. Its steps, its refusals, the way it opened the payment provider's
   page, how the payment is waited on and the state of the widget may gain a member in a minor
   release: keep a `default` branch ([STABILITY.md](STABILITY.md#unions-that-grow)).
 

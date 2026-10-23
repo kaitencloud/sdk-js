@@ -82,7 +82,8 @@ export function loadTurnstile(): Promise<TurnstileApi> {
       clearInterval(poll);
       script.removeEventListener("load", onLoad);
       script.removeEventListener("error", onError);
-      if (failed) script.remove();
+      // Only a script this loader added is its to remove: a host's own stays in its page.
+      if (failed && !known) script.remove();
       outcome();
     };
     const onLoad = () => {

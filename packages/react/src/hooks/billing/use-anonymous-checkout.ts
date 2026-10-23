@@ -26,6 +26,7 @@ import {
   announceReturn,
   clearKaitenParams,
   clearPending,
+  closeSetupPage,
   currentPageUrl,
   openSetupPage,
   readPending,
@@ -155,9 +156,11 @@ export interface UseAnonymousCheckoutOptions {
   initial?: Partial<AnonymousCheckoutSelection>;
   /**
    * Where the payment provider's page sends the visitor back to, with `kaiten_checkout_session`
-   * appended: https, or http on localhost, on an origin the publishable key allows. Default: this
-   * page, minus its fragment and any `kaiten_*` parameter. Mount the hook on that page: the checkout
-   * goes on from there.
+   * appended: https, or http on localhost, on an origin the publishable key allows, at most 2,048
+   * characters (a longer one is refused with a `TypeError` before a Turnstile token is spent).
+   * Default: this page, minus its fragment and any `kaiten_*` parameter, and minus its query too
+   * when the address would be too long to send. Mount the hook on that page: the checkout goes on
+   * from there.
    */
   returnUrl?: string;
   /** Your own reference for the buyer, at most 255 characters. Echoed on the checkout's events. */
@@ -224,8 +227,12 @@ export interface UseAnonymousCheckoutResult {
   /**
    * Confirms the checkout. A free plan, and a trial that needs no payment method, complete at once;
    * any other sends the visitor to the payment provider's page (a popup, or this page in its place)
-   * and goes on when they come back. If the amount changed since the visitor saw it, the step stays
-   * `review` with `changed`, and confirming again accepts the new amount.
+   * and goes on when they come back. If the confirm finds another amount before any payment method
+   * is captured (a trial used up meanwhile, say), the step stays `review` with `changed`, and
+   * confirming again accepts the new amount. An amount that changes after the payment method was
+   * saved, or on a path with no payment method, is not accepted that way: nothing was charged, the
+   * step is `review` with a `due_today_changed` problem, and the visitor starts over with
+   * {@link reset}.
    */
   confirm: () => Promise<void>;
   /**
@@ -233,13 +240,17 @@ export interface UseAnonymousCheckoutResult {
    * is loaded back, or the popup is done. Call it for one that was closed first.
    */
   resume: () => Promise<void>;
-  /** The payment provider's page, while `awaiting_payment_method`. */
+  /** The payment provider's page, while `awaiting_payment_method`; `null` in every other step. */
   setup: AnonymousCheckoutSetup | null;
   /** Whether the visitor says they are back and the provider has no payment method yet. */
   setupIncomplete: boolean;
   /** The session as last read, in `awaiting_payment` and after. */
   session: CheckoutSession | null;
-  /** How the first payment stands, in `awaiting_payment`; `null` before. */
+  /**
+   * How the first payment stands, in `awaiting_payment` and `completed`; `null` before. A checkout
+   * that completed with nothing to pay (a free plan, a trial that needs no payment method) is
+   * `not_required`.
+   */
   payment: AnonymousCheckoutPayment | null;
   /** Reads the session once now, whatever the schedule says. */
   check: () => void;
@@ -256,9 +267,11 @@ export interface UseAnonymousCheckoutResult {
   error: Error | null;
   /**
    * Starts over, with what was chosen kept and a fresh Turnstile token to be had: from `review`, from
-   * the payment provider's page, from a session that `closed`, or one that is `lost`. It does nothing
-   * while a call is in flight, while a payment is being made or once the checkout completed, since a
-   * second checkout for a buyer who paid creates a second customer.
+   * the payment provider's page, from a session that `closed`, or one that is `lost`. It closes the
+   * popup the provider's page was opened in, so that a card saved there afterwards cannot complete
+   * the checkout that was given up. It does nothing while a call is in flight, while a payment is
+   * being made or once the checkout completed, since a second checkout for a buyer who paid creates a
+   * second customer.
    */
   reset: () => void;
   /** The widget of the check the start needs: put `turnstile.ref` on the element it is drawn in. */
@@ -356,6 +369,32 @@ const differs = (shown: AnonymousCheckoutQuote, now: AnonymousCheckoutQuote): bo
   shown.dueToday.currencyCode !== now.dueToday.currencyCode ||
   shown.trialEndsAt !== now.trialEndsAt;
 
+/** The longest `returnUrl` the API takes, in characters. */
+const RETURN_URL_MAX = 2_048;
+/** The longest default `returnUrl` sent with its query: room is left for what the API appends. */
+const RETURN_URL_WITH_QUERY_MAX = 1_900;
+
+const codePoints = (value: string): number => Array.from(value).length;
+
+/**
+ * Where the provider sends the visitor back to when the page did not say: this page, and its query
+ * too unless that makes the address too long to be sent.
+ */
+function defaultReturnUrl(): string {
+  const page = currentPageUrl();
+  if (codePoints(page) <= RETURN_URL_WITH_QUERY_MAX) return page;
+  try {
+    const url = new URL(page);
+    url.search = "";
+    return url.toString();
+  } catch {
+    return page;
+  }
+}
+
+/** Before the browser paints where it can, so that a screen is never drawn only to be replaced; an effect on a server. */
+const useBeforePaint = typeof window === "undefined" ? React.useEffect : React.useLayoutEffect;
+
 const asError = (thrown: unknown): Error =>
   thrown instanceof Error ? thrown : new Error(String(thrown));
 
@@ -402,6 +441,8 @@ export function useAnonymousCheckout(
   const isLoading = client !== null && catalog.isLoading && catalog.data === undefined;
 
   const [selection, setSelection] = React.useState(() => emptyAnonymousSelection(options.initial));
+  // The checkout this page was loaded back to, read once so that every render sees the same.
+  const [returned] = React.useState(() => readCheckoutReturn()?.sessionId ?? null);
   const [flow, setFlow] = React.useState<Flow>(SELECTING);
   const [settlement, setSettlement] =
     React.useState<AnonymousCheckoutPayment["settlement"]>("idle");
@@ -409,8 +450,6 @@ export function useAnonymousCheckout(
     key: string;
     data: CheckoutSessionPreview;
   } | null>(null);
-  // The checkout this page was loaded back to, read once so that every render sees the same.
-  const [returned] = React.useState(() => readCheckoutReturn()?.sessionId ?? null);
 
   // The widget is drawn while a visitor can still start, and not otherwise.
   const turnstile = useTurnstile(
@@ -550,6 +589,8 @@ export function useAnonymousCheckout(
                   previous.quote && differs(previous.quote, now)
                     ? { previous: previous.quote, current: now }
                     : null,
+                setup: null,
+                setupIncomplete: false,
                 session,
                 error,
               };
@@ -564,7 +605,13 @@ export function useAnonymousCheckout(
         setFlow((previous) => ({ ...previous, step: "lost", sessionId, setup: null, error }));
         return;
       }
-      setFlow((previous) => ({ ...previous, step: back, error }));
+      setFlow((previous) => ({
+        ...previous,
+        step: back,
+        // Back at the review, the provider's page is behind the visitor: only that step shows one.
+        ...(back === "review" ? { setup: null, setupIncomplete: false } : {}),
+        error,
+      }));
     },
     [settle],
   );
@@ -574,6 +621,17 @@ export function useAnonymousCheckout(
   const start = React.useCallback(async (): Promise<AnonymousCheckoutQuote | null> => {
     const { selection: chosen, client: api, canStart: allowed, options: current } = latest.current;
     if (api === null || !allowed) return null;
+    // A return address the API would refuse for its length is found out before a token is spent on it.
+    const returnUrl = current.returnUrl ?? defaultReturnUrl();
+    if (codePoints(returnUrl) > RETURN_URL_MAX) {
+      setFlow({
+        ...SELECTING,
+        error: new TypeError(
+          `Kaiten: returnUrl is at most ${RETURN_URL_MAX} characters; shorten the address of this page or give a shorter returnUrl.`,
+        ),
+      });
+      return null;
+    }
     const token = takeToken();
     if (token === null) return null;
     const name = chosen.name.trim();
@@ -584,7 +642,7 @@ export function useAnonymousCheckout(
         turnstileToken: token,
         dryRun: false,
         email: chosen.email.trim(),
-        returnUrl: current.returnUrl ?? currentPageUrl(),
+        returnUrl,
         ...(current.clientReferenceId ? { clientReferenceId: current.clientReferenceId } : {}),
       });
       const quote = quoteOf(opened, chosen.email.trim());
@@ -737,6 +795,19 @@ export function useAnonymousCheckout(
 
   // ---- Back from the provider's page --------------------------------------
 
+  // A page loaded back from the provider shows the wait from its first frame: the form to choose a
+  // plan, and the check that goes with it, are for a visitor who has not paid yet. Done before paint
+  // and not in the initial state, so that a server-rendered page hydrates to the markup it was sent.
+  useBeforePaint(() => {
+    if (returned === null || client === null) return;
+    setFlow((previous) =>
+      previous.step === "selecting"
+        ? { ...SELECTING, step: "confirming", sessionId: returned }
+        : previous,
+    );
+    // Once, for the session the page was loaded with.
+  }, []);
+
   // This page was loaded with the checkout's session: the visitor is back. In the popup a page
   // opened beside its own, that page is waiting: it is told, it carries on, and this window closes.
   // In the page that was sent away, nothing waits: this page carries on.
@@ -747,6 +818,8 @@ export function useAnonymousCheckout(
       if (cancelled) return;
       if (handledElsewhere) {
         clearKaitenParams();
+        // Nothing here is the visitor's to do: if the browser keeps the window open, it shows the choice again.
+        setFlow(SELECTING);
         try {
           window.close();
         } catch {
@@ -848,6 +921,9 @@ export function useAnonymousCheckout(
     if (api !== null && current.sessionId !== null && current.step !== "lost") {
       api.forgetCheckoutSession(current.sessionId);
     }
+    // The popup holds a copy of the session's token: left open, a card saved in it would complete
+    // the checkout that was given up, beside the one the visitor starts next.
+    if (current.setup?.opening === "popup") closeSetupPage();
     clearPending("anonymous-checkout");
     clearKaitenParams();
     setFlow(SELECTING);
@@ -861,12 +937,18 @@ export function useAnonymousCheckout(
   const payment: AnonymousCheckoutPayment | null =
     flow.step === "awaiting_payment" || flow.step === "completed"
       ? {
-          status: session?.payment?.status ?? "processing",
+          // A completed checkout the session carries no payment for had nothing to pay; one still
+          // being paid for has a payment that is not known yet.
+          status:
+            session?.payment?.status ?? (flow.step === "completed" ? "not_required" : "processing"),
           hostedInvoiceUrl: session?.payment?.hostedInvoiceUrl ?? null,
           settlement,
         }
       : null;
-  const problem = flow.setupIncomplete ? null : anonymousCheckoutProblem(flow.error);
+  // Only the start and a preview are made while choosing: a refusal there names no session.
+  const problem = flow.setupIncomplete
+    ? null
+    : anonymousCheckoutProblem(flow.error, flow.step === "selecting" ? "start" : "session");
   const previewKey = JSON.stringify(requestOf(selection));
   const previewed = previewState?.key === previewKey ? previewState.data : null;
 
@@ -904,6 +986,7 @@ export function useAnonymousCheckout(
       siteKey: turnstile.siteKey,
       ref: turnstile.ref,
       status: turnstile.status,
+      size: turnstile.size,
       errorCode: turnstile.errorCode,
       retry: turnstile.retry,
     },

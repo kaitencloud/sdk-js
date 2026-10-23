@@ -304,7 +304,10 @@ export interface KaitenAnonymousCheckoutProps {
    *
    * The provider takes the client rather than building one, as it does the customer-session
    * client, so that a host that sells no plan to visitors does not ship its code. Create it once,
-   * outside render. Without it those hooks and components answer nothing.
+   * outside render: the client holds the tokens of its sessions in memory, so a new object is a client
+   * with a memory of its own. It is not part of the provider's scope key, which follows the
+   * publishable key and the API address. Without it those hooks and components
+   * answer nothing.
    */
   anonymousCheckoutClient?: KaitenAnonymousCheckoutClientLike;
 }

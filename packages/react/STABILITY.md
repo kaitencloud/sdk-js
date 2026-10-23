@@ -203,8 +203,8 @@ the core lists here that `@kaitencloud/react-ui` imports only grows within a maj
     visitor with no account, under a `public` or `static` provider given an
     `anonymousCheckoutClient`: the plan and its billing period, an e-mail, the Turnstile check, what
     is due as the server computed it at the start, the payment provider's page for a payment
-    method and the way back from it, the payment, and what happens next (an e-mail to check, or a
-    page the host gives). It is a component of its own and not a `mode` of `CheckoutFlow`, which is
+    method and the way back from it, the payment, and what happens next (a page the host
+    gives, or a sentence that makes no promise of e-mail, which Kaiten does not send). It is a component of its own and not a `mode` of `CheckoutFlow`, which is
     a customer's and needs a session, so that a host that sells to one kind of buyer ships
     only that flow. It renders nothing unless the catalogue says the publishable key may start an
     anonymous checkout.
@@ -331,7 +331,7 @@ For all of them:
 - **The anonymous checkout follows the same rules.** A step it adds takes its case from the step
   that held it: take one you do not know as a checkout still in progress, with nothing started
   that the visitor has not confirmed, and rely on `canStart`, `quote`, `setup`, `payment` and
-  `outcome`. A refusal it adds comes out of `other`. A state of the wait on a payment takes its
+  `outcome`. A refusal it adds comes out of `other`. `payment.status` is `not_required` for a checkout that completed with nothing to pay, and `setup` is `null` outside `awaiting_payment_method`. A state of the wait on a payment takes its
   case from `polling` and never from a completed checkout: `outcome` says it completed, and `check()` reads
   the session again. A state of the widget takes its case from `solving`: `canStart` says
   whether a token is in hand.

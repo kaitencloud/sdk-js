@@ -30,7 +30,11 @@ export type AnonymousCheckoutProblem =
   | { kind: "rate_limited"; retryAfterSeconds: number }
   /** The payment provider, or the quota check, could not be reached: try again later. */
   | { kind: "unavailable"; retryAfterSeconds: number | null }
-  /** The publishable key does not allow an anonymous checkout, or has no Turnstile secret. A configuration to fix, not a visitor's. */
+  /**
+   * The publishable key does not allow an anonymous checkout, has no Turnstile secret, is not the
+   * kind of credential the start takes, or the `returnUrl` is not on its allowed origins. A
+   * configuration to fix, not a visitor's: trying again cannot help.
+   */
   | { kind: "not_available" }
   /** The plan is sold by contact only. */
   | { kind: "not_self_serve" }
@@ -62,8 +66,25 @@ function refusedAs(error: unknown, status: number, suffix: string): boolean {
   return error instanceof KaitenError && error.status === status && !!error.code?.endsWith(suffix);
 }
 
-/** The problem an error of an anonymous checkout is, or `null` for no error. */
-export function anonymousCheckoutProblem(error: unknown): AnonymousCheckoutProblem | null {
+/**
+ * What an error was thrown by: the start (or a preview), which names no session and answers with the
+ * publishable key alone, or a call about a session (the confirm and the reads), which holds that
+ * session's token.
+ */
+export type AnonymousCheckoutOperation = "start" | "session";
+
+/**
+ * The problem an error of an anonymous checkout is, or `null` for no error.
+ *
+ * `operation` matters for a refused credential. On a session, a 401 means this browser's token for
+ * it is no good (`session_lost`). On the start there is no token: a 401, or a 403
+ * `Auth.WrongCredentialKind`, is the publishable key that was refused, which is the host's
+ * configuration (`not_available`), and says nothing about a session the visitor could have lost.
+ */
+export function anonymousCheckoutProblem(
+  error: unknown,
+  operation: AnonymousCheckoutOperation = "session",
+): AnonymousCheckoutProblem | null {
   if (error === null || error === undefined) return null;
   if (error instanceof TurnstileFailedError) return { kind: "turnstile_failed" };
   if (error instanceof TurnstileUnavailableError) {
@@ -83,11 +104,17 @@ export function anonymousCheckoutProblem(error: unknown): AnonymousCheckoutProbl
   }
   if (!(error instanceof KaitenError)) return { kind: "other" };
 
-  // The token of a session was refused: forgotten by the client, and no use to this browser any more.
-  if (error.status === 401) return { kind: "session_lost" };
+  if (operation === "session") {
+    // The token of a session was refused: forgotten by the client, and no use to this browser any more.
+    if (error.status === 401) return { kind: "session_lost" };
+  } else if (error.status === 401 || refusedAs(error, 403, "Auth.WrongCredentialKind")) {
+    // The publishable key itself was refused, and no session exists yet to have lost.
+    return { kind: "not_available" };
+  }
   if (
     refusedAs(error, 403, ".AnonymousCheckoutDisabled") ||
-    refusedAs(error, 422, ".TurnstileNotConfigured")
+    refusedAs(error, 422, ".TurnstileNotConfigured") ||
+    refusedAs(error, 422, ".InvalidReturnUrl")
   ) {
     return { kind: "not_available" };
   }

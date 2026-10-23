@@ -144,10 +144,12 @@ const SCENARIOS = [
     // What a host that draws its own checkout for visitors ships: the hook, the loader of
     // Cloudflare's script and the provider they read from. Nothing styled is in it, and none of the
     // hooks of a customer's checkout.
-    // Measured at 29 792 bytes.
+    // Measured at 29 792 bytes, up to 30 204: a refusal told by the operation that made it, the
+    // popup that is closed with the checkout, the page that comes back drawn as a wait from its
+    // first frame, and the widget's size followed as its container changes.
     name: "billing · useAnonymousCheckout + KaitenProvider",
     code: `import { KaitenProvider } from "@kaitencloud/react"; import { useAnonymousCheckout } from "@kaitencloud/react/billing"; console.log(KaitenProvider, useAnonymousCheckout);`,
-    budgetGzip: 29_900,
+    budgetGzip: 30_300,
     unstyled: true,
   },
   {
@@ -158,9 +160,10 @@ const SCENARIOS = [
     // of Cloudflare's script, the widget, the refusals it names and the way back from the payment
     // provider's page. A host that draws a customer's checkout and not a visitor's does not pay for
     // it: the scenario above is where it is measured out.
+    // Measured at 22 913 bytes, up from 22 461: what the hook of the anonymous checkout grew by, as above.
     name: "billing · everything",
     code: `import * as all from "@kaitencloud/react/billing"; console.log(all);`,
-    budgetGzip: 22_550,
+    budgetGzip: 23_000,
     unstyled: true,
   },
   {
@@ -176,6 +179,8 @@ const SCENARIOS = [
     // Measured at 6 142 bytes, up from 5 185: the section of an anonymous checkout, which every
     // language pack carries whole (the form, the security check, the review, the end, and each
     // refusal).
+    // Measured at 6 167 bytes, up from 6 142: the trial's price and a missing name, less the words
+    // that promised an e-mail.
     name: "locales · fr alone",
     code: `import { fr } from "@kaitencloud/react/locales"; console.log(fr);`,
     budgetGzip: 6_250,
@@ -227,10 +232,11 @@ const SCENARIOS = [
     // What a host that sells to visitors ships: the flow, the hook it is made of with the loader of
     // Cloudflare's script, the summary it shares with the customer's checkout, and the words of its
     // English. A host that sells to customers only does not: the scenario above is not in it.
-    // Measured at 67 564 bytes.
+    // Measured at 67 564 bytes, up to 68 337: the hook, as above, and the flow's words for an address
+    // that is wrong, a trial's price, and the form's own messages.
     name: "react-ui · AnonymousCheckoutFlow + KaitenProvider + KaitenStyleRoot",
     code: `import { AnonymousCheckoutFlow, KaitenProvider, KaitenStyleRoot } from "@kaitencloud/react-ui"; console.log(AnonymousCheckoutFlow, KaitenProvider, KaitenStyleRoot);`,
-    budgetGzip: 67_700,
+    budgetGzip: 68_450,
   },
   {
     // What a host that shows a customer how they pay ships: the card, the billing hooks that add or
@@ -288,9 +294,10 @@ const SCENARIOS = [
     // Measured at 97 923 bytes, up from 97 714: the refusals of an anonymous checkout, as above.
     // Measured at 105 881 bytes, up from 98 007: the anonymous checkout, with its hook, its words in
     // English and the billing periods' choice it shares with the customer's checkout.
+    // Measured at 106 719 bytes, up from 105 881: what the hook and the flow grew by, as above.
     name: "react-ui · everything",
     code: `import * as all from "@kaitencloud/react-ui"; console.log(all);`,
-    budgetGzip: 106_000,
+    budgetGzip: 106_850,
   },
   {
     name: "client · KaitenClient alone",
