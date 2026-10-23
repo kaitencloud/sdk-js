@@ -202,9 +202,14 @@ test("a visitor whose security check Kaiten refuses passes it again, and nothing
 
   await page.getByRole("button", { name: "Continue", exact: true }).click();
   await expect(flow(page).getByText("We couldn't verify the security check.")).toBeVisible();
-  // The token was spent: the widget gave another, and the form is as the visitor left it.
-  await expect(flow(page)).toContainText("Security check passed.");
+  // The token was spent: the widget gave another, and the form is as the visitor left it. The new
+  // check is not said to have passed beside the refusal; the button is back, which says it.
   await expect(page.getByLabel("Email")).toHaveValue("ada@acme.test");
+  await expect(page.getByRole("button", { name: "Continue", exact: true })).not.toHaveAttribute(
+    "aria-disabled",
+    "true",
+  );
+  await expect(flow(page)).not.toContainText("Security check passed.");
   expect(await standIn.state()).toMatchObject({ customers: [], checkoutSessions: [] });
 
   await page.getByRole("button", { name: "Continue", exact: true }).click();

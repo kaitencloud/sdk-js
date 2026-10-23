@@ -310,11 +310,11 @@ the token was already spent (Cloudflare's page on testing Turnstile has the curr
 against it before relying on them).
 
 Kaiten also compares the host Cloudflare reports for the solved widget with the key's allowed origins, and
-refuses with `TurnstileFailed` when they differ. **Not confirmed yet**: which host Cloudflare's test secret
-reports. If it is a placeholder (`example.com` is the likely one) and not the page's own, the test pair is
-refused until that host is among the allowed origins of a key made for testing. If Kaiten answers
-`TurnstileFailed` to the pass pair on a page that is otherwise right, that is the first thing to check;
-a run against a real Kaiten will settle it, and this paragraph should then say which host to add.
+refuses with `TurnstileFailed` when they differ. Cloudflare's always-pass test secret reports the host
+`example.com`, whatever page solved the widget, so **a key used with the test pair must list
+`https://example.com` among its allowed origins**, beside the storefront's own: otherwise the start is
+answered 422 `TurnstileFailed`, with a widget that passed. This was seen against a real Kaiten. A key made
+for tests may carry it; a key a real site uses should not.
 
 The stand-in for Kaiten hands the page the same site key. It takes each token once, as Cloudflare does (a
 token it has seen again is refused with `TurnstileFailed`, and counted in its state as `turnstileReused`),
@@ -591,6 +591,10 @@ vp dev                   # http://localhost:5173
 | `STOREFRONT_CUSTOMER_SLUG` | Optional, with the next: the customer the storefront signs in as                                           |
 | `STOREFRONT_INSTANCE_SLUG` | Optional, with the previous: one of that customer's instances, the one a checkout subscribes               |
 | `STOREFRONT_COOKIE_SECRET` | Optional: 32 characters or more, to sign the account cookie of sign-up mode                                |
+
+The token is needed even when every visitor buys with no account: the page starts that checkout with
+the publishable key alone, but the server reads the environment as a whole and uses the token for the
+sign-up and customer-session routes, so a storefront with the key and no token refuses to start.
 
 - **Both slugs set**: the storefront signs in that one customer, as it always did. No sign-up, no sign
   out.

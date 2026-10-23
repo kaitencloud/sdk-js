@@ -138,6 +138,8 @@ export function readEnvironment(variables: Variables = process.env): Environment
         `set in the shell or in a .env file next to vite.config.ts. ` +
         `${LIVE_VARIABLES.customerSlug} and ${LIVE_VARIABLES.instanceSlug} go together: both to sign in as one customer, ` +
         `neither to let visitors sign up. ` +
+        `${LIVE_VARIABLES.serverToken} is needed even for a visitor who only buys with no account: ` +
+        `the server holds it for the sign-up and customer-session routes. ` +
         `These are missing: ${refused.join(", ")}.`,
     );
   }
