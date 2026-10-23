@@ -121,19 +121,6 @@ const CODES: Record<string, unknown> = {
   FIVEOFF: answers.voucherFixed,
 };
 
-/** A refusal of the redemption of a code, as the specification gives it: only its status and code matter. */
-const redemptionRefusal = (status: number, code: string): Reply => ({
-  status,
-  body: {
-    type: "https://tools.ietf.org/html/rfc7231#section-6.5.1",
-    title: "Refused",
-    status,
-    detail: "refused",
-    instance: "/api/public/session/vouchers/redeem",
-    code,
-  },
-});
-
 /** How a recorded checkout goes: the payment it ends in, and whether the plan starts with a trial. */
 export interface CheckoutScript {
   /** `paid` by default. `trial` is a subscription that starts as one, with nothing due today. */
@@ -231,13 +218,11 @@ export function sessionServer(
       return { status: 200, body: CODES[code] ?? answers.voucherRefused };
     }
     if (method === "POST" && route === "vouchers/redeem") {
+      // The refusals in the order the API makes them: the session's instance, then its subscription.
       const status = portal.subscription?.status;
-      if (status === "INCOMPLETE") {
-        return redemptionRefusal(409, "RedeemSessionVoucher.SubscriptionIncomplete");
-      }
-      if (!portal.subscription || status === "CANCELED") {
-        return redemptionRefusal(409, "RedeemSessionVoucher.NoLiveSubscription");
-      }
+      if (!portal.instance) return refusal("redeemInstanceRequired");
+      if (status === "INCOMPLETE") return refusal("redeemSubscriptionIncomplete");
+      if (!portal.subscription || status === "CANCELED") return refusal("redeemNoLiveSubscription");
       const code = String(body.code)
         .replace(/[^a-z0-9]/gi, "")
         .toUpperCase();
@@ -246,7 +231,7 @@ export function sessionServer(
       const held = (portal.vouchers as Array<Record<string, any>>).some(
         (each) => each.name === voucher?.name,
       );
-      if (!voucher || held) return redemptionRefusal(422, "RedeemSessionVoucher.VoucherInvalid");
+      if (!voucher || held) return refusal("redeemVoucherInvalid");
       const prices = voucher.voucherType === "PRICE";
       const redemption = {
         name: voucher.name,

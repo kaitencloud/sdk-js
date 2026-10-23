@@ -5,15 +5,15 @@
 //
 // A code entered in the portal of a customer whose subscription is live: what it gives is shown first
 // (a dry run, nothing is redeemed), and the customer applies it or leaves it. The session is the
-// real client on the recorded portal of Initech; the redemption route is the specification's
-// (`.storybook/session-server.ts`), as the contract does not carry it yet.
+// real client on the recorded portal of Initech, and the redemption route answers as the contract
+// gives it (`.storybook/session-server.ts`).
 
 import { act, cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vite-plus/test";
 import { fr } from "@kaitencloud/react/locales";
 
 import { VoucherEntry } from "../src/index.ts";
-import { sessionServer, trialPortal } from "../.storybook/session-server.ts";
+import { refusal, sessionServer, trialPortal } from "../.storybook/session-server.ts";
 import { FAKE_TIMERS, settle } from "./support/checkout.tsx";
 import { mount, off, press } from "./support/session-mount.tsx";
 
@@ -36,11 +36,6 @@ async function check(code: string, label = "Voucher code", button = "Check") {
   type(label, code);
   await press(button);
 }
-
-const refusal = (status: number, code: string) => ({
-  status,
-  body: { title: "Refused", status, detail: "refused", code },
-});
 
 describe("a live subscription", () => {
   test("a code is checked with a dry run, shows what it gives, and nothing is redeemed before Apply", async () => {
@@ -137,16 +132,7 @@ describe("a live subscription", () => {
   test("a check refused for coming too often says when to come back, and waits that long", async () => {
     vi.useFakeTimers(FAKE_TIMERS);
     const server = sessionServer();
-    server.script("POST vouchers/redeem", {
-      status: 429,
-      body: {
-        title: "Too Many Requests",
-        status: 429,
-        detail: "slow down",
-        code: "RedeemSessionVoucher.RateLimited",
-      },
-      retryAfter: 90,
-    });
+    server.script("POST vouchers/redeem", refusal("redeemRateLimited"));
     mount(server, <VoucherEntry />);
     await settle();
 
@@ -163,12 +149,51 @@ describe("a live subscription", () => {
 
   test("a subscription that ended meanwhile is said, not guessed at", async () => {
     const server = sessionServer();
-    server.script("POST vouchers/redeem", refusal(409, "RedeemSessionVoucher.NoLiveSubscription"));
+    server.script("POST vouchers/redeem", refusal("redeemNoLiveSubscription"));
     mount(server, <VoucherEntry />);
 
     await check("FIVEOFF");
 
     expect(await screen.findByText("There is no subscription to apply a code to.")).toBeTruthy();
+  });
+
+  test("a checkout that began meanwhile is said as the plan not having started", async () => {
+    const server = sessionServer();
+    server.script("POST vouchers/redeem", refusal("redeemSubscriptionIncomplete"));
+    mount(server, <VoucherEntry />);
+
+    await check("FIVEOFF");
+
+    expect(
+      await screen.findByText(
+        "Your plan starts once your payment is confirmed. You can add a code after that.",
+      ),
+    ).toBeTruthy();
+  });
+
+  test("a session bound to the customer alone has no instance to apply a code to", async () => {
+    const server = sessionServer();
+    server.script("POST vouchers/redeem", refusal("redeemInstanceRequired"));
+    mount(server, <VoucherEntry />);
+
+    await check("FIVEOFF");
+
+    expect(await screen.findByText("There is no subscription to apply a code to.")).toBeTruthy();
+  });
+
+  test("a code refused when it is applied is refused like any other, and nothing is listed", async () => {
+    const server = sessionServer();
+    mount(server, <VoucherEntry />);
+    await check("FIVEOFF");
+    await screen.findByRole("button", { name: "Apply" });
+    server.script("POST vouchers/redeem", refusal("redeemVoucherInvalid"));
+
+    await press("Apply");
+
+    expect(await screen.findByText("This code can't be used.")).toBeTruthy();
+    expect(document.querySelector('[data-slot="voucher-active"]')?.textContent ?? "").not.toContain(
+      "Five off",
+    );
   });
 
   test("a failure that is not a refusal is said in plain words", async () => {
@@ -229,7 +254,10 @@ describe("a live subscription", () => {
             name: "Gone",
             voucherType: "PRICE",
             status: "EXPIRED",
-            effectiveStartsAt: "x",
+            appliesFromInvoice: null,
+            applicationsCount: 3,
+            applicationsMax: 3,
+            effectiveStartsAt: "2026-06-01T00:00:00Z",
             effectiveExpiresAt: null,
           },
         ];

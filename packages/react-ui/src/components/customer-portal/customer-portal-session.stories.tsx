@@ -671,6 +671,20 @@ export const VoucherRateLimited: Story = {
   },
 };
 
+export const VoucherRedeemRateLimited: Story = {
+  ...voucher,
+  name: "Voucher: too many attempts on a live subscription",
+  decorators: [
+    portalDecorator({ scripts: { "POST vouchers/redeem": [refusal("redeemRateLimited")] } }),
+  ],
+  play: async ({ canvasElement }) => {
+    const canvas = await check(canvasElement, "TRY");
+    await expect(
+      await canvas.findByText("Too many attempts. Try again in 2 minutes.", {}, SLOW),
+    ).toBeInTheDocument();
+  },
+};
+
 export const VoucherToApply: Story = {
   ...voucher,
   name: "Voucher: what a code gives, to apply or leave",
