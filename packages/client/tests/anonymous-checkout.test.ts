@@ -1451,6 +1451,33 @@ describe("the refusals", () => {
     expect(error).toMatchObject({ status: 429, retryAfterSeconds: 12 });
   });
 
+  test("a start refused for coming too often is sent once, and its wait is a minute when none is heard", async () => {
+    const body = problem(429, "CreateCheckoutSession.RateLimited", {});
+    const { client, requests } = open(() => json(body, 429));
+
+    const error = await caught(client.startCheckout(START));
+
+    expect(error).toBeInstanceOf(RateLimitedError);
+    expect(error).toMatchObject({ status: 429, retryAfterSeconds: 60 });
+    expect(requests).toHaveLength(1);
+  });
+
+  test("a confirm refused for coming too often is sent once and keeps the session's token", async () => {
+    const body = problem(429, "ConfirmCheckoutSession.RateLimited", {});
+    const { client, requests } = await started(() => json(body, 429, { "Retry-After": "45" }));
+
+    const error = await caught(client.confirmCheckout(SESSION_ID));
+
+    expect(error).toBeInstanceOf(RateLimitedError);
+    expect(error).toMatchObject({
+      code: "ConfirmCheckoutSession.RateLimited",
+      retryAfterSeconds: 45,
+    });
+    expect(requests).toHaveLength(1);
+    // The token was not refused: the visitor tries again after the wait.
+    expect(client.holdsCheckoutSession(SESSION_ID)).toBe(true);
+  });
+
   test("a provider out of reach waits, as the checkout of a session does", async () => {
     const error = await refusalOf(
       503,
