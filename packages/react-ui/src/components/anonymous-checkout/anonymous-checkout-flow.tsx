@@ -604,6 +604,7 @@ function AnonymousCheckoutView({
           optionalMark={companyKind === "optional" ? words.optional : undefined}
           type="text"
           autoComplete="organization"
+          spellCheck={false}
           value={checkout.selection.company}
           disabled={starting}
           required={companyKind === "required"}
@@ -619,10 +620,13 @@ function AnonymousCheckoutView({
           unstyled={unstyled}
           slot="anonymous-checkout-name"
           label={words.nameLabel}
-          hint={words.nameHint}
+          // Next to a company the field is ambiguous: the hint says it is the person, not the company.
+          hint={companyKind !== "off" ? words.nameHint : undefined}
           optionalMark={nameKind === "optional" ? words.optional : undefined}
           type="text"
           autoComplete="name"
+          autoCapitalize="words"
+          spellCheck={false}
           value={checkout.selection.name}
           disabled={starting}
           required={nameKind === "required"}
@@ -809,6 +813,8 @@ function Field({
   optionalMark,
   type,
   autoComplete,
+  autoCapitalize,
+  spellCheck,
   value,
   disabled,
   required,
@@ -827,6 +833,10 @@ function Field({
   optionalMark?: string;
   type: "text" | "email";
   autoComplete: string;
+  /** Capitalises what is typed, for a field that holds a proper name. */
+  autoCapitalize?: "words";
+  /** Off for a field that holds a proper name, which a dictionary would underline. */
+  spellCheck?: false;
   value: string;
   disabled: boolean;
   required?: boolean;
@@ -850,6 +860,8 @@ function Field({
     disabled,
     required,
     autoComplete,
+    autoCapitalize,
+    spellCheck,
     "aria-invalid": invalid || undefined,
     "aria-describedby":
       [error ? `${id}-error` : null, hint ? `${id}-hint` : null].filter(Boolean).join(" ") ||

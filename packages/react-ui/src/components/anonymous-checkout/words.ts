@@ -18,9 +18,9 @@ import {
 export const englishAnonymousCheckoutWords: KaitenAnonymousCheckoutWords = {
   companyLabel: "Company",
   companyHint: "The name of your company or organization.",
-  companyRequired: "Enter your company.",
+  companyRequired: "Enter your company name.",
   nameLabel: "Name",
-  nameHint: "Who we should contact about your account.",
+  nameHint: "Your name, so we know who to contact.",
   optional: "optional",
   emailLabel: "Email",
   emailHint: "This address is used for your account and your billing.",

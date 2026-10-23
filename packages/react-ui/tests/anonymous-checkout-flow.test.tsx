@@ -197,7 +197,28 @@ describe("choosing", () => {
     const described = (input: HTMLInputElement) =>
       document.getElementById(input.getAttribute("aria-describedby")!)?.textContent;
     expect(described(company)).toBe("The name of your company or organization.");
-    expect(described(name)).toBe("Who we should contact about your account.");
+    expect(described(name)).toBe("Your name, so we know who to contact.");
+  });
+
+  test("the name's hint is drawn only beside a company, where the field would be taken for the company's", async () => {
+    mount({ plan: starter, collectName: true });
+    await passed();
+    const alone = screen.getByLabelText("Name") as HTMLInputElement;
+    expect(alone.getAttribute("aria-describedby")).toBeNull();
+    expect(screen.queryByText("Your name, so we know who to contact.")).toBeNull();
+  });
+
+  test("a proper name is not underlined by a dictionary, and the person's is capitalised by word", async () => {
+    mount({ plan: starter, collectCompany: true, collectName: "optional" });
+    await passed();
+    const company = screen.getByLabelText("Company") as HTMLInputElement;
+    const name = screen.getByLabelText(/^Name/) as HTMLInputElement;
+    expect(company.getAttribute("spellcheck")).toBe("false");
+    expect(name.getAttribute("spellcheck")).toBe("false");
+    expect(name.getAttribute("autocapitalize")).toBe("words");
+    // The e-mail address is left as the browser has it.
+    expect(email().getAttribute("autocapitalize")).toBeNull();
+    expect(email().getAttribute("spellcheck")).toBeNull();
   });
 
   test("a company that is required holds the button, and pressing it says so and goes to the field", async () => {
@@ -207,10 +228,10 @@ describe("choosing", () => {
     const company = screen.getByLabelText("Company");
     // The sentence under the button, while the field has said nothing yet.
     const waiting = document.getElementById(go("Start for free").getAttribute("aria-describedby")!);
-    expect(waiting?.textContent).toBe("Enter your company.");
+    expect(waiting?.textContent).toBe("Enter your company name.");
     fireEvent.click(go("Start for free"));
     const alert = screen.getByRole("alert");
-    expect(alert.textContent).toBe("Enter your company.");
+    expect(alert.textContent).toBe("Enter your company name.");
     expect(company.getAttribute("aria-invalid")).toBe("true");
     expect(company.getAttribute("aria-describedby")).toContain(alert.id);
     expect(document.activeElement).toBe(company);
@@ -870,7 +891,13 @@ describe("markup", () => {
       "Saisissez le nom de votre entreprise.",
     ],
     ["Spanish", es, "Empresa (opcional)", "Nombre (opcional)", "Escriba el nombre de su empresa."],
-    ["German", de, "Unternehmen (optional)", "Name (optional)", "Geben Sie Ihr Unternehmen ein."],
+    [
+      "German",
+      de,
+      "Unternehmen (optional)",
+      "Name (optional)",
+      "Geben Sie den Namen Ihres Unternehmens ein.",
+    ],
   ])(
     "the company and the name are worded in %s",
     async (_language, locale, company, name, missing) => {
@@ -954,7 +981,7 @@ describe("what the visitor is told", () => {
     await passed();
     fireEvent.change(email(), { target: { value: EMAIL } });
     const hint = document.getElementById(go().getAttribute("aria-describedby") ?? "");
-    expect(hint?.textContent).toBe("Enter your company.");
+    expect(hint?.textContent).toBe("Enter your company name.");
   });
 
   test("a link to the provider's page says that it opens a tab of its own", async () => {

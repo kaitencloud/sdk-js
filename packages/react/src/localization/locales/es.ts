@@ -226,7 +226,7 @@ export const es: KaitenLocalization = {
     companyHint: "El nombre de su empresa u organización.",
     companyRequired: "Escriba el nombre de su empresa.",
     nameLabel: "Nombre",
-    nameHint: "La persona con quien contactar sobre su cuenta.",
+    nameHint: "La persona de contacto de su cuenta.",
     optional: "opcional",
     emailLabel: "Correo electrónico",
     emailHint: "Esta dirección se usa para su cuenta y su facturación.",

@@ -642,9 +642,9 @@ export const WithACompanyAndAName: Story = {
     const go = canvas.getByRole("button", { name: "Start for free" });
     // The company is asked for, so the button waits for it and says why; the name is not.
     await unavailable(go);
-    await expect(canvas.getByText("Enter your company.")).toBeInTheDocument();
+    await expect(canvas.getByText("Enter your company name.")).toBeInTheDocument();
     await userEvent.click(go);
-    await expect(await canvas.findByRole("alert")).toHaveTextContent("Enter your company.");
+    await expect(await canvas.findByRole("alert")).toHaveTextContent("Enter your company name.");
     await expect(company).toHaveFocus();
     await userEvent.type(company, "Analytical Engines");
     await available(go);

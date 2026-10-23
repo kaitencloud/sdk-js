@@ -225,7 +225,7 @@ export const de: KaitenLocalization = {
   anonymousCheckout: {
     companyLabel: "Unternehmen",
     companyHint: "Der Name Ihres Unternehmens oder Ihrer Organisation.",
-    companyRequired: "Geben Sie Ihr Unternehmen ein.",
+    companyRequired: "Geben Sie den Namen Ihres Unternehmens ein.",
     nameLabel: "Name",
     nameHint: "Die Ansprechperson für Ihr Konto.",
     optional: "optional",
