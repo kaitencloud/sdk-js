@@ -302,13 +302,23 @@ What the page does ([`src/app.tsx`](src/app.tsx), [`src/visitor-checkout.tsx`](s
 
 For **local use**, Cloudflare publishes test keys that need no account and no challenge: the site key
 `1x00000000000000000000AA` always passes, and the secret `1x0000000000000000000000000000000AA` accepts
-every token (`2x…` keys always refuse, and `3x…` ones ask the visitor to interact: see Cloudflare's page on
-testing Turnstile for the current values). Put the pair on the key, and the widget the page draws is a real
-one that solves itself. Kaiten also compares the host Cloudflare reports for the solved widget with the
-key's allowed origins, and a test secret may report another host than the storefront's: if Kaiten refuses
-the test keys with `TurnstileFailed` for that reason, the host they report has to be among the key's
-allowed origins, on a key made for testing.
-The stand-in for Kaiten hands the page the same site key and accepts any token while it plays a pass.
+every token. Put that pair on the key, and the widget the page draws is a real one that solves itself. The
+other published keys are for the failures: on the site key side `2x00000000000000000000AB` always blocks
+and `3x00000000000000000000FF` forces an interactive challenge, and on the secret side
+`2x0000000000000000000000000000000AA` always fails and `3x0000000000000000000000000000000AA` answers that
+the token was already spent (Cloudflare's page on testing Turnstile has the current values; check these
+against it before relying on them).
+
+Kaiten also compares the host Cloudflare reports for the solved widget with the key's allowed origins, and
+refuses with `TurnstileFailed` when they differ. **Not confirmed yet**: which host Cloudflare's test secret
+reports. If it is a placeholder (`example.com` is the likely one) and not the page's own, the test pair is
+refused until that host is among the allowed origins of a key made for testing. If Kaiten answers
+`TurnstileFailed` to the pass pair on a page that is otherwise right, that is the first thing to check;
+a run against a real Kaiten will settle it, and this paragraph should then say which host to add.
+
+The stand-in for Kaiten hands the page the same site key. It takes each token once, as Cloudflare does (a
+token it has seen again is refused with `TurnstileFailed`, and counted in its state as `turnstileReused`),
+and passes any token it has not seen while it plays a pass.
 
 Limits, on purpose: the visitor is never told about an account, because there is none; a buyer who comes
 back from another browser has nothing to sign in with; and **a visitor who buys twice makes two
@@ -525,7 +535,9 @@ is a customer who moves:
   closed with its status in `errors[0].value`, `.DueTodayChanged` when the trial was used up after a card was
   saved). The security check comes to what a test scripts: it passes, Cloudflare refuses the token
   (`.TurnstileFailed`), cannot be reached (503 `.TurnstileUnavailable` and a `Retry-After`) or the key has
-  no secret (`.TurnstileNotConfigured`). It never looks at a token, and its log keeps none;
+  no secret (`.TurnstileNotConfigured`). A token is single-use, a preview's included: one it has already
+  verified, or refused, is refused again with `.TurnstileFailed`, and a page that sends one twice shows in
+  the state's `turnstileReused`. Its log keeps no token;
 - the vendor's routes `PUT` and `DELETE /instances/{slug}/billing/scheduled-change`, with the server
   token and the refusals of the contract (a trial, a cancellation, the same price, another currency, an
   add-on that does not fit);
@@ -647,9 +659,15 @@ a script, and the live project reads them.
   - `anonymous.spec.ts` is a visitor who buys with no account: a free plan with an e-mail and the security
     check, a paid plan through the provider's page, a trial that asks for no card and one that does, a
     security check that Kaiten refuses or cannot reach, a checkout that is abandoned and started again, a
-    payment that never comes, the catalogue turning the checkout on and off, the one-customer mode left as it
-    was, and the journey page's scenario. Cloudflare's script is answered by a stand-in of the tests'
-    own ([`e2e/support/cloudflare.ts`](e2e/support/cloudflare.ts)), so no network is needed.
+    payment that never comes, a trial used up by another checkout before the card and while it is saved, a
+    visitor sent to the provider's page in the same tab (the page is loaded again and still prints the
+    session's reference), a long address on a 320px screen, the heading and title of the page, the catalogue
+    turning the checkout on and off, the one-customer mode left as it was, and the journey page's scenario.
+    Cloudflare's script is answered by a stand-in of the tests' own
+    ([`e2e/support/cloudflare.ts`](e2e/support/cloudflare.ts)), so no network is needed; it gives every
+    widget a new token, since the stand-in for Kaiten takes each once. What these tests do not cover: the
+    real Turnstile widget (Cloudflare is never loaded), a widget in a container under 320px, and a run
+    against a real Kaiten (the `live` project plays no anonymous checkout).
   - `theme.spec.ts` is the colour mode and the theme: System following the operating system, a
     choice kept across a reload and applied before the first paint, Claude's and Neo Brutalism's
     values on the page and on the components in Light and in Dark, going back to Kaiten, and a header
