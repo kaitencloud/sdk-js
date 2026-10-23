@@ -24,6 +24,15 @@ const INVOICE_STATUS: Record<string, { label: string; tone: "ok" | "warn" | "err
   PAYMENT_FAILED: { label: "Payment failed", tone: "error" },
 };
 
+/** How the panel colours a visitor's checkout by where it stands. */
+const CHECKOUT_STATUS: Record<string, "ok" | "warn" | "error"> = {
+  COMPLETED: "ok",
+  OPEN: "warn",
+  AWAITING_PAYMENT: "warn",
+  ABANDONED: "error",
+  EXPIRED: "error",
+};
+
 const SUBSCRIPTION_STATUS = {
   TRIAL: { label: "Trial", tone: "warn" },
   ACTIVE: { label: "Active", tone: "ok" },
@@ -140,6 +149,26 @@ export function StandInPanel({
           })}
         </ul>
       )}
+
+      {state.checkoutSessions.length > 0 ? (
+        <>
+          <h3 className="panel-subtitle">Visitors&rsquo; checkouts</h3>
+          <ul className="invoice-list" data-testid="checkout-sessions">
+            {state.checkoutSessions.map((session) => (
+              <li key={session.id}>
+                <span className="invoice-label">
+                  {session.email} <span className="muted">{addonName(session.licenseSlug)}</span>
+                </span>
+                <span className="invoice-end">
+                  <span className={`badge badge-${CHECKOUT_STATUS[session.status] ?? "warn"}`}>
+                    {session.status.toLowerCase().replace("_", " ")}
+                  </span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : null}
 
       <h3 className="panel-subtitle">What Kaiten would tell the vendor</h3>
       {events.length === 0 ? (

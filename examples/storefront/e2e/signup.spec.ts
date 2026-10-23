@@ -1,9 +1,9 @@
 // Copyright 2026 KAITEN INC
 // SPDX-License-Identifier: Apache-2.0
 
-// A visitor who is not a customer yet. Kaiten V1 has no anonymous checkout: the storefront's backend makes
-// the customer and its instance when the visitor signs up, mints their session, and the checkout goes on
-// where it was. The stand-in for Kaiten plays the sign-up scenario (`reset({ signUp: true })`), and the
+// A visitor who is not a customer yet, and whose publishable key does not open the anonymous checkout (see
+// `anonymous.spec.ts` for the key that does): the storefront's backend makes the customer and its instance
+// when the visitor signs up, mints their session, and the checkout goes on where it was. The stand-in for Kaiten plays the sign-up scenario (`reset({ signUp: true })`), and the
 // page, the backend and the SDK's components are the real ones.
 
 import type { BrowserContext, Page } from "@playwright/test";

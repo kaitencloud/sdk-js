@@ -4,8 +4,10 @@
 // The storefront's accounts, in sign-up mode: a visitor who is not a customer yet makes an account on
 // the site, and the site's backend makes it in Kaiten.
 //
-// Kaiten V1 has no anonymous checkout (spec D-49): a checkout is a customer's, and a customer is
-// something the vendor creates. So when the visitor signs up, this backend
+// A customer's checkout needs a customer, and a customer is something the vendor creates. (A key that
+// opens the anonymous checkout lets a visitor buy with no account at all, which needs none of this: see
+// `src/visitor-checkout.tsx`. This is the path for a vendor whose key does not, or whose visitors want
+// an account first.) So when the visitor signs up, this backend
 //
 //   1. creates the Kaiten customer (`POST /customers`, scope `write:customers`),
 //   2. creates its instance (`POST /instances`, scope `write:instances`), on the licence the contract

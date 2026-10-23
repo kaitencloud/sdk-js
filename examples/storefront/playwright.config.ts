@@ -9,8 +9,8 @@ import { defineConfig, devices } from "@playwright/test";
  * Run them after `vp run -r build`, from this directory: `pnpm run test:e2e`. It is `pnpm run` and not `vp run` on purpose: `vp run` hides the shell's variables from a script, and the `live` project below reads them. They serve the
  * storefront's build (`vp preview`), which is the page, its backend, and a stand-in for Kaiten.
  *
- * - `stand-in` runs `checkout.spec.ts`, `failures.spec.ts`, `theme.spec.ts`, `journey.spec.ts` and
- *   `signup.spec.ts` against that stand-in. It needs no Kaiten, no account and no network, so it runs
+ * - `stand-in` runs `checkout.spec.ts`, `failures.spec.ts`, `theme.spec.ts`, `journey.spec.ts`,
+ *   `signup.spec.ts` and `anonymous.spec.ts` against that stand-in. It needs no Kaiten, no account and no network, so it runs
  *   everywhere, CI included.
  * - `live` runs `live.spec.ts` against a Kaiten of yours, and is skipped without the variables
  *   below. With some of them it fails, and says which are missing, so that a repository that lost
@@ -70,7 +70,7 @@ export default defineConfig({
   projects: [
     {
       name: "stand-in",
-      testMatch: /(checkout|failures|theme|journey|signup)\.spec\.ts/,
+      testMatch: /(checkout|failures|theme|journey|signup|anonymous)\.spec\.ts/,
       use: { ...devices["Desktop Chrome"], baseURL: `http://127.0.0.1:${STAND_IN_PORT}` },
     },
     {

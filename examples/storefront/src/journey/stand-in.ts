@@ -39,6 +39,14 @@ export interface StandInState {
   card: string | null;
   customers: Array<{ slug: string; name: string; billingEmail: string | null }>;
   instances: Array<{ slug: string; customerSlug: string; licenseSlug: string }>;
+  anonymousCheckout: boolean;
+  checkoutSessions: Array<{
+    id: string;
+    status: string;
+    email: string;
+    licenseSlug: string;
+    customerSlug: string | null;
+  }>;
 }
 
 /** What Kaiten would have told the vendor. The stand-in delivers none of it. */
@@ -56,6 +64,8 @@ export interface StartingPoint {
   free?: boolean;
   /** A visitor with no account: the storefront's backend asks the visitor to sign up. */
   signUp?: boolean;
+  /** The publishable key opens the anonymous checkout: a visitor buys a plan with no account. */
+  anonymousCheckout?: boolean;
 }
 
 /** A refusal, with the words the stand-in or Kaiten gave for it. */
@@ -95,6 +105,19 @@ export const standIn = {
   async start(point: StartingPoint, payment: PaymentOutcome = "paid") {
     await post("/reset", point);
     await post("/payment", { outcome: payment });
+  },
+
+  /** What the security check of the next `times` verifications comes to. */
+  async turnstile(verdict: "pass" | "fail" | "unavailable" | "unconfigured", times?: number) {
+    await post("/turnstile", { verdict, ...(times === undefined ? {} : { times }) });
+  },
+
+  /** Closes the newest checkout session that is waiting, as the passing of time would. */
+  async expireCheckout(): Promise<string> {
+    const result = (await post("/checkout-sessions/expire")) as { status: string };
+    return result.status === "EXPIRED"
+      ? "The payment never came: the session expired, and the customer stays on the free plan."
+      : "The session stayed open for too long and was abandoned.";
   },
 
   async payment(outcome: PaymentOutcome) {

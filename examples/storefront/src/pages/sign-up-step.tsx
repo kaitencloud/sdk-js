@@ -9,9 +9,10 @@ import { Link } from "../router.tsx";
 import { checkSignUp, FIELD_MESSAGES, type SignUpFields } from "../sign-up-fields.ts";
 
 /**
- * What a visitor does before they can buy, when the storefront has no customer for them yet: say who they
- * are. Kaiten V1 has no anonymous checkout, so a checkout needs a customer, and the storefront's backend
- * makes one from this: a name and the e-mail the invoices go to.
+ * What a visitor does before they can buy, when the storefront has no customer for them yet and the
+ * publishable key does not open the anonymous checkout: say who they are. A customer's checkout needs a
+ * customer, and the storefront's backend makes one from this: a name and the e-mail the invoices go to.
+ * It is also what the Account page offers a visitor, whatever the key opens.
  *
  * `plan` is the plan the visitor came to buy, if they did: it is named in the title, and the page goes on
  * to its checkout once the account exists. It is not sent to the backend, which decides by itself what

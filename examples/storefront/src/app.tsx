@@ -3,7 +3,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { KaitenSessionClient } from "@kaitencloud/client";
+import { KaitenAnonymousCheckoutClient, KaitenSessionClient } from "@kaitencloud/client";
 import { KaitenStyleRoot, KaitenProvider, type KaitenAppearance } from "@kaitencloud/react-ui";
 
 import { AccountContext, useAccount, type Account } from "./account.tsx";
@@ -23,6 +23,7 @@ import { PortalPage } from "./pages/portal-page.tsx";
 import { PricingPage } from "./pages/pricing-page.tsx";
 import { SalesPage } from "./pages/sales-page.tsx";
 import { Link, useLocation } from "./router.tsx";
+import { StorefrontConfigContext } from "./visitor-checkout.tsx";
 import { usePalette } from "./palette.ts";
 import { paletteById } from "./themes/palettes.ts";
 import { toAppearance } from "./themes/to-appearance.ts";
@@ -90,6 +91,16 @@ function Storefront({
   // One per customer: the provider's scope and its cache follow this object, so the customer who
   // signs up gets a client of their own.
   const [sessionClient, setSessionClient] = useState(newSessionClient);
+  // The visitor's checkout has no customer to be a client of: one client, for the page, which keeps the token
+  // of the checkout it started, and the provider that draws the flow is given it. A new object is a client that
+  // has not the tokens the old one held, so it is made once.
+  const [anonymousCheckoutClient] = useState(
+    () =>
+      new KaitenAnonymousCheckoutClient({
+        apiUrl: config.apiUrl,
+        publishableKey: config.publishableKey,
+      }),
+  );
 
   const signedUp = useCallback(() => {
     setSessionClient(newSessionClient());
@@ -122,9 +133,11 @@ function Storefront({
   // appearance in one place (themes/to-appearance.ts).
   const shell = (
     <KaitenStyleRoot appearance={appearance}>
-      <AccountContext.Provider value={context}>
-        <Shell mode={config.mode} sessionEnded={sessionEnded} />
-      </AccountContext.Provider>
+      <StorefrontConfigContext.Provider value={config}>
+        <AccountContext.Provider value={context}>
+          <Shell mode={config.mode} sessionEnded={sessionEnded} />
+        </AccountContext.Provider>
+      </StorefrontConfigContext.Provider>
     </KaitenStyleRoot>
   );
 
@@ -154,6 +167,7 @@ function Storefront({
       mode="public"
       apiUrl={config.apiUrl}
       publishableKey={config.publishableKey}
+      anonymousCheckoutClient={anonymousCheckoutClient}
       localization={localization}
     >
       {shell}

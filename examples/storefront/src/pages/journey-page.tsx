@@ -23,7 +23,8 @@ import { Link } from "../router.tsx";
 export function JourneyPage({ mode }: { mode: "double" | "live" }) {
   const double = mode === "double";
   const { state, events, failure, refresh } = useStandIn(double);
-  const { data: plans } = usePlans();
+  const catalogue = usePlans();
+  const plans = catalogue.data;
   const portal = usePortal();
   const account = useAccount();
   const growth = plans?.find((plan) => plan.slug === "growth-v1");
@@ -37,6 +38,8 @@ export function JourneyPage({ mode }: { mode: "double" | "live" }) {
     // The customer may have become a visitor, or the other way round: the page asks who it is again.
     await account.reload();
     portal.refetch();
+    // The catalogue says whether the key opens the anonymous checkout, and the stand-in may just have changed it.
+    catalogue.refetch();
   };
 
   return (

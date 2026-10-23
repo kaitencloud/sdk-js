@@ -7,7 +7,7 @@ import { CheckoutFlow, usePlans } from "@kaitencloud/react-ui";
 
 import { useAccount, useTitleFocusAfterSignUp } from "../account.tsx";
 import { Link, navigate, useLocation } from "../router.tsx";
-import { SignUpStep } from "./sign-up-step.tsx";
+import { VisitorCheckout } from "../visitor-checkout.tsx";
 
 export function CheckoutPage({ slug }: { slug: string }) {
   const { data: plans, isLoading, error, refetch } = usePlans();
@@ -34,9 +34,11 @@ export function CheckoutPage({ slug }: { slug: string }) {
     );
   }
 
-  // A checkout is a customer's: a visitor makes an account first, and resumes this very page, with
-  // the plan and the price they picked still in its address.
-  if (!account.signedIn) return <SignUpStep plan={{ slug: plan.slug, name: plan.name }} />;
+  // A checkout is a customer's, and a visitor is not one yet. Where the publishable key opens the anonymous
+  // checkout they buy the plan as they are; elsewhere they make an account first, and resume this very page,
+  // with the plan and the price they picked still in its address.
+  if (!account.signedIn)
+    return <VisitorCheckout plan={plan} priceId={search.get("price") ?? undefined} />;
 
   return (
     <section aria-labelledby="checkout-title" className="page-narrow">

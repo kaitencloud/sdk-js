@@ -73,7 +73,7 @@ export function chapters(catalogue: JourneyCatalogue): Chapter[] {
         {
           id: "visitor",
           title: "A visitor signs up and buys a plan",
-          lead: "Kaiten V1 has no anonymous checkout: the storefront's backend makes the customer and its instance when the visitor signs up, then mints their session.",
+          lead: "When the publishable key does not open the anonymous checkout, a checkout is a customer's: the storefront's backend makes the customer and its instance when the visitor signs up, then mints their session.",
           steps: [
             {
               text: "Start as a visitor: no account, no customer, no instance in Kaiten yet. The pricing table is public.",
@@ -86,6 +86,51 @@ export function chapters(catalogue: JourneyCatalogue): Chapter[] {
             {
               text: "The account page names the customer. Sign out forgets the account, and the next visitor starts again.",
               actions: [go("Open the account", "/portal")],
+            },
+          ],
+        },
+        {
+          id: "anonymous",
+          title: "A visitor buys with no account",
+          lead: "The publishable key opens the anonymous checkout: the visitor gives an e-mail and passes a security check, and Kaiten makes the customer, its instance and the subscription when the checkout completes. The storefront's backend is not asked for anything.",
+          steps: [
+            {
+              text: "Start as a visitor, with the key's anonymous checkout on. The catalogue now says so, with the site key of the security check.",
+              actions: [
+                start("Start as a visitor", { signUp: true, anonymousCheckout: true }),
+                go("Open the plans", "/"),
+              ],
+            },
+            {
+              text: "Choose Starter, give an e-mail and pass the security check: the plan is free, so the checkout completes at once. Kaiten tells the vendor with a checkout_session.v1.completed event, in the log beside.",
+              actions: [go("Open Starter's checkout", "/checkout/starter-v1")],
+            },
+            {
+              text: "Choose Pro instead: the review shows what is due, the provider's page saves a card, and the plan starts once the first invoice is paid. Until then the new instance is on the free plan.",
+              actions: [go("Open Pro's checkout", "/checkout/pro-v2")],
+            },
+            {
+              text: "Make the security check fail for the next verification, then try again with the same choices.",
+              actions: [
+                {
+                  kind: "do",
+                  label: "Refuse the next security check",
+                  run: async () => {
+                    await standIn.turnstile("fail", 1);
+                    return "The next verification is refused. The one after passes.";
+                  },
+                },
+              ],
+            },
+            {
+              text: "Let the time pass that closes a checkout nobody confirmed. The visitor who comes back is told it stayed open for too long, and can start again.",
+              actions: [
+                {
+                  kind: "do",
+                  label: "Let a checkout expire",
+                  run: () => standIn.expireCheckout(),
+                },
+              ],
             },
           ],
         },
@@ -412,7 +457,7 @@ export const coming: Coming[] = [
     title: "Pay before getting the plan",
     will: "A checkout with an amount due keeps the previous plan until the invoice is paid, for up to 23 hours. The subscription is INCOMPLETE meanwhile, and expires if nobody pays.",
     today:
-      "The stand-in subscribes at once, and a payment that fails leaves an open invoice on an active plan.",
+      "A customer's checkout in the stand-in subscribes at once, and a payment that fails leaves an open invoice on an active plan. A visitor's anonymous checkout plays it: the instance waits on the free plan for the first invoice.",
   },
   {
     id: "trial-end",
@@ -450,6 +495,7 @@ export const coming: Coming[] = [
     id: "one-trial",
     title: "One trial per customer and plan family",
     will: "A customer who had a trial of a family does not get a second one.",
-    today: "Every checkout of Growth gets its trial.",
+    today:
+      "Every checkout of Growth by a customer gets its trial. A visitor's anonymous checkout plays the rule: one trial per e-mail address and family.",
   },
 ];
