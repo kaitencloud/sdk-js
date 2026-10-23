@@ -119,8 +119,10 @@ release that ships them, on the terms above. What that fixes:
 - **What the client writes to `storage` is its own.** `KaitenCheckoutTokenStorage` is the shape of the
   store a host may pass; the key and the value the client keeps in it are not a contract, and a
   minor release may change them. Do not read them.
-- **The trial block of the portal** is the contract's `PortalTrial`: `charge` is always there and
-  `null` only when the API says nothing is charged, `reminderAt` is `null` when no reminder is due, and
+- **The trial block of the portal** is the contract's `PortalTrial`: `charge` is always there, as the
+  contract makes it a required member, and `null` when the API says nothing is charged (the client
+  trusts the contract: a server that leaves the member out is not conforming, and its trial reads as
+  `charge: null`), `reminderAt` (when `trial_will_end` is, or was, due) is `null` when the API gives none, and
   the `brand` and `last4` of its `paymentMethod` are `null` when the provider gives none. The block
   itself is `null` outside a trial and absent from a server that predates it; a screen draws nothing
   in both cases.

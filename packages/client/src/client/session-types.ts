@@ -183,7 +183,7 @@ export interface TrialCharge {
 export interface PortalTrial {
   /** When the trial ends: the subscription converts, or ends, then. */
   endsAt: string;
-  /** When Kaiten tells the vendor the trial is about to end. Null when no reminder is due. */
+  /** When the `trial_will_end` event is, or was, due. Null when the API gives none. */
   reminderAt: string | null;
   /**
    * What the end of the trial charges, discounts included, before any tax the payment provider

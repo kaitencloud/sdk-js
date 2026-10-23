@@ -192,8 +192,8 @@ made. A price part applies from the next invoice (`appliesFromInvoice: "next"`) 
 current period is never invoiced again. A subscription still waiting for its first payment
 refuses (`RedeemSessionVoucher.SubscriptionIncomplete`), as does one that is not live
 (`.NoLiveSubscription`); every other refusal is the same `.VoucherInvalid`. While a
-subscription is in its trial, `portal.trial` holds when it ends (`endsAt`), when the vendor is told
-(`reminderAt`, `null` when no reminder is due), what its end charges (`charge`: the server's figure
+subscription is in its trial, `portal.trial` holds when it ends (`endsAt`), when the `trial_will_end` event is,
+or was, due (`reminderAt`, `null` when the API gives none), what its end charges (`charge`: the server's figure
 and its billing period, `null` when nothing would be) and the card that charge goes to
 (`paymentMethod`, `null` without one, whose `brand` and `last4` the provider may not give).
 
