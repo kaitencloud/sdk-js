@@ -34,7 +34,9 @@ re-exports: an app that draws with Kaiten's components imports everything from h
   back from it, the payment, and what happens next (an email to check, or a page of the host's).
   It draws nothing unless the catalogue says the publishable key may start one, and every refusal
   has words in English, French, Spanish and German. It is a component of its own rather than a mode
-  of `CheckoutFlow`, which is a customer's.
+  of `CheckoutFlow`, which is a customer's. `collectCompany` and `collectName` each take `false`,
+  `"optional"` or `"required"` (`true` is `"required"`); an optional field says so in its label, and
+  the name field carries a hint when a company is asked for beside it.
 - **A code on a live subscription.** `VoucherEntry` shows what a code gives, with a dry run,
   before the customer applies it to a subscription that is in its trial, active or past due; it
   lists the redemptions in force; a subscription still waiting for its first payment has no field;

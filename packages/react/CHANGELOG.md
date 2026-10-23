@@ -47,7 +47,8 @@ components are in `@kaitencloud/react-ui`, which depends on this package and re-
   as thrown, and are not re-exported here. A start the API would refuse for its shape is found
   out before a Turnstile token is spent. It names what `useCheckout` names: the price chosen is
   `selection.licensePriceId` (the client sends it to the API as `priceId`) and the page is told
-  the instance is subscribed by `onSubscribed`.
+  the instance is subscribed by `onSubscribed`. The hook keeps the visitor's name and company for the page, across the payment
+  provider's page, and hands them to `onStarted` and `onSubscribed`; it never sends either to Kaiten.
 - **Typed errors.** `QuotaExceededError`, `RateLimitedError`, `BoundaryPendingError`,
   `ProviderUnavailableError` and `TransactionIdReusedError` reach a hook's `error`, `onError`
   and rejections as the classes the client threw, with their fields.
