@@ -2253,7 +2253,7 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
       currentPeriodStart: sub.currentPeriodStart,
       currentPeriodEnd: sub.currentPeriodEnd,
       trialEndsAt: sub.trialEndsAt,
-      reminderAt: null,
+      reminderAt: sub.trialEndsAt ? reminderAt(sub) : null,
       pendingLicenseSlug: null,
       incompleteExpiresAt: null,
       scheduledChange: scheduled
@@ -2386,9 +2386,16 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
 
   // ---- The next boundary -------------------------------------------------------
 
-  /** What a period of the subscription bills in advance: the base fee and the add-ons it holds. */
   /** The days before a trial's end that its reminder is due, the family's default (`trialReminderDays`). */
   const REMINDER_DAYS = 3;
+
+  /** When the reminder of a subscription in its trial is due: never before the subscription began. */
+  function reminderAt(sub: Json): string {
+    const ends = new Date(sub.trialEndsAt);
+    return iso(
+      Math.max(ends.getTime() - REMINDER_DAYS * 86_400_000, Date.parse(subscriptionMeta.anchorAt)),
+    );
+  }
 
   /**
    * The portal's trial block of a subscription in its trial: when it ends, when the reminder is
@@ -2403,13 +2410,9 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
       ends,
       addMonths(ends, MONTHS[sub.basePrice.billingPeriod] ?? 1),
     );
-    const reminder = Math.max(
-      ends.getTime() - REMINDER_DAYS * 86_400_000,
-      Date.parse(subscriptionMeta.anchorAt),
-    );
     return {
       endsAt: sub.trialEndsAt,
-      reminderAt: iso(reminder),
+      reminderAt: reminderAt(sub),
       charge:
         due.total > 0
           ? { amount: due.total, currency: sub.currency, billingPeriod: sub.billingPeriod }
@@ -2418,6 +2421,7 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
     };
   }
 
+  /** What a period of the subscription bills in advance: the base fee and the add-ons it holds. */
   function advanceLines(price: Json, currency: string, from: Date, to: Date): Json {
     const span = { serviceFrom: iso(from.getTime()), serviceTo: iso(to.getTime()) };
     const lines: Json[] = [];
