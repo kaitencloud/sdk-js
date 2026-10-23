@@ -1069,6 +1069,49 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
   const validBillingEmail = (value: unknown) =>
     typeof value === "string" && value.length <= 254 && value.includes("@");
 
+  /**
+   * Kaiten's `Customer` and `Instance` schemas are closed (`additionalProperties: false`): a member
+   * they do not list is refused, so a write that sends one fails here as it does there.
+   */
+  const CUSTOMER_MEMBERS = new Set([
+    "billingEmail",
+    "createdAt",
+    "createdBy",
+    "domain",
+    "externalCustomerId",
+    "id",
+    "integrations",
+    "name",
+    "slug",
+    "updatedAt",
+    "updatedBy",
+  ]);
+  const INSTANCE_MEMBERS = new Set([
+    "createdAt",
+    "createdBy",
+    "customerId",
+    "customerSlug",
+    "deploymentZoneId",
+    "deploymentZoneSlug",
+    "description",
+    "endLicenseDate",
+    "id",
+    "integrations",
+    "licenseId",
+    "licenseSlug",
+    "lifecycleStage",
+    "metadata",
+    "name",
+    "slug",
+    "startLicenseDate",
+    "status",
+    "updatedAt",
+    "updatedBy",
+  ]);
+  const unknownMember = (body: Json, known: Set<string>) =>
+    Object.keys(body).find((member) => !known.has(member));
+  const DOMAIN = /^[a-z0-9_-]+(\.[a-z0-9_-]+)+$/;
+
   function getCustomer(slug: string): Response {
     const found = customers.find((each) => each.slug === slug);
     return found
@@ -1098,8 +1141,20 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
         path,
       );
     }
+    const unknown = unknownMember(body, CUSTOMER_MEMBERS);
+    if (unknown !== undefined) {
+      return problem(
+        422,
+        "UpdateCustomer.InvalidBody",
+        `${unknown} is not a member of a customer`,
+        path,
+      );
+    }
     if (typeof body.name !== "string" || body.name.length < 1) {
       return problem(422, "UpdateCustomer.InvalidName", "name is required", path);
+    }
+    if (typeof body.domain === "string" && !DOMAIN.test(body.domain)) {
+      return problem(422, "UpdateCustomer.InvalidDomain", "domain is not a domain name", path);
     }
     if (body.slug !== undefined && body.slug !== slug) {
       return problem(
@@ -1159,6 +1214,15 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
         404,
         "UpdateInstance.NotFound",
         `Instance with slug "${slug}" not found`,
+        path,
+      );
+    }
+    const unknown = unknownMember(body, INSTANCE_MEMBERS);
+    if (unknown !== undefined) {
+      return problem(
+        422,
+        "UpdateInstance.InvalidBody",
+        `${unknown} is not a member of an instance`,
         path,
       );
     }

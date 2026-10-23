@@ -2879,6 +2879,13 @@ describe("the vendor's reads and updates of a customer and an instance, against 
     await expect(
       put(server, bought.slug, { name: "x", billingEmail: "nope" }),
     ).rejects.toMatchObject({ status: 422, code: "UpdateCustomer.InvalidBillingEmail" });
+    // The schema is closed: a member it does not list is refused, and so is a domain that is not one.
+    await expect(
+      put(server, bought.slug, { name: "x", favouriteColour: "green" }),
+    ).rejects.toMatchObject({ status: 422, code: "UpdateCustomer.InvalidBody" });
+    await expect(
+      put(server, bought.slug, { name: "x", domain: "Not A Domain" }),
+    ).rejects.toMatchObject({ status: 422, code: "UpdateCustomer.InvalidDomain" });
     await expect(put(server, "nobody", { name: "x" })).rejects.toMatchObject({
       status: 404,
       code: "UpdateCustomer.NotFound",
@@ -2957,6 +2964,9 @@ describe("the vendor's reads and updates of a customer and an instance, against 
     await expect(
       put(server, boughtInstance.slug, body({ integrations: { x: { id: "y" } } })),
     ).rejects.toMatchObject({ status: 422, code: "UpdateInstance.IntegrationsNotSettable" });
+    await expect(
+      put(server, boughtInstance.slug, body({ favouriteColour: "green" })),
+    ).rejects.toMatchObject({ status: 422, code: "UpdateInstance.InvalidBody" });
     await expect(
       put(server, boughtInstance.slug, body({ customerId: randomUUID() })),
     ).rejects.toMatchObject({ status: 409, code: "UpdateInstance.BillingFrozen" });
