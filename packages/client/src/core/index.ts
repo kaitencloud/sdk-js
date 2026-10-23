@@ -6,6 +6,7 @@
 // surface under the `KaitenApi` namespace.
 
 export * from "./generated/index.ts";
+export type * from "./payload-names.ts";
 export { client } from "./generated/client.gen.ts";
 export type { CreateClientConfig } from "./generated/client.gen.ts";
 
