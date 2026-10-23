@@ -2,12 +2,13 @@
 
 A small shop on Kaiten billing: a **pricing table**, a **checkout** and a **customer portal**,
 in a Vite app, with the backend routes that let its page act for one customer, or for a visitor who
-signs up. It is the whole way a customer takes through the React packages, from choosing a plan to
+signs up, and a checkout that a visitor with no account can buy from. It is the whole way a customer takes through the React packages, from choosing a plan to
 managing it, and the code to read when you wire your own.
 
 ```
 /                     PricingTable    the plans of the catalogue, from a publishable key
 /checkout/:plan       CheckoutFlow    the choices, what is due today, the card, the outcome
+                      AnonymousCheckoutFlow   the same for a visitor with no account: e-mail, security check
 /portal               CustomerPortal  the plan, the limits, the invoices, cancellation, Change plan
 /sales                                where Change plan and the plans priced on request lead
 /journey                              a presenter's walk through the payment lifecycle
@@ -24,10 +25,17 @@ vp dev            # http://localhost:5173
 ```
 
 The stand-in starts as **one customer**, signed in, so that you land on a pricing table you can buy
-from. To see the path a **visitor who has no account** takes (a pricing table, a "Create your account"
-step, a checkout), open the **Journey** page and start **A visitor signs up and buys a plan**; the
-[section below](#visitors-who-sign-up) says what happens. Against your own Kaiten with no customer
-named, that is the mode you start in.
+from. There are three ways in, and the **Journey** page starts the stand-in in the last two:
+
+- **One customer**, signed in for everyone: the default.
+- **A visitor who buys with no account**, when the publishable key opens the anonymous checkout: the
+  page sends them to a checkout of their own, and Kaiten makes the customer when it completes. Start
+  **A visitor buys with no account**; [the section below](#visitors-who-buy-with-no-account) says what
+  happens.
+- **A visitor who signs up** first, when the key does not open it: a "Create your account" step, then the
+  checkout of a customer. Start **A visitor signs up and buys a plan**; [that section](#visitors-who-sign-up)
+  says what happens. Against your own Kaiten with no customer named, this is the mode you start in, or the
+  one above if your key opens the anonymous checkout.
 
 ## The theme
 
@@ -199,26 +207,28 @@ the real page, where the SDK's components do the rest. Beside them, the stand-in
 status, card, invoices) and the log of events Kaiten would have sent. It needs the stand-in: against
 your Kaiten the buttons are off and the links remain.
 
-| Scenario                           | How                                                                                        |
-| ---------------------------------- | ------------------------------------------------------------------------------------------ |
-| Buy a plan with a trial            | a new customer, Growth's checkout, then **End the trial now**: the conversion invoice      |
-| A voucher: WELCOME20               | a customer with a card, Pro's checkout, the voucher typed in the field                     |
-| Add-on increase                    | the portal's add-ons panel, + on Extra seats, confirmed, then the renewal that bills it    |
-| Card declined, then retried        | the next payment set to fail, Pro's checkout, then the invoice paid                        |
-| 3-D Secure                         | the next payment set to need a confirmation, answered on the provider's page               |
-| An outcome that is not known yet   | the next payment left undecided, then answered paid or declined                            |
-| A renewal fails                    | **Advance to the boundary** with a failing payment: past due, then paid from the portal    |
-| Change the payment method          | the portal's Update payment method: the provider's page offers the other card              |
-| Cancel, then withdraw              | the portal's controls, or **Advance to the boundary** to let the cancellation run          |
-| Upgrade from the free plan         | Starter first, then Pro from the pricing table: the free subscription ends with no invoice |
-| Change plan: a commercial request  | the portal's button, which opens the plan's own link                                       |
-| The vendor schedules a plan change | the storefront's backend schedules Growth with the server token, the boundary applies it   |
+| Scenario                           | How                                                                                                                               |
+| ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| A visitor buys with no account     | the key's anonymous checkout on: Starter, then Pro through the provider's page, a refused security check, a checkout that expires |
+| Buy a plan with a trial            | a new customer, Growth's checkout, then **End the trial now**: the conversion invoice                                             |
+| A voucher: WELCOME20               | a customer with a card, Pro's checkout, the voucher typed in the field                                                            |
+| Add-on increase                    | the portal's add-ons panel, + on Extra seats, confirmed, then the renewal that bills it                                           |
+| Card declined, then retried        | the next payment set to fail, Pro's checkout, then the invoice paid                                                               |
+| 3-D Secure                         | the next payment set to need a confirmation, answered on the provider's page                                                      |
+| An outcome that is not known yet   | the next payment left undecided, then answered paid or declined                                                                   |
+| A renewal fails                    | **Advance to the boundary** with a failing payment: past due, then paid from the portal                                           |
+| Change the payment method          | the portal's Update payment method: the provider's page offers the other card                                                     |
+| Cancel, then withdraw              | the portal's controls, or **Advance to the boundary** to let the cancellation run                                                 |
+| Upgrade from the free plan         | Starter first, then Pro from the pricing table: the free subscription ends with no invoice                                        |
+| Change plan: a commercial request  | the portal's button, which opens the plan's own link                                                                              |
+| The vendor schedules a plan change | the storefront's backend schedules Growth with the server token, the boundary applies it                                          |
 
 What the v3.1 contract adds and the stand-in does not play yet is listed on the page as **Coming with
 the v3.1 contract**, with nothing to press and with what the stand-in does meanwhile: payment before
 the plan (INCOMPLETE), a trial that ends without a card (CANCEL or CONVERT), the fallback to the
 free plan, the deferred add-on decrease, the true-up, the `trial_will_end` webhook and one trial per
-family.
+family. (A visitor's anonymous checkout already plays two of them: the payment before the plan, and one trial
+per address and family.)
 
 The vendor's scheduled plan change goes through
 [`server/vendor-route.ts`](server/vendor-route.ts): `PUT` and `DELETE` on
@@ -227,10 +237,87 @@ The vendor's scheduled plan change goes through
 tier change, here for the presenter's sake; a real storefront has no such route on its customer-facing
 server, and this one is mounted only against the stand-in.
 
+## Visitors who buy with no account
+
+When the publishable key opens the anonymous checkout, a visitor who is not signed in buys a plan with
+no account at all. The catalogue says so (`capabilities.anonymousCheckout`, with the site key of the
+widget in `capabilities.turnstileSiteKey`), so the page does not have to be told: the checkout page of a
+visitor reads it ([`src/visitor-checkout.tsx`](src/visitor-checkout.tsx)) and draws `AnonymousCheckoutFlow`
+instead of the sign-up step. Where the catalogue says no, or cannot be read, the visitor makes an account
+first, as [below](#visitors-who-sign-up).
+
+```
+page ──POST /public/checkout-sessions (pk_, Turnstile token, e-mail, returnUrl)──▶ Kaiten  one session, nothing else
+page ◀── 201 { sessionId, token: ksc_…, dueToday } ─────────────────────────────┘
+page ──POST …/{sessionId}/confirm (Bearer ksc_…)───────────────────────────────▶ Kaiten
+        a free plan, or a trial with no card: completed, and the customer, instance and subscription exist
+        otherwise requires_payment_method { setupUrl }: the provider's page saves a card, in a popup
+page ──POST …/{sessionId}/confirm again, once back, then GET until paid ─────────▶ Kaiten  completed
+```
+
+What the page does ([`src/app.tsx`](src/app.tsx), [`src/visitor-checkout.tsx`](src/visitor-checkout.tsx)):
+
+- **One client for the page**, `KaitenAnonymousCheckoutClient`, made once and given to the provider as
+  `anonymousCheckoutClient`: it keeps the `ksc_` of the checkout it started in memory and in
+  `sessionStorage`, so that the page the provider sends the visitor back to can confirm. The token is never
+  in a URL, and the storefront's backend never sees it.
+- **The flow is mounted on the page the visitor comes back to**, the checkout's own address: the provider
+  sends them to the `returnUrl` of the start (this page, by default) with `kaiten_checkout_session` in its
+  address, and the flow goes on from there, whatever the catalogue says by then. In a popup, the page the
+  popup lands on tells the one that waits, which carries on, and the popup closes.
+- **One start per attempt.** A start spends a Turnstile token, a preview too: the page makes no preview, and
+  a token refused is replaced by the widget at once.
+- **Nothing else is asked of the storefront's backend**: no account, no cookie, no session. The visitor
+  has an e-mail, and Kaiten has made a customer named after it, with that address as its billing e-mail,
+  an instance and a subscription.
+- **The page gives a `clientReferenceId`** (an order number it makes), which Kaiten echoes on the
+  `checkout_session.v1.started`, `.completed` and `.abandoned` events. That reference, or the e-mail, is how
+  a vendor links the buyer to its own account when the `completed` event arrives, with the slugs of the
+  customer and instance it made: Kaiten sends no e-mail to your buyers, so the vendor's backend gives them
+  an account, and an e-mail of its own. This example has no webhook receiver, so it shows what the visitor
+  sees and says where the rest happens; the stand-in's event log shows what Kaiten would have sent.
+- **A paid plan starts once it is paid.** The instance is made on the free plan the family names as its
+  fallback, and moves to the plan bought when the first invoice is paid. A visitor who never pays has a
+  session that expires, and a customer left on the free plan for the vendor to clean up.
+- **One trial per e-mail address and plan family.** A second checkout with an address that had the trial is
+  priced without it, and says so.
+- The **Account** page still offers a visitor an account, and a customer who signed up has the checkout of a
+  customer: **the sign-up mode and the one-customer mode are untouched**. With one customer signed in for
+  everyone there is no visitor to sell to, whatever the key opens.
+
+**What the vendor sets up in Kaiten** for this to work:
+
+- A publishable key whose **allowed origins** include the storefront's (`http://localhost:5173` under
+  `vp dev`): the start and the session's routes check the page's origin, and so does the `returnUrl`.
+- On that key, **anonymous checkout switched on**, with the **Turnstile site key and secret** of a
+  Cloudflare widget that is allowed on the storefront's host. The site key is public, and the catalogue
+  hands it to the page; the secret is write-only, kept by Kaiten in its vault, and never returned. A key
+  with the switch on and no secret answers 422 `TurnstileNotConfigured`, and with the switch off, 403
+  `AnonymousCheckoutDisabled`. Self-hosted Kaiten works the same way: there is no bypass.
+- A **billing provider that captures payment methods** for a plan that costs money, and, for each paid plan
+  family, a **fallback** family with a free published version: the start of a paid checkout answers 422
+  `FallbackRequired` without one. A free plan and a trial that asks for no card need neither.
+- The page's **Content-Security-Policy**, if it has one, allows `https://challenges.cloudflare.com` in
+  `script-src`, `frame-src` and `connect-src`, or the widget never appears.
+
+For **local use**, Cloudflare publishes test keys that need no account and no challenge: the site key
+`1x00000000000000000000AA` always passes, and the secret `1x0000000000000000000000000000000AA` accepts
+every token (`2x…` keys always refuse, and `3x…` ones ask the visitor to interact: see Cloudflare's page on
+testing Turnstile for the current values). Put the pair on the key, and the widget the page draws is a real
+one that solves itself. Kaiten also compares the host Cloudflare reports for the solved widget with the
+key's allowed origins, and a test secret may report another host than the storefront's: if Kaiten refuses
+the test keys with `TurnstileFailed` for that reason, the host they report has to be among the key's
+allowed origins, on a key made for testing.
+The stand-in for Kaiten hands the page the same site key and accepts any token while it plays a pass.
+
+Limits, on purpose: the visitor is never told about an account, because there is none; a buyer who comes
+back from another browser has nothing to sign in with; and **a visitor who buys twice makes two
+customers**: Kaiten makes a new one at each checkout, and linking them is the vendor's job, through the event.
+
 ## Visitors who sign up
 
-A real shop has visitors who are not customers yet. **Kaiten V1 has no anonymous checkout** (spec D-49;
-an anonymous checkout is V1.1): a checkout is a customer's, and a customer is something the vendor's
+A real shop has visitors who are not customers yet. **When the publishable key does not open the
+anonymous checkout** (above), a checkout is a customer's, and a customer is something the vendor's
 backend creates. So there are two modes, and the second is the path to copy when your visitors sign up
 on your site:
 
@@ -337,7 +424,8 @@ Three credentials are involved, and each one stays on its own routes:
 
 | Credential                | Held by             | Sent to                                                                                                 |
 | ------------------------- | ------------------- | ------------------------------------------------------------------------------------------------------- |
-| a publishable key `pk_`   | the page            | `GET /public/catalog`, and nothing else                                                                 |
+| a publishable key `pk_`   | the page            | `GET /public/catalog`, and the start of an anonymous checkout, `POST /public/checkout-sessions`         |
+| a checkout token `ksc_`   | the page, in memory | `GET` and `POST …/confirm` of **one** anonymous checkout session, and nothing else                      |
 | a customer session `kst_` | the page, in memory | `/public/session/*`: the portal and the checkout of **one** customer                                    |
 | a server token `ksh_`     | the backend only    | `POST /customer-sessions`, to mint the session; in sign-up mode `POST /customers` and `POST /instances` |
 
@@ -364,6 +452,7 @@ this example's build for a token, the name of a secret variable and code of `@ka
 | [`server/account-routes.ts`](server/account-routes.ts) | sign-up mode: `GET /storefront-api/account`, `POST …/signup`, `POST …/signout`; [`account-cookie.ts`](server/account-cookie.ts) signs the cookie |
 | [`server/plugin.ts`](server/plugin.ts)                 | mounts the backend on `vp dev` and `vp preview`; nothing in `src/` imports it                                                                    |
 | [`server/vendor-route.ts`](server/vendor-route.ts)     | the vendor's scheduled plan change, for the journey page; the stand-in only                                                                      |
+| [`src/visitor-checkout.tsx`](src/visitor-checkout.tsx) | a visitor's checkout with no account, and the choice between it and the sign-up step                                                             |
 | [`server/environment.ts`](server/environment.ts)       | which Kaiten to talk to, read from the environment                                                                                               |
 | [`server/double/`](server/double)                      | the stand-in for Kaiten                                                                                                                          |
 | [`tests/`](tests)                                      | unit tests of the backend, of the stand-in and of the themes                                                                                     |
@@ -382,7 +471,8 @@ goes on from there: that is why the checkout has a path of its own, and why ther
 ## The stand-in for Kaiten
 
 With none of the variables of the next section, the backend plays Kaiten itself, in the same
-process: the catalogue, the minting of a session, the ten routes of `/public/session/*`, and the
+process: the catalogue, the minting of a session, the ten routes of `/public/session/*`, the three of
+the anonymous checkout (`/public/checkout-sessions`), and the
 pages of a payment provider, under `/kaiten-double`. The answers are the ones recorded from Kaiten
 in the client's fixtures, which the client's tests hold to the API contract; what the stand-in adds
 is a customer who moves:
@@ -420,6 +510,22 @@ is a customer who moves:
   vendor scheduled applies, a cancellation takes effect. The invoice is paid, declined, left unknown or
   waits for a confirmation as `payment` says; one that is not paid leaves the subscription PAST_DUE until
   the customer pays it, on the provider's page or from the portal;
+- **a visitor's anonymous checkout**, off until a test or the journey page turns it on (the catalogue
+  then says so, with Cloudflare's always-passing test site key). The start takes the publishable key and a
+  Turnstile token and prices the plan, its add-ons and the trial, one per address and family (`dryRun` writes
+  nothing); it writes one session and no customer, instance or subscription. The confirm, with the
+  session's `ksc_`, completes a free plan and a trial that asks for no card at once, and otherwise opens the
+  provider's page to save a card (a return address naming the session) and, on the confirm after it, makes
+  the customer (named and addressed by the e-mail, with a slug of it and a random suffix), its instance and
+  the subscription; with an amount due the instance starts on the free plan and moves to the plan bought
+  when the first invoice is paid, which the payment outcome decides as it does for a customer's. It refuses
+  as Kaiten does (`CreateCheckoutSession.InvalidPriceSelection`, `.PriceNotPublic`, `.AddonNotPublic`,
+  `.InvalidEmail`, `.InvalidReturnUrl`, `.VoucherInvalid` for every code, `.FallbackRequired`, a body that
+  does not fit the contract, a credential of the wrong class or another session's token, a session that is
+  closed with its status in `errors[0].value`, `.DueTodayChanged` when the trial was used up after a card was
+  saved). The security check comes to what a test scripts: it passes, Cloudflare refuses the token
+  (`.TurnstileFailed`), cannot be reached (503 `.TurnstileUnavailable` and a `Retry-After`) or the key has
+  no secret (`.TurnstileNotConfigured`). It never looks at a token, and its log keeps none;
 - the vendor's routes `PUT` and `DELETE /instances/{slug}/billing/scheduled-change`, with the server
   token and the refusals of the contract (a trial, a cancellation, the same price, another currency, an
   add-on that does not fit);
@@ -437,13 +543,21 @@ A test controls it over HTTP, under `/kaiten-double/control`: `reset` starts fro
 nothing (or with a card, an email, a subscription, or a free one with `free`), `script` has the next
 calls to a route answered with a refusal you give it (a 401, a 403, a 429 with a `Retry-After`),
 `payment` says what becomes of the next payment, `advance` moves to the next boundary (`trial/end` only
-a trial's), `invoices/:id/pay` and `invoices/:id/decline` settle an invoice, `events` returns what
+a trial's), `invoices/:id/pay` and `invoices/:id/decline` settle an invoice, `anonymous-checkout` (`{ "enabled": true }`)
+turns the key's anonymous checkout on or off (`reset` with `anonymousCheckout: true` starts it on),
+`turnstile` (`{ "verdict": "fail", "times": 1 }`, a verdict of `pass`, `fail`, `unavailable` or `unconfigured`
+for the next `times` verifications, or all of them) scripts the security check, `checkout-sessions/expire`
+lets the time pass that closes the newest waiting session (a session never confirmed is abandoned, one
+whose first payment never came expires), `events` returns what
 Kaiten would have told the vendor, `state` what the customer is, and `calls` what it was asked, with the
 kind of credential and never the credential. `e2e/support/stand-in.ts` wraps these, and the journey page
 uses the same surface from the browser.
 
-What it does not play is the v3.1 contract's: a trial that ends with no card is refused by `trial/end`
-with a message that says so, and a checkout subscribes at once instead of waiting for its payment.
+What it does not play, for a customer's checkout, is the v3.1 contract's: a trial that ends with no card is
+refused by `trial/end` with a message that says so, and a checkout subscribes at once instead of waiting
+for its payment. The visitor's anonymous checkout plays the wait: the instance is on the free plan until
+the first invoice is paid. It has no fallback families, rate limits, or origins to allow: a free plan in the
+catalogue is the fallback of every paid one, and a paid checkout is refused when there is none.
 
 ## Run it against your Kaiten
 
@@ -511,8 +625,8 @@ Playwright runs, and CI uses the Playwright image. `pnpm run test:e2e` serves th
 `vp preview` and runs two projects. Run it with `pnpm run`: `vp run` hides the shell's variables from
 a script, and the live project reads them.
 
-- **`stand-in`**, `checkout.spec.ts`, `failures.spec.ts`, `theme.spec.ts`, `journey.spec.ts` and
-  `signup.spec.ts`, against the stand-in. It needs nothing,
+- **`stand-in`**, `checkout.spec.ts`, `failures.spec.ts`, `theme.spec.ts`, `journey.spec.ts`,
+  `signup.spec.ts` and `anonymous.spec.ts`, against the stand-in. It needs nothing,
   so it runs everywhere, CI included (`storefront-e2e` in `.github/workflows/ci.yml`).
   - `checkout.spec.ts` is the customer's way: the pricing table, a plan taken to its checkout, a card
     saved on the provider's page in a popup and, when the browser blocks popups, in place of the
@@ -530,6 +644,12 @@ a script, and the live project reads them.
     a plan, coming back and still being signed in, signing out and becoming a new visitor, a customer
     Kaiten has forgotten and a cookie that was not signed, a token that lacks a scope and a request to
     wait, the step in every theme and colour mode down to 320px, and the one-customer mode left as it was.
+  - `anonymous.spec.ts` is a visitor who buys with no account: a free plan with an e-mail and the security
+    check, a paid plan through the provider's page, a trial that asks for no card and one that does, a
+    security check that Kaiten refuses or cannot reach, a checkout that is abandoned and started again, a
+    payment that never comes, the catalogue turning the checkout on and off, the one-customer mode left as it
+    was, and the journey page's scenario. Cloudflare's script is answered by a stand-in of the tests'
+    own ([`e2e/support/cloudflare.ts`](e2e/support/cloudflare.ts)), so no network is needed.
   - `theme.spec.ts` is the colour mode and the theme: System following the operating system, a
     choice kept across a reload and applied before the first paint, Claude's and Neo Brutalism's
     values on the page and on the components in Light and in Dark, going back to Kaiten, and a header
