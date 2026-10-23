@@ -11,23 +11,39 @@
 // and the instance the completion made and writes the name it wants (`PUT /customers/{slug}` and
 // `PUT /instances/{slug}`). That is all this route is.
 //
-// The page that posts is the visitor's browser, which a visitor can change, so nothing it says is
-// trusted. The route reads what Kaiten holds and writes only when the read agrees with the post:
+// The page that posts is the visitor's browser, which a visitor can change, and nothing proves to
+// this route that the caller holds the checkout: the e-mail is no secret (the slug of a checkout's
+// customer is made of it, and both slugs are in the public CheckoutSession and in the completed
+// event), so "the slugs and the e-mail" is in practice "the slugs". The route reads what Kaiten holds
+// and writes only when the read agrees with the post:
 //
 // - the customer exists, and its billing e-mail is the e-mail posted (the e-mail typed at the
 //   checkout is what the completion stored there);
-// - Kaiten itself made it (`createdBy` is Kaiten's own identity), so that no customer a person or a
-//   service made can be renamed through this route, whatever slug is posted;
+// - Kaiten itself made the customer and the instance (`createdBy` is Kaiten's own identity), so that
+//   nothing a person or a service made can be renamed through this route, whatever slug is posted;
+// - the customer was made a few minutes ago at most, which bounds the time it can be named in;
 // - its name is still that e-mail: a customer already named is not renamed again;
 // - the instance belongs to that customer.
 //
-// What is left is a customer that was made a moment ago, for the address posted, and not yet named:
-// the one thing a visitor could do with this route is to name their own. A real shop checks more
-// (it holds the order the checkout belongs to, and hears of the completion from the signed
-// `checkout_session.v1.completed` event, which carries the same slugs and cannot be forged by a
-// browser); this route stays a page's call so that the example needs no webhook endpoint.
+// What is left, and this example accepts: anyone who knows the slugs of a customer that a checkout
+// made in the last few minutes, and that is still named after its e-mail, can name it once, with
+// text of their own choice (the customer's name, the instance's name and its description), and can
+// post that same naming again. They cannot touch a customer a person or a service made, one already
+// named, one made longer ago, or one whose e-mail differs. The route cannot do better because it has
+// no order to match the post against. A real shop proves that the caller holds the checkout: it
+// names the customer when the signed `checkout_session.v1.completed` event arrives, which carries the
+// same slugs and cannot be forged by a browser, or it has the page send the checkout's `ksc_` token
+// to its backend, which reads the CheckoutSession with it and compares the session, the e-mail and
+// both slugs. This route stays a page's call so that the example needs neither a webhook endpoint
+// nor the token on the wire.
 //
-// Posting the same thing twice is the same as posting it once.
+// The writes are two requests in a row, each one a full replacement of what was read a moment
+// before, not a transaction. A change someone else makes in between (the dates, the metadata of the
+// instance) is written back as it was read; `PATCH /instances/{slug}` carries only the status and the
+// lifecycle stage, so `PUT` is the verb. A failure between the two leaves the customer named and the
+// instance not: the page does not retry, and a second post goes on from there.
+//
+// Posting the same thing twice, while that time lasts, is the same as posting it once.
 
 import { createKaitenClient, Customers, Instances, KaitenError } from "@kaitencloud/server";
 
@@ -41,6 +57,10 @@ export interface CheckoutCompletedRouteOptions {
    * and `write:instances`.
    */
   client: Client;
+  /** How long after Kaiten made a customer this route still names it, in milliseconds. Ten minutes. */
+  namingWindowMs?: number;
+  /** The clock, in milliseconds. A test sets it. */
+  now?: () => number;
 }
 
 /** The path the page calls. */
@@ -54,7 +74,8 @@ export const KAITEN_ACTOR_ID = "00000000-0000-0000-0000-000000000001";
 
 /** The longest name this route writes. Kaiten bounds none, and a name is shown in a list. */
 const MAX_NAME_LENGTH = 200;
-const MAX_BODY_LENGTH = 4096;
+const MAX_BODY_BYTES = 4096;
+const DEFAULT_NAMING_WINDOW_MS = 10 * 60_000;
 const SLUG = /^[a-z0-9][a-z0-9-]*[a-z0-9]$/;
 
 const json = (status: number, body: unknown) =>
@@ -68,7 +89,6 @@ const refuse = (status: number, error: string, extra: Record<string, unknown> = 
 
 /** What the page posts, once it is known to be well formed. */
 interface Order {
-  sessionId: string;
   customerSlug: string;
   instanceSlug: string;
   email: string;
@@ -85,17 +105,31 @@ class Invalid extends Error {
   }
 }
 
-const hasControlCharacter = (value: string) =>
+/**
+ * A control character, or one that changes how the text reads or where it ends without showing: the
+ * zero-width characters, the line and paragraph separators, the bidirectional marks and the byte
+ * order mark. A name is shown in the console, in a list and next to the contact.
+ */
+const hasUnsafeCharacter = (value: string) =>
   Array.from(value).some((character) => {
-    const code = character.charCodeAt(0);
-    return code < 0x20 || code === 0x7f;
+    const code = character.codePointAt(0)!;
+    return (
+      code < 0x20 ||
+      code === 0x7f ||
+      (code >= 0x200b && code <= 0x200f) ||
+      code === 0x2028 ||
+      code === 0x2029 ||
+      (code >= 0x202a && code <= 0x202e) ||
+      (code >= 0x2066 && code <= 0x2069) ||
+      code === 0xfeff
+    );
   });
 
 function text(source: Record<string, unknown>, field: string, maxLength: number): string {
   const value = source[field];
   if (typeof value !== "string") throw new Invalid(field);
   const trimmed = value.trim();
-  if (trimmed === "" || trimmed.length > maxLength || hasControlCharacter(trimmed)) {
+  if (trimmed === "" || trimmed.length > maxLength || hasUnsafeCharacter(trimmed)) {
     throw new Invalid(field);
   }
   return trimmed;
@@ -107,7 +141,7 @@ function optionalText(source: Record<string, unknown>, field: string): string | 
   if (typeof value !== "string") throw new Invalid(field);
   const trimmed = value.trim();
   if (trimmed === "") return null;
-  if (trimmed.length > MAX_NAME_LENGTH || hasControlCharacter(trimmed)) throw new Invalid(field);
+  if (trimmed.length > MAX_NAME_LENGTH || hasUnsafeCharacter(trimmed)) throw new Invalid(field);
   return trimmed;
 }
 
@@ -125,7 +159,6 @@ function readOrder(source: unknown): Order {
   const email = text(body, "email", 254);
   if (!email.includes("@")) throw new Invalid("email");
   const order = {
-    sessionId: text(body, "sessionId", 200),
     customerSlug: slug(body, "customerSlug"),
     instanceSlug: slug(body, "instanceSlug"),
     email,
@@ -151,8 +184,46 @@ function wantedNames(order: Order) {
   };
 }
 
+/**
+ * The body as text, or `null` when it is longer than the limit. A declared length over the limit is
+ * refused before a byte is read, and a body that declares none (or lies) is read in chunks and
+ * dropped as soon as it passes the limit, so that an oversized body is never held whole.
+ */
+async function readBody(request: Request): Promise<string | null> {
+  const declared = Number(request.headers.get("content-length"));
+  if (Number.isFinite(declared) && declared > MAX_BODY_BYTES) return null;
+  if (request.body === null) return "";
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.byteLength;
+    if (size > MAX_BODY_BYTES) {
+      await reader.cancel();
+      return null;
+    }
+    chunks.push(value);
+  }
+  return new Blob(chunks as BlobPart[]).text();
+}
+
+/**
+ * Whether a page's `Origin` is this server's own host. The scheme is left out on purpose: behind a
+ * proxy that ends TLS the server sees `http` while the browser's page is `https`. This stops a page
+ * of another site in a browser, and nothing more: a caller that is not a browser sets no `Origin`.
+ */
+function fromThisHost(origin: string, url: string): boolean {
+  try {
+    return new URL(origin).host === new URL(url).host;
+  } catch {
+    return false;
+  }
+}
+
 export function checkoutCompletedRoute(options: CheckoutCompletedRouteOptions): Route {
-  const { client } = options;
+  const { client, namingWindowMs = DEFAULT_NAMING_WINDOW_MS, now = Date.now } = options;
 
   return async (request) => {
     if (new URL(request.url).pathname !== CHECKOUT_COMPLETED_PATH) return undefined;
@@ -164,16 +235,16 @@ export function checkoutCompletedRoute(options: CheckoutCompletedRouteOptions): 
       });
     }
 
-    // A page of another origin must not make this server write to Kaiten with its token.
+    // A page of another site must not make this server write to Kaiten with its token.
     const origin = request.headers.get("origin");
-    if (origin !== null && origin !== new URL(request.url).origin) {
+    if (origin !== null && !fromThisHost(origin, request.url)) {
       return refuse(403, "cross_origin");
     }
 
     let order: Order;
     try {
-      const raw = await request.text();
-      if (raw.length > MAX_BODY_LENGTH) return refuse(413, "too_large");
+      const raw = await readBody(request);
+      if (raw === null) return refuse(413, "too_large");
       order = readOrder(JSON.parse(raw));
     } catch (thrown) {
       return refuse(400, "invalid_request", {
@@ -188,11 +259,19 @@ export function checkoutCompletedRoute(options: CheckoutCompletedRouteOptions): 
         throwOnError: true,
         path: { customerSlug: order.customerSlug },
       });
-      if (customer.billingEmail === undefined || !sameText(customer.billingEmail, order.email)) {
+      // A member Kaiten has no value for is absent, or `null`: neither is the address posted.
+      if (
+        typeof customer.billingEmail !== "string" ||
+        !sameText(customer.billingEmail, order.email)
+      ) {
         return refuse(403, "email_mismatch");
       }
       if (customer.createdBy.id !== KAITEN_ACTOR_ID) {
         return refuse(403, "not_made_by_a_checkout");
+      }
+      // A date that cannot be read is too late as well.
+      if (!(now() - Date.parse(customer.createdAt) <= namingWindowMs)) {
+        return refuse(409, "too_late");
       }
       // Renamed already: by this route (the same name, which is a repeated post) or by someone else.
       const customerNamed = customer.name === wanted.name;
@@ -207,6 +286,10 @@ export function checkoutCompletedRoute(options: CheckoutCompletedRouteOptions): 
       });
       if (instance.customerSlug !== order.customerSlug || instance.customerId !== customer.id) {
         return refuse(403, "instance_of_another_customer");
+      }
+      // An instance a person added to the customer later is theirs, whatever it is named.
+      if (instance.createdBy.id !== KAITEN_ACTOR_ID) {
+        return refuse(403, "not_made_by_a_checkout");
       }
       // The name the completion gave is the address and its description is empty; a description
       // the vendor wrote when there is no contact to write is kept as it is.

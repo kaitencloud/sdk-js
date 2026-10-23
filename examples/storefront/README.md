@@ -276,8 +276,8 @@ What the page does ([`src/app.tsx`](src/app.tsx), [`src/visitor-checkout.tsx`](s
   `onSubscribed`. Nothing of them is sent to Kaiten.
 - **Naming the customer is the vendor's job, and the backend's call**: Kaiten has made a customer named
   after the email, with that address as its billing email, an instance and a subscription. Once the
-  checkout completes, the page posts the session id, the slugs of the customer and instance the
-  completion made (`session.customerSlug`, `session.instanceSlug`), the email, the company and the name
+  checkout completes, the page posts the slugs of the customer and instance the completion made
+  (`session.customerSlug`, `session.instanceSlug`), the email, the company and the name
   to `POST /storefront-api/checkout/completed` ([`server/checkout-completed-route.ts`](server/checkout-completed-route.ts)).
   The customer is named after the company (else the person's name, else it stays the email), its
   instance too, and the person's name goes in the instance's description as `Contact: <name>`. The page
@@ -285,18 +285,51 @@ What the page does ([`src/app.tsx`](src/app.tsx), [`src/visitor-checkout.tsx`](s
   token it **reads the customer** and goes on only if its billing email is the email posted (any case),
   if **Kaiten itself made it** (`createdBy.id` is Kaiten's own identity, `00000000-0000-0000-0000-000000000001`,
   which no person and no service account has: a customer made by `POST /customers` is refused whatever
-  its address), and if its name is still the email; it **reads the instance** and checks that it belongs
-  to that customer; then it writes the names. A refusal is a clear 4xx (`email_mismatch`,
-  `not_made_by_a_checkout`, `instance_of_another_customer`, `already_named`, `not_found`,
-  `invalid_request` with the member), never the token and never what Kaiten answered. Posting twice is
-  posting once, and a naming that stopped half way goes on when the page posts again. `PUT` replaces the
-  resource, so the route sends back what it must keep: for the customer the billing email, the domain and
-  the external id; for the instance the customer, the licence, the dates, the metadata and the
-  deployment zone. What the route cannot know is whether the order was paid for, or which order this was:
-  a real shop names the customer when the signed `checkout_session.v1.completed` event arrives, which
-  carries the same slugs; this example has no webhook receiver, and takes the page's word for the company
-  once Kaiten's record matches. The page prints the company once the backend has named the customer, and
-  says so when it could not.
+  its address), if it was **made in the last ten minutes** (`namingWindowMs`), and if its name is still
+  the email; it **reads the instance** and checks that it belongs to that customer and that Kaiten made
+  it too (an instance a person added later is never renamed); then it writes the names. A refusal is a
+  clear 4xx (`email_mismatch`, `not_made_by_a_checkout`, `too_late`, `instance_of_another_customer`,
+  `already_named`, `not_found`, `invalid_request` with the member), never the token and never what Kaiten
+  answered. The codes are distinct so that a developer can read them; they also tell a caller whether a
+  slug exists, was made by a checkout and is named, which the slug alone already shows. Posting the same
+  naming twice, while the ten minutes last, is posting once. `PUT` replaces the resource, so the route
+  sends back what it must keep: for the customer the billing email, the domain and the external id; for
+  the instance the customer, the licence, the dates, the metadata and the deployment zone. `PATCH` on an
+  instance carries only the status and the lifecycle stage, so `PUT` is the verb.
+- **What the route cannot know, and what that leaves open.** It has no order to match the post against, and
+  nothing in the post proves that the caller holds the checkout: the email is no secret (the customer's
+  slug is made of it, and both slugs are in the public checkout session and in the `completed` event), so
+  the email and the slugs are in practice the slugs. **Anyone who knows the slugs of a checkout's customer
+  that is less than ten minutes old and still named after its email can name it once, with text of their
+  own choice** (the customer's name, the instance's name and its description), and can post the same naming
+  again. They cannot touch a customer a person or a service made, one already named, an older one, or one
+  whose email differs. The example accepts that. A real shop proves the caller holds the checkout, in one
+  of two ways: it names the customer when the signed `checkout_session.v1.completed` event arrives, which
+  carries the same slugs and cannot be forged by a browser; or the page sends the checkout's `ksc_` token
+  to its backend, which reads the checkout session with it and compares the session, the email and both
+  slugs. This example has no webhook receiver and keeps the token in the browser, so it takes the page's
+  word for the company once Kaiten's record matches. The route also keeps out of the names the control
+  characters and the ones that change how text reads without showing (zero-width and bidirectional marks,
+  line separators), since the console shows a name.
+- **The naming is two writes, not one.** The customer is written, then the instance. A failure between them
+  (a token that has `write:customers` and not `write:instances`, a network error) leaves the customer named
+  and the instance not, and the buyer is told that the company name could not be registered. **The page posts
+  once and does not retry**: a second post, from a retry button you add or from anything that calls the route,
+  goes on from where it stopped, and does not write the customer again. Each write is built from what was
+  read a moment before, so a change someone else makes to the instance's dates or metadata in between is
+  written back as it was. An organisation that declares required metadata on its instances will see the
+  instance write refused (a 422), which the buyer is told as the same failure; the route sends the metadata
+  the instance already has.
+- **In front of a real deployment**: the route refuses a post whose `Origin` is not its own host, which stops a
+  page of another site in a browser and nothing else (a caller that is not a browser sets no `Origin`); the
+  host alone is compared, so a proxy that ends TLS must pass the `Host` header on. Put a rate limit on the
+  route, as on sign-up, since each post makes two reads of Kaiten.
+- **What was checked end to end.** Against a running Kaiten, two free plans were bought with a company and a name,
+  and each customer and its instance were renamed. A paid plan and a trial were checked against the stand-in
+  only: the instance made on the fallback licence, the licence moved when the payment lands, and the
+  billing status of a trial were not exercised through the `PUT /instances` of the real API. Run one of
+  each against your own stack, with the payment provider connected, before relying on it. The page prints
+  the company once the backend has named the customer, and says so when it could not.
 - **The page gives a `clientReferenceId`** (an order number it makes), which Kaiten echoes on the
   `checkout_session.v1.started`, `.completed` and `.abandoned` events. That reference, or the email, is how
   a vendor links the buyer to its own account when the `completed` event arrives, with the slugs of the

@@ -91,7 +91,6 @@ async function nameTheCustomer(outcome: AnonymousCheckoutOutcome): Promise<Namin
       credentials: "same-origin",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        sessionId: outcome.sessionId,
         customerSlug: session.customerSlug,
         instanceSlug: session.instanceSlug,
         email: session.email,

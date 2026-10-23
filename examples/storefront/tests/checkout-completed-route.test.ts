@@ -29,7 +29,7 @@ afterEach(() => {
 
 let tokens = 0;
 
-function shop() {
+function shop(routeOptions: { namingWindowMs?: number; now?: () => number } = {}) {
   const double = createKaitenDouble({ serverToken: SERVER_TOKEN, publishableKey: PUBLISHABLE_KEY });
   double.reset({ anonymousCheckout: true });
   const fetchDouble: typeof fetch = async (input, init) => {
@@ -38,7 +38,7 @@ function shop() {
     return response;
   };
   const client = createKaitenClient({ baseUrl: API, token: SERVER_TOKEN, fetch: fetchDouble });
-  const route = checkoutCompletedRoute({ client });
+  const route = checkoutCompletedRoute({ client, ...routeOptions });
   const checkout = new KaitenAnonymousCheckoutClient({
     apiUrl: API,
     publishableKey: PUBLISHABLE_KEY,
@@ -57,7 +57,6 @@ function shop() {
     const done = await checkout.confirmCheckout(opened.sessionId);
     if (done.status !== "completed") throw new Error("the free plan did not complete");
     return {
-      sessionId: opened.sessionId,
       customerSlug: done.session.customerSlug!,
       instanceSlug: done.session.instanceSlug!,
       email,
@@ -296,7 +295,6 @@ describe("what it will not do", () => {
       },
     });
     const response = await made.post({
-      sessionId: "chk_whatever",
       customerSlug: theirs.slug,
       instanceSlug: instance.slug,
       email: "ada@acme.test",
@@ -366,6 +364,91 @@ describe("what it will not do", () => {
     expect(made.double.state().customers).toMatchObject([{ name: "ada@acme.test" }]);
   });
 
+  test("a customer made longer ago than the window is not named, whatever the post", async () => {
+    const minute = 60_000;
+    const later = shop({ now: () => Date.now() + 11 * minute });
+    const bought = await later.buy();
+    const response = await later.post({ ...bought, company: "Analytical Engines" });
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({ error: "too_late" });
+    expect(writes(later)).toEqual([]);
+    expect(later.double.state().customers).toMatchObject([{ name: "ada@acme.test" }]);
+
+    // Inside the window it is named, and the window is the route's to set.
+    const inside = shop({ now: () => Date.now() + 9 * minute });
+    expect((await inside.post({ ...(await inside.buy()), company: "Engines" })).status).toBe(200);
+    const short = shop({ namingWindowMs: minute, now: () => Date.now() + 2 * minute });
+    expect((await short.post({ ...(await short.buy()), company: "Engines" })).status).toBe(409);
+  });
+
+  test("a date Kaiten gives that cannot be read is too late as well", async () => {
+    const made = shop();
+    const bought = await made.buy();
+    const { data: customer } = await Customers.getCustomer({
+      client: made.client,
+      throwOnError: true,
+      path: { customerSlug: bought.customerSlug },
+    });
+    made.double.script(`GET /customers/${bought.customerSlug}`, {
+      status: 200,
+      body: { ...customer, createdAt: "not a date" },
+    });
+    const response = await made.post({ ...bought, company: "Analytical Engines" });
+    expect(response.status).toBe(409);
+    expect(writes(made)).toEqual([]);
+  });
+
+  test("an address Kaiten has no value for is a mismatch, not a failure", async () => {
+    const made = shop();
+    const bought = await made.buy();
+    const { data: customer } = await Customers.getCustomer({
+      client: made.client,
+      throwOnError: true,
+      path: { customerSlug: bought.customerSlug },
+    });
+    for (const billingEmail of [null, undefined]) {
+      made.double.script(`GET /customers/${bought.customerSlug}`, {
+        status: 200,
+        body: { ...customer, billingEmail },
+      });
+      const response = await made.post({ ...bought, company: "Analytical Engines" });
+      expect(response.status).toBe(403);
+      expect(await response.json()).toEqual({ error: "email_mismatch" });
+    }
+    expect(writes(made)).toEqual([]);
+  });
+
+  test("an instance a person added to the customer is not renamed, even one named after the address", async () => {
+    const made = shop();
+    const bought = await made.buy();
+    const { data: customer } = await Customers.getCustomer({
+      client: made.client,
+      throwOnError: true,
+      path: { customerSlug: bought.customerSlug },
+    });
+    const { data: theirs } = await Instances.createInstance({
+      client: made.client,
+      throwOnError: true,
+      body: {
+        name: "ada@acme.test",
+        description: "",
+        customerId: customer.id,
+        licenseId: STARTER_LICENCE,
+        startLicenseDate: "2026-10-21T10:00:00.000Z",
+        endLicenseDate: "2029-10-21T10:00:00.000Z",
+      },
+    });
+    const response = await made.post({
+      ...bought,
+      instanceSlug: theirs.slug,
+      company: "Analytical Engines",
+    });
+    expect(response.status).toBe(403);
+    expect(await response.json()).toEqual({ error: "not_made_by_a_checkout" });
+    expect(writes(made)).toEqual([]);
+    expect(made.double.state().customers).toMatchObject([{ name: "ada@acme.test" }]);
+  });
+
   test("a customer or an instance Kaiten does not know is a 404", async () => {
     const made = shop();
     const bought = await made.buy();
@@ -388,31 +471,25 @@ describe("what it will not do", () => {
   test.each([
     ["a body that is not JSON", "not json", "body"],
     ["a body that is not an object", "[]", "body"],
-    [
-      "no session",
-      { customerSlug: "ab", instanceSlug: "cd", email: "a@b.c", company: "X" },
-      "sessionId",
-    ],
-    ["no email", { sessionId: "s", customerSlug: "ab", instanceSlug: "cd", company: "X" }, "email"],
+    ["no email", { customerSlug: "ab", instanceSlug: "cd", company: "X" }, "email"],
     [
       "an email without an @",
-      { sessionId: "s", customerSlug: "ab", instanceSlug: "cd", email: "ab", company: "X" },
+      { customerSlug: "ab", instanceSlug: "cd", email: "ab", company: "X" },
       "email",
     ],
     [
       "a slug that is a path",
-      { sessionId: "s", customerSlug: "../x", instanceSlug: "cd", email: "a@b.c", company: "X" },
+      { customerSlug: "../x", instanceSlug: "cd", email: "a@b.c", company: "X" },
       "customerSlug",
     ],
     [
       "a slug in capitals",
-      { sessionId: "s", customerSlug: "ab", instanceSlug: "CD", email: "a@b.c", company: "X" },
+      { customerSlug: "ab", instanceSlug: "CD", email: "a@b.c", company: "X" },
       "instanceSlug",
     ],
     [
       "neither a company nor a name",
       {
-        sessionId: "s",
         customerSlug: "ab",
         instanceSlug: "cd",
         email: "a@b.c",
@@ -423,18 +500,32 @@ describe("what it will not do", () => {
     ],
     [
       "a company that is not text",
-      { sessionId: "s", customerSlug: "ab", instanceSlug: "cd", email: "a@b.c", company: 3 },
+      { customerSlug: "ab", instanceSlug: "cd", email: "a@b.c", company: 3 },
       "company",
     ],
     [
       "a company with a line break",
-      { sessionId: "s", customerSlug: "ab", instanceSlug: "cd", email: "a@b.c", company: "A\nB" },
+      { customerSlug: "ab", instanceSlug: "cd", email: "a@b.c", company: "A\nB" },
       "company",
+    ],
+    [
+      "a company with a zero-width space",
+      { customerSlug: "ab", instanceSlug: "cd", email: "a@b.c", company: "Acme\u200bCorp" },
+      "company",
+    ],
+    [
+      "a name with a right-to-left override",
+      { customerSlug: "ab", instanceSlug: "cd", email: "a@b.c", name: "Ada \u202eLovelace" },
+      "name",
+    ],
+    [
+      "a name with a line separator",
+      { customerSlug: "ab", instanceSlug: "cd", email: "a@b.c", name: "Ada\u2028Lovelace" },
+      "name",
     ],
     [
       "a name that is too long",
       {
-        sessionId: "s",
         customerSlug: "ab",
         instanceSlug: "cd",
         email: "a@b.c",
@@ -453,9 +544,45 @@ describe("what it will not do", () => {
     },
   );
 
-  test("a body that is too long is refused unread", async () => {
+  test("a body that declares a length over the limit is refused before a byte is read", async () => {
     const made = shop();
-    const response = await made.post(JSON.stringify({ company: "x".repeat(5000) }));
+    const request = new Request(`${ORIGIN}${CHECKOUT_COMPLETED_PATH}`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "content-length": "5000" },
+      body: JSON.stringify({ company: "x" }),
+    });
+    const response = (await made.route(request))!;
+    expect(response.status).toBe(413);
+    expect(await response.json()).toEqual({ error: "too_large" });
+    expect(request.bodyUsed).toBe(false);
+  });
+
+  test("a body that declares nothing is cut off once it passes the limit", async () => {
+    const made = shop();
+    let pulled = 0;
+    const chunk = new TextEncoder().encode("x".repeat(1024));
+    const body = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        pulled += 1;
+        controller.enqueue(chunk);
+      },
+    });
+    const response = (await made.route(
+      new Request(`${ORIGIN}${CHECKOUT_COMPLETED_PATH}`, {
+        method: "POST",
+        body,
+        duplex: "half",
+      } as RequestInit),
+    ))!;
+    expect(response.status).toBe(413);
+    // Five chunks pass 4096 bytes; a stream that never ends is not read to its end.
+    expect(pulled).toBeLessThan(20);
+  });
+
+  test("the limit is in bytes, not in characters", async () => {
+    const made = shop();
+    // 2 100 characters, 4 200 bytes.
+    const response = await made.post(JSON.stringify({ company: "é".repeat(2100) }));
     expect(response.status).toBe(413);
   });
 
@@ -468,6 +595,9 @@ describe("what it will not do", () => {
     );
     expect(foreign.status).toBe(403);
     expect(await foreign.json()).toEqual({ error: "cross_origin" });
+
+    const opaque = await made.post({ ...bought, company: "Evil" }, { origin: "null" });
+    expect(opaque.status).toBe(403);
 
     const read = await made.route(new Request(`${ORIGIN}${CHECKOUT_COMPLETED_PATH}`));
     expect(read?.status).toBe(405);

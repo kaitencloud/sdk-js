@@ -209,7 +209,9 @@ test("the company is asked for and the name is not: the form says which, and the
   // Pressed anyway, it says what is missing and goes to the field.
   // (Playwright takes an `aria-disabled` button for one that is not enabled, which the keyboard and a finger can press.)
   await start.click({ force: true });
-  await expect(page.getByRole("alert").filter({ hasText: "Enter your company." })).toBeVisible();
+  await expect(
+    page.getByRole("alert").filter({ hasText: "Enter your company name." }),
+  ).toBeVisible();
   await expect(page.getByLabel("Company")).toBeFocused();
   await page.getByLabel("Company").fill("Analytical Engines");
   await expect(start).not.toHaveAttribute("aria-disabled", "true");
@@ -713,7 +715,7 @@ test("a button that is not available says why, and a link to a tab of its own sa
   await expect(next).toHaveAttribute("aria-disabled", "true");
   expect(await next.evaluate((button) => (button as HTMLButtonElement).disabled)).toBe(false);
   // The company is asked for first, then the email.
-  await expect(next).toHaveAccessibleDescription("Enter your company.");
+  await expect(next).toHaveAccessibleDescription("Enter your company name.");
   await page.getByLabel("Company").fill("Analytical Engines");
   await expect(next).toHaveAccessibleDescription("Enter your email address to continue.");
 
