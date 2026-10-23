@@ -111,6 +111,10 @@ test("a sentence around a name, a date or an amount carries it", () => {
     const charge = trial.chargeOn("PRICE", day);
     expect(charge).toContain("PRICE");
     expect(charge).toMatch(/2026|01|1/);
+    const would = trial.chargeWouldOn("PRICE", day);
+    expect(would).toContain("PRICE");
+    expect(would).toMatch(/2026|01|1/);
+    expect(would).not.toBe(charge);
     expect(trial.cardOnFile("Visa •••• 4242")).toContain("Visa •••• 4242");
     // The countdown carries the number it counts, in the plural and the singular.
     for (const count of [trial.endsInDays, trial.endsInHours, trial.endsInMinutes]) {

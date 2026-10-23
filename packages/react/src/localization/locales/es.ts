@@ -446,6 +446,8 @@ export const es: KaitenLocalization = {
     endsOn: (isoDate) => `Termina el ${formatKaitenDate(isoDate, { locale: "es-ES" })}`,
     chargeOn: (price, isoDate) =>
       `Se cobrarán ${price} el ${formatKaitenDate(isoDate, { locale: "es-ES" })}.`,
+    chargeWouldOn: (price, isoDate) =>
+      `Se cobrarían ${price} el ${formatKaitenDate(isoDate, { locale: "es-ES" })}.`,
     nothingCharged: "No se cobrará nada al terminar su prueba.",
     cardOnFile: (label) => `Tarjeta guardada: ${label}.`,
     noCard: "Todavía no hay ninguna tarjeta guardada. Añada una antes de que termine su prueba.",

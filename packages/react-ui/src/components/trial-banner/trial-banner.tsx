@@ -129,7 +129,10 @@ export function TrialBanner({
     charge === null
       ? words.nothingCharged
       : price !== null
-        ? words.chargeOn(price, trial.endsAt)
+        ? // Without a card the payload does not say what the end does, only what it would charge.
+          trial.paymentMethod
+          ? words.chargeOn(price, trial.endsAt)
+          : words.chargeWouldOn(price, trial.endsAt)
         : null;
   const cardLine = trial.paymentMethod
     ? words.cardOnFile(

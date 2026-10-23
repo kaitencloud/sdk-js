@@ -444,6 +444,11 @@ export interface KaitenTrialBannerWords {
   endsOn: (isoDate: string) => string;
   /** What the end of the trial charges and when. Receives the server's price and the end of the trial. */
   chargeOn: (price: string, isoDate: string) => string;
+  /**
+   * Same, said while no card is on file: the portal gives what the end would charge, not what
+   * happens to a trial without a card. Receives the server's price and the end of the trial.
+   */
+  chargeWouldOn: (price: string, isoDate: string) => string;
   /** Said when the end of the trial charges nothing. */
   nothingCharged: string;
   /** The card the charge goes to. Receives its label: "Visa •••• 4242". */

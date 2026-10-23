@@ -459,6 +459,8 @@ export const fr: KaitenLocalization = {
     endsOn: (isoDate) => `Se termine le ${formatKaitenDate(isoDate, { locale: "fr-FR" })}`,
     chargeOn: (price, isoDate) =>
       `Prélèvement de ${price} le ${formatKaitenDate(isoDate, { locale: "fr-FR" })}.`,
+    chargeWouldOn: (price, isoDate) =>
+      `${price} seraient prélevés le ${formatKaitenDate(isoDate, { locale: "fr-FR" })}.`,
     nothingCharged: "Rien ne sera prélevé à la fin de votre essai.",
     cardOnFile: (label) => `Carte enregistrée : ${label}.`,
     noCard: "Aucune carte enregistrée. Ajoutez-en une avant la fin de votre essai.",

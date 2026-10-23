@@ -45,7 +45,7 @@ export const Default: Story = {
     await expect(
       await canvas.findByText("Your trial ends in 5 days", {}, SLOW),
     ).toBeInTheDocument();
-    await expect(canvas.getByText(/will be charged on/)).toBeInTheDocument();
+    await expect(canvas.getByText(/would be charged on/)).toBeInTheDocument();
     await expect(canvas.getByText(/No card on file yet/)).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Add a card" })).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Cancel" })).toBeInTheDocument();

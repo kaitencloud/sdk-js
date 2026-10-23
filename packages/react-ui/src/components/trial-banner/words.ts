@@ -20,6 +20,7 @@ export const englishTrialBannerWords: KaitenTrialBannerWords = {
   endsInAMoment: "Your trial ends in a moment",
   endsOn: (isoDate) => `Ends on ${formatKaitenDate(isoDate)}`,
   chargeOn: (price, isoDate) => `${price} will be charged on ${formatKaitenDate(isoDate)}.`,
+  chargeWouldOn: (price, isoDate) => `${price} would be charged on ${formatKaitenDate(isoDate)}.`,
   nothingCharged: "Nothing will be charged when your trial ends.",
   cardOnFile: (label) => `Card on file: ${label}.`,
   noCard: "No card on file yet. Add one before your trial ends.",

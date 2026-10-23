@@ -45,10 +45,23 @@ describe("what it says", () => {
 
     expect(await screen.findByText("Your trial ends in 5 days")).toBeTruthy();
     expect(screen.getByText(`Ends on ${ENDS_ON}`)).toBeTruthy();
-    expect(flat(screen.getByText(/will be charged on/).textContent)).toBe(
-      `€49.00/month will be charged on ${ENDS_ON}.`,
+    // No card is on file: the payload gives what the end would charge, not what it does.
+    expect(flat(screen.getByText(/be charged on/).textContent)).toBe(
+      `€49.00/month would be charged on ${ENDS_ON}.`,
     );
     expect(screen.getByRole("region", { name: "Free trial" })).toBeTruthy();
+  });
+
+  test("says the charge will happen once a card is on file, and only then", async () => {
+    mount(
+      sessionServer({ portal: trialPortal({ paymentMethod: { brand: "visa", last4: "4242" } }) }),
+      banner(),
+    );
+
+    expect(flat((await screen.findByText(/be charged on/)).textContent)).toBe(
+      `€49.00/month will be charged on ${ENDS_ON}.`,
+    );
+    expect(screen.queryByText(/would be charged/)).toBeNull();
   });
 
   test("counts in the unit that is left: days, hours, minutes, a moment", async () => {
@@ -75,7 +88,7 @@ describe("what it says", () => {
       }),
       banner(),
     );
-    expect(flat((await screen.findByText(/will be charged on/)).textContent)).toContain(
+    expect(flat((await screen.findByText(/be charged on/)).textContent)).toContain(
       "€135.00 every 3 months",
     );
   });
@@ -84,7 +97,7 @@ describe("what it says", () => {
     mount(sessionServer({ portal: trialPortal({ charge: null }) }), banner());
 
     expect(await screen.findByText("Nothing will be charged when your trial ends.")).toBeTruthy();
-    expect(screen.queryByText(/will be charged on/)).toBeNull();
+    expect(screen.queryByText(/be charged on/)).toBeNull();
   });
 
   test("says the card, by its brand and its last four digits, and never a number", async () => {
