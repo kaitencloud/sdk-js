@@ -8,7 +8,7 @@ managing it, and the code to read when you wire your own.
 ```
 /                     PricingTable    the plans of the catalogue, from a publishable key
 /checkout/:plan       CheckoutFlow    the choices, what is due today, the card, the outcome
-                      AnonymousCheckoutFlow   the same for a visitor with no account: e-mail, security check
+                      AnonymousCheckoutFlow   the same for a visitor with no account: email, security check
 /portal               CustomerPortal  the plan, the limits, the invoices, cancellation, Change plan
 /sales                                where Change plan and the plans priced on request lead
 /journey                              a presenter's walk through the payment lifecycle
@@ -247,7 +247,7 @@ instead of the sign-up step. Where the catalogue says no, or cannot be read, the
 first, as [below](#visitors-who-sign-up).
 
 ```
-page ──POST /public/checkout-sessions (pk_, Turnstile token, e-mail, returnUrl)──▶ Kaiten  one session, nothing else
+page ──POST /public/checkout-sessions (pk_, Turnstile token, email, returnUrl)──▶ Kaiten  one session, nothing else
 page ◀── 201 { sessionId, token: ksc_…, dueToday } ─────────────────────────────┘
 page ──POST …/{sessionId}/confirm (Bearer ksc_…)───────────────────────────────▶ Kaiten
         a free plan, or a trial with no card: completed, and the customer, instance and subscription exist
@@ -268,18 +268,18 @@ What the page does ([`src/app.tsx`](src/app.tsx), [`src/visitor-checkout.tsx`](s
 - **One start per attempt.** A start spends a Turnstile token, a preview too: the page makes no preview, and
   a token refused is replaced by the widget at once.
 - **Nothing else is asked of the storefront's backend**: no account, no cookie, no session. The visitor
-  has an e-mail, and Kaiten has made a customer named after it, with that address as its billing e-mail,
+  has an email, and Kaiten has made a customer named after it, with that address as its billing email,
   an instance and a subscription.
 - **The page gives a `clientReferenceId`** (an order number it makes), which Kaiten echoes on the
-  `checkout_session.v1.started`, `.completed` and `.abandoned` events. That reference, or the e-mail, is how
+  `checkout_session.v1.started`, `.completed` and `.abandoned` events. That reference, or the email, is how
   a vendor links the buyer to its own account when the `completed` event arrives, with the slugs of the
-  customer and instance it made: Kaiten sends no e-mail to your buyers, so the vendor's backend gives them
-  an account, and an e-mail of its own. This example has no webhook receiver, so it shows what the visitor
+  customer and instance it made: Kaiten sends no email to your buyers, so the vendor's backend gives them
+  an account, and an email of its own. This example has no webhook receiver, so it shows what the visitor
   sees and says where the rest happens; the stand-in's event log shows what Kaiten would have sent.
 - **A paid plan starts once it is paid.** The instance is made on the free plan the family names as its
   fallback, and moves to the plan bought when the first invoice is paid. A visitor who never pays has a
   session that expires, and a customer left on the free plan for the vendor to clean up.
-- **One trial per e-mail address and plan family.** A second checkout with an address that had the trial is
+- **One trial per email address and plan family.** A second checkout with an address that had the trial is
   priced without it, and says so.
 - The **Account** page still offers a visitor an account, and a customer who signed up has the checkout of a
   customer: **the sign-up mode and the one-customer mode are untouched**. With one customer signed in for
@@ -336,7 +336,7 @@ on your site:
   `STOREFRONT_INSTANCE_SLUG`, and of `live.spec.ts`.
 - **Sign-up.** The pricing table is public, read with the publishable key alone. **Select plan**, and
   the **Account** entry, lead a visitor who has no account to **Create your account**: a name (a company's
-  or their own) and the e-mail the invoices go to. The backend makes the account in Kaiten, remembers it
+  or their own) and the email the invoices go to. The backend makes the account in Kaiten, remembers it
   in a cookie, mints the customer's session, and the page goes on with the checkout of the plan the
   visitor picked, at the same address.
 
@@ -411,11 +411,11 @@ real site keeps its sessions on the server.
 
 What this does **not** do, on purpose, and what a real site adds:
 
-- There is **no sign-in**: no password, no link by e-mail. An account lives in the browser that made it,
+- There is **no sign-in**: no password, no link by email. An account lives in the browser that made it,
   and another browser starts as a new visitor. A real site has its own authentication, maps its user to
   the customer and instance slugs it stored, and mints for those.
 - There is **nothing against abuse** on `POST /storefront-api/signup`, a public route that creates
-  customers. Put e-mail confirmation, a CAPTCHA and a rate limit in front of it. Kaiten's own limits and
+  customers. Put email confirmation, a CAPTCHA and a rate limit in front of it. Kaiten's own limits and
   its customer quota apply, which is a floor and not a defence.
 - Behind a proxy that ends TLS, the request reaches the server as http and the cookie is not `Secure`:
   the server does not read `X-Forwarded-Proto`. This is an example, not something to put on the internet.
@@ -526,7 +526,7 @@ is a customer who moves:
   nothing); it writes one session and no customer, instance or subscription. The confirm, with the
   session's `ksc_`, completes a free plan and a trial that asks for no card at once, and otherwise opens the
   provider's page to save a card (a return address naming the session) and, on the confirm after it, makes
-  the customer (named and addressed by the e-mail, with a slug of it and a random suffix), its instance and
+  the customer (named and addressed by the email, with a slug of it and a random suffix), its instance and
   the subscription; with an amount due the instance starts on the free plan and moves to the plan bought
   when the first invoice is paid, which the payment outcome decides as it does for a customer's. It refuses
   as Kaiten does (`CreateCheckoutSession.InvalidPriceSelection`, `.PriceNotPublic`, `.AddonNotPublic`,
@@ -656,7 +656,7 @@ a script, and the live project reads them.
     a plan, coming back and still being signed in, signing out and becoming a new visitor, a customer
     Kaiten has forgotten and a cookie that was not signed, a token that lacks a scope and a request to
     wait, the step in every theme and colour mode down to 320px, and the one-customer mode left as it was.
-  - `anonymous.spec.ts` is a visitor who buys with no account: a free plan with an e-mail and the security
+  - `anonymous.spec.ts` is a visitor who buys with no account: a free plan with an email and the security
     check, a paid plan through the provider's page, a trial that asks for no card and one that does, a
     security check that Kaiten refuses or cannot reach, a checkout that is abandoned and started again, a
     payment that never comes, a trial used up by another checkout before the card and while it is saved, a

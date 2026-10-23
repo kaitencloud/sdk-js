@@ -5,7 +5,7 @@
 // before it asks (`pages/sign-up-step.tsx`), and by the route, which checks it again before it sends
 // anything to Kaiten (`server/account-routes.ts`): a request does not have to come from the form.
 
-/** The longest a name or an e-mail address can be: the contract allows 254 to an address. */
+/** The longest a name or an email address can be: the contract allows 254 to an address. */
 export const NAME_MAX = 100;
 export const EMAIL_MAX = 254;
 
@@ -20,7 +20,7 @@ const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /**
  * Control characters (line breaks, tabs, NUL) and format characters (zero-width, bidirectional marks):
- * nothing a person types on purpose into a name, and what a log, an invoice or an e-mail would show wrongly.
+ * nothing a person types on purpose into a name, and what a log, an invoice or an email would show wrongly.
  * The zero-width non-joiner and joiner are the exception: they are part of how Persian, several Indic
  * scripts and emoji sequences are written, between letters that are visible.
  */
@@ -29,7 +29,7 @@ const HIDDEN = /(?![\u200C\u200D])[\p{Cc}\p{Cf}]/u;
 /** What is left of a name once the spaces and the joiners are taken out: nothing means nothing was typed. */
 const INVISIBLE = /[\p{Z}\u200C\u200D]/gu;
 
-/** The name and the e-mail address, trimmed, or what is wrong with them. */
+/** The name and the email address, trimmed, or what is wrong with them. */
 export function checkSignUp(
   given: unknown,
 ): { ok: true; name: string; email: string } | { ok: false; fields: SignUpFields } {
@@ -57,7 +57,7 @@ export const FIELD_MESSAGES: {
     invalid: "Use plain text: no line breaks or hidden characters.",
   },
   email: {
-    required: "Enter an e-mail address.",
+    required: "Enter an email address.",
     invalid: "Enter an address like name@company.com.",
     too_long: `Use ${EMAIL_MAX} characters or fewer.`,
   },

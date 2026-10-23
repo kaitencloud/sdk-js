@@ -11,7 +11,7 @@ import { checkSignUp, FIELD_MESSAGES, type SignUpFields } from "../sign-up-field
 /**
  * What a visitor does before they can buy, when the storefront has no customer for them yet and the
  * publishable key does not open the anonymous checkout: say who they are. A customer's checkout needs a
- * customer, and the storefront's backend makes one from this: a name and the e-mail the invoices go to.
+ * customer, and the storefront's backend makes one from this: a name and the email the invoices go to.
  * It is also what the Account page offers a visitor, whatever the key opens.
  *
  * `plan` is the plan the visitor came to buy, if they did: it is named in the title, and the page goes on
@@ -79,7 +79,7 @@ export function SignUpStep({ plan }: { plan?: { slug: string; name?: string } })
       <p className="lead signup-lead">
         {plan
           ? "You carry on with this plan right after."
-          : "Plans are bought from an account. It takes a name and an e-mail."}
+          : "Plans are bought from an account. It takes a name and an email."}
       </p>
 
       <form className="panel signup" onSubmit={submit} noValidate>
@@ -118,7 +118,7 @@ export function SignUpStep({ plan }: { plan?: { slug: string; name?: string } })
 
         <div className="field">
           <label htmlFor={ids.email}>
-            E-mail <span className="field-required">(required)</span>
+            Email <span className="field-required">(required)</span>
           </label>
           <p id={`${ids.email}-hint`} className="field-hint">
             Invoices are sent here.

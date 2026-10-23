@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // A visitor who buys with no account. The publishable key opens the anonymous checkout, so the pricing table
-// leads a visitor straight to a checkout of their own: an e-mail, Cloudflare's security check and, for a paid
+// leads a visitor straight to a checkout of their own: an email, Cloudflare's security check and, for a paid
 // plan, a card on the provider's page. Kaiten makes the customer, its instance and the subscription when the
 // checkout completes, and the storefront's backend is not asked for anything. The stand-in for Kaiten plays
 // Kaiten (`reset({ signUp: true, anonymousCheckout: true })`), a stand-in for Cloudflare's script plays the
@@ -32,7 +32,7 @@ async function chooseAndFill(page: Page, plan: string, email = "ada@acme.test") 
   await expect(flow(page)).toContainText("Security check passed.");
 }
 
-test("a visitor buys a free plan with no account: an e-mail and the security check, and nothing else", async ({
+test("a visitor buys a free plan with no account: an email and the security check, and nothing else", async ({
   page,
   context,
   standIn,
@@ -50,15 +50,16 @@ test("a visitor buys a free plan with no account: an e-mail and the security che
   await expect(flow(page)).toContainText("Nothing is due today.");
   await expect(flow(page)).toContainText("Your order is registered for ada@acme.test.");
   await expect(page.getByTestId("visitor-done")).toContainText("checkout_session.v1.completed");
-  // The buyer has a next step of their own, and the note for the vendor is labelled as one.
+  // The buyer has a next step of their own, and the note for the vendor is labelled as one and folded
+  // away: it is for whoever builds the shop, not for the person who just bought.
   await expect(
     page.getByTestId("visitor-done").getByRole("link", { name: "Back to the plans" }),
   ).toBeVisible();
-  await expect(
-    page
-      .getByTestId("visitor-dev-note")
-      .getByRole("heading", { name: "For the vendor, not the buyer" }),
-  ).toBeVisible();
+  const note = page.getByTestId("visitor-dev-note");
+  await expect(note.getByText("For the vendor, not the buyer")).toBeVisible();
+  await expect(note.getByTestId("visitor-reference")).toBeHidden();
+  await note.getByText("For the vendor, not the buyer").click();
+  await expect(note.getByTestId("visitor-reference")).toBeVisible();
 
   // Kaiten made the customer from the address and its instance on the plan, and subscribed it with no
   // provider, no card and no invoice.
@@ -591,4 +592,31 @@ test("a button that is not available says why, and a link to a tab of its own sa
   await expect(page.getByRole("link", { name: "Open the page again" })).toHaveAccessibleDescription(
     "opens in a new tab",
   );
+});
+
+test("a plan the catalogue does not have is a page of its own, titled and focused, with a way back", async ({
+  page,
+  standIn,
+}) => {
+  await standIn.reset({ signUp: true, anonymousCheckout: true });
+  await page.goto("/checkout/no-such-plan");
+  const heading = page.getByRole("heading", { name: "Plan not found" });
+  await expect(heading).toBeFocused();
+  await expect(page).toHaveTitle("Plan not found · Acme");
+  await expect(page.getByText("No plan is called “no-such-plan”.")).toBeVisible();
+  await page.getByRole("link", { name: "Back to the plans" }).click();
+  await expect(page).toHaveTitle("Pricing · Acme");
+});
+
+test("a plan sold by contact only says so, with a way to ask and a way back, and no form", async ({
+  page,
+  standIn,
+}) => {
+  await standIn.reset({ signUp: true, anonymousCheckout: true });
+  await page.goto("/checkout/enterprise-v1");
+  await expect(flow(page)).toContainText("This plan isn't sold online. Contact us to get it.");
+  await expect(flow(page).getByLabel("Email")).toHaveCount(0);
+  await expect(flow(page).getByRole("link", { name: "Contact us" })).toBeVisible();
+  await flow(page).getByRole("button", { name: "Cancel" }).click();
+  await expect(page).toHaveTitle("Pricing · Acme");
 });

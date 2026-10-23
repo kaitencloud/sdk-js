@@ -83,7 +83,7 @@ export function chapters(catalogue: JourneyCatalogue): Chapter[] {
               actions: [start("Start as a visitor", { signUp: true }), go("Open the plans", "/")],
             },
             {
-              text: "Choose a plan. The checkout asks to create an account first: a name, and the e-mail the invoices go to. The backend creates the customer and an instance on the free plan, and the checkout carries on.",
+              text: "Choose a plan. The checkout asks to create an account first: a name, and the email the invoices go to. The backend creates the customer and an instance on the free plan, and the checkout carries on.",
               actions: [go("Open Pro's checkout", "/checkout/pro-v2")],
             },
             {
@@ -95,7 +95,7 @@ export function chapters(catalogue: JourneyCatalogue): Chapter[] {
         {
           id: "anonymous",
           title: "A visitor buys with no account",
-          lead: "The publishable key opens the anonymous checkout: the visitor gives an e-mail and passes a security check, and Kaiten makes the customer, its instance and the subscription when the checkout completes. The storefront's backend is not asked for anything.",
+          lead: "The publishable key opens the anonymous checkout: the visitor gives an email and passes a security check, and Kaiten makes the customer, its instance and the subscription when the checkout completes. The storefront's backend is not asked for anything.",
           steps: [
             {
               text: "Start as a visitor, with the key's anonymous checkout on. The catalogue now says so, with the site key of the security check.",
@@ -105,7 +105,7 @@ export function chapters(catalogue: JourneyCatalogue): Chapter[] {
               ],
             },
             {
-              text: "Choose Starter, give an e-mail and pass the security check: the plan is free, so the checkout completes at once. Kaiten tells the vendor with a checkout_session.v1.completed event, in the log beside.",
+              text: "Choose Starter, give an email and pass the security check: the plan is free, so the checkout completes at once. Kaiten tells the vendor with a checkout_session.v1.completed event, in the log beside.",
               actions: [go("Open Starter's checkout", "/checkout/starter-v1")],
             },
             {
@@ -499,6 +499,6 @@ export const coming: Coming[] = [
     title: "One trial per customer and plan family",
     will: "A customer who had a trial of a family does not get a second one.",
     today:
-      "Every checkout of Growth by a customer gets its trial. A visitor's anonymous checkout plays the rule: one trial per e-mail address and family.",
+      "Every checkout of Growth by a customer gets its trial. A visitor's anonymous checkout plays the rule: one trial per email address and family.",
   },
 ];

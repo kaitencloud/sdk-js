@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // What a visitor who has no account does at a plan's checkout. When the publishable key opens the anonymous
-// checkout, they buy the plan right there: an e-mail, a security check, and, for a paid plan, a card on the
+// checkout, they buy the plan right there: an email, a security check, and, for a paid plan, a card on the
 // provider's page. Kaiten makes the customer, its instance and the subscription when it completes, and the
 // storefront's backend is not asked for anything. When the key does not open it, the visitor first makes an
 // account (`SignUpStep`), and the checkout of a customer follows.
@@ -109,14 +109,11 @@ export function VisitorCheckout({ plan, priceId }: { plan: Plan; priceId: string
               <p>
                 Thank you for your order. <Link to="/">Back to the plans</Link>
               </p>
-              <aside
-                className="visitor-dev-note small muted"
-                aria-labelledby="visitor-dev-note-title"
-                data-testid="visitor-dev-note"
-              >
-                <h2 id="visitor-dev-note-title">For the vendor, not the buyer</h2>
+              {/* A note for the person who builds the shop, not for the person who just bought: folded away. */}
+              <details className="visitor-dev-note small muted" data-testid="visitor-dev-note">
+                <summary>For the vendor, not the buyer</summary>
                 <p>
-                  Kaiten has made the customer and its instance for this address. It sends no e-mail
+                  Kaiten has made the customer and its instance for this address. It sends no email
                   to your buyers: a shop&rsquo;s backend hears of the order from the{" "}
                   <code>checkout_session.v1.completed</code> event, which carries the reference{" "}
                   <code data-testid="visitor-reference">
@@ -124,7 +121,7 @@ export function VisitorCheckout({ plan, priceId }: { plan: Plan; priceId: string
                   </code>
                   , and gives the buyer their account.
                 </p>
-              </aside>
+              </details>
             </div>
           ) : null}
         </>

@@ -26,7 +26,7 @@ const callsTo = async (standIn: StandIn, method: string, path: string) =>
 /** Types a name and an address into the sign-up step and submits it. */
 async function fillAndSubmit(page: Page, name: string, email: string) {
   await page.getByLabel("Name").fill(name);
-  await page.getByLabel("E-mail").fill(email);
+  await page.getByLabel("Email").fill(email);
   await createAccount(page).click();
 }
 
@@ -62,15 +62,15 @@ test("a visitor signs up from the pricing table, buys a plan, and is still signe
   // Nothing is asked of Kaiten for a form that is not right.
   await createAccount(page).click();
   await expect(page.getByText("Enter your name, or your company\u2019s.")).toBeVisible();
-  await expect(page.getByText("Enter an e-mail address.")).toBeVisible();
+  await expect(page.getByText("Enter an email address.")).toBeVisible();
   await expect(page.getByLabel("Name")).toHaveAttribute("aria-invalid", "true");
   // Both fields say they are required, to a screen reader and in words: the form is checked on submit.
   await expect(page.getByLabel("Name")).toHaveAttribute("aria-required", "true");
-  await expect(page.getByLabel("E-mail")).toHaveAttribute("aria-required", "true");
+  await expect(page.getByLabel("Email")).toHaveAttribute("aria-required", "true");
   await expect(page.getByText("(required)")).toHaveCount(2);
   await expect(page.getByRole("alert").filter({ hasText: "Check the fields" })).toBeVisible();
   await page.getByLabel("Name").fill("Initech");
-  await page.getByLabel("E-mail").fill("nope");
+  await page.getByLabel("Email").fill("nope");
   await createAccount(page).click();
   await expect(page.getByText("Enter an address like name@company.com.")).toBeVisible();
   await expect(page.getByLabel("Name")).not.toHaveAttribute("aria-invalid", "true");
@@ -328,7 +328,7 @@ test("a refusal at sign-up is said in words a developer understands, and leaves 
     refusal(422, "CreateCustomer.InvalidBillingEmail", "not an address"),
   );
   await createAccount(page).click();
-  await expect(page.getByLabel("E-mail")).toHaveAttribute("aria-invalid", "true");
+  await expect(page.getByLabel("Email")).toHaveAttribute("aria-invalid", "true");
 
   // And the visitor can try again once it is fine: a slug that was taken is not their concern.
   await standIn.script("POST /customers", refusal(409, "CreateCustomer.SlugConflict", "taken"));
@@ -355,13 +355,13 @@ test("the sign-up step has the storefront's look in every theme and colour mode,
         await modes.getByRole("radio", { name: mode }).check();
         await createAccount(page).click();
 
-        for (const label of ["Name", "E-mail"])
+        for (const label of ["Name", "Email"])
           await expect(page.getByLabel(label), where).toBeVisible();
         await expect(
           page.getByText("Enter your name, or your company\u2019s."),
           where,
         ).toBeVisible();
-        await expect(page.getByText("Enter an e-mail address."), where).toBeVisible();
+        await expect(page.getByText("Enter an email address."), where).toBeVisible();
         await expect(createAccount(page), where).toBeVisible();
 
         const overflow = await page.evaluate(
