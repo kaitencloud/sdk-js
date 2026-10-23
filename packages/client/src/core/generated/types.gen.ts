@@ -134,6 +134,10 @@ export type Addon = {
   familySlug: string;
   readonly id: string;
   /**
+   * The family's: how a mid-period increase or attachment of an ADVANCE add-on is billed. TRUE_UP adds a true-up line for the elapsed period at the next renewal; NEXT_BOUNDARY bills from the next boundary only
+   */
+  readonly increaseBilling: "TRUE_UP" | "NEXT_BOUNDARY";
+  /**
    * The version the family resolves to. Only a PUBLISHED version.
    */
   isDefault: boolean;
@@ -199,6 +203,10 @@ export type AddonFamily = {
   currentVersion?: Addon;
   readonly id: string;
   /**
+   * How a mid-period increase or attachment of the family's ADVANCE add-ons is billed (V31-70)
+   */
+  increaseBilling: "TRUE_UP" | "NEXT_BOUNDARY";
+  /**
    * Whether the family is listed in the public catalogue
    */
   isPublic: boolean;
@@ -215,9 +223,13 @@ export type AddonFamily = {
 
 export type AddonFamilyVisibility = {
   /**
+   * How a mid-period increase or attachment of the family's ADVANCE add-ons is billed, from the next composition: TRUE_UP (a true-up line for the elapsed period at the next renewal) or NEXT_BOUNDARY (from the next boundary only); another value answers 422 .InvalidIncreaseBilling
+   */
+  increaseBilling?: string;
+  /**
    * List the family's default PUBLISHED version, with its ACTIVE prices, in the public catalogue
    */
-  isPublic: boolean;
+  isPublic?: boolean;
 };
 
 export type AddonGrant = {
@@ -342,6 +354,10 @@ export type AddonUpdate = {
    */
   familySlug: string;
   readonly id: string;
+  /**
+   * The family's: how a mid-period increase or attachment of an ADVANCE add-on is billed. TRUE_UP adds a true-up line for the elapsed period at the next renewal; NEXT_BOUNDARY bills from the next boundary only
+   */
+  readonly increaseBilling: "TRUE_UP" | "NEXT_BOUNDARY";
   /**
    * The version the family resolves to. Only a PUBLISHED version.
    */
@@ -560,6 +576,10 @@ export type BillingStarted = {
    */
   daysUntilDueOverride: number | null;
   id: string;
+  /**
+   * When a checkout waiting for its payment ends unpaid: INCOMPLETE, or a free subscription that carries one
+   */
+  incompleteExpiresAt: string | null;
   instanceName: string;
   /**
    * As it was at the subscription's last write
@@ -567,9 +587,17 @@ export type BillingStarted = {
   instanceSlug: string;
   pastDueSince: string | null;
   /**
+   * The licence version a checkout waiting for its payment moves the instance to once paid
+   */
+  pendingLicenseSlug: string | null;
+  /**
    * Who collects its invoices. NOOP: the organization itself, through the handoff queue
    */
   providerKind: "NOOP" | "STRIPE";
+  /**
+   * When trial_will_end is (or was) emitted: trialEndsAt minus the family's trialReminderDays as it was when the trial started; set with trialEndsAt
+   */
+  reminderAt: string | null;
   /**
    * Set when a CANCELED subscription was subscribed again
    */
@@ -662,6 +690,10 @@ export type CanceledSubscription = {
    */
   finalInvoice?: InvoiceSummary;
   id: string;
+  /**
+   * When a checkout waiting for its payment ends unpaid: INCOMPLETE, or a free subscription that carries one
+   */
+  incompleteExpiresAt: string | null;
   instanceName: string;
   /**
    * As it was at the subscription's last write
@@ -669,9 +701,17 @@ export type CanceledSubscription = {
   instanceSlug: string;
   pastDueSince: string | null;
   /**
+   * The licence version a checkout waiting for its payment moves the instance to once paid
+   */
+  pendingLicenseSlug: string | null;
+  /**
    * Who collects its invoices. NOOP: the organization itself, through the handoff queue
    */
   providerKind: "NOOP" | "STRIPE";
+  /**
+   * When trial_will_end is (or was) emitted: trialEndsAt minus the family's trialReminderDays as it was when the trial started; set with trialEndsAt
+   */
+  reminderAt: string | null;
   /**
    * A plan change waiting for the next boundary
    */
@@ -732,6 +772,10 @@ export type Cancellation = {
    */
   finalInvoiceId: string | null;
   id: string;
+  /**
+   * When a checkout waiting for its payment ends unpaid: INCOMPLETE, or a free subscription that carries one
+   */
+  incompleteExpiresAt: string | null;
   instanceName: string;
   /**
    * As it was at the subscription's last write
@@ -743,9 +787,17 @@ export type Cancellation = {
   mode: "AT_PERIOD_END" | "IMMEDIATE";
   pastDueSince: string | null;
   /**
+   * The licence version a checkout waiting for its payment moves the instance to once paid
+   */
+  pendingLicenseSlug: string | null;
+  /**
    * Who collects its invoices. NOOP: the organization itself, through the handoff queue
    */
   providerKind: "NOOP" | "STRIPE";
+  /**
+   * When trial_will_end is (or was) emitted: trialEndsAt minus the family's trialReminderDays as it was when the trial started; set with trialEndsAt
+   */
+  reminderAt: string | null;
   /**
    * A plan change waiting for the next boundary
    */
@@ -806,6 +858,10 @@ export type CancellationChange = {
    */
   effectiveAt: string;
   id: string;
+  /**
+   * When a checkout waiting for its payment ends unpaid: INCOMPLETE, or a free subscription that carries one
+   */
+  incompleteExpiresAt: string | null;
   instanceName: string;
   /**
    * As it was at the subscription's last write
@@ -813,9 +869,17 @@ export type CancellationChange = {
   instanceSlug: string;
   pastDueSince: string | null;
   /**
+   * The licence version a checkout waiting for its payment moves the instance to once paid
+   */
+  pendingLicenseSlug: string | null;
+  /**
    * Who collects its invoices. NOOP: the organization itself, through the handoff queue
    */
   providerKind: "NOOP" | "STRIPE";
+  /**
+   * When trial_will_end is (or was) emitted: trialEndsAt minus the family's trialReminderDays as it was when the trial started; set with trialEndsAt
+   */
+  reminderAt: string | null;
   /**
    * A plan change waiting for the next boundary
    */
@@ -2159,6 +2223,10 @@ export type HeldPair = {
 };
 
 export type HoldDetail = {
+  /**
+   * PROVIDER_ITEM_LIMIT only: the provider's line limit and how many items the invoice needs
+   */
+  itemLimit?: ProviderLineLimit;
   pairs: Array<HeldPair>;
 };
 
@@ -2300,6 +2368,10 @@ export type InstanceAddon = {
    */
   name: string;
   /**
+   * A decrease scheduled for the next boundary, 0 for a removal; the current quantity holds until then. Null when nothing is scheduled (V31-67)
+   */
+  pendingQuantity: number | null;
+  /**
    * What the instance's subscription bills for it: the default FLAT_FEE price of the subscription's period and the ACTIVE metered prices. Empty when the instance is not billed.
    */
   prices: Array<Price>;
@@ -2319,6 +2391,10 @@ export type InstanceAddonUpdate = {
    * The add-on version's name
    */
   name: string;
+  /**
+   * A decrease scheduled for the next boundary, 0 for a removal; the current quantity holds until then. Null when nothing is scheduled (V31-67)
+   */
+  pendingQuantity: number | null;
   /**
    * The quantity before a quantity change
    */
@@ -2371,6 +2447,10 @@ export type InstanceBilling = {
    */
   daysUntilDueOverride: number | null;
   id: string;
+  /**
+   * When a checkout waiting for its payment ends unpaid: INCOMPLETE, or a free subscription that carries one
+   */
+  incompleteExpiresAt: string | null;
   instanceName: string;
   /**
    * As it was at the subscription's last write
@@ -2378,9 +2458,17 @@ export type InstanceBilling = {
   instanceSlug: string;
   pastDueSince: string | null;
   /**
+   * The licence version a checkout waiting for its payment moves the instance to once paid
+   */
+  pendingLicenseSlug: string | null;
+  /**
    * Who collects its invoices. NOOP: the organization itself, through the handoff queue
    */
   providerKind: "NOOP" | "STRIPE";
+  /**
+   * When trial_will_end is (or was) emitted: trialEndsAt minus the family's trialReminderDays as it was when the trial started; set with trialEndsAt
+   */
+  reminderAt: string | null;
   /**
    * A plan change waiting for the next boundary
    */
@@ -2657,6 +2745,97 @@ export type InstanceStatusChanged = {
   previous_status: "HEALTHY" | "DEGRADED" | "INCIDENT" | "MAINTENANCE";
 };
 
+export type InstanceUpdate = {
+  /**
+   * Timestamp when the instance was created
+   */
+  readonly createdAt: string;
+  /**
+   * User who created this instance
+   */
+  readonly createdBy: User;
+  /**
+   * ID of the customer associated with this instance
+   */
+  customerId: string;
+  /**
+   * Slug of the customer associated with this instance
+   */
+  readonly customerSlug: string;
+  /**
+   * ID of the deployment zone associated with this instance (optional)
+   */
+  deploymentZoneId?: string;
+  /**
+   * Slug of the deployment zone associated with this instance (optional)
+   */
+  readonly deploymentZoneSlug?: string;
+  /**
+   * Brief description of the instance
+   */
+  description: string;
+  /**
+   * End date of the license for this instance
+   */
+  endLicenseDate: string;
+  /**
+   * Unique identifier for the instance
+   */
+  readonly id: string;
+  /**
+   * Integrations grouped by adapter name
+   */
+  integrations?: {
+    [key: string]: InstanceIntegration;
+  };
+  /**
+   * BILLING_FALLBACK: the subscription ended and the instance moved to its family's fallback (V31-66). Null for any other change, the move a paid checkout applies included
+   */
+  licenseChangeReason: "BILLING_FALLBACK";
+  /**
+   * ID of the license version this instance is pinned to. An ARCHIVED version cannot be assigned, on create or by changing the license (CreateInstance.LicenseArchived, UpdateInstance.LicenseArchived); an instance already on a version that is archived later keeps it. A DRAFT version can be assigned, to try it before publishing.
+   */
+  licenseId: string;
+  /**
+   * Slug of the license associated with this instance
+   */
+  readonly licenseSlug: string;
+  /**
+   * Commercial lifecycle stage of the instance (free-form; suggested: TRIAL, ACTIVE, AT_RISK, CHURNED)
+   */
+  readonly lifecycleStage?: string;
+  /**
+   * Metadata for the instance
+   */
+  metadata?: {
+    [key: string]: unknown;
+  };
+  /**
+   * Name of the instance
+   */
+  name: string;
+  /**
+   * Optional URL-friendly identifier, unique per organization. Auto-generated if not provided.
+   */
+  slug?: string;
+  /**
+   * Start date of the license for this instance
+   */
+  startLicenseDate: string;
+  /**
+   * Operational status of the instance
+   */
+  readonly status?: "HEALTHY" | "DEGRADED" | "INCIDENT" | "MAINTENANCE";
+  /**
+   * Timestamp when the instance was last updated
+   */
+  readonly updatedAt: string;
+  /**
+   * User who last updated this instance
+   */
+  readonly updatedBy: User;
+};
+
 export type Invoice = {
   /**
    * The address the invoice is for, as it was when composed. Personal data: it appears in no event
@@ -2887,6 +3066,10 @@ export type InvoiceLine = {
    */
   serviceTo: string;
   /**
+   * On the true-up line of an ADVANCE add-on of a TRUE_UP family: the highest quantity held in the elapsed period and the quantity billed in advance for it (V31-70)
+   */
+  trueUp: InvoiceLineTrueUp | null;
+  /**
    * BASE: the subscription's FLAT_FEE price. ADDON: an add-on's FLAT_FEE price times the quantity held at the boundary. USAGE: a USAGE_BASED price's metered usage. OVERAGE: an OVERAGE price's usage above the licence's limit. DISCOUNT: a PRICE voucher's discount, negative.
    */
   type: "BASE" | "ADDON" | "USAGE" | "OVERAGE" | "DISCOUNT";
@@ -3009,6 +3192,17 @@ export type InvoiceLineProvider = {
    * The provider's id of the line; absent on a DISCOUNT line, which the provider holds as discounts on its targets
    */
   externalLineId?: string;
+};
+
+export type InvoiceLineTrueUp = {
+  /**
+   * The quantity its ADVANCE line billed at the previous boundary; 0 when it started after it
+   */
+  billedQuantity: number;
+  /**
+   * The highest quantity the attachment held in the elapsed period
+   */
+  maxQuantity: number;
 };
 
 export type InvoicePayment = {
@@ -3436,7 +3630,7 @@ export type LicenseFamilyUpdate = {
    */
   trialEndWithoutPaymentMethod?: string;
   /**
-   * How many days before a trial's end trial_will_end fires, from 1 to 30, for the trials started after the change
+   * How many days before a trial's end trial_will_end fires: an integer from 1 to 30 (else 422 .InvalidTrialReminderDays), for the trials started after the change
    */
   trialReminderDays?: number;
 };
@@ -3889,6 +4083,10 @@ export type NewAddon = {
    * Make this a new version of this family
    */
   familySlug?: string;
+  /**
+   * Read only when the call opens a new family: how a mid-period increase of its ADVANCE add-ons is billed, TRUE_UP (the default) or NEXT_BOUNDARY; another value answers 422 .InvalidIncreaseBilling
+   */
+  increaseBilling?: string;
   /**
    * Make this version its family's default; the previous default loses it
    */
@@ -4837,6 +5035,33 @@ export type PortalSession = {
   url: string;
 };
 
+export type PortalTrial = {
+  /**
+   * What the conversion would charge, discounts included, before any tax the provider adds; null when nothing would be
+   */
+  charge: PortalTrialCharge | null;
+  endsAt: string;
+  /**
+   * The ACTIVE card the conversion would be charged to; null without one: ask for a card
+   */
+  paymentMethod: PortalTrialPayment | null;
+  /**
+   * When trial_will_end is, or was, due
+   */
+  reminderAt: string | null;
+};
+
+export type PortalTrialCharge = {
+  amount: number;
+  billingPeriod: "MONTHLY" | "QUARTERLY" | "SEMI_ANNUAL" | "ANNUAL";
+  currency: string;
+};
+
+export type PortalTrialPayment = {
+  brand: string | null;
+  last4: string | null;
+};
+
 export type PortalUpcomingInvoice = {
   /**
    * When it is issued
@@ -5125,6 +5350,18 @@ export type ProviderChange = {
   to: "NOOP" | "STRIPE";
 };
 
+export type ProviderLineLimit = {
+  /**
+   * The provider items the invoice needs
+   */
+  items: number;
+  /**
+   * The most the provider takes on one invoice
+   */
+  limit: number;
+  providerKind: "STRIPE";
+};
+
 export type ProviderRecord = {
   externalCustomerId?: string;
   externalInvoiceId?: string;
@@ -5172,6 +5409,10 @@ export type ProviderSync = {
    */
   lagSeconds?: number;
   lastFullSweepAt?: string;
+  /**
+   * The last pass that ended SUCCESS; absent before the first (V31-11)
+   */
+  lastSuccessfulSyncAt?: string;
   lastSyncError?: string;
   lastSyncStatus?: "SUCCESS" | "PARTIAL" | "FAILED";
   lastSyncedAt?: string;
@@ -5212,11 +5453,19 @@ export type PublicAddOnEntitlement = {
   value: unknown;
 };
 
+export type PublicBranding = {
+  /**
+   * Whether the vendor's plan lets its storefront and portal hide "Powered by Kaiten" (the remove-powered-by entitlement). False while Kaiten's licensing authority cannot answer; always true self-hosted
+   */
+  poweredByRemovable: boolean;
+};
+
 export type PublicCatalog = {
   /**
    * The default version of each public add-on family; empty when include omits addons
    */
   addOns: Array<PublicAddOn>;
+  branding: PublicBranding;
   capabilities: PublicCatalogCapabilities;
   /**
    * The default version of each public licence family, by family slug
@@ -5826,6 +6075,10 @@ export type Reconciliation = {
    */
   missingInProvider: Array<string>;
   totals: TotalsDifference;
+  /**
+   * What the comparison noticed without calling it a mismatch (§12.7, V31-60)
+   */
+  warnings?: Array<string> | null;
 };
 
 export type RedeemableCode = {
@@ -6181,6 +6434,10 @@ export type ScheduledChange = {
    */
   effectiveAt: string;
   /**
+   * The licence version of that price
+   */
+  licenseSlug: string;
+  /**
    * The FLAT_FEE price the subscription moves to
    */
   price: Price;
@@ -6208,6 +6465,10 @@ export type SessionAddon = {
    */
   maxQuantity: number | null;
   name: string;
+  /**
+   * A decrease scheduled for the next renewal, 0 for a removal; null when nothing is scheduled
+   */
+  pendingQuantity: number | null;
   /**
    * What it is billed: the flat fee of the subscription's period and the metered prices. Quantity changes are billed from the next renewal, with no proration.
    */
@@ -6420,6 +6681,7 @@ export type SessionPortal = {
    * The add-ons the instance holds
    */
   addOns: Array<SessionAddon>;
+  branding: PublicBranding;
   capabilities: PortalCapabilities;
   customer: PortalCustomer;
   /**
@@ -6442,6 +6704,10 @@ export type SessionPortal = {
    * The instance's subscription; null when it has none, or the session is bound to no instance
    */
   subscription: SessionSubscription | null;
+  /**
+   * TRIAL only: when the trial ends, when its reminder is due, what the conversion would charge and to which card (V32-09); null otherwise
+   */
+  trial: PortalTrial | null;
   /**
    * What the next boundary will bill, on usage so far; null without a live subscription
    */
@@ -6571,6 +6837,10 @@ export type StartedSubscription = {
    */
   daysUntilDueOverride: number | null;
   id: string;
+  /**
+   * When a checkout waiting for its payment ends unpaid: INCOMPLETE, or a free subscription that carries one
+   */
+  incompleteExpiresAt: string | null;
   instanceName: string;
   /**
    * As it was at the subscription's last write
@@ -6578,9 +6848,17 @@ export type StartedSubscription = {
   instanceSlug: string;
   pastDueSince: string | null;
   /**
+   * The licence version a checkout waiting for its payment moves the instance to once paid
+   */
+  pendingLicenseSlug: string | null;
+  /**
    * Who collects its invoices. NOOP: the organization itself, through the handoff queue
    */
   providerKind: "NOOP" | "STRIPE";
+  /**
+   * When trial_will_end is (or was) emitted: trialEndsAt minus the family's trialReminderDays as it was when the trial started; set with trialEndsAt
+   */
+  reminderAt: string | null;
   /**
    * A plan change waiting for the next boundary
    */
@@ -6841,6 +7119,133 @@ export type TotalsDifference = {
    */
   providerTotalDiscount?: number;
   providerTotalExcludingTax: number;
+};
+
+export type TrialCharge = {
+  amount: number;
+  billingPeriod: "MONTHLY" | "QUARTERLY" | "SEMI_ANNUAL" | "ANNUAL";
+  currency: string;
+};
+
+export type TrialCustomer = {
+  /**
+   * Personal data: the second payload that carries an e-mail (D-56)
+   */
+  billingEmail: string | null;
+  name: string;
+  slug: string;
+};
+
+export type TrialInstance = {
+  name: string;
+  slug: string;
+};
+
+export type TrialPaymentMethod = {
+  brand: string | null;
+  expMonth: number | null;
+  expYear: number | null;
+  last4: string | null;
+};
+
+export type TrialWillEnd = {
+  /**
+   * The instant its periods are counted from
+   */
+  anchorAt: string;
+  /**
+   * The FLAT_FEE price the subscription is pinned to, deprecated or not
+   */
+  basePrice: Price;
+  billingPeriod: "MONTHLY" | "QUARTERLY" | "SEMI_ANNUAL" | "ANNUAL";
+  cancelAtPeriodEnd: boolean;
+  cancelRequestedAt: string | null;
+  canceledAt: string | null;
+  cancellationReason: string | null;
+  /**
+   * What the conversion would charge, as upcoming-invoice previews it, discounts included and before any tax the provider adds; null when nothing would be
+   */
+  charge: TrialCharge | null;
+  /**
+   * Effective: the subscription's own, else the organization's default
+   */
+  collectionMethod: "SEND_INVOICE" | "CHARGE_AUTOMATICALLY";
+  /**
+   * The subscription's own collection method; null when it takes the organization's
+   */
+  collectionMethodOverride: string | null;
+  createdAt: string;
+  currency: string;
+  /**
+   * The next boundary: the period closes, and its invoice is composed, after it
+   */
+  currentPeriodEnd: string;
+  currentPeriodStart: string;
+  customer: TrialCustomer;
+  customerName: string;
+  customerSlug: string;
+  /**
+   * Whole days from the event to trialEndsAt, rounded up; 0 once it passed
+   */
+  daysLeft: number;
+  /**
+   * Effective: the subscription's own, else the organization's default
+   */
+  daysUntilDue: number;
+  /**
+   * The subscription's own payment terms; null when it takes the organization's
+   */
+  daysUntilDueOverride: number | null;
+  /**
+   * Its family
+   */
+  familySlug: string;
+  id: string;
+  /**
+   * When a checkout waiting for its payment ends unpaid: INCOMPLETE, or a free subscription that carries one
+   */
+  incompleteExpiresAt: string | null;
+  instance: TrialInstance;
+  instanceName: string;
+  /**
+   * As it was at the subscription's last write
+   */
+  instanceSlug: string;
+  /**
+   * The licence version of the base price
+   */
+  licenseName: string;
+  pastDueSince: string | null;
+  /**
+   * The ACTIVE card the conversion would be charged to; null without one, or on NOOP
+   */
+  paymentMethod: TrialPaymentMethod | null;
+  /**
+   * The licence version a checkout waiting for its payment moves the instance to once paid
+   */
+  pendingLicenseSlug: string | null;
+  /**
+   * Who collects its invoices. NOOP: the organization itself, through the handoff queue
+   */
+  providerKind: "NOOP" | "STRIPE";
+  /**
+   * When trial_will_end is (or was) emitted: trialEndsAt minus the family's trialReminderDays as it was when the trial started; set with trialEndsAt
+   */
+  reminderAt: string | null;
+  /**
+   * A plan change waiting for the next boundary
+   */
+  scheduledChange: ScheduledChange | null;
+  /**
+   * When billing started: usage before it is never billed
+   */
+  startedAt: string;
+  status: "INCOMPLETE" | "TRIAL" | "ACTIVE" | "PAST_DUE" | "CANCELED";
+  /**
+   * When the trial ends, or ended: usage before it is never billed
+   */
+  trialEndsAt: string | null;
+  updatedAt: string;
 };
 
 export type UncollectibleInvoice = {
@@ -7342,6 +7747,10 @@ export type AddonFamilyWritable = {
    */
   currentVersion?: AddonWritable;
   /**
+   * How a mid-period increase or attachment of the family's ADVANCE add-ons is billed (V31-70)
+   */
+  increaseBilling: "TRUE_UP" | "NEXT_BOUNDARY";
+  /**
    * Whether the family is listed in the public catalogue
    */
   isPublic: boolean;
@@ -7509,6 +7918,10 @@ export type BillingStartedWritable = {
    */
   daysUntilDueOverride: number | null;
   id: string;
+  /**
+   * When a checkout waiting for its payment ends unpaid: INCOMPLETE, or a free subscription that carries one
+   */
+  incompleteExpiresAt: string | null;
   instanceName: string;
   /**
    * As it was at the subscription's last write
@@ -7516,9 +7929,17 @@ export type BillingStartedWritable = {
   instanceSlug: string;
   pastDueSince: string | null;
   /**
+   * The licence version a checkout waiting for its payment moves the instance to once paid
+   */
+  pendingLicenseSlug: string | null;
+  /**
    * Who collects its invoices. NOOP: the organization itself, through the handoff queue
    */
   providerKind: "NOOP" | "STRIPE";
+  /**
+   * When trial_will_end is (or was) emitted: trialEndsAt minus the family's trialReminderDays as it was when the trial started; set with trialEndsAt
+   */
+  reminderAt: string | null;
   /**
    * Set when a CANCELED subscription was subscribed again
    */
@@ -7583,6 +8004,10 @@ export type CanceledSubscriptionWritable = {
    */
   finalInvoice?: InvoiceSummary;
   id: string;
+  /**
+   * When a checkout waiting for its payment ends unpaid: INCOMPLETE, or a free subscription that carries one
+   */
+  incompleteExpiresAt: string | null;
   instanceName: string;
   /**
    * As it was at the subscription's last write
@@ -7590,9 +8015,17 @@ export type CanceledSubscriptionWritable = {
   instanceSlug: string;
   pastDueSince: string | null;
   /**
+   * The licence version a checkout waiting for its payment moves the instance to once paid
+   */
+  pendingLicenseSlug: string | null;
+  /**
    * Who collects its invoices. NOOP: the organization itself, through the handoff queue
    */
   providerKind: "NOOP" | "STRIPE";
+  /**
+   * When trial_will_end is (or was) emitted: trialEndsAt minus the family's trialReminderDays as it was when the trial started; set with trialEndsAt
+   */
+  reminderAt: string | null;
   /**
    * A plan change waiting for the next boundary
    */
@@ -7653,6 +8086,10 @@ export type CancellationWritable = {
    */
   finalInvoiceId: string | null;
   id: string;
+  /**
+   * When a checkout waiting for its payment ends unpaid: INCOMPLETE, or a free subscription that carries one
+   */
+  incompleteExpiresAt: string | null;
   instanceName: string;
   /**
    * As it was at the subscription's last write
@@ -7664,9 +8101,17 @@ export type CancellationWritable = {
   mode: "AT_PERIOD_END" | "IMMEDIATE";
   pastDueSince: string | null;
   /**
+   * The licence version a checkout waiting for its payment moves the instance to once paid
+   */
+  pendingLicenseSlug: string | null;
+  /**
    * Who collects its invoices. NOOP: the organization itself, through the handoff queue
    */
   providerKind: "NOOP" | "STRIPE";
+  /**
+   * When trial_will_end is (or was) emitted: trialEndsAt minus the family's trialReminderDays as it was when the trial started; set with trialEndsAt
+   */
+  reminderAt: string | null;
   /**
    * A plan change waiting for the next boundary
    */
@@ -7727,6 +8172,10 @@ export type CancellationChangeWritable = {
    */
   effectiveAt: string;
   id: string;
+  /**
+   * When a checkout waiting for its payment ends unpaid: INCOMPLETE, or a free subscription that carries one
+   */
+  incompleteExpiresAt: string | null;
   instanceName: string;
   /**
    * As it was at the subscription's last write
@@ -7734,9 +8183,17 @@ export type CancellationChangeWritable = {
   instanceSlug: string;
   pastDueSince: string | null;
   /**
+   * The licence version a checkout waiting for its payment moves the instance to once paid
+   */
+  pendingLicenseSlug: string | null;
+  /**
    * Who collects its invoices. NOOP: the organization itself, through the handoff queue
    */
   providerKind: "NOOP" | "STRIPE";
+  /**
+   * When trial_will_end is (or was) emitted: trialEndsAt minus the family's trialReminderDays as it was when the trial started; set with trialEndsAt
+   */
+  reminderAt: string | null;
   /**
    * A plan change waiting for the next boundary
    */
@@ -8201,6 +8658,10 @@ export type InstanceAddonWritable = {
    */
   name: string;
   /**
+   * A decrease scheduled for the next boundary, 0 for a removal; the current quantity holds until then. Null when nothing is scheduled (V31-67)
+   */
+  pendingQuantity: number | null;
+  /**
    * What the instance's subscription bills for it: the default FLAT_FEE price of the subscription's period and the ACTIVE metered prices. Empty when the instance is not billed.
    */
   prices: Array<PriceWritable>;
@@ -8219,6 +8680,10 @@ export type InstanceAddonUpdateWritable = {
    * The add-on version's name
    */
   name: string;
+  /**
+   * A decrease scheduled for the next boundary, 0 for a removal; the current quantity holds until then. Null when nothing is scheduled (V31-67)
+   */
+  pendingQuantity: number | null;
   /**
    * The quantity before a quantity change
    */
@@ -8271,6 +8736,10 @@ export type InstanceBillingWritable = {
    */
   daysUntilDueOverride: number | null;
   id: string;
+  /**
+   * When a checkout waiting for its payment ends unpaid: INCOMPLETE, or a free subscription that carries one
+   */
+  incompleteExpiresAt: string | null;
   instanceName: string;
   /**
    * As it was at the subscription's last write
@@ -8278,9 +8747,17 @@ export type InstanceBillingWritable = {
   instanceSlug: string;
   pastDueSince: string | null;
   /**
+   * The licence version a checkout waiting for its payment moves the instance to once paid
+   */
+  pendingLicenseSlug: string | null;
+  /**
    * Who collects its invoices. NOOP: the organization itself, through the handoff queue
    */
   providerKind: "NOOP" | "STRIPE";
+  /**
+   * When trial_will_end is (or was) emitted: trialEndsAt minus the family's trialReminderDays as it was when the trial started; set with trialEndsAt
+   */
+  reminderAt: string | null;
   /**
    * A plan change waiting for the next boundary
    */
@@ -8360,6 +8837,57 @@ export type InstanceIntegrationWritable = {
    * Absolute http(s) link to the record in the third-party system
    */
   web_url?: string;
+};
+
+export type InstanceUpdateWritable = {
+  /**
+   * ID of the customer associated with this instance
+   */
+  customerId: string;
+  /**
+   * ID of the deployment zone associated with this instance (optional)
+   */
+  deploymentZoneId?: string;
+  /**
+   * Brief description of the instance
+   */
+  description: string;
+  /**
+   * End date of the license for this instance
+   */
+  endLicenseDate: string;
+  /**
+   * Integrations grouped by adapter name
+   */
+  integrations?: {
+    [key: string]: InstanceIntegrationWritable;
+  };
+  /**
+   * BILLING_FALLBACK: the subscription ended and the instance moved to its family's fallback (V31-66). Null for any other change, the move a paid checkout applies included
+   */
+  licenseChangeReason: "BILLING_FALLBACK";
+  /**
+   * ID of the license version this instance is pinned to. An ARCHIVED version cannot be assigned, on create or by changing the license (CreateInstance.LicenseArchived, UpdateInstance.LicenseArchived); an instance already on a version that is archived later keeps it. A DRAFT version can be assigned, to try it before publishing.
+   */
+  licenseId: string;
+  /**
+   * Metadata for the instance
+   */
+  metadata?: {
+    [key: string]: unknown;
+  };
+  /**
+   * Name of the instance
+   */
+  name: string;
+  /**
+   * Optional URL-friendly identifier, unique per organization. Auto-generated if not provided.
+   */
+  slug?: string;
+  /**
+   * Start date of the license for this instance
+   */
+  startLicenseDate: string;
 };
 
 export type InvoiceWritable = {
@@ -8568,6 +9096,10 @@ export type InvoiceLineWritable = {
    * End of the period the line bills (exclusive)
    */
   serviceTo: string;
+  /**
+   * On the true-up line of an ADVANCE add-on of a TRUE_UP family: the highest quantity held in the elapsed period and the quantity billed in advance for it (V31-70)
+   */
+  trueUp: InvoiceLineTrueUp | null;
   /**
    * BASE: the subscription's FLAT_FEE price. ADDON: an add-on's FLAT_FEE price times the quantity held at the boundary. USAGE: a USAGE_BASED price's metered usage. OVERAGE: an OVERAGE price's usage above the licence's limit. DISCOUNT: a PRICE voucher's discount, negative.
    */
@@ -9591,6 +10123,10 @@ export type ScheduledChangeWritable = {
    */
   effectiveAt: string;
   /**
+   * The licence version of that price
+   */
+  licenseSlug: string;
+  /**
    * The FLAT_FEE price the subscription moves to
    */
   price: PriceWritable;
@@ -9610,6 +10146,7 @@ export type SessionPortalWritable = {
    * The add-ons the instance holds
    */
   addOns: Array<SessionAddon>;
+  branding: PublicBranding;
   capabilities: PortalCapabilities;
   customer: PortalCustomer;
   /**
@@ -9632,6 +10169,10 @@ export type SessionPortalWritable = {
    * The instance's subscription; null when it has none, or the session is bound to no instance
    */
   subscription: SessionSubscription | null;
+  /**
+   * TRIAL only: when the trial ends, when its reminder is due, what the conversion would charge and to which card (V32-09); null otherwise
+   */
+  trial: PortalTrial | null;
   /**
    * What the next boundary will bill, on usage so far; null without a live subscription
    */
@@ -9690,6 +10231,10 @@ export type StartedSubscriptionWritable = {
    */
   daysUntilDueOverride: number | null;
   id: string;
+  /**
+   * When a checkout waiting for its payment ends unpaid: INCOMPLETE, or a free subscription that carries one
+   */
+  incompleteExpiresAt: string | null;
   instanceName: string;
   /**
    * As it was at the subscription's last write
@@ -9697,9 +10242,17 @@ export type StartedSubscriptionWritable = {
   instanceSlug: string;
   pastDueSince: string | null;
   /**
+   * The licence version a checkout waiting for its payment moves the instance to once paid
+   */
+  pendingLicenseSlug: string | null;
+  /**
    * Who collects its invoices. NOOP: the organization itself, through the handoff queue
    */
   providerKind: "NOOP" | "STRIPE";
+  /**
+   * When trial_will_end is (or was) emitted: trialEndsAt minus the family's trialReminderDays as it was when the trial started; set with trialEndsAt
+   */
+  reminderAt: string | null;
   /**
    * A plan change waiting for the next boundary
    */
@@ -9724,6 +10277,106 @@ export type TokenWritable = {
    * Optional URL-friendly identifier, unique per service account. Auto-generated if not provided.
    */
   slug?: string;
+};
+
+export type TrialWillEndWritable = {
+  /**
+   * The instant its periods are counted from
+   */
+  anchorAt: string;
+  /**
+   * The FLAT_FEE price the subscription is pinned to, deprecated or not
+   */
+  basePrice: PriceWritable;
+  billingPeriod: "MONTHLY" | "QUARTERLY" | "SEMI_ANNUAL" | "ANNUAL";
+  cancelAtPeriodEnd: boolean;
+  cancelRequestedAt: string | null;
+  canceledAt: string | null;
+  cancellationReason: string | null;
+  /**
+   * What the conversion would charge, as upcoming-invoice previews it, discounts included and before any tax the provider adds; null when nothing would be
+   */
+  charge: TrialCharge | null;
+  /**
+   * Effective: the subscription's own, else the organization's default
+   */
+  collectionMethod: "SEND_INVOICE" | "CHARGE_AUTOMATICALLY";
+  /**
+   * The subscription's own collection method; null when it takes the organization's
+   */
+  collectionMethodOverride: string | null;
+  createdAt: string;
+  currency: string;
+  /**
+   * The next boundary: the period closes, and its invoice is composed, after it
+   */
+  currentPeriodEnd: string;
+  currentPeriodStart: string;
+  customer: TrialCustomer;
+  customerName: string;
+  customerSlug: string;
+  /**
+   * Whole days from the event to trialEndsAt, rounded up; 0 once it passed
+   */
+  daysLeft: number;
+  /**
+   * Effective: the subscription's own, else the organization's default
+   */
+  daysUntilDue: number;
+  /**
+   * The subscription's own payment terms; null when it takes the organization's
+   */
+  daysUntilDueOverride: number | null;
+  /**
+   * Its family
+   */
+  familySlug: string;
+  id: string;
+  /**
+   * When a checkout waiting for its payment ends unpaid: INCOMPLETE, or a free subscription that carries one
+   */
+  incompleteExpiresAt: string | null;
+  instance: TrialInstance;
+  instanceName: string;
+  /**
+   * As it was at the subscription's last write
+   */
+  instanceSlug: string;
+  /**
+   * The licence version of the base price
+   */
+  licenseName: string;
+  pastDueSince: string | null;
+  /**
+   * The ACTIVE card the conversion would be charged to; null without one, or on NOOP
+   */
+  paymentMethod: TrialPaymentMethod | null;
+  /**
+   * The licence version a checkout waiting for its payment moves the instance to once paid
+   */
+  pendingLicenseSlug: string | null;
+  /**
+   * Who collects its invoices. NOOP: the organization itself, through the handoff queue
+   */
+  providerKind: "NOOP" | "STRIPE";
+  /**
+   * When trial_will_end is (or was) emitted: trialEndsAt minus the family's trialReminderDays as it was when the trial started; set with trialEndsAt
+   */
+  reminderAt: string | null;
+  /**
+   * A plan change waiting for the next boundary
+   */
+  scheduledChange: ScheduledChangeWritable | null;
+  /**
+   * When billing started: usage before it is never billed
+   */
+  startedAt: string;
+  status: "INCOMPLETE" | "TRIAL" | "ACTIVE" | "PAST_DUE" | "CANCELED";
+  /**
+   * When the trial ends, or ended: usage before it is never billed
+   */
+  trialEndsAt: string | null;
+  updatedAt: string;
 };
 
 export type ValidityWritable = {
@@ -23015,7 +23668,7 @@ export type OnInstanceBillingStatusChangedWebhookRequest = {
 };
 
 export type OnInstanceBillingTrialWillEndWebhookPayload = {
-  data: InstanceBillingWritable;
+  data: TrialWillEndWritable;
   headers?: EventHeaders;
   /**
    * Event name
@@ -23575,7 +24228,7 @@ export type OnInstanceStatusChangedWebhookRequest = {
 };
 
 export type OnInstanceUpdatedWebhookPayload = {
-  data: InstanceWritable;
+  data: InstanceUpdateWritable;
   headers?: EventHeaders;
   /**
    * Event name

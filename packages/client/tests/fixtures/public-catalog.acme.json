@@ -480,5 +480,8 @@
     "checkout": true,
     "paymentMethods": true,
     "turnstileSiteKey": null
+  },
+  "branding": {
+    "poweredByRemovable": false
   }
 }

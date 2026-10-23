@@ -145,7 +145,7 @@ const ISSUED = {
   },
 } satisfies OnInstanceInvoiceIssuedWebhookPayload;
 
-/** What the API publishes three days before a trial ends: the instance's billing, still in TRIAL. */
+/** What the API publishes at a trial's reminder: the instance's billing, still in TRIAL, and what a reminder e-mail needs. */
 const TRIAL_WILL_END = {
   name: "INSTANCE_BILLING_TRIAL_WILL_END",
   type: "com.kaiten.instance.billing.v1.trial_will_end",
@@ -170,21 +170,31 @@ const TRIAL_WILL_END = {
     cancelRequestedAt: null,
     canceledAt: null,
     cancellationReason: null,
+    charge: { amount: 2900, billingPeriod: "MONTHLY", currency: "USD" },
     collectionMethod: "CHARGE_AUTOMATICALLY",
     collectionMethodOverride: null,
     createdAt: "2026-10-01T00:00:00Z",
     currency: "USD",
     currentPeriodEnd: "2026-10-15T00:00:00Z",
     currentPeriodStart: "2026-10-01T00:00:00Z",
+    customer: { billingEmail: "ap@initech.test", name: "Initech", slug: "initech" },
     customerName: "Initech",
     customerSlug: "initech",
+    daysLeft: 3,
     daysUntilDue: 0,
     daysUntilDueOverride: null,
+    familySlug: "pro",
     id: "3c9e2f41-6a7b-4d8c-9e0f-1a2b3c4d5e6f",
+    incompleteExpiresAt: null,
+    instance: { name: "Initech production", slug: "initech-prod" },
     instanceName: "Initech production",
     instanceSlug: "initech-prod",
+    licenseName: "Pro",
     pastDueSince: null,
+    paymentMethod: { brand: "visa", expMonth: 12, expYear: 2030, last4: "4242" },
+    pendingLicenseSlug: null,
     providerKind: "STRIPE",
+    reminderAt: "2026-10-12T00:00:00Z",
     scheduledChange: null,
     startedAt: "2026-10-01T00:00:00Z",
     status: "TRIAL",
@@ -281,7 +291,7 @@ describe("a relayed billing event", () => {
     }
   });
 
-  test("tells a subscription its trial is about to end, with the billing it concerns", async () => {
+  test("tells a subscription its trial is about to end, with what a reminder e-mail needs", async () => {
     const event = await verify(await delivered(JSON.stringify(TRIAL_WILL_END)));
 
     if (!isKaitenWebhookOfType(event, "com.kaiten.instance.billing.v1.trial_will_end")) {
@@ -291,7 +301,16 @@ describe("a relayed billing event", () => {
     expect(event.data.status).toBe("TRIAL");
     expect(event.data.trialEndsAt).toBe("2026-10-15T00:00:00Z");
     expect(event.data.instanceSlug).toBe("initech-prod");
+    expect(event.data.customer.billingEmail).toBe("ap@initech.test");
+    expect(event.data.daysLeft).toBe(3);
+    expect(event.data.charge).toEqual({ amount: 2900, billingPeriod: "MONTHLY", currency: "USD" });
+    expect(event.data.paymentMethod?.last4).toBe("4242");
     expectTypeOf(event.data.trialEndsAt).toEqualTypeOf<string | null>();
+    expectTypeOf(event.data.charge).toEqualTypeOf<{
+      amount: number;
+      billingPeriod: "MONTHLY" | "QUARTERLY" | "SEMI_ANNUAL" | "ANNUAL";
+      currency: string;
+    } | null>();
   });
 
   test("carries the acknowledgement of a handoff as its own type", async () => {

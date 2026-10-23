@@ -485,6 +485,7 @@ describe("a catalogue as the contract types it", () => {
       anonymousCheckout: false,
       turnstileSiteKey: null,
     },
+    branding: { poweredByRemovable: false },
   } satisfies KaitenApi.PublicCatalog;
 
   const read = async () => {

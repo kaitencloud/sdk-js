@@ -749,7 +749,7 @@ export class Addons {
   /**
    * Update an add-on family
    *
-   * Lists the family in the public catalogue, or takes it out. Families are private until made public. Emits ADDON_UPDATED on each of its versions. Requires billing to be enabled for the organization.
+   * Changes a family's own settings: whether the public catalogue lists it (families are private until made public), and how a mid-period increase of its ADVANCE add-ons is billed. An absent member keeps the stored value. Emits ADDON_UPDATED on each of its versions. Requires billing to be enabled for the organization. 404 .NotFound; 422 .InvalidIncreaseBilling.
    */
   public static updateAddonFamily<ThrowOnError extends boolean = false>(
     options: Options<UpdateAddonFamilyData, ThrowOnError>,

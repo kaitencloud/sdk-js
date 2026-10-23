@@ -183,17 +183,18 @@ export interface TrialCharge {
 export interface PortalTrial {
   /** When the trial ends: the subscription converts, or ends, then. */
   endsAt: string;
-  /** When Kaiten told the vendor the trial was about to end. */
-  reminderAt: string;
+  /** When Kaiten tells the vendor the trial is about to end. Null when no reminder is due. */
+  reminderAt: string | null;
   /**
    * What the end of the trial charges, discounts included, before any tax the payment provider
-   * adds. Null when the API says nothing would be charged. Absent when the API says nothing about
-   * the charge at all: a screen then says nothing about it either, since "nothing is charged" would
-   * be a claim the server did not make. Always the server's figure.
+   * adds. Null when nothing would be charged. Always the server's figure.
    */
-  charge?: TrialCharge | null;
-  /** The card the charge goes to: its brand and last four digits. Null without a usable card. */
-  paymentMethod: { brand: string; last4: string } | null;
+  charge: TrialCharge | null;
+  /**
+   * The card the charge goes to: its brand and last four digits, either of which the provider may
+   * not give. Null without a usable card.
+   */
+  paymentMethod: { brand: string | null; last4: string | null } | null;
 }
 
 /** An amount due, as the server computed it: the SDK never sums prices. */

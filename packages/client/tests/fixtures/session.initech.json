@@ -33,7 +33,8 @@
         "displayOrder": 1,
         "isDefault": false
       }
-    ]
+    ],
+    "pendingQuantity": null
   },
   "addonDetached": {
     "addonSlug": "gpu-pack-v1",
@@ -41,7 +42,8 @@
     "name": "GPU pack",
     "quantity": 0,
     "maxQuantity": null,
-    "prices": []
+    "prices": [],
+    "pendingQuantity": null
   },
   "cancel": {
     "status": "ACTIVE",
@@ -825,7 +827,8 @@
             "displayOrder": 1,
             "isDefault": false
           }
-        ]
+        ],
+        "pendingQuantity": null
       },
       {
         "addonSlug": "gpu-pack-v1",
@@ -833,7 +836,8 @@
         "name": "GPU pack",
         "quantity": 1,
         "maxQuantity": null,
-        "prices": []
+        "prices": [],
+        "pendingQuantity": null
       }
     ],
     "vouchers": [
@@ -872,7 +876,11 @@
       "unsubscribe": true,
       "checkout": false
     },
-    "updatedAt": "2026-10-10T10:00:00Z"
+    "updatedAt": "2026-10-10T10:00:00Z",
+    "trial": null,
+    "branding": {
+      "poweredByRemovable": false
+    }
   },
   "portalCanceling": {
     "customer": {
@@ -1173,7 +1181,8 @@
             "displayOrder": 1,
             "isDefault": false
           }
-        ]
+        ],
+        "pendingQuantity": null
       },
       {
         "addonSlug": "gpu-pack-v1",
@@ -1181,7 +1190,8 @@
         "name": "GPU pack",
         "quantity": 1,
         "maxQuantity": null,
-        "prices": []
+        "prices": [],
+        "pendingQuantity": null
       }
     ],
     "vouchers": [
@@ -1220,7 +1230,11 @@
       "unsubscribe": false,
       "checkout": false
     },
-    "updatedAt": "2026-10-10T10:00:00Z"
+    "updatedAt": "2026-10-10T10:00:00Z",
+    "trial": null,
+    "branding": {
+      "poweredByRemovable": false
+    }
   },
   "portalCustomerWide": {
     "customer": {
@@ -1261,7 +1275,11 @@
       "unsubscribe": false,
       "checkout": false
     },
-    "updatedAt": "2026-10-10T10:00:00Z"
+    "updatedAt": "2026-10-10T10:00:00Z",
+    "trial": null,
+    "branding": {
+      "poweredByRemovable": false
+    }
   },
   "portalNeverSubscribed": {
     "customer": {
@@ -1319,7 +1337,11 @@
       "unsubscribe": false,
       "checkout": true
     },
-    "updatedAt": "2026-10-10T10:00:00Z"
+    "updatedAt": "2026-10-10T10:00:00Z",
+    "trial": null,
+    "branding": {
+      "poweredByRemovable": false
+    }
   },
   "portalPastDue": {
     "customer": {
@@ -1620,7 +1642,8 @@
             "displayOrder": 1,
             "isDefault": false
           }
-        ]
+        ],
+        "pendingQuantity": null
       },
       {
         "addonSlug": "gpu-pack-v1",
@@ -1628,7 +1651,8 @@
         "name": "GPU pack",
         "quantity": 1,
         "maxQuantity": null,
-        "prices": []
+        "prices": [],
+        "pendingQuantity": null
       }
     ],
     "vouchers": [
@@ -1661,7 +1685,11 @@
       "unsubscribe": true,
       "checkout": false
     },
-    "updatedAt": "2026-10-10T10:00:00Z"
+    "updatedAt": "2026-10-10T10:00:00Z",
+    "trial": null,
+    "branding": {
+      "poweredByRemovable": false
+    }
   },
   "portalScheduledChange": {
     "customer": {
@@ -1976,7 +2004,8 @@
             "displayOrder": 1,
             "isDefault": false
           }
-        ]
+        ],
+        "pendingQuantity": null
       },
       {
         "addonSlug": "gpu-pack-v1",
@@ -1984,7 +2013,8 @@
         "name": "GPU pack",
         "quantity": 1,
         "maxQuantity": null,
-        "prices": []
+        "prices": [],
+        "pendingQuantity": null
       }
     ],
     "vouchers": [
@@ -2023,7 +2053,11 @@
       "unsubscribe": true,
       "checkout": false
     },
-    "updatedAt": "2026-10-10T10:00:00Z"
+    "updatedAt": "2026-10-10T10:00:00Z",
+    "trial": null,
+    "branding": {
+      "poweredByRemovable": false
+    }
   },
   "portalSession": {
     "url": "https://billing.stripe.test/p/session_1"

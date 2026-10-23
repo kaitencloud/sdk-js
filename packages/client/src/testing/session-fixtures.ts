@@ -116,6 +116,7 @@ export function demoPortal(overrides: Partial<KaitenPortal> = {}): KaitenPortal 
       boundaryAt: PERIOD_END,
     },
     capabilities: { paymentMethods: true, invoices: true, unsubscribe: true, checkout: false },
+    trial: null,
     updatedAt: DEMO_SESSION_NOW,
     ...overrides,
   };

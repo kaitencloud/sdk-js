@@ -29,17 +29,21 @@ export type PortalName =
 export type ErrorName = keyof typeof answers.errors;
 
 /**
- * The portal of an instance in its trial, with the trial block the specification gives it and the
- * contract does not carry yet. Kaiten's recorded portal is the base: only the subscription's status
- * and the block change. Pass `trial` for another figure, `null` for a trial that charges nothing
- * (`charge`) or has a card already (`paymentMethod`).
+ * The portal of an instance in its trial, with the trial block as the contract writes it
+ * (`PortalTrial`). Kaiten's recorded portal is the base: only the subscription's status and the
+ * block change. Pass `trial` for another figure, `null` for a trial that charges nothing (`charge`)
+ * or has no card yet (`paymentMethod`).
  */
 export function trialPortal(
   trial: Partial<{
     endsAt: string;
-    reminderAt: string;
-    charge: { amount: number; currency: string; billingPeriod: string } | null;
-    paymentMethod: { brand: string; last4: string } | null;
+    reminderAt: string | null;
+    charge: {
+      amount: number;
+      currency: string;
+      billingPeriod: "MONTHLY" | "QUARTERLY" | "SEMI_ANNUAL" | "ANNUAL";
+    } | null;
+    paymentMethod: { brand: string | null; last4: string | null } | null;
   }> = {},
   change: (portal: Record<string, any>) => void = () => {},
 ): Record<string, any> {
@@ -50,7 +54,7 @@ export function trialPortal(
   portal.paymentMethod = null;
   portal.trial = {
     endsAt,
-    reminderAt: trial.reminderAt ?? "2026-10-27T09:00:00Z",
+    reminderAt: trial.reminderAt === undefined ? "2026-10-27T09:00:00Z" : trial.reminderAt,
     charge:
       trial.charge === undefined
         ? { amount: 4900, currency: "EUR", billingPeriod: "MONTHLY" }

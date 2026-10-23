@@ -34,6 +34,10 @@ One exception is recorded: when the contract added `capabilities.anonymousChecko
 by hand, with the values the route gives a key that has not turned the feature on, rather than by a
 new run of Kaiten's code. The next regeneration replaces them with its own.
 
+A second exception, of the same kind: when the contract added the required `branding` member
+(`poweredByRemovable`), the value is `false` here, the answer for a vendor whose plan does not let it hide
+"Powered by Kaiten". It was added by hand, and the next regeneration replaces it.
+
 The scenario, with the ids the tests name (`00000000-0000-4000-8000-` followed
 by twelve hex digits):
 
@@ -71,6 +75,11 @@ renders a problem. All of it is marshalled with the same JSON encoder. No route
 ran, since each needs a database. It was produced from Kaiten's billing contract
 at the commit this repository's `contracts/openapi.yaml` snapshot comes from, and
 every answer is checked against its response schema in that file.
+
+The members the contract added after that run are in by hand, with the value of an instance that has
+none of the feature: `trial: null` and `branding.poweredByRemovable: false` on every portal, and
+`pendingQuantity: null` on every add-on. The next regeneration replaces them with its own. A portal in
+its trial is not recorded: the tests build one from `portal` and the trial block the contract names.
 
 To regenerate it after the contract moves, from a checkout of Kaiten at the new
 commit, run a throwaway test in the package of the portal route that assembles

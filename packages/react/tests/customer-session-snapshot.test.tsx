@@ -105,8 +105,8 @@ afterEach(() => {
 
 test("carries the trial of the bound instance when the portal has one, and says nothing when it does not", async () => {
   const { snapshot, portal } = await snapshotOf("portal");
-  expect(portal).not.toHaveProperty("trial");
-  expect(snapshot.data).not.toHaveProperty("trial");
+  expect(portal.data?.trial).toBeNull();
+  expect(snapshot.data?.trial).toBeNull();
 
   const trialing = renderHook(() => useLicensingSnapshot(), {
     wrapper: wrapperFor(createMockKaitenSessionClient({ portal: demoTrialPortal() })),

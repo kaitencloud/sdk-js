@@ -10,6 +10,12 @@ type Addon {
   familySlug: String!
   id: UUID!
 
+  """
+  The family's TRUE_UP or NEXT_BOUNDARY: how a mid-period increase of its
+  ADVANCE add-ons is billed.
+  """
+  increaseBilling: String!
+
   """The version the family resolves to. Only a PUBLISHED version."""
   isDefault: Boolean!
 
@@ -460,6 +466,12 @@ type InstanceAddon {
   """The most one instance may hold; null when unbounded."""
   maxQuantity: Int
   name: String!
+
+  """
+  A decrease scheduled for the next boundary, 0 for a removal; null when
+  nothing is scheduled.
+  """
+  pendingQuantity: Int
   quantity: Int!
 }
 

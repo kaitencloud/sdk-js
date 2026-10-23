@@ -791,6 +791,12 @@ describe("the next boundary", () => {
       trialEndsAt,
       currentPeriodEnd: trialEndsAt,
     });
+    // And it carries the trial block, with the figure the conversion's invoice will total.
+    expect((await session.getPortal()).trial).toMatchObject({
+      endsAt: trialEndsAt,
+      charge: { amount: 9900, currencyCode: "EUR", billingInterval: "month" },
+      paymentMethod: { brand: "visa", last4: "4242" },
+    });
 
     const ended = double.endTrial(ORIGIN);
     expect(ended).toMatchObject({ ok: true, applied: "trial_converted" });

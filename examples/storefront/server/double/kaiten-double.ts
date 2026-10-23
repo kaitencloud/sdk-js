@@ -906,6 +906,7 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
               : null,
           }
         : null;
+      portal.trial = subscription?.status === "TRIAL" ? trialBlock(subscription) : null;
       portal.addOns = structuredClone(addOns);
       portal.entitlements = planEntitlements(planSlug, portal.entitlements);
       portal.upcomingInvoice = null;
@@ -1569,6 +1570,7 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
             name: addon.name,
             quantity: wanted.quantity,
             maxQuantity: addon.maxQuantity ?? null,
+            pendingQuantity: null,
             prices: structuredClone(addon.prices),
           };
         }),
@@ -1693,6 +1695,7 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
           name: addon.name,
           quantity,
           maxQuantity: addon.maxQuantity ?? null,
+          pendingQuantity: null,
           prices: structuredClone(addon.prices),
         });
       }
@@ -1711,6 +1714,7 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
       name: addon.name,
       quantity,
       maxQuantity: addon.maxQuantity ?? null,
+      pendingQuantity: null,
       prices: structuredClone(addon.prices),
     });
   }
@@ -2249,9 +2253,13 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
       currentPeriodStart: sub.currentPeriodStart,
       currentPeriodEnd: sub.currentPeriodEnd,
       trialEndsAt: sub.trialEndsAt,
+      reminderAt: null,
+      pendingLicenseSlug: null,
+      incompleteExpiresAt: null,
       scheduledChange: scheduled
         ? {
             price: vendorPrice(scheduled.price),
+            licenseSlug: scheduled.plan.licenseSlug,
             scheduledAt: scheduled.scheduledAt,
             effectiveAt: sub.currentPeriodEnd,
           }
@@ -2379,6 +2387,37 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
   // ---- The next boundary -------------------------------------------------------
 
   /** What a period of the subscription bills in advance: the base fee and the add-ons it holds. */
+  /** The days before a trial's end that its reminder is due, the family's default (`trialReminderDays`). */
+  const REMINDER_DAYS = 3;
+
+  /**
+   * The portal's trial block of a subscription in its trial: when it ends, when the reminder is
+   * due, what the conversion would charge and the card it goes to. The charge is what the
+   * conversion's invoice would total, so that it never disagrees with it.
+   */
+  function trialBlock(sub: Json): Json {
+    const ends = new Date(sub.trialEndsAt);
+    const due = advanceLines(
+      sub.basePrice,
+      sub.currency,
+      ends,
+      addMonths(ends, MONTHS[sub.basePrice.billingPeriod] ?? 1),
+    );
+    const reminder = Math.max(
+      ends.getTime() - REMINDER_DAYS * 86_400_000,
+      Date.parse(subscriptionMeta.anchorAt),
+    );
+    return {
+      endsAt: sub.trialEndsAt,
+      reminderAt: iso(reminder),
+      charge:
+        due.total > 0
+          ? { amount: due.total, currency: sub.currency, billingPeriod: sub.billingPeriod }
+          : null,
+      paymentMethod: card ? { brand: card.brand, last4: card.last4 } : null,
+    };
+  }
+
   function advanceLines(price: Json, currency: string, from: Date, to: Date): Json {
     const span = { serviceFrom: iso(from.getTime()), serviceTo: iso(to.getTime()) };
     const lines: Json[] = [];

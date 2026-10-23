@@ -12,8 +12,8 @@ import { TrialBanner } from "./trial-banner.tsx";
 
 /**
  * Every story carries its own provider, built once for it, on the real session client and the
- * portal Kaiten recorded for Initech, put in its trial with the block the specification gives
- * (`trialPortal`): the contract does not carry it yet, and the client maps it. The clock is fixed
+ * portal Kaiten recorded for Initech, put in its trial with the block the contract gives
+ * (`trialPortal`), which the client maps. The clock is fixed
  * (`now`), so that the countdown and the baselines do not move with the day. The page that adds a
  * card is the provider's: a story never leaves for it, and `navigate` says where it would have gone.
  */

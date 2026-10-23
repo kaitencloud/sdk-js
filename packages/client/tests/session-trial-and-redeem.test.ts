@@ -3,8 +3,7 @@
 
 import { describe, expect, test } from "vite-plus/test";
 
-import { KaitenError, RateLimitedError } from "../src/index.ts";
-import type { WireTrial } from "../src/client/session-spec-shapes.ts";
+import { KaitenError, RateLimitedError, type KaitenApi } from "../src/index.ts";
 import {
   createMockKaitenSessionClient,
   demoPortal,
@@ -13,14 +12,15 @@ import {
 import { answer } from "./support/session-answers.ts";
 import { json, open, sent, useSessionClock } from "./support/session-harness.ts";
 
-// The trial block of the portal and the redemption of a code, on the shapes the specification
-// gives (`src/client/session-spec-shapes.ts`): the contract snapshot does not carry them yet, so
-// these answers are doubles, built here from the portal Kaiten serves.
+// The trial block of the portal, on the shapes of the contract, and the redemption of a code, on the
+// shapes the specification gives (`src/client/session-spec-shapes.ts`): the contract snapshot does
+// not carry the redemption route yet, so its answers are doubles, built here from the portal Kaiten
+// serves.
 useSessionClock();
 
-/** The portal of the contract, in a trial, with the block the specification adds. */
-function trialPortal(trial: WireTrial | null | undefined) {
-  const portal = answer("portal");
+/** The portal of the contract, in a trial, with the given trial block; none leaves the member out. */
+function trialPortal(trial: KaitenApi.PortalTrial | null | undefined) {
+  const { trial: _, ...portal } = answer("portal");
   return {
     ...portal,
     subscription: { ...portal.subscription!, status: "TRIAL" as const },
@@ -28,7 +28,7 @@ function trialPortal(trial: WireTrial | null | undefined) {
   };
 }
 
-const BLOCK: WireTrial = {
+const BLOCK: KaitenApi.PortalTrial = {
   endsAt: "2026-10-30T09:00:00Z",
   reminderAt: "2026-10-27T09:00:00Z",
   charge: { amount: 4900, currency: "EUR", billingPeriod: "MONTHLY" },
@@ -38,7 +38,7 @@ const BLOCK: WireTrial = {
 const read = async (body: unknown) => open(() => json(body)).client.getPortal();
 
 describe("the trial block of the portal", () => {
-  test("is read as the specification writes it: the charge, its period and the card", async () => {
+  test("is read as the contract writes it: the charge, its period and the card", async () => {
     const portal = await read(trialPortal(BLOCK));
 
     expect(portal.trial).toEqual({
@@ -49,33 +49,34 @@ describe("the trial block of the portal", () => {
     });
   });
 
-  test("keeps a quarter as months and a count", async () => {
+  test.each([
+    ["QUARTERLY", "month", 3],
+    ["SEMI_ANNUAL", "month", 6],
+    ["ANNUAL", "year", undefined],
+  ] as const)("keeps %s as its interval and a count", async (billingPeriod, interval, count) => {
     const portal = await read(
-      trialPortal({
-        ...BLOCK,
-        charge: { amount: 12000, currency: "EUR", billingPeriod: "QUARTERLY" },
-      }),
+      trialPortal({ ...BLOCK, charge: { amount: 12000, currency: "EUR", billingPeriod } }),
     );
 
     expect(portal.trial?.charge).toEqual({
       amount: 12000,
       currencyCode: "EUR",
-      billingInterval: "month",
-      intervalCount: 3,
+      billingInterval: interval,
+      ...(count ? { intervalCount: count } : {}),
     });
   });
 
-  test("takes the other name the same release gives the charge, with the subscription's period", async () => {
-    const { charge, ...rest } = BLOCK;
+  test("takes the period of the charge, not the subscription's", async () => {
     const portal = await read(
-      trialPortal({ ...rest, chargeAmount: { amount: charge!.amount, currency: "EUR" } }),
+      trialPortal({
+        ...BLOCK,
+        charge: { amount: 49000, currency: "EUR", billingPeriod: "ANNUAL" },
+      }),
     );
 
-    expect(portal.trial?.charge).toEqual({
-      amount: 4900,
-      currencyCode: "EUR",
-      billingInterval: "month",
-    });
+    // The portal's own subscription is monthly.
+    expect(portal.subscription?.billingInterval).toBe("month");
+    expect(portal.trial?.charge?.billingInterval).toBe("year");
   });
 
   test("has no charge and no card when the API says there are none", async () => {
@@ -84,20 +85,20 @@ describe("the trial block of the portal", () => {
     expect(portal.trial).toMatchObject({ charge: null, paymentMethod: null });
   });
 
-  test("says nothing of the charge when the API names it under neither spelling: not that nothing is charged", async () => {
-    const { charge: _, ...unnamed } = BLOCK;
-    const portal = await read(trialPortal(unnamed));
+  test("has no reminder when none is due, and a card the provider gave no labels for", async () => {
+    const portal = await read(
+      trialPortal({ ...BLOCK, reminderAt: null, paymentMethod: { brand: null, last4: null } }),
+    );
 
-    expect(portal.trial).not.toHaveProperty("charge");
-    expect(portal.trial?.paymentMethod).toEqual({ brand: "visa", last4: "4242" });
-    // An explicit null under the other spelling is still the API saying nothing is charged.
-    const none = await read(trialPortal({ ...unnamed, chargeAmount: null }));
-    expect(none.trial?.charge).toBeNull();
+    expect(portal.trial).toMatchObject({
+      reminderAt: null,
+      paymentMethod: { brand: null, last4: null },
+    });
   });
 
-  test("is null outside a trial, and absent from a server that does not serve it", async () => {
+  test("is null outside a trial, and absent from a server that predates it", async () => {
     expect((await read(trialPortal(null))).trial).toBeNull();
-    expect(await read(answer("portal"))).not.toHaveProperty("trial");
+    expect(await read(trialPortal(undefined))).not.toHaveProperty("trial");
   });
 });
 

@@ -17,7 +17,7 @@ import {
   mapBillingPrice,
 } from "./billing.ts";
 import { entitlementStatus } from "./normalize.ts";
-import type { WireRedemption, WireSessionPortal, WireTrial } from "./session-spec-shapes.ts";
+import type { WireRedemption, WireSessionPortal } from "./session-spec-shapes.ts";
 import type {
   CheckoutPreview,
   CheckoutResult,
@@ -224,32 +224,23 @@ export function mapRedemption(raw: WireRedemption): PortalVoucher {
   };
 }
 
-/**
- * The portal's trial block. The charge is the server's figure, passed as it comes; its period is
- * its own, or the subscription's when the API gives the amount alone.
- */
-function mapTrial(raw: WireTrial, subscriptionPeriod: string | undefined): PortalTrial {
-  // Two names for one member, and neither may be there: a server that names neither says nothing
-  // about the charge, which is not the same as saying that nothing is charged (`null`).
-  const named = raw.charge !== undefined ? raw.charge : raw.chargeAmount;
-  const period = billingInterval(named?.billingPeriod ?? subscriptionPeriod);
+/** The portal's trial block. The charge is the server's figure, passed as it comes. */
+function mapTrial(raw: Api.PortalTrial): PortalTrial {
+  const charge = raw.charge;
+  const period = charge ? billingInterval(charge.billingPeriod) : null;
   const card = raw.paymentMethod;
   return {
     endsAt: raw.endsAt,
-    reminderAt: raw.reminderAt,
-    ...(named === undefined
-      ? {}
-      : {
-          charge: named
-            ? {
-                amount: named.amount,
-                currencyCode: named.currency,
-                ...(period ? { billingInterval: period.interval } : {}),
-                ...(period?.intervalCount ? { intervalCount: period.intervalCount } : {}),
-              }
-            : null,
-        }),
-    paymentMethod: card ? { brand: card.brand, last4: card.last4 } : null,
+    reminderAt: raw.reminderAt ?? null,
+    charge: charge
+      ? {
+          amount: charge.amount,
+          currencyCode: charge.currency,
+          ...(period ? { billingInterval: period.interval } : {}),
+          ...(period?.intervalCount ? { intervalCount: period.intervalCount } : {}),
+        }
+      : null,
+    paymentMethod: card ? { brand: card.brand ?? null, last4: card.last4 ?? null } : null,
   };
 }
 
@@ -296,12 +287,9 @@ export function mapPortal(raw: WireSessionPortal): KaitenPortal {
       unsubscribe: capabilities?.unsubscribe === true,
       checkout: capabilities?.checkout === true,
     },
-    // Only a server that serves the block has the member; a TRIAL subscription with none shows no banner.
-    ...(raw.trial !== undefined
-      ? {
-          trial: raw.trial ? mapTrial(raw.trial, raw.subscription?.billingPeriod) : null,
-        }
-      : {}),
+    // A server older than the contract leaves the member out: it stays absent, and a TRIAL
+    // subscription with none shows no banner.
+    ...(raw.trial !== undefined ? { trial: raw.trial ? mapTrial(raw.trial) : null } : {}),
     updatedAt: raw.updatedAt,
   };
 }

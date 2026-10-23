@@ -4,8 +4,8 @@
 // @vitest-environment jsdom
 //
 // The trial banner of a customer session, on the real session client and the portal Kaiten recorded
-// for Initech, put in its trial with the block the specification gives (`trialPortal`; the
-// contract does not carry it yet, and the client maps it). What is held: the countdown to the end,
+// for Initech, put in its trial with the block the contract gives (`trialPortal`; the client maps
+// it). What is held: the countdown to the end,
 // the server's figure for what the end charges and the card it goes to, "Add a card" through the
 // provider's page and back, "Cancel" with the question first, and nothing at all outside a trial.
 
@@ -80,22 +80,6 @@ describe("what it says", () => {
     );
   });
 
-  test("says nothing of the charge when the server names none: that is not a promise that nothing is charged", async () => {
-    mount(
-      sessionServer({
-        portal: trialPortal({}, (portal) => {
-          delete portal["trial"].charge;
-        }),
-      }),
-      banner(),
-    );
-
-    expect(await screen.findByText("Your trial ends in 5 days")).toBeTruthy();
-    expect(screen.queryByText(/Nothing will be charged/)).toBeNull();
-    expect(screen.queryByText(/will be charged on/)).toBeNull();
-    expect(document.querySelector('[data-slot="trial-banner-charge"]')).toBeNull();
-  });
-
   test("says nothing will be charged when the end charges nothing", async () => {
     mount(sessionServer({ portal: trialPortal({ charge: null }) }), banner());
 
@@ -113,6 +97,15 @@ describe("what it says", () => {
     expect(screen.queryByText(/No card on file/)).toBeNull();
     // A card on file is not asked for again.
     expect(screen.queryByRole("button", { name: "Add a card" })).toBeNull();
+  });
+
+  test("says a card whose labels the provider did not give as a card, not as a blank", async () => {
+    mount(
+      sessionServer({ portal: trialPortal({ paymentMethod: { brand: null, last4: null } }) }),
+      banner(),
+    );
+
+    expect(await screen.findByText("Card on file: Card.")).toBeTruthy();
   });
 
   test("asks for a card when there is none, since the end of the trial may depend on it", async () => {

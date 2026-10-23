@@ -104,6 +104,7 @@ function invoice(overrides: Partial<Invoice> = {}): Invoice {
         seq: 1,
         serviceFrom: "2026-10-01T00:00:00Z",
         serviceTo: "2026-11-01T00:00:00Z",
+        trueUp: null,
         type: "BASE",
         unitAmountDecimal: "2900",
         voucherId: null,
