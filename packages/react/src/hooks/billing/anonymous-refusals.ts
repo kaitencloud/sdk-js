@@ -103,6 +103,11 @@ export function anonymousCheckoutProblem(
     return { kind: "unavailable", retryAfterSeconds: error.retryAfterSeconds };
   }
   if (!(error instanceof KaitenError)) return { kind: "other" };
+  // Too many calls, whoever said so: the API's own refusal is a `RateLimitedError` above, and a
+  // gateway in front of it answers a bare 429 with no code. The wait is the one it gave, else a minute.
+  if (error.status === 429) {
+    return { kind: "rate_limited", retryAfterSeconds: error.retryAfterSeconds ?? 60 };
+  }
 
   if (operation === "session") {
     // The token of a session was refused: forgotten by the client, and no use to this browser any more.

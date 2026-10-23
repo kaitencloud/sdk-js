@@ -71,6 +71,30 @@ test("a code has to end in the reason, whole, and carry the status of the refusa
   });
 });
 
+test("a 429 is too many calls, whoever said so and whatever its code", () => {
+  // The API's own refusal is the client's `RateLimitedError`; a gateway in front of it answers a bare
+  // 429, or a code the client does not know, and the wait is the one it gave else a minute.
+  const bare = (code: string | undefined, retryAfterSeconds?: number) =>
+    new KaitenError(
+      api(429, code),
+      retryAfterSeconds === undefined ? undefined : { retryAfterSeconds },
+    );
+  for (const operation of ["start", "session"] as const) {
+    expect(anonymousCheckoutProblem(bare(undefined), operation)).toEqual({
+      kind: "rate_limited",
+      retryAfterSeconds: 60,
+    });
+    expect(anonymousCheckoutProblem(bare("Gateway.Throttled", 12), operation)).toEqual({
+      kind: "rate_limited",
+      retryAfterSeconds: 12,
+    });
+  }
+  // Another status with the same words is not.
+  expect(anonymousCheckoutProblem(refused(503, "CreateCheckoutSession.RateLimited"))).toEqual({
+    kind: "other",
+  });
+});
+
 test("the classes the client tells apart carry what a screen needs of them", () => {
   expect(
     anonymousCheckoutProblem(
