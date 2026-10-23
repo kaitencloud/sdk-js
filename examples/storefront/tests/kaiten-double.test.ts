@@ -2730,3 +2730,250 @@ describe("the anonymous checkout, against the stand-in", () => {
     });
   });
 });
+
+describe("the vendor's reads and updates of a customer and an instance, against the stand-in", () => {
+  const KAITEN_ID = "00000000-0000-0000-0000-000000000001";
+  const RETURN_URL = `${ORIGIN}/checkout/starter-v1`;
+  let tokens = 0;
+
+  /** A customer and an instance that a completed anonymous checkout made, and one a service made. */
+  async function shop() {
+    const made = world();
+    made.double.reset({ anonymousCheckout: true, signUp: true });
+    const checkout = new KaitenAnonymousCheckoutClient({
+      apiUrl: API,
+      publishableKey: PUBLISHABLE_KEY,
+      fetch: made.recorder.fetch,
+      storage: null,
+    });
+    const opened = await checkout.startCheckout({
+      turnstileToken: `XXXX.DUMMY.TOKEN.${++tokens}`,
+      priceId: STARTER_MONTHLY,
+      email: "ada@acme.test",
+      returnUrl: RETURN_URL,
+    });
+    await checkout.confirmCheckout(opened.sessionId);
+    const [bought] = made.double.state().customers;
+    const [boughtInstance] = made.double.state().instances;
+    const stranger = createKaitenClient({
+      baseUrl: API,
+      token: `ksh_${"x".repeat(43)}`,
+      fetch: made.recorder.fetch,
+    });
+    return { ...made, bought: bought!, boughtInstance: boughtInstance!, stranger };
+  }
+
+  test("reads what a checkout made: Kaiten's own identity made it, and the address is its name", async () => {
+    const { recorder, server, bought, boughtInstance } = await shop();
+    const { data: customer } = await Customers.getCustomer({
+      client: server,
+      throwOnError: true,
+      path: { customerSlug: bought.slug },
+    });
+    expect(customer).toMatchObject({
+      name: "ada@acme.test",
+      billingEmail: "ada@acme.test",
+      slug: bought.slug,
+      createdBy: { id: KAITEN_ID, name: "Kaiten" },
+      updatedBy: { id: KAITEN_ID },
+    });
+    const { data: instance } = await Instances.getInstance({
+      client: server,
+      throwOnError: true,
+      path: { instanceSlug: boughtInstance.slug },
+    });
+    expect(instance).toMatchObject({
+      name: "ada@acme.test",
+      description: "",
+      customerSlug: bought.slug,
+      customerId: customer.id,
+      licenseSlug: "starter-v1",
+      createdBy: { id: KAITEN_ID },
+    });
+    expect(contractProblems(recorder)).toEqual([]);
+  });
+
+  test("a customer a service made says so: it is not Kaiten's", async () => {
+    const { recorder, server } = await shop();
+    const { data: made } = await Customers.createCustomer({
+      client: server,
+      throwOnError: true,
+      body: { name: "Initech", billingEmail: "billing@initech.test" },
+    });
+    const { data: read } = await Customers.getCustomer({
+      client: server,
+      throwOnError: true,
+      path: { customerSlug: made.slug! },
+    });
+    expect(read.createdBy.id).not.toBe(KAITEN_ID);
+    expect(contractProblems(recorder)).toEqual([]);
+  });
+
+  test("renames a customer by a full replacement: the e-mail is kept when omitted, the domain is cleared when omitted", async () => {
+    const { double, recorder, server, bought } = await shop();
+    const update = (body: Record<string, unknown>) =>
+      Customers.updateCustomer({
+        client: server,
+        throwOnError: true,
+        path: { customerSlug: bought.slug },
+        body: body as never,
+      });
+    const read = async () =>
+      (
+        await Customers.getCustomer({
+          client: server,
+          throwOnError: true,
+          path: { customerSlug: bought.slug },
+        })
+      ).data;
+
+    await update({ name: "Analytical Engines", domain: "engines.test", externalCustomerId: "x-1" });
+    expect(await read()).toMatchObject({
+      name: "Analytical Engines",
+      domain: "engines.test",
+      externalCustomerId: "x-1",
+      // Omitted: kept.
+      billingEmail: "ada@acme.test",
+      // Made by Kaiten, changed by the service account.
+      createdBy: { id: KAITEN_ID },
+      updatedBy: { name: "Storefront service account" },
+    });
+    expect(double.state().customers).toMatchObject([{ name: "Analytical Engines" }]);
+
+    // Sent again with the slug on record: accepted. The domain and the external id are not sent: cleared.
+    await update({ name: "Analytical Engines Ltd", slug: bought.slug });
+    const cleared = await read();
+    expect(cleared.name).toBe("Analytical Engines Ltd");
+    expect(cleared).not.toHaveProperty("domain");
+    expect(cleared).not.toHaveProperty("externalCustomerId");
+
+    // An empty address removes it.
+    await update({ name: "Analytical Engines Ltd", billingEmail: "" });
+    expect(await read()).not.toHaveProperty("billingEmail");
+    expect(contractProblems(recorder)).toEqual([]);
+  });
+
+  test("refuses what Kaiten refuses to a customer's update, and nothing that was refused is kept", async () => {
+    const { double, recorder, server, stranger, bought } = await shop();
+    const put = (client: typeof server, slug: string, body: Record<string, unknown>) =>
+      Customers.updateCustomer({
+        client,
+        throwOnError: true,
+        path: { customerSlug: slug },
+        body: body as never,
+      });
+
+    await expect(put(server, bought.slug, { name: "" })).rejects.toMatchObject({
+      status: 422,
+      code: "UpdateCustomer.InvalidName",
+    });
+    await expect(
+      put(server, bought.slug, { name: "x", slug: "another-slug" }),
+    ).rejects.toMatchObject({ status: 422, code: "UpdateCustomer.SlugNotRenameable" });
+    await expect(
+      put(server, bought.slug, {
+        name: "x",
+        integrations: { attio: { id: "a", syncStatus: "OK" } },
+      }),
+    ).rejects.toMatchObject({ status: 422, code: "UpdateCustomer.IntegrationsNotSettable" });
+    await expect(
+      put(server, bought.slug, { name: "x", billingEmail: "nope" }),
+    ).rejects.toMatchObject({ status: 422, code: "UpdateCustomer.InvalidBillingEmail" });
+    await expect(put(server, "nobody", { name: "x" })).rejects.toMatchObject({
+      status: 404,
+      code: "UpdateCustomer.NotFound",
+    });
+    await expect(
+      Customers.getCustomer({
+        client: server,
+        throwOnError: true,
+        path: { customerSlug: "nobody" },
+      }),
+    ).rejects.toMatchObject({ status: 404, code: "GetCustomer.NotFound" });
+    await expect(put(stranger, bought.slug, { name: "x" })).rejects.toMatchObject({ status: 401 });
+    await expect(
+      Customers.getCustomer({
+        client: stranger,
+        throwOnError: true,
+        path: { customerSlug: bought.slug },
+      }),
+    ).rejects.toMatchObject({ status: 401 });
+
+    expect(double.state().customers).toMatchObject([{ name: "ada@acme.test" }]);
+    expect(contractProblems(recorder)).toEqual([]);
+  });
+
+  test("renames an instance by a full replacement, and refuses what it will not move", async () => {
+    const { double, recorder, server, stranger, bought, boughtInstance } = await shop();
+    const read = async () =>
+      (
+        await Instances.getInstance({
+          client: server,
+          throwOnError: true,
+          path: { instanceSlug: boughtInstance.slug },
+        })
+      ).data;
+    const before = await read();
+    const body = (extra: Record<string, unknown> = {}) => ({
+      name: "Analytical Engines",
+      description: "Contact: Ada Lovelace",
+      customerId: before.customerId,
+      licenseId: before.licenseId,
+      startLicenseDate: before.startLicenseDate,
+      endLicenseDate: before.endLicenseDate,
+      ...extra,
+    });
+    const put = (client: typeof server, slug: string, content: Record<string, unknown>) =>
+      Instances.updateInstance({
+        client,
+        throwOnError: true,
+        path: { instanceSlug: slug },
+        body: content as never,
+      });
+
+    await put(server, boughtInstance.slug, body({ metadata: { plan: "gold" } }));
+    expect(await read()).toMatchObject({
+      name: "Analytical Engines",
+      description: "Contact: Ada Lovelace",
+      customerSlug: bought.slug,
+      licenseSlug: "starter-v1",
+      metadata: { plan: "gold" },
+      createdBy: { id: KAITEN_ID },
+      updatedBy: { name: "Storefront service account" },
+    });
+    expect(double.state().instances).toMatchObject([
+      { name: "Analytical Engines", description: "Contact: Ada Lovelace" },
+    ]);
+    // A repeated replacement changes nothing more.
+    await put(server, boughtInstance.slug, body({ slug: boughtInstance.slug }));
+
+    await expect(put(server, boughtInstance.slug, body({ name: "" }))).rejects.toMatchObject({
+      status: 422,
+      code: "UpdateInstance.InvalidBody",
+    });
+    await expect(
+      put(server, boughtInstance.slug, body({ description: undefined })),
+    ).rejects.toMatchObject({ status: 422, code: "UpdateInstance.InvalidBody" });
+    await expect(
+      put(server, boughtInstance.slug, body({ integrations: { x: { id: "y" } } })),
+    ).rejects.toMatchObject({ status: 422, code: "UpdateInstance.IntegrationsNotSettable" });
+    await expect(
+      put(server, boughtInstance.slug, body({ customerId: randomUUID() })),
+    ).rejects.toMatchObject({ status: 409, code: "UpdateInstance.BillingFrozen" });
+    await expect(put(server, "nothing-here", body())).rejects.toMatchObject({
+      status: 404,
+      code: "UpdateInstance.NotFound",
+    });
+    await expect(
+      Instances.getInstance({
+        client: server,
+        throwOnError: true,
+        path: { instanceSlug: "nothing-here" },
+      }),
+    ).rejects.toMatchObject({ status: 404, code: "GetInstance.NotFound" });
+    await expect(put(stranger, boughtInstance.slug, body())).rejects.toMatchObject({ status: 401 });
+
+    expect(double.state().instances).toMatchObject([{ name: "Analytical Engines" }]);
+    expect(contractProblems(recorder)).toEqual([]);
+  });
+});

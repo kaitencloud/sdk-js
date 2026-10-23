@@ -15,6 +15,11 @@
 // boundary: a trial converts, a period renews (an invoice that can fail and leave the
 // subscription PAST_DUE), a scheduled plan change applies, a cancellation takes effect.
 //
+// The vendor's own reads and updates of a customer and an instance (`GET` and `PUT` on both) are
+// there too, for the storefront to name what an anonymous checkout made. A completed checkout's
+// customer and instance are made by Kaiten's own identity, as in Kaiten, and carry the visitor's
+// address as their name until a vendor writes another.
+//
 // It also plays a Kaiten with no customer yet: in the sign-up scenario (`Scenario.signUp`) a visitor
 // makes one, through `POST /customers` and `POST /instances`, and then gets a session for it, as a
 // vendor's backend does when someone signs up on its site. It plays one instance at a time: a new
@@ -211,10 +216,24 @@ export interface DoubleState {
   addOns: Array<{ slug: string; quantity: number }>;
   /** The card on file, for a person: `Visa 4242`. */
   card: string | null;
-  /** The customers the stand-in was asked to create, in order. Only a sign-up scenario has any. */
-  customers: Array<{ slug: string; name: string; billingEmail: string | null }>;
-  /** The instances it was asked to create, with the licence each started on. */
-  instances: Array<{ slug: string; customerSlug: string; licenseSlug: string }>;
+  /**
+   * The customers it holds, in order: the ones a sign-up scenario's visitor made and the ones a
+   * completed anonymous checkout made (`createdBy: "system"`, as Kaiten's own identity makes them).
+   */
+  customers: Array<{
+    slug: string;
+    name: string;
+    billingEmail: string | null;
+    createdBy: "service" | "system";
+  }>;
+  /** The instances it holds, with the licence each started on and what a vendor may have written to them. */
+  instances: Array<{
+    slug: string;
+    customerSlug: string;
+    licenseSlug: string;
+    name: string;
+    description: string;
+  }>;
   /** Whether the publishable key starts anonymous checkouts. */
   anonymousCheckout: boolean;
   /** The anonymous checkout sessions it holds, oldest first. */
@@ -290,12 +309,18 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
     revoked: boolean;
   };
 
+  /** Who made a customer or an instance: the vendor's service account, or Kaiten itself (an anonymous checkout's completion). */
+  type Actor = "service" | "system";
   type StoredCustomer = {
     id: string;
     slug: string;
     name: string;
     billingEmail: string | null;
+    domain: string | null;
+    externalCustomerId: string | null;
+    createdBy: Actor;
     createdAt: string;
+    updatedAt: string;
   };
   type StoredInstance = {
     id: string;
@@ -308,7 +333,10 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
     licenseSlug: string;
     startLicenseDate: string;
     endLicenseDate: string;
+    metadata: Json;
+    createdBy: Actor;
     createdAt: string;
+    updatedAt: string;
   };
 
   /** The cards a customer can save on the provider's page, in turn: changing it changes the card. */
@@ -931,6 +959,13 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
     id: "00000000-0000-4000-8000-0000000000f0",
     name: "Storefront service account",
   };
+  /**
+   * Kaiten's own identity, which makes what a completed anonymous checkout creates. Its id is the one
+   * the API pins for it, and it is how a vendor tells a customer made by a checkout from one a person
+   * or a service made.
+   */
+  const SYSTEM = { id: "00000000-0000-0000-0000-000000000001", name: "Kaiten" };
+  const actorOf = (actor: Actor) => (actor === "system" ? SYSTEM : SERVICE);
   const SLUG = /^[a-z0-9][a-z0-9-]*[a-z0-9]$/;
   const validSlug = (slug: unknown) =>
     typeof slug === "string" && slug.length >= 2 && slug.length <= 100 && SLUG.test(slug);
@@ -940,10 +975,14 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
     name: stored.name,
     slug: stored.slug,
     ...(stored.billingEmail === null ? {} : { billingEmail: stored.billingEmail }),
+    ...(stored.domain === null ? {} : { domain: stored.domain }),
+    ...(stored.externalCustomerId === null
+      ? {}
+      : { externalCustomerId: stored.externalCustomerId }),
     createdAt: stored.createdAt,
-    createdBy: SERVICE,
-    updatedAt: stored.createdAt,
-    updatedBy: SERVICE,
+    createdBy: actorOf(stored.createdBy),
+    updatedAt: stored.updatedAt,
+    updatedBy: stored.updatedAt === stored.createdAt ? actorOf(stored.createdBy) : SERVICE,
   });
 
   const instanceBody = (stored: StoredInstance): Json => ({
@@ -958,10 +997,11 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
     startLicenseDate: stored.startLicenseDate,
     endLicenseDate: stored.endLicenseDate,
     status: "HEALTHY",
+    metadata: stored.metadata,
     createdAt: stored.createdAt,
-    createdBy: SERVICE,
-    updatedAt: stored.createdAt,
-    updatedBy: SERVICE,
+    createdBy: actorOf(stored.createdBy),
+    updatedAt: stored.updatedAt,
+    updatedBy: stored.updatedAt === stored.createdAt ? actorOf(stored.createdBy) : SERVICE,
   });
 
   function createCustomer(body: Json): Response {
@@ -1002,16 +1042,169 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
   }
 
   /** Makes the customer, which the routes above and an anonymous checkout's completion both do. */
-  function addCustomer(slug: string, name: string, billingEmail: string | null): StoredCustomer {
+  function addCustomer(
+    slug: string,
+    name: string,
+    billingEmail: string | null,
+    createdBy: Actor = "service",
+  ): StoredCustomer {
+    const now = new Date().toISOString();
     const stored: StoredCustomer = {
       id: randomUUID(),
       slug,
       name,
       billingEmail,
-      createdAt: new Date().toISOString(),
+      domain: null,
+      externalCustomerId: null,
+      createdBy,
+      createdAt: now,
+      updatedAt: now,
     };
     customers.push(stored);
     return stored;
+  }
+
+  const billingEmailProblem = (code: string, path: string) =>
+    problem(422, code, "billingEmail is an e-mail address of 254 characters at most", path);
+  const validBillingEmail = (value: unknown) =>
+    typeof value === "string" && value.length <= 254 && value.includes("@");
+
+  function getCustomer(slug: string): Response {
+    const found = customers.find((each) => each.slug === slug);
+    return found
+      ? reply(200, customerBody(found))
+      : problem(
+          404,
+          "GetCustomer.NotFound",
+          `Customer with slug "${slug}" not found`,
+          `/api/customers/${slug}`,
+        );
+  }
+
+  /**
+   * `PUT /customers/{slug}`, which replaces the customer's details the way Kaiten does: the name, the
+   * domain and the external id are what is sent (a member left out is cleared), and the billing
+   * e-mail is kept when it is left out and removed when it is empty. The slug and the integrations
+   * are not settable, and are refused unless they are the ones on record.
+   */
+  function updateCustomer(slug: string, body: Json): Response {
+    const path = `/api/customers/${slug}`;
+    const found = customers.find((each) => each.slug === slug);
+    if (!found) {
+      return problem(
+        404,
+        "UpdateCustomer.NotFound",
+        `Customer with slug "${slug}" not found`,
+        path,
+      );
+    }
+    if (typeof body.name !== "string" || body.name.length < 1) {
+      return problem(422, "UpdateCustomer.InvalidName", "name is required", path);
+    }
+    if (body.slug !== undefined && body.slug !== slug) {
+      return problem(
+        422,
+        "UpdateCustomer.SlugNotRenameable",
+        "slug cannot be changed through this endpoint; omit it or send the current slug",
+        path,
+      );
+    }
+    if (body.integrations !== undefined && Object.keys(body.integrations).length > 0) {
+      return problem(
+        422,
+        "UpdateCustomer.IntegrationsNotSettable",
+        "integrations cannot be set through this endpoint; use the dedicated integration endpoints",
+        path,
+      );
+    }
+    if (body.billingEmail !== undefined && body.billingEmail !== "") {
+      if (!validBillingEmail(body.billingEmail)) {
+        return billingEmailProblem("UpdateCustomer.InvalidBillingEmail", path);
+      }
+    }
+    found.name = body.name;
+    found.domain = typeof body.domain === "string" ? body.domain : null;
+    found.externalCustomerId =
+      typeof body.externalCustomerId === "string" ? body.externalCustomerId : null;
+    if (body.billingEmail === "") found.billingEmail = null;
+    else if (body.billingEmail !== undefined) found.billingEmail = body.billingEmail;
+    found.updatedAt = new Date(Math.max(Date.now(), Date.parse(found.updatedAt) + 1)).toISOString();
+    return reply(204, null);
+  }
+
+  function getInstance(slug: string): Response {
+    const found = instances.find((each) => each.slug === slug);
+    return found
+      ? reply(200, instanceBody(found))
+      : problem(
+          404,
+          "GetInstance.NotFound",
+          `Instance with slug "${slug}" not found`,
+          `/api/instances/${slug}`,
+        );
+  }
+
+  /**
+   * `PUT /instances/{slug}`, a full replacement as Kaiten's is: the name, the description, the
+   * dates and the metadata are what is sent. The stand-in plays one instance at a time and does not
+   * move one between customers or licences, so it refuses a customer or a licence other than the
+   * instance's own, and a slug other than its own; Kaiten also refuses them, while the instance
+   * has a live subscription.
+   */
+  function updateInstance(slug: string, body: Json): Response {
+    const path = `/api/instances/${slug}`;
+    const found = instances.find((each) => each.slug === slug);
+    if (!found) {
+      return problem(
+        404,
+        "UpdateInstance.NotFound",
+        `Instance with slug "${slug}" not found`,
+        path,
+      );
+    }
+    for (const member of [
+      "name",
+      "description",
+      "customerId",
+      "licenseId",
+      "startLicenseDate",
+      "endLicenseDate",
+    ]) {
+      if (typeof body[member] !== "string" || (member === "name" && body[member] === "")) {
+        return problem(422, "UpdateInstance.InvalidBody", `${member} is required`, path);
+      }
+    }
+    if (body.integrations !== undefined && Object.keys(body.integrations).length > 0) {
+      return problem(
+        422,
+        "UpdateInstance.IntegrationsNotSettable",
+        "integrations cannot be set through this endpoint; use the dedicated integration endpoints",
+        path,
+      );
+    }
+    if (body.slug !== undefined && body.slug !== slug) {
+      return problem(
+        409,
+        "UpdateInstance.SlugNotRenameable",
+        "the stand-in does not rename an instance",
+        path,
+      );
+    }
+    if (body.customerId !== found.customerId || body.licenseId !== found.licenseId) {
+      return problem(
+        409,
+        "UpdateInstance.BillingFrozen",
+        "the stand-in does not move an instance to another customer or licence",
+        path,
+      );
+    }
+    found.name = body.name;
+    found.description = body.description;
+    found.startLicenseDate = body.startLicenseDate;
+    found.endLicenseDate = body.endLicenseDate;
+    found.metadata = body.metadata ?? {};
+    found.updatedAt = new Date(Math.max(Date.now(), Date.parse(found.updatedAt) + 1)).toISOString();
+    return reply(204, null);
   }
 
   function deleteCustomer(slug: string): Response {
@@ -1104,7 +1297,9 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
       StoredInstance,
       "slug" | "name" | "description" | "startLicenseDate" | "endLicenseDate"
     >,
+    createdBy: Actor = "service",
   ): StoredInstance {
+    const now = new Date().toISOString();
     const stored: StoredInstance = {
       id: randomUUID(),
       ...fields,
@@ -1112,7 +1307,10 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
       customerSlug: customer.slug,
       licenseId: licence.licenseId,
       licenseSlug: licence.licenseSlug,
-      createdAt: new Date().toISOString(),
+      metadata: {},
+      createdBy,
+      createdAt: now,
+      updatedAt: now,
     };
     instances.push(stored);
     // An account that this one replaces keeps nothing: the billing state below is the new instance's, and
@@ -1180,14 +1378,30 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
           );
     }
 
-    if (path === "/customers" || path.startsWith("/customers/") || path === "/instances") {
+    if (
+      path === "/customers" ||
+      path.startsWith("/customers/") ||
+      path === "/instances" ||
+      /^\/instances\/[^/]+$/.test(path)
+    ) {
       if (request.headers.get("authorization") !== `Bearer ${options.serverToken}`) {
         return problem(401, "Auth.InvalidCredential", "unknown token", `/api${path}`);
       }
       if (key === "POST /customers") return createCustomer(body);
       if (key === "POST /instances") return createInstance(body);
-      const deleting = /^\/customers\/([^/]+)$/.exec(path);
-      if (method === "DELETE" && deleting) return deleteCustomer(decodeURIComponent(deleting[1]!));
+      const customerPath = /^\/customers\/([^/]+)$/.exec(path);
+      if (customerPath) {
+        const slug = decodeURIComponent(customerPath[1]!);
+        if (method === "DELETE") return deleteCustomer(slug);
+        if (method === "GET") return getCustomer(slug);
+        if (method === "PUT") return updateCustomer(slug, body);
+      }
+      const instancePath = /^\/instances\/([^/]+)$/.exec(path);
+      if (instancePath) {
+        const slug = decodeURIComponent(instancePath[1]!);
+        if (method === "GET") return getInstance(slug);
+        if (method === "PUT") return updateInstance(slug, body);
+      }
       return problem(404, "NotFound", `no ${key}`);
     }
 
@@ -2128,14 +2342,20 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
     const now = new Date();
     const owing = stored.due.total > 0;
     const startedOn = owing ? fallbackPlan()! : stored.plan;
-    const customer = addCustomer(generateSlug(stored.email), stored.email, stored.email);
-    const instance = addInstance(customer, startedOn, {
-      slug: generateSlug(stored.email),
-      name: stored.email,
-      description: "",
-      startLicenseDate: iso(now.getTime()),
-      endLicenseDate: iso(now.getTime() + 100 * 365 * 86_400_000),
-    });
+    // What Kaiten makes on its own behalf, as itself: no person and no service account made it.
+    const customer = addCustomer(generateSlug(stored.email), stored.email, stored.email, "system");
+    const instance = addInstance(
+      customer,
+      startedOn,
+      {
+        slug: generateSlug(stored.email),
+        name: stored.email,
+        description: "",
+        startLicenseDate: iso(now.getTime()),
+        endLicenseDate: iso(now.getTime() + 100 * 365 * 86_400_000),
+      },
+      "system",
+    );
     stored.customerSlug = customer.slug;
     stored.instanceSlug = instance.slug;
     // The new instance starts the billing state over: the card the visitor saved is its customer's.
@@ -2775,8 +2995,11 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
       slug: each.slug,
       name: each.name,
       billingEmail: each.billingEmail,
+      createdBy: each.createdBy,
     })),
     instances: instances.map((each) => ({
+      name: each.name,
+      description: each.description,
       slug: each.slug,
       customerSlug: each.customerSlug,
       licenseSlug: each.licenseSlug,
