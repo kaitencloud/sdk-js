@@ -119,12 +119,14 @@ const SCENARIOS = [
     unstyled: true,
   },
   {
-    // Measured at 30 085 bytes: the anonymous checkout client it carries grew by the checks of
-    // a start's bounds and by the token it keeps to read a closed session, and the OFREP
-    // context names the instance.
+    // Measured at 30 124 bytes. The anonymous checkout client is not in it (the root of this package
+    // holds no `/public/checkout-sessions`; the hook that uses it is in the `billing` entry): what
+    // grew is what every client of the package carries, namely the four refusals of an anonymous
+    // checkout that the errors tell apart, and the OFREP context that names the instance. The
+    // budget leaves a margin of about 300 bytes.
     name: "core · everything",
     code: `import * as all from "@kaitencloud/react"; console.log(all);`,
-    budgetGzip: 30_200,
+    budgetGzip: 30_450,
     unstyled: true,
   },
   {
@@ -135,9 +137,11 @@ const SCENARIOS = [
     // ordered, and why the price cannot bill them.
     // Measured at 29 032 bytes, up from 28 817: what every client of the package reads its
     // refusals through grew by the four of an anonymous checkout, as in the session client.
+    // Measured at 29 194 bytes, up from 29 032: the listener that hears the popup say it is done is
+    // set before the popup opens, which the three flows that open one share.
     name: "billing · useCheckout + KaitenProvider",
     code: `import { KaitenProvider } from "@kaitencloud/react"; import { useCheckout } from "@kaitencloud/react/billing"; console.log(KaitenProvider, useCheckout);`,
-    budgetGzip: 29_100,
+    budgetGzip: 29_500,
     unstyled: true,
   },
   {
@@ -147,9 +151,13 @@ const SCENARIOS = [
     // Measured at 29 792 bytes, up to 30 204: a refusal told by the operation that made it, the
     // popup that is closed with the checkout, the page that comes back drawn as a wait from its
     // first frame, and the widget's size followed as its container changes.
+    // Measured at 30 960 bytes, up from 30 204: 0.5 KB is the shape check of a start, which the hook
+    // runs before it takes a Turnstile token and which the anonymous checkout client has already
+    // (a page that sells to visitors ships both, so it is paid once there); the rest is the listener
+    // set before the popup opens, and the quote kept when an amount changed after the setup.
     name: "billing · useAnonymousCheckout + KaitenProvider",
     code: `import { KaitenProvider } from "@kaitencloud/react"; import { useAnonymousCheckout } from "@kaitencloud/react/billing"; console.log(KaitenProvider, useAnonymousCheckout);`,
-    budgetGzip: 30_300,
+    budgetGzip: 31_300,
     unstyled: true,
   },
   {
@@ -164,9 +172,11 @@ const SCENARIOS = [
     // Measured at 23 542 bytes, up from 22 913: the hook that redeems a code on a live subscription,
     // with the states of a redemption and the refusals it names. Only the entry that exports every
     // hook pays for it: the scenarios of one hook above did not move.
+    // Measured at 24 351 bytes, up from 23 542: the shape check of a start, the listener set before
+    // a popup opens, and the refusals the billing gate and the origin check are named with.
     name: "billing · everything",
     code: `import * as all from "@kaitencloud/react/billing"; console.log(all);`,
-    budgetGzip: 23_650,
+    budgetGzip: 24_700,
     unstyled: true,
   },
   {
@@ -186,9 +196,19 @@ const SCENARIOS = [
     // that promised an e-mail.
     // Measured at 6 669 bytes, up from 6 215: the words of the trial banner and of redeeming a code,
     // which every language pack carries whole.
+    // Measured at 6 730 bytes: the sentence for a security check that loaded and failed.
+    //
+    // Why the pack grew by about 1.5 KB (28%) over this stretch, and why that is accepted: a pack is
+    // one plain object that a host passes whole to `locale`, so it carries a translation of every
+    // sentence of every section the English words have, whichever components the host draws. The
+    // anonymous checkout (about 60 sentences) and the trial banner with the redemption of a code
+    // are the two sections that were added. Splitting a pack by section would change the shape a
+    // host imports (`fr` is that object), which cannot happen in 1.x; a pack is imported only by a
+    // host that translates, and the sentences are strings that compress well. The budget keeps a
+    // margin of about 300 bytes.
     name: "locales · fr alone",
     code: `import { fr } from "@kaitencloud/react/locales"; console.log(fr);`,
-    budgetGzip: 6_800,
+    budgetGzip: 7_050,
     unstyled: true,
   },
   {
@@ -235,7 +255,9 @@ const SCENARIOS = [
     // press an unavailable button keeps.
     name: "react-ui · CheckoutFlow + KaitenProvider + KaitenStyleRoot",
     code: `import { CheckoutFlow, KaitenProvider, KaitenStyleRoot } from "@kaitencloud/react-ui"; console.log(CheckoutFlow, KaitenProvider, KaitenStyleRoot);`,
-    budgetGzip: 67_100,
+    // Measured at 67 100 bytes, up from 66 962: the listener that hears the setup popup say it is
+    // done, set before the popup opens. The budget keeps a margin of about 300 bytes.
+    budgetGzip: 67_400,
   },
   {
     // What a host that sells to visitors ships: the flow, the hook it is made of with the loader of
@@ -248,9 +270,12 @@ const SCENARIOS = [
     // Measured at 68 963 bytes, up from 68 606: the review of a paid plan (its renewal, its price in
     // the card's format), the warning tone of an amount that changed, and the sentence about a trial
     // that asks for no card.
+    // Measured at 69 768 bytes, up from 68 963: what the hook grew by, as above, the check that
+    // failed told apart from a script that could not load, and the review that does not draw the
+    // figures of an amount that changed after the setup.
     name: "react-ui · AnonymousCheckoutFlow + KaitenProvider + KaitenStyleRoot",
     code: `import { AnonymousCheckoutFlow, KaitenProvider, KaitenStyleRoot } from "@kaitencloud/react-ui"; console.log(AnonymousCheckoutFlow, KaitenProvider, KaitenStyleRoot);`,
-    budgetGzip: 69_100,
+    budgetGzip: 70_100,
   },
   {
     // What a host that shows a customer how they pay ships: the card, the billing hooks that add or
@@ -261,17 +286,19 @@ const SCENARIOS = [
     // checkout's English words, which the shared action imported for that one description: it reads
     // it from a module of its own now.
     // Measured at 46 375 bytes, up from 46 263: the warning tone of the shared messages.
+    // Measured at 46 433 bytes: the listener of the payment method hook, set before the popup opens.
     name: "react-ui · PaymentMethodCard + KaitenProvider + KaitenStyleRoot",
     code: `import { PaymentMethodCard, KaitenProvider, KaitenStyleRoot } from "@kaitencloud/react-ui"; console.log(PaymentMethodCard, KaitenProvider, KaitenStyleRoot);`,
-    budgetGzip: 46_500,
+    budgetGzip: 46_750,
   },
   {
     // What a host that shows a customer their trial ships: the banner, the billing hooks that add a
     // card and end the trial, and the words of its English.
     // Measured at 46 991 bytes.
+    // Measured at 47 131 bytes: the listener of the payment method hook, set before the popup opens.
     name: "react-ui · TrialBanner + KaitenProvider + KaitenStyleRoot",
     code: `import { TrialBanner, KaitenProvider, KaitenStyleRoot } from "@kaitencloud/react-ui"; console.log(TrialBanner, KaitenProvider, KaitenStyleRoot);`,
-    budgetGzip: 47_100,
+    budgetGzip: 47_450,
   },
   {
     // What a host that offers a customer portal ships: the sections, the billing hooks they
@@ -303,9 +330,10 @@ const SCENARIOS = [
     // Measured at 65 068 bytes, up from 63 011: redeeming a code on a live subscription (the hook and
     // its states, what a code gives said in sentences, the list of redemptions in force) and the words
     // of its English.
+    // Measured at 65 207 bytes, up from 65 068: the listener of the payment method hook, as above.
     name: "react-ui · CustomerPortal + KaitenProvider + KaitenStyleRoot",
     code: `import { CustomerPortal, KaitenProvider, KaitenStyleRoot } from "@kaitencloud/react-ui"; console.log(CustomerPortal, KaitenProvider, KaitenStyleRoot);`,
-    budgetGzip: 65_200,
+    budgetGzip: 65_550,
   },
   {
     // Measured at 93 302 bytes, up from 79 688: Base UI's radio group, as in the checkout (12.4 KB),
@@ -331,9 +359,11 @@ const SCENARIOS = [
     // is made of.
     // Measured at 110 468 bytes, up from 108 472: redeeming a code, as above.
     // Measured at 110 793 bytes, up from 110 468: the anonymous checkout's review and the warning tone.
+    // Measured at 111 688 bytes, up from 110 793: what the anonymous checkout and the hooks that open
+    // a popup grew by, as above.
     name: "react-ui · everything",
     code: `import * as all from "@kaitencloud/react-ui"; console.log(all);`,
-    budgetGzip: 111_000,
+    budgetGzip: 112_000,
   },
   {
     name: "client · KaitenClient alone",
@@ -349,9 +379,11 @@ const SCENARIOS = [
     // amount changed), which every client of the package reads its refusals through.
     // Measured at 9 989 bytes, up from 9 751: the trial block of the portal, the members of a
     // redemption and the call that redeems a code.
+    // Measured at 10 039 bytes, up from 9 989: the headers of the two public clients are built in one
+    // place.
     name: "client · KaitenSessionClient alone",
     code: `import { KaitenSessionClient } from "@kaitencloud/client"; console.log(KaitenSessionClient);`,
-    budgetGzip: 10_100,
+    budgetGzip: 10_350,
     headless: true,
     resolveDir: FROM_NODE,
   },
@@ -363,9 +395,11 @@ const SCENARIOS = [
     // start (lengths counted in characters, the members it does not know), the token kept for
     // the 24 hours a closed session can still be read, the refusal of an answer outside the
     // closed unions, and `clearCheckoutReturn`.
+    // Measured at 9 768 bytes, up from 9 740: the shape check of a start is exported for a page to run
+    // before it takes a token, and the headers are built in one place.
     name: "client · KaitenAnonymousCheckoutClient alone",
     code: `import { KaitenAnonymousCheckoutClient } from "@kaitencloud/client"; console.log(KaitenAnonymousCheckoutClient);`,
-    budgetGzip: 9_850,
+    budgetGzip: 10_100,
     headless: true,
     resolveDir: FROM_NODE,
   },
