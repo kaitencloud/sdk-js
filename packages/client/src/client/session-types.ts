@@ -17,6 +17,7 @@ import type {
   BillingPrice,
   BoostModifierType,
   CurrencyCode,
+  KaitenBrandingCapability,
   ResolvedEntitlement,
 } from "./types.ts";
 
@@ -330,6 +331,11 @@ export interface KaitenPortal {
    */
   trial?: PortalTrial | null;
   capabilities: BillingCapabilities;
+  /**
+   * Whether the vendor's plan lets its portal hide "Powered by Kaiten". Absent from a server that
+   * predates it, which reads as not removable.
+   */
+  branding?: KaitenBrandingCapability;
   /** When this snapshot was read. */
   updatedAt: string;
 }
@@ -401,13 +407,15 @@ export interface VoucherBoost {
   modifierType: BoostModifierType;
   /** A decimal string. Null for `UNLIMITED`, which has none. */
   modifierValue: string | null;
+  /** A BOOLEAN/CONFIG SET boost's bare value, as the API sends it. Absent for numeric modifiers. */
+  value?: boolean | Record<string, unknown> | null;
 }
 
 /** What a valid voucher gives. Never its code. */
 export interface VoucherSummary {
   name: string;
-  /** `PRICE` (a discount) or `ENTITLEMENT_BOOST`. Open: more may come. */
-  voucherType: "PRICE" | "ENTITLEMENT_BOOST" | (string & {});
+  /** `PRICE`, `ENTITLEMENT_BOOST`, `FLAG_GRANT` or `COMPOSITE`. Open: more may come. */
+  voucherType: "PRICE" | "ENTITLEMENT_BOOST" | "FLAG_GRANT" | "COMPOSITE" | (string & {});
   /**
    * `ONE_TIME`, `REPEATING` or `FOREVER`. For a `PRICE` voucher, how many
    * invoices it discounts: one, `durationInPeriods`, or every one. For a boost,
@@ -419,6 +427,8 @@ export interface VoucherSummary {
   discount?: VoucherDiscount;
   /** An `ENTITLEMENT_BOOST` voucher's boosts. */
   boosts?: VoucherBoost[];
+  /** The flags a FLAG_GRANT or COMPOSITE voucher grants. Absent when the API leaves the part out. */
+  flagGrants?: { flagSlug: string; variant: string }[] | null;
 }
 
 /**

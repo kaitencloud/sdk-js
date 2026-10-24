@@ -16,7 +16,7 @@ import {
   list,
   mapBillingPrice,
 } from "./billing.ts";
-import { entitlementStatus } from "./normalize.ts";
+import { entitlementStatus, normalizeBrandingCapability } from "./normalize.ts";
 import type {
   CheckoutPreview,
   CheckoutResult,
@@ -60,7 +60,7 @@ export function mapSubscription(raw: Api.SessionSubscription): PortalSubscriptio
 
 /** How each layer contributed to an entitlement's value. */
 function mapProvenance(raw: Api.Provenance): EntitlementProvenance {
-  const { license, number } = raw;
+  const { license, number, exception } = raw;
   return {
     license: license
       ? {
@@ -85,10 +85,26 @@ function mapProvenance(raw: Api.Provenance): EntitlementProvenance {
       voucherEntitlementGrantId: boost.voucherEntitlementGrantId,
       modifierType: boost.modifierType,
       modifierValue: boost.modifierValue ?? null,
+      ...(boost.value !== undefined
+        ? { value: boost.value === null ? null : entitlementValue(boost.value) }
+        : {}),
       redeemedAt: boost.redeemedAt,
       effectiveStartsAt: boost.effectiveStartsAt,
       effectiveExpiresAt: boost.effectiveExpiresAt ?? null,
     })),
+    ...(exception !== undefined
+      ? {
+          exception: exception
+            ? {
+                instanceEntitlementExceptionId: exception.instanceEntitlementExceptionId,
+                kind: exception.kind,
+                value: exception.value === null ? null : entitlementValue(exception.value),
+                startsAt: exception.startsAt,
+                endsAt: exception.endsAt,
+              }
+            : null,
+        }
+      : {}),
     number: number
       ? {
           license: number.license ?? null,
@@ -96,6 +112,7 @@ function mapProvenance(raw: Api.Provenance): EntitlementProvenance {
           boostSet: number.boostSet ?? null,
           boostAdd: number.boostAdd ?? null,
           boostMultiply: number.boostMultiply ?? null,
+          ...(number.afterBoosts !== undefined ? { afterBoosts: number.afterBoosts } : {}),
           unlimited: number.unlimited === true,
           effective: number.effective,
         }
@@ -140,9 +157,9 @@ function mapPortalEntitlement(raw: Api.PortalEntitlement): ResolvedEntitlement {
     currentPeriodStart: raw.currentPeriodStart ?? null,
     currentPeriodEnd: raw.currentPeriodEnd ?? null,
     status: entitlementStatus(limitValue, currentValue, maximumAllowedUsage),
-    // "credit" is not produced by any server yet; anything unknown reads as the
-    // licence, the layer every entitlement has.
+    // Keep the 1.0 closed union, and expose the actual layer separately without inventing one.
     source: raw.source === "addon" ? "addon" : "license",
+    ...(typeof raw.source === "string" ? { effectiveSource: raw.source } : {}),
     ...(raw.provenance ? { provenance: mapProvenance(raw.provenance) } : {}),
   };
 }
@@ -194,6 +211,8 @@ export function mapSessionAddon(raw: Api.SessionAddon): SessionAddon {
     name: raw.name,
     quantity: raw.quantity,
     maxQuantity: raw.maxQuantity ?? null,
+    // Absence says nothing about a scheduled decrease on an older server.
+    ...(raw.pendingQuantity !== undefined ? { pendingQuantity: raw.pendingQuantity } : {}),
     price: shown?.amount,
     currencyCode: shown?.currencyCode,
     interval: shown?.interval,
@@ -286,6 +305,14 @@ export function mapPortal(raw: Api.SessionPortal): KaitenPortal {
     // A server older than the contract leaves the member out: it stays absent, and a TRIAL
     // subscription with none shows no banner.
     ...(raw.trial !== undefined ? { trial: raw.trial ? mapTrial(raw.trial) : null } : {}),
+    // Likewise: a server that leaves it out says nothing of the mark, and it stays.
+    ...(raw.branding
+      ? {
+          branding: normalizeBrandingCapability({
+            removable: raw.branding.poweredByRemovable === true,
+          }),
+        }
+      : {}),
     updatedAt: raw.updatedAt,
   };
 }
@@ -427,7 +454,16 @@ export function mapVoucherValidation(raw: Api.SessionVoucherValidity): VoucherVa
               entitlementSlug: boost.entitlementSlug,
               modifierType: boost.modifierType,
               modifierValue: boost.modifierValue ?? null,
+              ...(boost.value !== undefined ? { value: boost.value } : {}),
             })),
+          }
+        : {}),
+      ...(voucher.flagGrants !== undefined
+        ? {
+            flagGrants:
+              voucher.flagGrants === null
+                ? null
+                : list(voucher.flagGrants).map(({ flagSlug, variant }) => ({ flagSlug, variant })),
           }
         : {}),
     },

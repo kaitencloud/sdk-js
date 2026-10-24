@@ -64,6 +64,7 @@ describe("the usage reads of a current server", () => {
       boostSet: null,
       boostAdd: null,
       boostMultiply: 2,
+      afterBoosts: 26000,
       unlimited: false,
       effective: 26000,
     });
@@ -96,7 +97,7 @@ describe("the answer to a replayed report", () => {
   test("is what the contract answers a report with, and the result carries it", () => {
     // The contract always sends both members, and null on a replay.
     expectTypeOf<KaitenApi.ReportedEntitlementUsage["source"]>().toEqualTypeOf<
-      "license" | "addon" | null
+      "license" | "addon" | "exception" | null
     >();
     expectTypeOf<
       KaitenApi.ReportedEntitlementUsage["provenance"]

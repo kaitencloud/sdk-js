@@ -80,6 +80,12 @@ The members the contract added after that run are in by hand, with the value of 
 none of the feature: `trial: null` and `branding.poweredByRemovable: false` on every portal, and
 `pendingQuantity: null` on every add-on. The next regeneration replaces them with its own.
 
+The sync to `57283b6f5` also adds the required provenance members by hand: `exception: null`
+(these recorded instances have none), `boosts[].value: null` (their recorded boosts are numeric),
+and `number.afterBoosts` equal to the recorded `effective` value (no exception follows it).
+`session-exceptions-and-grants.test.ts` builds exception and boolean/config/flag-grant scenarios
+from the generated types and checks their payloads against the response schemas.
+
 The redemption of a code (`POST /public/session/vouchers/redeem`) is written by hand, from the
 route's use case and checked against the contract's `SessionRedemption` and `Problem`: `redemption` (a
 price voucher, applied from the next invoice) and `redemptionBoost` (a boost with an end), and the five

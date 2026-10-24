@@ -657,6 +657,7 @@
         "currentPeriodEnd": "2026-11-01T00:00:00Z",
         "source": "license",
         "provenance": {
+          "exception": null,
           "license": {
             "licenseEntitlementId": "00000000-0000-4000-8000-000000000e01",
             "value": {
@@ -671,6 +672,7 @@
               "instanceVoucherId": "00000000-0000-4000-8000-000000000b01",
               "voucherId": "00000000-0000-4000-8000-000000000b02",
               "voucherEntitlementGrantId": "00000000-0000-4000-8000-000000000b03",
+              "value": null,
               "modifierType": "MULTIPLY",
               "modifierValue": 2,
               "redeemedAt": "2026-10-06T09:00:00Z",
@@ -685,6 +687,7 @@
             "boostAdd": null,
             "boostMultiply": 2,
             "unlimited": false,
+            "afterBoosts": 200000,
             "effective": 200000
           }
         }
@@ -727,6 +730,7 @@
         "currentPeriodEnd": null,
         "source": "addon",
         "provenance": {
+          "exception": null,
           "license": null,
           "addons": [
             {
@@ -764,6 +768,7 @@
         "currentPeriodEnd": null,
         "source": "license",
         "provenance": {
+          "exception": null,
           "license": {
             "licenseEntitlementId": "00000000-0000-4000-8000-000000000e02",
             "value": {
@@ -795,6 +800,7 @@
             "boostAdd": null,
             "boostMultiply": null,
             "unlimited": false,
+            "afterBoosts": 8,
             "effective": 8
           }
         }
@@ -816,6 +822,7 @@
         "currentPeriodEnd": null,
         "source": "license",
         "provenance": {
+          "exception": null,
           "license": {
             "licenseEntitlementId": "00000000-0000-4000-8000-000000000e04",
             "value": {
@@ -1017,6 +1024,7 @@
         "currentPeriodEnd": "2026-11-01T00:00:00Z",
         "source": "license",
         "provenance": {
+          "exception": null,
           "license": {
             "licenseEntitlementId": "00000000-0000-4000-8000-000000000e01",
             "value": {
@@ -1031,6 +1039,7 @@
               "instanceVoucherId": "00000000-0000-4000-8000-000000000b01",
               "voucherId": "00000000-0000-4000-8000-000000000b02",
               "voucherEntitlementGrantId": "00000000-0000-4000-8000-000000000b03",
+              "value": null,
               "modifierType": "MULTIPLY",
               "modifierValue": 2,
               "redeemedAt": "2026-10-06T09:00:00Z",
@@ -1045,6 +1054,7 @@
             "boostAdd": null,
             "boostMultiply": 2,
             "unlimited": false,
+            "afterBoosts": 200000,
             "effective": 200000
           }
         }
@@ -1087,6 +1097,7 @@
         "currentPeriodEnd": null,
         "source": "addon",
         "provenance": {
+          "exception": null,
           "license": null,
           "addons": [
             {
@@ -1124,6 +1135,7 @@
         "currentPeriodEnd": null,
         "source": "license",
         "provenance": {
+          "exception": null,
           "license": {
             "licenseEntitlementId": "00000000-0000-4000-8000-000000000e02",
             "value": {
@@ -1155,6 +1167,7 @@
             "boostAdd": null,
             "boostMultiply": null,
             "unlimited": false,
+            "afterBoosts": 8,
             "effective": 8
           }
         }
@@ -1176,6 +1189,7 @@
         "currentPeriodEnd": null,
         "source": "license",
         "provenance": {
+          "exception": null,
           "license": {
             "licenseEntitlementId": "00000000-0000-4000-8000-000000000e04",
             "value": {
@@ -1381,6 +1395,7 @@
         "currentPeriodEnd": null,
         "source": "license",
         "provenance": {
+          "exception": null,
           "license": {
             "licenseEntitlementId": "00000000-0000-4000-8000-000000000e04",
             "value": {
@@ -1484,6 +1499,7 @@
         "currentPeriodEnd": "2026-11-01T00:00:00Z",
         "source": "license",
         "provenance": {
+          "exception": null,
           "license": {
             "licenseEntitlementId": "00000000-0000-4000-8000-000000000e01",
             "value": {
@@ -1498,6 +1514,7 @@
               "instanceVoucherId": "00000000-0000-4000-8000-000000000b01",
               "voucherId": "00000000-0000-4000-8000-000000000b02",
               "voucherEntitlementGrantId": "00000000-0000-4000-8000-000000000b03",
+              "value": null,
               "modifierType": "MULTIPLY",
               "modifierValue": 2,
               "redeemedAt": "2026-10-06T09:00:00Z",
@@ -1512,6 +1529,7 @@
             "boostAdd": null,
             "boostMultiply": 2,
             "unlimited": false,
+            "afterBoosts": 200000,
             "effective": 200000
           }
         }
@@ -1554,6 +1572,7 @@
         "currentPeriodEnd": null,
         "source": "addon",
         "provenance": {
+          "exception": null,
           "license": null,
           "addons": [
             {
@@ -1591,6 +1610,7 @@
         "currentPeriodEnd": null,
         "source": "license",
         "provenance": {
+          "exception": null,
           "license": {
             "licenseEntitlementId": "00000000-0000-4000-8000-000000000e02",
             "value": {
@@ -1622,6 +1642,7 @@
             "boostAdd": null,
             "boostMultiply": null,
             "unlimited": false,
+            "afterBoosts": 8,
             "effective": 8
           }
         }
@@ -1643,6 +1664,7 @@
         "currentPeriodEnd": null,
         "source": "license",
         "provenance": {
+          "exception": null,
           "license": {
             "licenseEntitlementId": "00000000-0000-4000-8000-000000000e04",
             "value": {
@@ -1852,6 +1874,7 @@
         "currentPeriodEnd": "2026-11-01T00:00:00Z",
         "source": "license",
         "provenance": {
+          "exception": null,
           "license": {
             "licenseEntitlementId": "00000000-0000-4000-8000-000000000e01",
             "value": {
@@ -1866,6 +1889,7 @@
               "instanceVoucherId": "00000000-0000-4000-8000-000000000b01",
               "voucherId": "00000000-0000-4000-8000-000000000b02",
               "voucherEntitlementGrantId": "00000000-0000-4000-8000-000000000b03",
+              "value": null,
               "modifierType": "MULTIPLY",
               "modifierValue": 2,
               "redeemedAt": "2026-10-06T09:00:00Z",
@@ -1880,6 +1904,7 @@
             "boostAdd": null,
             "boostMultiply": 2,
             "unlimited": false,
+            "afterBoosts": 200000,
             "effective": 200000
           }
         }
@@ -1922,6 +1947,7 @@
         "currentPeriodEnd": null,
         "source": "addon",
         "provenance": {
+          "exception": null,
           "license": null,
           "addons": [
             {
@@ -1959,6 +1985,7 @@
         "currentPeriodEnd": null,
         "source": "license",
         "provenance": {
+          "exception": null,
           "license": {
             "licenseEntitlementId": "00000000-0000-4000-8000-000000000e02",
             "value": {
@@ -1990,6 +2017,7 @@
             "boostAdd": null,
             "boostMultiply": null,
             "unlimited": false,
+            "afterBoosts": 8,
             "effective": 8
           }
         }
@@ -2011,6 +2039,7 @@
         "currentPeriodEnd": null,
         "source": "license",
         "provenance": {
+          "exception": null,
           "license": {
             "licenseEntitlementId": "00000000-0000-4000-8000-000000000e04",
             "value": {

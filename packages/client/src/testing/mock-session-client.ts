@@ -531,6 +531,20 @@ export function createMockKaitenSessionClient(
       if (!Number.isInteger(quantity) || quantity < 0) {
         throw new TypeError("Kaiten: setAddonQuantity needs a whole quantity, 0 or more.");
       }
+      if (portal.instance === null) {
+        throw refusal(
+          422,
+          "SetSessionAddonQuantity.InstanceRequired",
+          "an add-on needs a bound instance",
+        );
+      }
+      if (portal.subscription?.status === "INCOMPLETE") {
+        throw refusal(
+          409,
+          "SetSessionAddonQuantity.SubscriptionIncomplete",
+          "the checkout is waiting for payment",
+        );
+      }
       const addon = addOns.find((candidate) => candidate.slug === addonSlug);
       if (!addon) {
         throw refusal(
@@ -546,15 +560,27 @@ export function createMockKaitenSessionClient(
           `at most ${addon.maxQuantity} of "${addonSlug}"`,
         );
       }
-      const held = { ...addon, quantity };
-      // The portal lists what the instance holds: an add-on set to none is gone
-      // from it, and can be attached again.
+      const current = portal.addOns.find((candidate) => candidate.slug === addonSlug);
+      // A subscription that is live has a boundary to wait for: a lower quantity, or none, is
+      // scheduled for it and what the instance holds stays until then. Without one every change
+      // applies at once, and an add-on set to none is gone from the portal and can be attached again.
+      const status = portal.subscription?.status;
+      const live = status === "TRIAL" || status === "ACTIVE" || status === "PAST_DUE";
+      const base = current ?? addon;
+      let held: SessionAddon;
+      if (current && live && quantity < current.quantity) {
+        held = { ...current, pendingQuantity: quantity };
+      } else if (current && live && quantity === current.quantity) {
+        held = { ...current, pendingQuantity: null };
+      } else {
+        held = { ...base, quantity, pendingQuantity: null };
+      }
       const others = portal.addOns.filter((candidate) => candidate.slug !== addonSlug);
       touch({
         addOns:
-          quantity === 0
+          held.quantity === 0
             ? others
-            : portal.addOns.some((candidate) => candidate.slug === addonSlug)
+            : current
               ? portal.addOns.map((candidate) => (candidate.slug === addonSlug ? held : candidate))
               : [...others, held],
       });

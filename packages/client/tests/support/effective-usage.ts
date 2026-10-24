@@ -23,6 +23,7 @@ export const EFFECTIVE_TOKENS_ROW = {
   currentPeriodStart: "2026-10-01T00:00:00Z",
   currentPeriodEnd: "2026-11-01T00:00:00Z",
   provenance: {
+    exception: null,
     license: {
       licenseEntitlementId: "7c8d0f6e-3b52-4f7a-9d1c-2a6b8e4f1c01",
       value: { type: "number", value: 10000 },
@@ -47,6 +48,7 @@ export const EFFECTIVE_TOKENS_ROW = {
         voucherEntitlementGrantId: "7c8d0f6e-3b52-4f7a-9d1c-2a6b8e4f1c07",
         modifierType: "MULTIPLY",
         modifierValue: 2,
+        value: null,
         redeemedAt: "2026-09-06T10:00:00Z",
         effectiveStartsAt: "2026-09-06T10:00:00Z",
         effectiveExpiresAt: null,
@@ -58,6 +60,7 @@ export const EFFECTIVE_TOKENS_ROW = {
       boostSet: null,
       boostAdd: null,
       boostMultiply: 2,
+      afterBoosts: 26000,
       unlimited: false,
       effective: 26000,
     },
@@ -74,6 +77,7 @@ export const ADDON_ONLY_ROW = {
   limit: { type: "boolean", value: true },
   source: "addon",
   provenance: {
+    exception: null,
     license: null,
     addons: [
       {

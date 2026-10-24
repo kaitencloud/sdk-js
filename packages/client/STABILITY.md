@@ -126,6 +126,49 @@ release that ships them, on the terms above. What that fixes:
   the `brand` and `last4` of its `paymentMethod` are `null` when the provider gives none. The block
   itself is `null` outside a trial and absent from a server that predates it; a screen draws nothing
   in both cases.
+- **A decrease an add-on has scheduled** is `Addon.pendingQuantity`, read from the portal's add-ons
+  and from the answer of `setAddonQuantity`: the quantity from the next renewal, `0` for a removal.
+  `quantity` stays what the instance holds, and it holds it until then. It is `null` when nothing is
+  scheduled, and absent from a server that predates it: a screen says nothing of a decrease then. The
+  client never applies it to `quantity`, and never works out a date for it: the renewal is
+  `subscription.currentPeriodEnd`.
+- **The billing timing of a price** is `BillingPrice.billingTiming`, `"ADVANCE"` (the period that
+  starts) or `"ARREARS"` (the period that ended), as the API says it. It is absent when the API says
+  nothing, never defaulted, and the union is open. `displayOrder` is also copied when present,
+  without reordering prices or defaulting an older server's missing value.
+- **The "Powered by Kaiten" mark** is `KaitenPortal.branding` and `KaitenCatalog.branding`, read from
+  the contract's `poweredByRemovable`: only a `true` makes it `removable`. The portal's member is
+  absent from a server that predates it, and the catalogue's then reads `removable: false`, as it
+  did before the client read it; `snapshot.branding` of a customer session is the portal's, else the
+  catalogue's.
+
+## The public portal's effective layers
+
+The 1.0 closed `ResolvedEntitlement.source` union stays closed. A portal's actual source is
+`effectiveSource`, an optional open union (`license`, `addon`, `exception` today), copied without
+a fallback. The legacy `source` still maps a layer it cannot represent to `license`; components
+use `effectiveSource ?? source` for a truthful provenance label.
+
+`EntitlementProvenance.exception` is the exception in force: `instanceEntitlementExceptionId`,
+open `kind` (`SET`, `ADD`, `UNLIMITED`), tagged `value` (`null` for `UNLIMITED`), `startsAt` and
+nullable `endsAt`. It is `null` without an exception, absent on an older server, and never exposes
+the vendor's reason or author. `number.afterBoosts` is the server's value before this last layer,
+not an SDK calculation. `boosts[].value` is the tagged BOOLEAN/CONFIG SET value, or `null` for
+numeric modifiers. Both additions stay absent when an older server leaves them out. Access and
+totals always use the API's effective values, not a replay of the provenance arithmetic.
+
+Voucher validation's `VoucherSummary` knows `FLAG_GRANT` and `COMPOSITE` in its open type union.
+`boosts[].value` is the bare boolean/config value here, not the tagged provenance shape;
+`modifierValue` keeps its decimal string or reads `null` when absent. `flagGrants` lists the
+`flagSlug` and string `variant`, preserves a supplied `null`, and is absent when omitted. A
+composite can carry its discount, boosts and flag grants together. Catalogue grants also expose
+their overage allowance and add-on `overrideBehavior` (open), already copied by the mapper.
+
+The current public contract serves `INCOMPLETE`, but **not** `incompleteExpiresAt`, pending licence
+or selection members, `canceledAt`, `cancellationReason`, `licenseChangeReason`, add-on
+`increaseBilling`, or invoice-line `trueUp`. These are not fabricated from vendor-only schemas,
+the period end, the current licence or a label. A component cannot state a deadline, a fallback
+reason or a family's true-up policy from these public payloads yet.
 
 ## How enumerations grow
 

@@ -43,6 +43,8 @@ const stored = (overrides: Partial<PublishableKey> = {}): PublishableKey => ({
   anonymousCheckout: false,
   turnstileSiteKey: null,
   turnstileSecretConfigured: false,
+  lastUsedAt: null,
+  revokedAt: null,
   createdAt: "2026-10-12T09:00:00Z",
   updatedAt: "2026-10-12T09:00:00Z",
   ...overrides,

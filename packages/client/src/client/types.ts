@@ -87,7 +87,7 @@ export type BoostModifierType = "SET" | "ADD" | "MULTIPLY" | "UNLIMITED" | (stri
  * name the rows each layer comes from, for a vendor to find them by.
  */
 export interface EntitlementProvenance {
-  /** The licence's grant. Null when only add-ons grant the entitlement. */
+  /** The licence's grant. Null when only add-ons or an exception grant the entitlement. */
   license: {
     licenseEntitlementId: string;
     value: EntitlementValue;
@@ -113,21 +113,36 @@ export interface EntitlementProvenance {
     voucherEntitlementGrantId: string;
     modifierType: BoostModifierType;
     modifierValue: number | null;
+    /** A BOOLEAN/CONFIG SET boost's tagged value; null for numeric modifiers. Absent on older servers. */
+    value?: EntitlementValue | null;
     redeemedAt: string;
     effectiveStartsAt: string;
     effectiveExpiresAt: string | null;
   }[];
+  /** The last effective layer. Null without an exception; absent on older servers. Never its reason or author. */
+  exception?: {
+    instanceEntitlementExceptionId: string;
+    /** Open: more kinds may come. */
+    kind: "SET" | "ADD" | "UNLIMITED" | (string & {});
+    /** Null for UNLIMITED. */
+    value: EntitlementValue | null;
+    startsAt: string;
+    /** Null when it has no end. */
+    endsAt: string | null;
+  } | null;
   /**
    * The arithmetic of a number entitlement, step by step. Null for a flag or a
-   * configuration, and when no add-on or boost changes the number.
+   * configuration, and when no add-on, boost or exception changes the number.
    */
   number: {
-    /** The licence's value. Null when only add-ons grant it. */
+    /** The licence's value. Null when only add-ons or an exception grant it. */
     license: number | null;
     afterAddons: number;
     boostSet: number | null;
     boostAdd: number | null;
     boostMultiply: number | null;
+    /** Before the exception, as the API computed it; -1 when unlimited. Absent on older servers. */
+    afterBoosts?: number;
     unlimited: boolean;
     /** The effective value; `-1` when unlimited. */
     effective: number;
@@ -519,6 +534,14 @@ export interface BillingPrice extends Omit<
   saleUnitSingular?: string | null;
   /** Plural label of that sale unit. */
   saleUnitPlural?: string | null;
+  /**
+   * When the price is billed, as the API says it: `ADVANCE` bills the period that starts,
+   * `ARREARS` the period that ended. A metered price is always `ARREARS`. Open: more may come.
+   * Absent from a server that predates it.
+   */
+  billingTiming?: "ADVANCE" | "ARREARS" | (string & {});
+  /** The API's ascending display order. Absent on older servers. */
+  displayOrder?: number;
 }
 
 export interface PortalAction {
@@ -579,6 +602,10 @@ export interface PlanEntitlement extends EntitlementPresentation {
   description?: string | null;
   type: EntitlementType | Lowercase<EntitlementValue["type"]>;
   value?: EntitlementValue;
+  /** The catalogue grant's overage allowance, when supplied. */
+  limitCapExceededOveragePercent?: number | null;
+  /** How a catalogue add-on's number grant combines with the licence. Open: more may come. */
+  overrideBehavior?: "ADD" | "OVERRIDE" | "MAX" | (string & {});
   /**
    * True when the grant carries the unlimited sentinel. Server-computed on the
    * GraphQL read path; derived from the value on REST rows. Prefer this over
@@ -612,6 +639,12 @@ export interface Addon {
   maxQuantity?: number | null;
   /** How many units the instance holds, on an add-on read from a customer's portal. */
   quantity?: number;
+  /**
+   * A decrease scheduled for the next renewal, on an add-on read from a customer's portal: the
+   * quantity from that renewal, `0` for a removal. `quantity` and the access it gives hold until
+   * then. `null` when nothing is scheduled; absent from a server that predates it.
+   */
+  pendingQuantity?: number | null;
   /** Every price of the add-on. See {@link PlanPrice} for why `prices` holds fewer. */
   billingPrices?: BillingPrice[];
   /** The licence families this add-on can be attached to. */
@@ -746,10 +779,12 @@ export interface ResolvedEntitlement extends EntitlementPresentation {
   status: "enabled" | "disabled" | "near_limit" | "over_limit";
   configLabel?: string | null;
   /**
-   * The layer that grants the entitlement: the licence, or an add-on when only
-   * an add-on grants it. `credit` is not produced by any Kaiten server yet.
+   * The legacy 1.0 layer. An exception or an unknown layer reads as `license` here for
+   * compatibility; read `effectiveSource` for the portal's actual layer. `credit` is reserved.
    */
   source: "license" | "addon" | "credit";
+  /** The portal's actual layer, without a fallback. Open; absent when the server says nothing. */
+  effectiveSource?: "license" | "addon" | "exception" | (string & {});
   actions?: PortalAction[];
   /**
    * How each layer contributed to the effective value — the licence grant, the

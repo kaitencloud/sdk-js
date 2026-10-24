@@ -11,6 +11,7 @@ import {
   demoPortal,
   demoSessionAddOns,
   demoSessionInvoices,
+  demoTrialPortal,
   demoUnsubscribedPortal,
 } from "../src/testing/index.ts";
 import { answer } from "./support/session-answers.ts";
@@ -344,11 +345,11 @@ describe("createMockKaitenSessionClient", () => {
     });
   });
 
-  test("an add-on's quantity moves it, up to its maximum, and zero removes it", async () => {
+  test("an add-on's quantity moves up at once, up to its maximum", async () => {
     const session = createMockKaitenSessionClient();
 
     const more = await session.setAddonQuantity("extra-seats-v1", 5);
-    expect(more).toMatchObject({ quantity: 5, maxQuantity: 20 });
+    expect(more).toMatchObject({ quantity: 5, maxQuantity: 20, pendingQuantity: null });
     expect((await session.getPortal()).addOns[0]?.quantity).toBe(5);
 
     expect(await refusedWith(session.setAddonQuantity("extra-seats-v1", 21))).toMatchObject({
@@ -360,13 +361,70 @@ describe("createMockKaitenSessionClient", () => {
       code: "SetSessionAddonQuantity.AddonNotPublic",
     });
 
+    await expect(session.setAddonQuantity("extra-seats-v1", -1)).rejects.toBeInstanceOf(TypeError);
+    await expect(session.setAddonQuantity("", 1)).rejects.toBeInstanceOf(TypeError);
+  });
+
+  test("a lower quantity on a live subscription is scheduled and the units held stay", async () => {
+    const session = createMockKaitenSessionClient();
+    await session.setAddonQuantity("extra-seats-v1", 5);
+
+    // The answer and the portal keep what is held, and say what the renewal will make of it.
+    expect(await session.setAddonQuantity("extra-seats-v1", 2)).toMatchObject({
+      quantity: 5,
+      pendingQuantity: 2,
+    });
+    expect((await session.getPortal()).addOns[0]).toMatchObject({
+      quantity: 5,
+      pendingQuantity: 2,
+    });
+
+    // A later write replaces the scheduled value, and sending the quantity held cancels it.
+    expect(await session.setAddonQuantity("extra-seats-v1", 3)).toMatchObject({
+      quantity: 5,
+      pendingQuantity: 3,
+    });
+    expect(await session.setAddonQuantity("extra-seats-v1", 5)).toMatchObject({
+      quantity: 5,
+      pendingQuantity: null,
+    });
+
+    // A removal is scheduled too: the add-on stays listed, with a quantity of none scheduled.
+    expect(await session.setAddonQuantity("extra-seats-v1", 0)).toMatchObject({
+      quantity: 5,
+      pendingQuantity: 0,
+    });
+    expect((await session.getPortal()).addOns).toHaveLength(1);
+
+    // A higher quantity applies at once and clears what was scheduled.
+    expect(await session.setAddonQuantity("extra-seats-v1", 6)).toMatchObject({
+      quantity: 6,
+      pendingQuantity: null,
+    });
+  });
+
+  test("a trial has a boundary too: its end applies a lower quantity", async () => {
+    const session = createMockKaitenSessionClient({
+      portal: demoTrialPortal({ addOns: demoSessionAddOns() }),
+    });
+
+    expect(await session.setAddonQuantity("extra-seats-v1", 1)).toMatchObject({
+      quantity: 2,
+      pendingQuantity: 1,
+    });
+  });
+
+  test("without a live subscription there is no boundary: every change applies at once, and zero removes", async () => {
+    const session = createMockKaitenSessionClient({ portal: demoPortal({ subscription: null }) });
+
+    expect(await session.setAddonQuantity("extra-seats-v1", 1)).toMatchObject({
+      quantity: 1,
+      pendingQuantity: null,
+    });
     expect(await session.setAddonQuantity("extra-seats-v1", 0)).toMatchObject({ quantity: 0 });
     expect((await session.getPortal()).addOns).toEqual([]);
     expect(await session.setAddonQuantity("extra-seats-v1", 1)).toMatchObject({ quantity: 1 });
     expect((await session.getPortal()).addOns).toHaveLength(1);
-
-    await expect(session.setAddonQuantity("extra-seats-v1", -1)).rejects.toBeInstanceOf(TypeError);
-    await expect(session.setAddonQuantity("", 1)).rejects.toBeInstanceOf(TypeError);
   });
 
   test("records every call, and takes the scenario to swap mid-flight", async () => {

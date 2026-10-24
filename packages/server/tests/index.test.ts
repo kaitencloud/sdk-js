@@ -384,7 +384,7 @@ describe("usage report keys and the usage history", () => {
     // Present on every answer: the layer and the arithmetic of a first report,
     // and null on a replay, which is rebuilt from a journal that keeps neither.
     expectTypeOf<Pick<ReportedEntitlementUsage, "source" | "provenance">>().toEqualTypeOf<{
-      source: "license" | "addon" | null;
+      source: "license" | "addon" | "exception" | null;
       provenance: Provenance | null;
     }>();
   });

@@ -42,6 +42,8 @@ const flatFee = (
   unitAmountDecimal: `${amount}`,
   currencyCode: "USD",
   billingModel: "FLAT_FEE",
+  billingTiming: "ADVANCE",
+  displayOrder: 0,
   isDefault: true,
   interval,
   label,
@@ -66,6 +68,7 @@ export function demoSessionAddOns(): SessionAddon[] {
       name: "Extra seats",
       quantity: 2,
       maxQuantity: 20,
+      pendingQuantity: null,
       price: monthly.amount,
       currencyCode: "USD",
       interval: "month",
@@ -117,6 +120,7 @@ export function demoPortal(overrides: Partial<KaitenPortal> = {}): KaitenPortal 
     },
     capabilities: { paymentMethods: true, invoices: true, unsubscribe: true, checkout: false },
     trial: null,
+    branding: { removable: false },
     updatedAt: DEMO_SESSION_NOW,
     ...overrides,
   };
@@ -211,7 +215,8 @@ export function demoSessionInvoices(): SessionInvoice[] {
 
 /**
  * The voucher codes a demo checkout accepts: `WELCOME20`, 20% off the base fee for three invoices,
- * and `DOUBLECALLS`, a boost of the API calls.
+ * `DOUBLECALLS`, a boost of the API calls, and `LAUNCH`, a composite of a discount,
+ * boolean/config boosts and a flag grant.
  */
 export function demoVouchers(): Record<string, VoucherSummary> {
   return {
@@ -228,6 +233,23 @@ export function demoVouchers(): Record<string, VoucherSummary> {
       duration: "FOREVER",
       durationInPeriods: null,
       boosts: [{ entitlementSlug: "api-calls", modifierType: "MULTIPLY", modifierValue: "2" }],
+    },
+    LAUNCH: {
+      name: "Launch bundle",
+      voucherType: "COMPOSITE",
+      duration: "REPEATING",
+      durationInPeriods: 3,
+      discount: { type: "PERCENTAGE", value: "20", appliesTo: "LICENSE_BASE" },
+      boosts: [
+        { entitlementSlug: "sso", modifierType: "SET", modifierValue: null, value: true },
+        {
+          entitlementSlug: "branding",
+          modifierType: "SET",
+          modifierValue: null,
+          value: { logo: "launch" },
+        },
+      ],
+      flagGrants: [{ flagSlug: "new-dashboard", variant: "enabled" }],
     },
   };
 }

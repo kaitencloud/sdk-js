@@ -80,6 +80,10 @@ export function mapBillingPrice(raw: PublicPrice): BillingPrice {
     isDefault: raw.isDefault === true,
     ...billingInterval(raw.billingPeriod),
   };
+  // Said as the API says it, and left out when it says nothing: a price is never taken for one
+  // billed in advance.
+  if (typeof raw.billingTiming === "string") price.billingTiming = raw.billingTiming;
+  if (raw.displayOrder !== undefined) price.displayOrder = raw.displayOrder;
   // `unitAmount` is present exactly when the price is a whole number of minor
   // units. It is taken as it is: never multiplied, divided or rounded.
   if (Number.isSafeInteger(unitAmount)) price.amount = unitAmount;
@@ -234,6 +238,7 @@ export function mapPublicCatalog(payload: unknown): KaitenCatalog {
       anonymousCheckout,
       turnstileSiteKey: anonymousCheckout ? (siteKey as string) : null,
     },
-    branding: normalizeBrandingCapability(undefined),
+    // Strictly `true` removes the mark: a payload without the member, or with anything else, keeps it.
+    branding: normalizeBrandingCapability({ removable: raw.branding?.poweredByRemovable === true }),
   };
 }

@@ -61,6 +61,8 @@ describe("money: API price to BillingPrice", () => {
       currencyCode: "EUR",
       billingModel: "FLAT_FEE",
       isDefault: true,
+      billingTiming: "ADVANCE",
+      displayOrder: 0,
       interval: "month",
       label: "Monthly",
     });
@@ -330,5 +332,41 @@ describe("add-ons and capabilities", () => {
     // @ts-expect-error -- `amount` is optional on BillingPrice and required on PlanPrice.
     const legacy: PlanPrice = decimal;
     expect(legacy.amount).toBeUndefined();
+  });
+});
+
+describe("a price's billing timing", () => {
+  const price = {
+    id: PRICE.proMonthly,
+    billingModel: "FLAT_FEE",
+    billingPeriod: "MONTHLY",
+    billingTiming: "ADVANCE",
+    currency: "EUR",
+    unitAmount: 4900,
+    unitAmountDecimal: "4900",
+    displayOrder: 0,
+    isDefault: true,
+  } as const;
+
+  test("is said as the API says it", () => {
+    expect(mapBillingPrice(price).billingTiming).toBe("ADVANCE");
+    expect(
+      mapBillingPrice({ ...price, billingModel: "USAGE_BASED", billingTiming: "ARREARS" })
+        .billingTiming,
+    ).toBe("ARREARS");
+  });
+
+  test("is left out when the API says nothing: a price is never taken for one billed in advance", () => {
+    const { billingTiming: _, ...bare } = price;
+
+    expect(mapBillingPrice(bare as never)).not.toHaveProperty("billingTiming");
+  });
+  test("an unknown timing stays unknown, and display order is not defaulted", () => {
+    expect(mapBillingPrice({ ...price, billingTiming: "DEFERRED" } as never).billingTiming).toBe(
+      "DEFERRED",
+    );
+    expect(mapBillingPrice(price).displayOrder).toBe(0);
+    const { displayOrder: _, ...older } = price;
+    expect(mapBillingPrice(older as never)).not.toHaveProperty("displayOrder");
   });
 });
