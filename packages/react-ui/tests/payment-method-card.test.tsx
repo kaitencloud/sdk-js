@@ -146,7 +146,7 @@ test("the card is confirmed when the customer is back, and the portal read again
 
   expect(await screen.findByText("Visa •••• 4242")).toBeTruthy();
   expect(server.to("POST", "billing/payment-method-session/cs_setup_2/complete")).toHaveLength(1);
-  expect(screen.getByText("Payment method updated.")).toBeTruthy();
+  expect(await screen.findByText("Payment method updated.")).toBeTruthy();
   // The parameter is gone, and the rest of the address is not.
   expect(window.location.search).toBe("?tab=payment");
 });
