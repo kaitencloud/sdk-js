@@ -129,7 +129,7 @@ test("a refusal that is not a wait is the error, and the hook calls it once", as
   expect(onError).toHaveBeenCalledTimes(1);
 });
 
-test("an add-on is set to a quantity, and 0 detaches it", async () => {
+test("an add-on increases at once, and 0 schedules removal while retaining the units held", async () => {
   const client = createMockKaitenSessionClient();
   const view = withPortal(() => useSetAddonQuantity(), client);
   await waitFor(() => expect(view.result.current.portal.data).toBeDefined());
@@ -145,7 +145,11 @@ test("an add-on is set to a quantity, and 0 detaches it", async () => {
   await act(async () => {
     await view.result.current.action.mutateAsync({ addonSlug: "extra-seats-v1", quantity: 0 });
   });
-  expect(view.result.current.portal.data!.addOns).toHaveLength(0);
+  expect(view.result.current.portal.data!.addOns).toHaveLength(1);
+  expect(view.result.current.portal.data!.addOns[0]).toMatchObject({
+    quantity: 3,
+    pendingQuantity: 0,
+  });
   expect(
     client.calls.filter((call) => call.method === "setAddonQuantity").map((call) => call.args),
   ).toEqual([

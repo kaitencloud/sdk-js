@@ -73,7 +73,8 @@ export function snapshotFromPortal(
     flags: [],
     actions: [],
     capabilities: portal.capabilities,
-    branding: catalog?.branding,
+    // Prefer the session's capability; the catalogue fills it in on older portals.
+    branding: portal.branding ?? catalog?.branding,
     currentPlan: instance && { slug: instance.licenseSlug, name: instance.licenseName },
     subscription: portal.subscription,
     ...(portal.trial !== undefined ? { trial: portal.trial } : {}),

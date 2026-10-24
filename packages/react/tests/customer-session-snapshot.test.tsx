@@ -14,7 +14,12 @@ import type { ReactNode } from "react";
 import { cleanup, render, renderHook, screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vite-plus/test";
 import { KaitenSessionClient, type KaitenSessionClientLike } from "@kaitencloud/client";
-import { createMockKaitenSessionClient, demoTrialPortal } from "@kaitencloud/client/testing";
+import {
+  createMockKaitenSessionClient,
+  demoPortal,
+  demoTrialPortal,
+} from "@kaitencloud/client/testing";
+import { snapshotFromPortal } from "../src/lib/portal-snapshot.ts";
 
 import sessionAnswers from "../../client/tests/fixtures/session.initech.json" with { type: "json" };
 import acmeCatalog from "../../client/tests/fixtures/public-catalog.acme.json" with { type: "json" };
@@ -101,6 +106,20 @@ afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+});
+
+test("the portal's branding takes precedence, with catalogue fallback only when it is absent", () => {
+  const portal = demoPortal();
+  const catalog = { plans: [], addOns: [], branding: { removable: true } };
+  expect(snapshotFromPortal(portal, catalog).branding).toEqual({ removable: false });
+  expect(
+    snapshotFromPortal({ ...portal, branding: { removable: true } }, undefined).branding,
+  ).toEqual({ removable: true });
+  const { branding: _, ...older } = portal;
+  expect(snapshotFromPortal(older, catalog).branding).toEqual({ removable: true });
+  expect(snapshotFromPortal(older, undefined).branding).toBeUndefined();
+  const pending = demoPortal({ addOns: [{ ...portal.addOns[0]!, pendingQuantity: 0 }] });
+  expect(snapshotFromPortal(pending, catalog).addOns).toBe(pending.addOns);
 });
 
 test("carries the trial of the bound instance when the portal has one, and says nothing when it does not", async () => {
