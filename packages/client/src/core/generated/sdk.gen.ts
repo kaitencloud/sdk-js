@@ -92,6 +92,9 @@ import type {
   CreateDeploymentZoneResponses,
   CreateEntitlementData,
   CreateEntitlementErrors,
+  CreateEntitlementExceptionData,
+  CreateEntitlementExceptionErrors,
+  CreateEntitlementExceptionResponses,
   CreateEntitlementGroupData,
   CreateEntitlementGroupErrors,
   CreateEntitlementGroupResponses,
@@ -417,6 +420,9 @@ import type {
   ListDeploymentZonesData,
   ListDeploymentZonesErrors,
   ListDeploymentZonesResponses,
+  ListEntitlementExceptionsData,
+  ListEntitlementExceptionsErrors,
+  ListEntitlementExceptionsResponses,
   ListEntitlementGroupsData,
   ListEntitlementGroupsErrors,
   ListEntitlementGroupsResponses,
@@ -543,6 +549,9 @@ import type {
   RevokeCustomerSessionData,
   RevokeCustomerSessionErrors,
   RevokeCustomerSessionResponses,
+  RevokeEntitlementExceptionData,
+  RevokeEntitlementExceptionErrors,
+  RevokeEntitlementExceptionResponses,
   RevokeInstanceVoucherData,
   RevokeInstanceVoucherErrors,
   RevokeInstanceVoucherResponses,
@@ -2813,7 +2822,7 @@ export const testTargetingRule = <ThrowOnError extends boolean = false>(
 /**
  * Delete a featureflag
  *
- * Delete a featureflag with the provided details
+ * Delete a featureflag with the provided details. A flag a voucher grants a variant of cannot be deleted (409 DeleteFeatureFlag.InUseConflict); it can be disabled.
  */
 export const deleteFeatureFlag = <ThrowOnError extends boolean = false>(
   options: Options<DeleteFeatureFlagData, ThrowOnError>,
@@ -3067,7 +3076,7 @@ export const attachInstanceAddon = <ThrowOnError extends boolean = false>(
 /**
  * Remove an add-on from an instance
  *
- * Removes an add-on from an instance. The entitlements drop at once; nothing is refunded. The attachment stays readable with includeRemoved. Emits INSTANCE_ADDON_REMOVED. Requires billing to be enabled for the organization.
+ * Removes an add-on from an instance, at once, a removal the customer scheduled included. The entitlements drop at once; nothing is refunded. The attachment stays readable with includeRemoved. Emits INSTANCE_ADDON_REMOVED. Requires billing to be enabled for the organization.
  */
 export const detachInstanceAddon = <ThrowOnError extends boolean = false>(
   options: Options<DetachInstanceAddonData, ThrowOnError>,
@@ -3091,7 +3100,7 @@ export const detachInstanceAddon = <ThrowOnError extends boolean = false>(
 /**
  * Change an instance add-on's quantity
  *
- * Changes how many units of an add-on an instance holds. The entitlements follow at once; the next invoice bills the new quantity. Emits INSTANCE_ADDON_QUANTITY_CHANGED. Requires billing to be enabled for the organization.
+ * Changes how many units of an add-on an instance holds, at once, a decrease included. The entitlements follow at once; the next invoice bills the new quantity. It cancels a decrease the customer scheduled (pendingQuantity), even when the quantity is the one held. Emits INSTANCE_ADDON_QUANTITY_CHANGED. Requires billing to be enabled for the organization.
  */
 export const setInstanceAddonQuantity = <ThrowOnError extends boolean = false>(
   options: Options<SetInstanceAddonQuantityData, ThrowOnError>,
@@ -3341,6 +3350,94 @@ export const getUpcomingInvoice = <ThrowOnError extends boolean = false>(
       },
     ],
     url: "/instances/{instanceSlug}/billing/upcoming-invoice",
+    ...options,
+  });
+
+/**
+ * List an instance's entitlement exceptions
+ *
+ * The instance's exceptions, latest start first, each with its status at the read. Works whether or not billing is enabled.
+ */
+export const listEntitlementExceptions = <ThrowOnError extends boolean = false>(
+  options: Options<ListEntitlementExceptionsData, ThrowOnError>,
+): RequestResult<
+  ListEntitlementExceptionsResponses,
+  ListEntitlementExceptionsErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    ListEntitlementExceptionsResponses,
+    ListEntitlementExceptionsErrors,
+    ThrowOnError
+  >({
+    security: [
+      {
+        key: "bearerAuth",
+        scheme: "bearer",
+        type: "http",
+      },
+    ],
+    url: "/instances/{instanceSlug}/entitlement-exceptions",
+    ...options,
+  });
+
+/**
+ * Set an exception on an instance's entitlement
+ *
+ * The vendor's explicit, dated decision on one entitlement of one instance, without a code: the last layer of the effective entitlements, after the licence, the add-ons and the boosts. It wins over them and may lower the value. One unrevoked exception per instance and entitlement at any instant. Emits INSTANCE_ENTITLEMENT_EXCEPTION_CREATED. Works whether or not billing is enabled.
+ */
+export const createEntitlementException = <ThrowOnError extends boolean = false>(
+  options: Options<CreateEntitlementExceptionData, ThrowOnError>,
+): RequestResult<
+  CreateEntitlementExceptionResponses,
+  CreateEntitlementExceptionErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).post<
+    CreateEntitlementExceptionResponses,
+    CreateEntitlementExceptionErrors,
+    ThrowOnError
+  >({
+    security: [
+      {
+        key: "bearerAuth",
+        scheme: "bearer",
+        type: "http",
+      },
+    ],
+    url: "/instances/{instanceSlug}/entitlement-exceptions",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Revoke an entitlement exception
+ *
+ * Revokes an exception and keeps it, readable with filter=all: a scheduled one never starts, an active one ends at once. Revoking one already revoked or ended changes nothing. Emits INSTANCE_ENTITLEMENT_EXCEPTION_REVOKED. Works whether or not billing is enabled.
+ */
+export const revokeEntitlementException = <ThrowOnError extends boolean = false>(
+  options: Options<RevokeEntitlementExceptionData, ThrowOnError>,
+): RequestResult<
+  RevokeEntitlementExceptionResponses,
+  RevokeEntitlementExceptionErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).delete<
+    RevokeEntitlementExceptionResponses,
+    RevokeEntitlementExceptionErrors,
+    ThrowOnError
+  >({
+    security: [
+      {
+        key: "bearerAuth",
+        scheme: "bearer",
+        type: "http",
+      },
+    ],
+    url: "/instances/{instanceSlug}/entitlement-exceptions/{exceptionId}",
     ...options,
   });
 
@@ -3643,7 +3740,7 @@ export const listInstanceVouchers = <ThrowOnError extends boolean = false>(
 /**
  * Redeem a voucher
  *
- * Redeems a voucher for an instance. A boost applies from the next read or report, for its duration; a PRICE voucher discounts the subscription's next invoices. Emits INSTANCE_VOUCHER_REDEEMED, and VOUCHER_EXHAUSTED with the last redemption. Requires billing to be enabled for the organization.
+ * Redeems a voucher for an instance. A boost applies from the next read or report, for its duration; a PRICE voucher discounts the subscription's next invoices. 422 .DiscountLimitExceeded when a line of the instance's invoices would bear more than 20 discounts, whatever the provider (a Stripe invoice item takes 20). Emits INSTANCE_VOUCHER_REDEEMED, and VOUCHER_EXHAUSTED with the last redemption. Requires billing to be enabled for the organization.
  */
 export const redeemVoucher = <ThrowOnError extends boolean = false>(
   options: Options<RedeemVoucherData, ThrowOnError>,
@@ -3923,7 +4020,7 @@ export const markInvoicePaid = <ThrowOnError extends boolean = false>(
 /**
  * Recompose an invoice
  *
- * Composes an invoice again from the usage journal as it is now, keeping its BASE lines as they were sold. A held DRAFT is rewritten in place (200): issued when its journal is now sound, held again otherwise. A VOID invoice gets a replacement for the same boundary (201), under the subscription's current terms and billing e-mail. Any other invoice must be voided first. Requires billing to be enabled for the organization.
+ * Composes an invoice again from the usage journal as it is now, keeping its BASE lines as they were sold. A held DRAFT is rewritten in place (200), under the subscription's current provider and terms: issued when its journal is now sound and its provider takes as many items, held again otherwise. A VOID invoice gets a replacement for the same boundary (201), under the subscription's current terms and billing e-mail. Any other invoice must be voided first. Requires billing to be enabled for the organization.
  */
 export const recomposeInvoice = <ThrowOnError extends boolean = false>(
   options: Options<RecomposeInvoiceData, ThrowOnError>,
@@ -3943,7 +4040,7 @@ export const recomposeInvoice = <ThrowOnError extends boolean = false>(
 /**
  * Release a held invoice
  *
- * Accepts a held invoice as composed and issues it: MANUAL and pending in the handoff queue, or PAID when nothing is owed. The release keeps who released it and why. Requires billing to be enabled for the organization.
+ * Accepts a held invoice as composed and issues it: MANUAL and pending in the handoff queue, or PAID when nothing is owed. The release keeps who released it and why. 409 .ProviderItemLimit for a PROVIDER_ITEM_LIMIT hold, which its provider would refuse: switch the subscription to NoOp and recompose in place, or void and recompose after that switch. Requires billing to be enabled for the organization.
  */
 export const releaseInvoiceHold = <ThrowOnError extends boolean = false>(
   options: Options<ReleaseInvoiceHoldData, ThrowOnError>,
@@ -4953,7 +5050,7 @@ export const confirmCheckoutSession = <ThrowOnError extends boolean = false>(
 /**
  * Set how many of an add-on the instance holds
  *
- * Attaches the add-on to the session's instance, changes its quantity, or removes it with 0. Entitlements change at once; the subscription bills the quantity held at each renewal, with no proration. Setting the quantity held changes nothing. 409 .OtherVersionAttached when another version of the same add-on is held, .BoundaryPending while the period that ended is being closed (Retry-After); 422 .AddonNotPublic, .Incompatible, .QuantityExceedsMax, .CurrencyMismatch, .InstanceRequired.
+ * Attaches the add-on to the session's instance, changes its quantity, or removes it with 0. An attach or an increase changes the entitlements at once. With a live subscription a lower quantity, or 0, is scheduled for the next renewal: pendingQuantity shows it, and the quantity held, its entitlements and its billing stay until then; the quantity held cancels it, and so does an increase. Without a live subscription every change applies at once. The subscription bills the quantity held at each renewal, with no proration. Setting the quantity held, with nothing scheduled, changes nothing. 409 .OtherVersionAttached when another version of the same add-on is held, .BoundaryPending while the period that ended is being closed (Retry-After); 422 .AddonNotPublic, .Incompatible, .QuantityExceedsMax, .CurrencyMismatch, .InstanceRequired.
  */
 export const setSessionAddonQuantity = <ThrowOnError extends boolean = false>(
   options: Options<SetSessionAddonQuantityData, ThrowOnError>,

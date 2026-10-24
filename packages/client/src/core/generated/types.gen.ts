@@ -1167,7 +1167,7 @@ export type CheckoutSessionDraft = {
    */
   turnstileToken: string;
   /**
-   * A code to apply; any refusal answers 422 .VoucherInvalid
+   * A code to apply, checked against the selection, with no customer yet: a voucher restricted to a customer never applies, and one without a PRICE part only when nothing is due today. Its discount counts in dueToday; the completion, or the payment, records its redemption. Any refusal answers 422 .VoucherInvalid
    */
   voucherCode?: string;
 };
@@ -2166,6 +2166,36 @@ export type EntitlementDelivered = {
   warningThresholdPercent?: number;
 };
 
+export type EntitlementException = {
+  createdAt: string;
+  /**
+   * Null: no end
+   */
+  endsAt: string | null;
+  entitlementSlug: string;
+  entitlementType: "NUMBER" | "NUMBER_AI_CREDIT" | "BOOLEAN" | "CONFIG";
+  id: string;
+  instanceSlug: string;
+  kind: "SET" | "ADD" | "UNLIMITED";
+  reason: string;
+  revokedAt: string | null;
+  startsAt: string;
+  /**
+   * At the read: SCHEDULED before startsAt, ACTIVE in its window, EXPIRED after endsAt, REVOKED once revoked
+   */
+  status: "SCHEDULED" | "ACTIVE" | "EXPIRED" | "REVOKED";
+  /**
+   * A number for NUMBER and NUMBER_AI_CREDIT, a boolean for BOOLEAN, the CONFIG document as an object; null for UNLIMITED
+   */
+  value:
+    | number
+    | boolean
+    | {
+        [key: string]: unknown;
+      }
+    | null;
+};
+
 export type EntitlementGroup = {
   /**
    * Description of the entitlement group
@@ -2331,9 +2361,9 @@ export type EntitlementUsage = {
    */
   provenance?: Provenance;
   /**
-   * license: the licence grants it (add-ons and boosts may change it); addon: only add-ons do
+   * license: the licence grants it (add-ons, boosts and an exception may change it); addon: an add-on attached does; exception: only the instance's exception does
    */
-  source: "license" | "addon";
+  source: "license" | "addon" | "exception";
   /**
    * Resolved entitlement value, discriminated by the 'type' field
    */
@@ -2404,9 +2434,9 @@ export type EntitlementUsageDelivered = {
    */
   provenance?: Provenance;
   /**
-   * license: the licence grants it (add-ons and boosts may change it); addon: only add-ons do
+   * license: the licence grants it (add-ons, boosts and an exception may change it); addon: an add-on attached does; exception: only the instance's exception does
    */
-  source: "license" | "addon";
+  source: "license" | "addon" | "exception";
   /**
    * Resolved entitlement value, discriminated by the 'type' field
    */
@@ -2534,9 +2564,15 @@ export type ExceptionEventDelivered = {
   revokedAt: string | null;
   startsAt: string;
   /**
-   * The exception's value: a number for NUMBER and NUMBER_AI_CREDIT, a boolean for BOOLEAN, the CONFIG document as an object; null for UNLIMITED
+   * A number for NUMBER and NUMBER_AI_CREDIT, a boolean for BOOLEAN, the CONFIG document as an object; null for UNLIMITED
    */
-  value: unknown | null;
+  value:
+    | number
+    | boolean
+    | {
+        [key: string]: unknown;
+      }
+    | null;
   /**
    * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
    */
@@ -2672,16 +2708,33 @@ export type FeatureFlagEvaluatedDelivered = {
   via?: "customer_session" | "checkout_session";
 };
 
+export type FlagGrant = {
+  flagSlug: string;
+  /**
+   * The name of one of the flag's variants
+   */
+  variant: string;
+};
+
 export type Grant = {
   entitlementSlug: string;
   /**
-   * SET replaces the value, ADD adds to it, MULTIPLY multiplies it, UNLIMITED lifts the limit
+   * SET replaces the value, ADD adds to it, MULTIPLY multiplies it, UNLIMITED lifts the limit. A BOOLEAN or CONFIG entitlement takes SET only
    */
   modifierType: "SET" | "ADD" | "MULTIPLY" | "UNLIMITED";
   /**
-   * A decimal: >= 0 for SET, > 0 for ADD and MULTIPLY, absent for UNLIMITED
+   * A NUMBER grant's decimal: >= 0 for SET, > 0 for ADD and MULTIPLY, absent for UNLIMITED; absent on a BOOLEAN or CONFIG grant
    */
   modifierValue?: string;
+  /**
+   * What a BOOLEAN or CONFIG SET grant sets: true or false, or the CONFIG document as an object; absent on a NUMBER grant
+   */
+  value?:
+    | boolean
+    | {
+        [key: string]: unknown;
+      }
+    | null;
 };
 
 export type HandoffAcknowledgementDelivered = {
@@ -3347,6 +3400,7 @@ export type InstanceEntitlementUsagePeriodRolledOverDelivered = {
   instance_id: string;
   is_synthetic: boolean;
   new_period_start: string;
+  reason: "PERIOD_ENDED" | "ANCHOR_CHANGED";
   value: number;
   /**
    * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
@@ -4145,7 +4199,7 @@ export type InvoicePreviewScenario = {
    */
   sampleUsage?: Array<SampleUsageAmount> | null;
   /**
-   * A PRICE voucher's discount, applied as a redemption would, consuming nothing (PreviewLicenseInvoice.VoucherNotFound; .VoucherInvalid when it is not an ACTIVE PRICE voucher).
+   * A PRICE voucher's discount, applied as a redemption would, consuming nothing (PreviewLicenseInvoice.VoucherNotFound; .VoucherInvalid when it is not an ACTIVE PRICE voucher, nor an ACTIVE COMPOSITE with a PRICE part).
    */
   voucherCode?: string;
 };
@@ -5342,6 +5396,39 @@ export type NewAddonPrice = {
   unitAmountDecimal: string;
 };
 
+export type NewEntitlementException = {
+  /**
+   * After startsAt and after now; absent or null: no end
+   */
+  endsAt?: string | null;
+  /**
+   * The entitlement it overrides; the instance's licence and add-ons need not grant it
+   */
+  entitlementSlug: string;
+  /**
+   * SET works on every type; ADD and UNLIMITED on NUMBER and NUMBER_AI_CREDIT only
+   */
+  kind: "SET" | "ADD" | "UNLIMITED";
+  /**
+   * Why, 1 to 500 characters, not blank; shown to the vendor only
+   */
+  reason: string;
+  /**
+   * Now when absent; a past instant is taken as given, a future one schedules the exception
+   */
+  startsAt?: string;
+  /**
+   * For SET, a number of 0 or more on the NUMBER types, a boolean on BOOLEAN, an object on CONFIG; for ADD, a number above 0; for UNLIMITED, absent or null
+   */
+  value?:
+    | number
+    | boolean
+    | {
+        [key: string]: unknown;
+      }
+    | null;
+};
+
 export type NewInstanceAddon = {
   /**
    * The add-on version to attach
@@ -6278,9 +6365,9 @@ export type PortalEntitlement = {
   provenance: Provenance | null;
   slug: string;
   /**
-   * license: the licence grants it; addon: only add-ons do
+   * license: the licence grants it; addon: an add-on does; exception: only the vendor's exception for this instance does
    */
-  source: "license" | "addon";
+  source: "license" | "addon" | "exception";
   type: "NUMBER" | "NUMBER_AI_CREDIT" | "BOOLEAN" | "CONFIG";
   unlimited: boolean;
 };
@@ -6531,11 +6618,15 @@ export type Provenance = {
    */
   boosts: Array<ProvenanceBoost>;
   /**
+   * The instance's exception in force at the read, the last layer; null without one. Never its reason or author
+   */
+  exception: ProvenanceException | null;
+  /**
    * The licence's grant; null when only add-ons grant the entitlement
    */
   license: ProvenanceLicense | null;
   /**
-   * How a number was composed; null for BOOLEAN and CONFIG, and when no add-on or boost changes it
+   * How a number was composed; null for BOOLEAN and CONFIG, and when no add-on, boost or exception changes it
    */
   number: ProvenanceNumber | null;
 };
@@ -6570,8 +6661,26 @@ export type ProvenanceBoost = {
   modifierType: "SET" | "ADD" | "MULTIPLY" | "UNLIMITED";
   modifierValue: number | null;
   redeemedAt: string;
+  /**
+   * The value a BOOLEAN or CONFIG SET boost sets, in the {type, value} shape; null for the NUMBER modifiers
+   */
+  value: NumberEntitlementValue | BooleanEntitlementValue | ConfigEntitlementValue | null;
   voucherEntitlementGrantId: string;
   voucherId: string;
+};
+
+export type ProvenanceException = {
+  /**
+   * Null: no end
+   */
+  endsAt: string | null;
+  instanceEntitlementExceptionId: string;
+  kind: "SET" | "ADD" | "UNLIMITED";
+  startsAt: string;
+  /**
+   * The exception's value, in the {type, value} shape; null for UNLIMITED
+   */
+  value: NumberEntitlementValue | BooleanEntitlementValue | ConfigEntitlementValue | null;
 };
 
 export type ProvenanceLicense = {
@@ -6591,6 +6700,10 @@ export type ProvenanceLicense = {
 
 export type ProvenanceNumber = {
   afterAddons: number;
+  /**
+   * The value before the exception: -1 when unlimited
+   */
+  afterBoosts: number;
   boostAdd: number | null;
   boostMultiply: number | null;
   boostSet: number | null;
@@ -6599,9 +6712,12 @@ export type ProvenanceNumber = {
    */
   effective: number;
   /**
-   * The licence's value; null when only add-ons grant it
+   * The licence's value; null when only add-ons or an exception grant it
    */
   license: number | null;
+  /**
+   * The licence, an add-on or a boost is unlimited; only an exception's SET makes it finite again
+   */
   unlimited: boolean;
 };
 
@@ -6924,13 +7040,13 @@ export type PublishableKey = {
    */
   label: string;
   /**
-   * When the key last authenticated a request, to the minute
+   * When the key last authenticated a request, to the minute; null before its first
    */
-  readonly lastUsedAt?: string;
+  readonly lastUsedAt: string | null;
   /**
-   * When the key was revoked; absent while it is live
+   * When the key was revoked; null while it is live
    */
-  readonly revokedAt?: string;
+  readonly revokedAt: string | null;
   /**
    * Whether a Turnstile secret is stored for the key. The secret itself is write-only.
    */
@@ -6969,13 +7085,13 @@ export type PublishableKeyCreated = {
    */
   label: string;
   /**
-   * When the key last authenticated a request, to the minute
+   * When the key last authenticated a request, to the minute; null before its first
    */
-  readonly lastUsedAt?: string;
+  readonly lastUsedAt: string | null;
   /**
-   * When the key was revoked; absent while it is live
+   * When the key was revoked; null while it is live
    */
-  readonly revokedAt?: string;
+  readonly revokedAt: string | null;
   /**
    * Whether a Turnstile secret is stored for the key. The secret itself is write-only.
    */
@@ -7027,7 +7143,7 @@ export type PublishableKeyEventDelivered = {
    */
   keyHint: string;
   label: string;
-  revokedAt?: string;
+  revokedAt: string | null;
   turnstileSiteKey: string | null;
   /**
    * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
@@ -7428,7 +7544,7 @@ export type Redemption = {
   status: "ACTIVE" | "EXPIRED" | "REVOKED";
   voucherId: string;
   voucherName: string;
-  voucherType: "PRICE" | "ENTITLEMENT_BOOST";
+  voucherType: "PRICE" | "ENTITLEMENT_BOOST" | "FLAG_GRANT" | "COMPOSITE";
 };
 
 export type RedemptionDelivered = {
@@ -7467,7 +7583,7 @@ export type RedemptionDelivered = {
   via?: "customer_session" | "checkout_session";
   voucherId: string;
   voucherName: string;
-  voucherType: "PRICE" | "ENTITLEMENT_BOOST";
+  voucherType: "PRICE" | "ENTITLEMENT_BOOST" | "FLAG_GRANT" | "COMPOSITE";
 };
 
 export type RedemptionRules = {
@@ -7744,9 +7860,9 @@ export type ReportedEntitlementUsage = {
    */
   provenance: Provenance | null;
   /**
-   * license: the licence grants it (add-ons and boosts may change it); addon: only add-ons do. Null on a replay (Idempotent-Replayed): the journal does not store it.
+   * license: the licence grants it (add-ons, boosts and an exception may change it); addon: an add-on attached does; exception: only the instance's exception does. Null on a replay (Idempotent-Replayed): the journal does not store it.
    */
-  source: "license" | "addon" | null;
+  source: "license" | "addon" | "exception" | null;
   /**
    * The Idempotency-Key this report was accepted under, echoed on the first answer and on every replay; null when the request carried none. A client can tell from it that the server honours the key.
    */
@@ -7908,9 +8024,18 @@ export type SessionBoost = {
   entitlementSlug: string;
   modifierType: "SET" | "ADD" | "MULTIPLY" | "UNLIMITED";
   /**
-   * Absent for UNLIMITED
+   * Absent for UNLIMITED, and on a BOOLEAN or CONFIG boost
    */
   modifierValue?: string;
+  /**
+   * A BOOLEAN or CONFIG boost's value: true or false, or the document
+   */
+  value?:
+    | boolean
+    | {
+        [key: string]: unknown;
+      }
+    | null;
 };
 
 export type SessionCancellation = {
@@ -8225,12 +8350,16 @@ export type SessionVoucher = {
    */
   discount?: SessionDiscount;
   /**
-   * PRICE: how many invoices it discounts (one, durationInPeriods, or every one). ENTITLEMENT_BOOST: how long it lasts, in billing periods.
+   * PRICE: how many invoices it discounts (one, durationInPeriods, or every one). ENTITLEMENT_BOOST and FLAG_GRANT: how long it lasts, in billing periods. COMPOSITE: both, each for its part, which it carries each of.
    */
   duration: "ONE_TIME" | "REPEATING" | "FOREVER";
   durationInPeriods?: number;
+  /**
+   * FLAG_GRANT: the flag variants it grants
+   */
+  flagGrants?: Array<FlagGrant> | null;
   name: string;
-  voucherType: "PRICE" | "ENTITLEMENT_BOOST";
+  voucherType: "PRICE" | "ENTITLEMENT_BOOST" | "FLAG_GRANT" | "COMPOSITE";
 };
 
 export type SessionVoucherCheck = {
@@ -8975,7 +9104,7 @@ export type UserRoleAssignments = {
 
 export type Validity = {
   /**
-   * The first failing check
+   * The first failing check. DISCOUNT_LIMIT_EXCEEDED: a line of the instance's invoices would bear more than 20 discounts
    */
   reason?:
     | "NOT_FOUND"
@@ -8985,7 +9114,8 @@ export type Validity = {
     | "EXHAUSTED"
     | "ALREADY_REDEEMED"
     | "NOT_ELIGIBLE"
-    | "CURRENCY_MISMATCH";
+    | "CURRENCY_MISMATCH"
+    | "DISCOUNT_LIMIT_EXCEEDED";
   /**
    * With NOT_ELIGIBLE: the eligibility rule
    */
@@ -9136,11 +9266,15 @@ export type Voucher = {
   currency?: string;
   description?: string;
   /**
-   * PRICE: how many invoices it discounts (one, durationInPeriods, or every one). BOOST: how long a redemption lasts, in the subscription's billing periods.
+   * PRICE: how many invoices it discounts (one, durationInPeriods, or every one). BOOST and FLAG_GRANT: how long a redemption lasts, in the subscription's billing periods. COMPOSITE: both, each for its part.
    */
   duration: "ONE_TIME" | "REPEATING" | "FOREVER";
   durationInPeriods?: number;
   expiresAt?: string;
+  /**
+   * The flag variants a FLAG_GRANT grants
+   */
+  flagGrants: Array<FlagGrant>;
   /**
    * What an ENTITLEMENT_BOOST changes
    */
@@ -9163,7 +9297,7 @@ export type Voucher = {
   startsAt?: string;
   status: "DRAFT" | "ACTIVE" | "EXPIRED" | "EXHAUSTED" | "ARCHIVED";
   readonly updatedAt: string;
-  voucherType: "PRICE" | "ENTITLEMENT_BOOST";
+  voucherType: "PRICE" | "ENTITLEMENT_BOOST" | "FLAG_GRANT" | "COMPOSITE";
 };
 
 export type VoucherCheck = {
@@ -9216,11 +9350,15 @@ export type VoucherDelivered = {
   customerSessionId?: string;
   description?: string;
   /**
-   * PRICE: how many invoices it discounts (one, durationInPeriods, or every one). BOOST: how long a redemption lasts, in the subscription's billing periods.
+   * PRICE: how many invoices it discounts (one, durationInPeriods, or every one). BOOST and FLAG_GRANT: how long a redemption lasts, in the subscription's billing periods. COMPOSITE: both, each for its part.
    */
   duration: "ONE_TIME" | "REPEATING" | "FOREVER";
   durationInPeriods?: number;
   expiresAt?: string;
+  /**
+   * The flag variants a FLAG_GRANT grants
+   */
+  flagGrants: Array<FlagGrant>;
   /**
    * What an ENTITLEMENT_BOOST changes
    */
@@ -9247,7 +9385,7 @@ export type VoucherDelivered = {
    * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
    */
   via?: "customer_session" | "checkout_session";
-  voucherType: "PRICE" | "ENTITLEMENT_BOOST";
+  voucherType: "PRICE" | "ENTITLEMENT_BOOST" | "FLAG_GRANT" | "COMPOSITE";
 };
 
 export type VoucherDraft = {
@@ -9277,7 +9415,11 @@ export type VoucherDraft = {
   durationInPeriods?: number;
   expiresAt?: string;
   /**
-   * Required on an ENTITLEMENT_BOOST, refused on a PRICE voucher
+   * Required on a FLAG_GRANT, optional on a COMPOSITE, one per flag, refused otherwise
+   */
+  flagGrants?: Array<FlagGrant> | null;
+  /**
+   * Required on an ENTITLEMENT_BOOST, optional on a COMPOSITE, refused otherwise
    */
   grants?: Array<Grant> | null;
   maxRedemptions?: number;
@@ -9291,7 +9433,7 @@ export type VoucherDraft = {
   redemptionRules?: RedemptionRules;
   restrictedCustomerSlug?: string;
   startsAt?: string;
-  voucherType: "PRICE" | "ENTITLEMENT_BOOST";
+  voucherType: "PRICE" | "ENTITLEMENT_BOOST" | "FLAG_GRANT" | "COMPOSITE";
 };
 
 export type AddonWritable = {
@@ -10460,9 +10602,9 @@ export type EntitlementUsageWritable = {
    */
   provenance?: ProvenanceWritable;
   /**
-   * license: the licence grants it (add-ons and boosts may change it); addon: only add-ons do
+   * license: the licence grants it (add-ons, boosts and an exception may change it); addon: an add-on attached does; exception: only the instance's exception does
    */
-  source: "license" | "addon";
+  source: "license" | "addon" | "exception";
   /**
    * Resolved entitlement value, discriminated by the 'type' field
    */
@@ -10533,9 +10675,9 @@ export type EntitlementUsageDeliveredWritable = {
    */
   provenance?: ProvenanceWritable;
   /**
-   * license: the licence grants it (add-ons and boosts may change it); addon: only add-ons do
+   * license: the licence grants it (add-ons, boosts and an exception may change it); addon: an add-on attached does; exception: only the instance's exception does
    */
-  source: "license" | "addon";
+  source: "license" | "addon" | "exception";
   /**
    * Resolved entitlement value, discriminated by the 'type' field
    */
@@ -12154,9 +12296,9 @@ export type PortalEntitlementWritable = {
   provenance: ProvenanceWritable | null;
   slug: string;
   /**
-   * license: the licence grants it; addon: only add-ons do
+   * license: the licence grants it; addon: an add-on does; exception: only the vendor's exception for this instance does
    */
-  source: "license" | "addon";
+  source: "license" | "addon" | "exception";
   type: "NUMBER" | "NUMBER_AI_CREDIT" | "BOOLEAN" | "CONFIG";
   unlimited: boolean;
 };
@@ -12220,13 +12362,17 @@ export type ProvenanceWritable = {
   /**
    * The boosts in their window, in redemption order
    */
-  boosts: Array<ProvenanceBoost>;
+  boosts: Array<ProvenanceBoostWritable>;
+  /**
+   * The instance's exception in force at the read, the last layer; null without one. Never its reason or author
+   */
+  exception: ProvenanceExceptionWritable | null;
   /**
    * The licence's grant; null when only add-ons grant the entitlement
    */
   license: ProvenanceLicenseWritable | null;
   /**
-   * How a number was composed; null for BOOLEAN and CONFIG, and when no add-on or boost changes it
+   * How a number was composed; null for BOOLEAN and CONFIG, and when no add-on, boost or exception changes it
    */
   number: ProvenanceNumber | null;
 };
@@ -12252,6 +12398,35 @@ export type ProvenanceAddonWritable = {
     | ({
         type: "object";
       } & ConfigEntitlementValue);
+};
+
+export type ProvenanceBoostWritable = {
+  effectiveExpiresAt: string | null;
+  effectiveStartsAt: string;
+  instanceVoucherId: string;
+  modifierType: "SET" | "ADD" | "MULTIPLY" | "UNLIMITED";
+  modifierValue: number | null;
+  redeemedAt: string;
+  /**
+   * The value a BOOLEAN or CONFIG SET boost sets, in the {type, value} shape; null for the NUMBER modifiers
+   */
+  value: NumberEntitlementValueWritable | BooleanEntitlementValue | ConfigEntitlementValue | null;
+  voucherEntitlementGrantId: string;
+  voucherId: string;
+};
+
+export type ProvenanceExceptionWritable = {
+  /**
+   * Null: no end
+   */
+  endsAt: string | null;
+  instanceEntitlementExceptionId: string;
+  kind: "SET" | "ADD" | "UNLIMITED";
+  startsAt: string;
+  /**
+   * The exception's value, in the {type, value} shape; null for UNLIMITED
+   */
+  value: NumberEntitlementValueWritable | BooleanEntitlementValue | ConfigEntitlementValue | null;
 };
 
 export type ProvenanceLicenseWritable = {
@@ -12330,7 +12505,7 @@ export type RedemptionWritable = {
   status: "ACTIVE" | "EXPIRED" | "REVOKED";
   voucherId: string;
   voucherName: string;
-  voucherType: "PRICE" | "ENTITLEMENT_BOOST";
+  voucherType: "PRICE" | "ENTITLEMENT_BOOST" | "FLAG_GRANT" | "COMPOSITE";
 };
 
 export type RedemptionDeliveredWritable = {
@@ -12368,7 +12543,7 @@ export type RedemptionDeliveredWritable = {
   via?: "customer_session" | "checkout_session";
   voucherId: string;
   voucherName: string;
-  voucherType: "PRICE" | "ENTITLEMENT_BOOST";
+  voucherType: "PRICE" | "ENTITLEMENT_BOOST" | "FLAG_GRANT" | "COMPOSITE";
 };
 
 export type ReleaseWritable = {
@@ -12494,9 +12669,9 @@ export type ReportedEntitlementUsageWritable = {
    */
   provenance: ProvenanceWritable | null;
   /**
-   * license: the licence grants it (add-ons and boosts may change it); addon: only add-ons do. Null on a replay (Idempotent-Replayed): the journal does not store it.
+   * license: the licence grants it (add-ons, boosts and an exception may change it); addon: an add-on attached does; exception: only the instance's exception does. Null on a replay (Idempotent-Replayed): the journal does not store it.
    */
-  source: "license" | "addon" | null;
+  source: "license" | "addon" | "exception" | null;
   /**
    * The Idempotency-Key this report was accepted under, echoed on the first answer and on every replay; null when the request carried none. A client can tell from it that the server honours the key.
    */
@@ -12792,7 +12967,7 @@ export type TrialWillEndDeliveredWritable = {
 
 export type ValidityWritable = {
   /**
-   * The first failing check
+   * The first failing check. DISCOUNT_LIMIT_EXCEEDED: a line of the instance's invoices would bear more than 20 discounts
    */
   reason?:
     | "NOT_FOUND"
@@ -12802,7 +12977,8 @@ export type ValidityWritable = {
     | "EXHAUSTED"
     | "ALREADY_REDEEMED"
     | "NOT_ELIGIBLE"
-    | "CURRENCY_MISMATCH";
+    | "CURRENCY_MISMATCH"
+    | "DISCOUNT_LIMIT_EXCEEDED";
   /**
    * With NOT_ELIGIBLE: the eligibility rule
    */
@@ -12846,11 +13022,15 @@ export type VoucherWritable = {
   currency?: string;
   description?: string;
   /**
-   * PRICE: how many invoices it discounts (one, durationInPeriods, or every one). BOOST: how long a redemption lasts, in the subscription's billing periods.
+   * PRICE: how many invoices it discounts (one, durationInPeriods, or every one). BOOST and FLAG_GRANT: how long a redemption lasts, in the subscription's billing periods. COMPOSITE: both, each for its part.
    */
   duration: "ONE_TIME" | "REPEATING" | "FOREVER";
   durationInPeriods?: number;
   expiresAt?: string;
+  /**
+   * The flag variants a FLAG_GRANT grants
+   */
+  flagGrants: Array<FlagGrant>;
   /**
    * What an ENTITLEMENT_BOOST changes
    */
@@ -12871,7 +13051,7 @@ export type VoucherWritable = {
   restrictedCustomerSlug?: string;
   startsAt?: string;
   status: "DRAFT" | "ACTIVE" | "EXPIRED" | "EXHAUSTED" | "ARCHIVED";
-  voucherType: "PRICE" | "ENTITLEMENT_BOOST";
+  voucherType: "PRICE" | "ENTITLEMENT_BOOST" | "FLAG_GRANT" | "COMPOSITE";
 };
 
 export type VoucherDeliveredWritable = {
@@ -12907,11 +13087,15 @@ export type VoucherDeliveredWritable = {
   customerSessionId?: string;
   description?: string;
   /**
-   * PRICE: how many invoices it discounts (one, durationInPeriods, or every one). BOOST: how long a redemption lasts, in the subscription's billing periods.
+   * PRICE: how many invoices it discounts (one, durationInPeriods, or every one). BOOST and FLAG_GRANT: how long a redemption lasts, in the subscription's billing periods. COMPOSITE: both, each for its part.
    */
   duration: "ONE_TIME" | "REPEATING" | "FOREVER";
   durationInPeriods?: number;
   expiresAt?: string;
+  /**
+   * The flag variants a FLAG_GRANT grants
+   */
+  flagGrants: Array<FlagGrant>;
   /**
    * What an ENTITLEMENT_BOOST changes
    */
@@ -12936,7 +13120,7 @@ export type VoucherDeliveredWritable = {
    * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
    */
   via?: "customer_session" | "checkout_session";
-  voucherType: "PRICE" | "ENTITLEMENT_BOOST";
+  voucherType: "PRICE" | "ENTITLEMENT_BOOST" | "FLAG_GRANT" | "COMPOSITE";
 };
 
 export type ListAddonFamiliesData = {
@@ -17529,6 +17713,10 @@ export type DeleteFeatureFlagErrors = {
    */
   404: Problem;
   /**
+   * Conflict
+   */
+  409: Problem;
+  /**
    * Unprocessable Entity
    */
   422: Problem;
@@ -18728,6 +18916,187 @@ export type GetUpcomingInvoiceResponses = {
 
 export type GetUpcomingInvoiceResponse =
   GetUpcomingInvoiceResponses[keyof GetUpcomingInvoiceResponses];
+
+export type ListEntitlementExceptionsData = {
+  body?: never;
+  path: {
+    /**
+     * Instance slug
+     */
+    instanceSlug: string;
+  };
+  query?: {
+    /**
+     * active: neither revoked nor ended, scheduled ones included; all: every exception of the instance
+     */
+    filter?: "active" | "all";
+  };
+  url: "/instances/{instanceSlug}/entitlement-exceptions";
+};
+
+export type ListEntitlementExceptionsErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type ListEntitlementExceptionsError =
+  ListEntitlementExceptionsErrors[keyof ListEntitlementExceptionsErrors];
+
+export type ListEntitlementExceptionsResponses = {
+  /**
+   * OK
+   */
+  200: Array<EntitlementException>;
+};
+
+export type ListEntitlementExceptionsResponse =
+  ListEntitlementExceptionsResponses[keyof ListEntitlementExceptionsResponses];
+
+export type CreateEntitlementExceptionData = {
+  body: NewEntitlementException;
+  path: {
+    /**
+     * Instance slug
+     */
+    instanceSlug: string;
+  };
+  query?: never;
+  url: "/instances/{instanceSlug}/entitlement-exceptions";
+};
+
+export type CreateEntitlementExceptionErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type CreateEntitlementExceptionError =
+  CreateEntitlementExceptionErrors[keyof CreateEntitlementExceptionErrors];
+
+export type CreateEntitlementExceptionResponses = {
+  /**
+   * Created
+   */
+  201: EntitlementException;
+};
+
+export type CreateEntitlementExceptionResponse =
+  CreateEntitlementExceptionResponses[keyof CreateEntitlementExceptionResponses];
+
+export type RevokeEntitlementExceptionData = {
+  body?: never;
+  path: {
+    /**
+     * Instance slug
+     */
+    instanceSlug: string;
+    /**
+     * Exception id
+     */
+    exceptionId: string;
+  };
+  query?: never;
+  url: "/instances/{instanceSlug}/entitlement-exceptions/{exceptionId}";
+};
+
+export type RevokeEntitlementExceptionErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type RevokeEntitlementExceptionError =
+  RevokeEntitlementExceptionErrors[keyof RevokeEntitlementExceptionErrors];
+
+export type RevokeEntitlementExceptionResponses = {
+  /**
+   * No Content
+   */
+  204: void;
+};
+
+export type RevokeEntitlementExceptionResponse =
+  RevokeEntitlementExceptionResponses[keyof RevokeEntitlementExceptionResponses];
 
 export type GetEntitlementsUsageMetricsData = {
   body?: never;
