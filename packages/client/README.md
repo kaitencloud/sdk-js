@@ -46,6 +46,7 @@ you make:
 | `usage.getByInstance()`, `usage.getDetail()` | `read:instances`                                                                               |
 | `usage.getByGroup()`                         | `read:entitlements`                                                                            |
 | `usage.report()`                             | `write:instances`                                                                              |
+| `ai.*`                                       | `write:instances`                                                                              |
 | `flags.*`                                    | `read:feature_flags`                                                                           |
 
 A call that needs a scope the token lacks is refused with `403` and the code
@@ -77,6 +78,48 @@ const snapshot = await kaiten.components.getSnapshot("acme-corp");
 - `kaiten.customers` / `kaiten.instances` / `kaiten.licenses` — curated reads
 - `kaiten.usage` — entitlement usage (read + report)
 - `kaiten.flags` — feature-flag evaluation (`evaluate`, `evaluateAll`)
+- `kaiten.ai` — AI credits on a credit entitlement: `reserve`, `commit`, `run` (below)
+
+### AI credits
+
+A call to a model reserves its estimate on an AI credit entitlement, runs, and commits
+what it really used, under one `transactionId`. Kaiten prices it; the SDK never
+carries credits, and Kaiten never sees a prompt or a completion.
+
+```ts
+import { fromOpenAI } from "@kaitencloud/client";
+
+const completion = await kaiten.ai.run(
+  {
+    instance: "acme-prod",
+    entitlement: "chat-credits",
+    model: "gpt-4o",
+    requestType: "COMPLETION",
+    estimate: { inputTokens: 1000, outputTokens: 800 },
+    usage: (result) => fromOpenAI(result.usage),
+  },
+  () => openai.chat.completions.create({ model: "gpt-4o", messages, max_tokens: 800 }),
+);
+```
+
+A refused reservation throws before the provider is called:
+`InsufficientCreditsError`, `ModelNotAuthorizedError`, `UnknownModelError`.
+`TransactionIdReusedError` is a caller bug and is never retried, and
+`AiUsageUnsupportedError` means the pool or the server cannot take an AI report.
+Both phases are retried three times on network errors and 500/502/503/504 under
+the same `transactionId` and identical phase/body. AI reports do not send
+`Idempotency-Key`, even when it is configured in transport defaults: that header
+belongs to numeric usage adjustments and the API rejects it on `ai_usage` reports.
+`fromOpenAI` and `fromAnthropic` map a provider's usage onto the disjoint token
+fields; omitted usage remains unknown, not zero. Credit amounts, remaining credits
+and non-token units retain the API's exact decimal strings; ordinary AI pool reads
+still carry `{ type: "number", value: ... }`.
+
+You rarely write this by hand: `@kaitencloud/ai-openai`, `@kaitencloud/ai-anthropic`
+and `@kaitencloud/ai-vercel` reserve before each bounded provider call.
+`@kaitencloud/ai-claude-agent` and `@kaitencloud/ai-copilot` observe post-call usage
+only; they cannot stop a model request before it runs. `@kaitencloud/ai-codex`
+gates submitted prompts, not each internal model inference.
 
 ## Testing without an API — `@kaitencloud/client/testing`
 
@@ -203,3 +246,36 @@ Apache-2.0. See `LICENSE` and `NOTICE`, and `THIRD_PARTY_NOTICES.md` for the
 third-party code this package bundles. The license does not grant permission to use
 the Kaiten name or logos: see the
 [trademark policy](https://github.com/kaitencloud/sdk-js/blob/main/TRADEMARKS.md).
+
+### AI catalogue and history reads
+
+The regenerated KTN-201 contract provides explicit read namespaces:
+
+```ts
+const page = await kaiten.models.list({ status: "ACTIVE", limit: 50 });
+const model = await kaiten.models.get("model-slug");
+const rules = await kaiten.licenses.conversionRules.list("license-slug", {
+  entitlementSlug: "credits",
+});
+const rule = await kaiten.licenses.conversionRules.get("license-slug", "rule-id");
+const history = await kaiten.ai.listInferences(
+  { instance: "acme", entitlement: "credits" },
+  {
+    status: "COMMITTED",
+    cursor: undefined,
+    limit: 50,
+  },
+);
+const reservations = await kaiten.ai.listReservations({ instance: "acme", entitlement: "credits" });
+```
+
+Pages preserve the server's `nextCursor`, `hasMore` and nullable `items`; callers
+choose when to fetch the next page. Credit `reserved` and report `ai` outcomes
+are generated contract fields, including nullable unlimited `remaining`.
+The full server SDK exposes generated `Models`, `Licenses` and `Instances`
+operations for administration as well as reads.
+
+For this feature branch, the snapshots were synced from a local Kaiten checkout
+with `KAITEN_OPENAPI=/path/to/kaiten/app/openapi.yaml` and
+`KAITEN_PATH=/path/to/kaiten`, using the standard sync scripts. This does not
+add a product-to-workspace dependency; generation reads committed snapshots.

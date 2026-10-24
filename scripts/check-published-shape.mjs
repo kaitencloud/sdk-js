@@ -28,7 +28,16 @@ import { fileURLToPath } from "node:url";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
-const PUBLISHED = ["client", "server"];
+const PUBLISHED = [
+  "client",
+  "server",
+  "ai-openai",
+  "ai-anthropic",
+  "ai-vercel",
+  "ai-claude-agent",
+  "ai-codex",
+  "ai-copilot",
+];
 const LICENSE = "Apache-2.0";
 const LEGAL_FILES = ["LICENSE", "NOTICE", "THIRD_PARTY_NOTICES.md"];
 const DEPENDENCY_FIELDS = [

@@ -35,7 +35,8 @@ const SCENARIOS = [
   {
     name: "client · KaitenClient alone",
     code: `import { KaitenClient } from "@kaitencloud/client"; console.log(KaitenClient);`,
-    budgetGzip: 12_500,
+    // 12.0 KB measured with the `ai` namespace (KTN-201), which every KaitenClient carries.
+    budgetGzip: 14_000,
   },
 ];
 

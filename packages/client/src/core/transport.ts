@@ -96,6 +96,15 @@ export interface KaitenRunOptions {
    * that mutates server state — the transport then never retries it.
    */
   idempotent?: boolean;
+  /**
+   * Total attempts of an idempotent call, the first included. Defaults to 3.
+   */
+  maxAttempts?: number;
+  /**
+   * The HTTP statuses an idempotent call is replayed on. Defaults to every 5xx.
+   * A keyed AI report narrows it to the transient ones (500, 502, 503, 504).
+   */
+  retryStatuses?: readonly number[];
 }
 
 export class KaitenTransport {
@@ -180,6 +189,8 @@ export class KaitenTransport {
     // twice. Reads qualify, and so do the OFREP evaluations — they are POSTs
     // only because the evaluation context travels in a body.
     const idempotent = options.idempotent ?? true;
+    const maxAttempts = options.maxAttempts ?? 3;
+    const { retryStatuses } = options;
 
     return retry(
       async () => {
@@ -226,9 +237,11 @@ export class KaitenTransport {
           // billing base. There is no idempotency key on the wire to make the
           // replay safe, so the only correct number of attempts is one.
           if (!idempotent) return false;
-          if (iteration >= 3) return false;
+          if (iteration >= maxAttempts) return false;
           if (error instanceof KaitenNetworkError) return true;
-          if (error instanceof KaitenError) return error.status >= 500;
+          if (error instanceof KaitenError) {
+            return retryStatuses ? retryStatuses.includes(error.status) : error.status >= 500;
+          }
           return false;
         },
       },
