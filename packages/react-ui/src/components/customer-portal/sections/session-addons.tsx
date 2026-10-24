@@ -12,7 +12,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "../../ui/card.tsx";
 import { Skeleton } from "../../ui/skeleton.tsx";
 import { useAddOnsPanel } from "./addons-panel-state.ts";
 import { ManageAddOns } from "./manage-addons.tsx";
-import { unitPriceText, useSessionAddOns } from "./session-addon-rows.ts";
+import {
+  pendingAddonText,
+  meteredAddonPrices,
+  unitPriceText,
+  unitTimingText,
+  useSessionAddOns,
+} from "./session-addon-rows.ts";
 
 /**
  * The add-ons of a customer session: what the instance holds, each with its quantity and the price
@@ -76,6 +82,21 @@ export function SessionAddOns({
                     × {row.quantity}
                   </span>
                   {price ? <> {price}</> : null}
+                  {meteredAddonPrices(row.addon, localization, words).map((rate) => (
+                    <p key={rate.key} data-slot="addon-metered-price" className="ktn-own">
+                      {rate.text}
+                    </p>
+                  ))}
+                  {unitTimingText(row.addon, addOns.subscription, words) ? (
+                    <p data-slot="addon-billing-timing" className="ktn-own">
+                      {unitTimingText(row.addon, addOns.subscription, words)}
+                    </p>
+                  ) : null}
+                  {pendingAddonText(row.addon, addOns.subscription, words) ? (
+                    <p data-slot="addon-pending-quantity" className="ktn-own">
+                      {pendingAddonText(row.addon, addOns.subscription, words)}
+                    </p>
+                  ) : null}
                 </li>
               );
             })}
@@ -115,6 +136,28 @@ export function SessionAddOns({
                     ) : null}
                     {price ? (
                       <span className="ktn-own text-xs text-ktn-muted-foreground">{price}</span>
+                    ) : null}
+                    {meteredAddonPrices(row.addon, localization, words).map((rate) => (
+                      <p
+                        key={rate.key}
+                        data-slot="addon-metered-price"
+                        className="ktn-own text-xs break-words text-ktn-muted-foreground"
+                      >
+                        {rate.text}
+                      </p>
+                    ))}
+                    {unitTimingText(row.addon, addOns.subscription, words) ? (
+                      <p
+                        data-slot="addon-billing-timing"
+                        className="ktn-own text-xs text-ktn-muted-foreground"
+                      >
+                        {unitTimingText(row.addon, addOns.subscription, words)}
+                      </p>
+                    ) : null}
+                    {pendingAddonText(row.addon, addOns.subscription, words) ? (
+                      <p data-slot="addon-pending-quantity" className="ktn-own text-sm break-words">
+                        {pendingAddonText(row.addon, addOns.subscription, words)}
+                      </p>
                     ) : null}
                   </div>
                   <span

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 
 import { parse } from "yaml";
 
@@ -41,7 +42,7 @@ type Operation = {
 };
 
 const contract = parse(
-  readFileSync(new URL("../../../../contracts/openapi.yaml", import.meta.url), "utf8"),
+  readFileSync(resolve(import.meta.dirname, "../../../../contracts/openapi.yaml"), "utf8"),
 ) as {
   components: { schemas: Record<string, Schema> };
   paths: Record<string, Record<string, Operation>>;

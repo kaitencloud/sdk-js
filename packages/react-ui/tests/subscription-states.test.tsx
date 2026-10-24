@@ -95,7 +95,9 @@ test("CurrentPlan: past due says the payment failed, and says nothing of access"
 
 test("CurrentPlan: a subscription that is over says so, and shows no price", async () => {
   const { container } = mount(sessionServer({ portal: canceled }), <CurrentPlan />);
-  expect(await screen.findByText("Your subscription has ended.")).toBeTruthy();
+  expect(
+    await screen.findByText("Your subscription has ended. Your current plan is Pro."),
+  ).toBeTruthy();
   expect(container.querySelector('[data-slot="current-plan-status"]')?.textContent).toBe(
     "Canceled",
   );
@@ -296,7 +298,9 @@ test("Paywall: a plan that waits for its payment explains a wall the plan it bou
 
 test("Paywall: a customer who can buy a plan by themselves is offered to subscribe", async () => {
   const onUpgrade = wall(canceled);
-  expect(await screen.findByText("Your subscription has ended.")).toBeTruthy();
+  expect(
+    await screen.findByText("Your subscription has ended. Your current plan is Pro."),
+  ).toBeTruthy();
   const button = screen.getByRole("button", { name: /^Subscribe/ });
   button.click();
   expect(onUpgrade).toHaveBeenCalledTimes(1);
@@ -339,7 +343,9 @@ test("Paywall: in French", async () => {
     </Paywall>,
     fr,
   );
-  expect(await screen.findByText("Votre abonnement est terminé.")).toBeTruthy();
+  expect(
+    await screen.findByText("Votre abonnement est terminé. Votre offre actuelle est Pro."),
+  ).toBeTruthy();
   expect(within(wallEl()!).getByRole("button", { name: /^Souscrire/ })).toBeTruthy();
 });
 

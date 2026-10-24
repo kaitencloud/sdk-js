@@ -1006,7 +1006,7 @@ describe("what the visitor is told", () => {
     fireEvent.click(go());
     await screen.findByText(`For ${EMAIL}`);
     fireEvent.click(go("Continue to payment"));
-    await screen.findByText("Your card was declined.", {}, { timeout: 4_000 });
+    await screen.findByText("Your payment didn't go through.", {}, { timeout: 4_000 });
     expect(screen.getByRole("link", { name: "Pay invoice" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Start again" })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));

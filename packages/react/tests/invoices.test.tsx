@@ -297,6 +297,48 @@ describe("waiting for an invoice", () => {
     expect(view.result.current.status).toBe("paid");
   });
 
+  test("a period bound excludes an older paid activation while the current activation is not listed yet", async () => {
+    const since = "2026-10-01T00:00:00Z";
+    const old = { ...activationInvoice("PAID", "inv_old"), serviceFrom: "2026-09-01T00:00:00Z" };
+    const client = unsubscribedSession({ invoices: [old] });
+    const view = renderHook(() => useInvoiceSettlement({ activationSince: since }), {
+      wrapper: sessionProvider(client),
+    });
+    await settle();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000);
+    });
+    expect(view.result.current.status).toBe("polling");
+    expect(view.result.current.invoice).toBeNull();
+    const current = { ...activationInvoice("PUSHED", "inv_current"), serviceFrom: since };
+    client.setInvoices([current, old]);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000);
+    });
+    expect(view.result.current.invoice?.id).toBe("inv_current");
+    expect(view.result.current.status).toBe("polling");
+    client.setInvoices([{ ...current, status: "PAID" }, old]);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000);
+    });
+    expect(view.result.current.status).toBe("paid");
+  });
+
+  test("a void activation refreshes the actual portal without declaring payment or inventing an expiry reason", async () => {
+    const client = unsubscribedSession({ invoices: [activationInvoice("PUSHED")] });
+    const view = settlement(client);
+    await settle();
+    const before = callsOf(client, "getPortal").length;
+    client.setInvoices([activationInvoice("VOID")]);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000);
+    });
+    await settle();
+    expect(view.result.current.settlement.status).toBe("polling");
+    expect(view.result.current.settlement.invoice?.status).toBe("VOID");
+    expect(callsOf(client, "getPortal").length).toBeGreaterThan(before);
+  });
+
   test("a read that fails is not the end of the wait", async () => {
     const client = unsubscribedSession({ invoices: [activationInvoice("PAYMENT_FAILED")] });
     const view = settlement(client);

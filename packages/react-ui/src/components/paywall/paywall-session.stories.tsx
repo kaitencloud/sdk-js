@@ -117,7 +117,7 @@ export const Over: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(
-      await canvas.findByText("Your subscription has ended.", {}, SLOW),
+      await canvas.findByText("Your subscription has ended. Your current plan is Pro.", {}, SLOW),
     ).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: /^Subscribe/ })).toBeInTheDocument();
   },
@@ -153,7 +153,11 @@ export const InFrench: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(
-      await canvas.findByText("Votre abonnement est terminé.", {}, SLOW),
+      await canvas.findByText(
+        "Votre abonnement est terminé. Votre offre actuelle est Pro.",
+        {},
+        SLOW,
+      ),
     ).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: /^Souscrire/ })).toBeInTheDocument();
   },

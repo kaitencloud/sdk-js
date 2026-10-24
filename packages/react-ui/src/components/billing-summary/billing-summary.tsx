@@ -36,6 +36,7 @@ import { KaitenBranding } from "../shared/kaiten-branding.tsx";
 import { ProgressBar } from "../shared/progress-bar.tsx";
 import { SectionError } from "../shared/section-error.tsx";
 import { isUnlimited } from "../shared/unlimited.tsx";
+import { PendingPayment } from "../shared/pending-payment.tsx";
 import {
   isUsageAtRisk,
   readQuota,
@@ -299,6 +300,9 @@ export function BillingSummary({
         {unbound ? <p>{subscriptionWords.none}</p> : null}
         {described?.change ? <p>{described.change}</p> : null}
         {described?.notice ? <p role="status">{described.notice}</p> : null}
+        {sessionState?.kind === "incomplete" && sessionState.capabilities.invoices ? (
+          <PendingPayment unstyled since={sessionState.subscription!.currentPeriodStart} />
+        ) : null}
         {priceLabel ? (
           <p className="ktn-own" data-slot="billing-summary-price">
             {priceLabel}
@@ -410,6 +414,12 @@ export function BillingSummary({
 
           {unbound ? (
             <p className="ktn-own text-sm text-ktn-muted-foreground">{subscriptionWords.none}</p>
+          ) : null}
+          {sessionState?.kind === "incomplete" && sessionState.capabilities.invoices ? (
+            <PendingPayment
+              unstyled={false}
+              since={sessionState.subscription!.currentPeriodStart}
+            />
           ) : null}
 
           {/* Money and payment method come from the host's `billing`, and under a customer

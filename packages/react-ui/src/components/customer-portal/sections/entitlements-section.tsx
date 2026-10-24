@@ -191,6 +191,7 @@ function IncludedFeaturesImpl({ appearance, unstyled = false }: IncludedFeatures
                 unstyled
                 name={entitlement.name}
                 provenance={entitlement.provenance}
+                source={entitlement.effectiveSource ?? entitlement.source}
               />
             </li>
           ))}
@@ -242,7 +243,11 @@ function IncludedFeaturesImpl({ appearance, unstyled = false }: IncludedFeatures
         ) : (
           renderLimitLabel(entitlement, localization)
         )}
-        <ProvenanceNote name={entitlement.name} provenance={entitlement.provenance} />
+        <ProvenanceNote
+          name={entitlement.name}
+          provenance={entitlement.provenance}
+          source={entitlement.effectiveSource ?? entitlement.source}
+        />
       </TableCell>
       <TableCell className={cn("text-right", merged.elements?.tableCell)}>
         <StatusBadge entitlement={entitlement} localization={localization} />
@@ -273,7 +278,11 @@ function IncludedFeaturesImpl({ appearance, unstyled = false }: IncludedFeatures
             ? localization.includedFeatures.unlimited
             : renderLimitLabel(entitlement, localization)}
         </span>
-        <ProvenanceNote name={entitlement.name} provenance={entitlement.provenance} />
+        <ProvenanceNote
+          name={entitlement.name}
+          provenance={entitlement.provenance}
+          source={entitlement.effectiveSource ?? entitlement.source}
+        />
       </div>
       <StatusBadge entitlement={entitlement} localization={localization} />
     </div>

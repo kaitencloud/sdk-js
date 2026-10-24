@@ -104,6 +104,7 @@ function UsageMetersImpl({ appearance, unstyled = false }: UsageMetersProps) {
                   unstyled
                   name={entitlement.name}
                   provenance={entitlement.provenance}
+                  source={entitlement.effectiveSource ?? entitlement.source}
                 />
               </li>
             );
@@ -155,7 +156,11 @@ function UsageMetersImpl({ appearance, unstyled = false }: UsageMetersProps) {
                     <p className="text-xs text-ktn-muted-foreground">{windowLabel}</p>
                   ) : null}
                   {/* Where the limit comes from, when add-ons or a voucher moved it. */}
-                  <ProvenanceNote name={entitlement.name} provenance={entitlement.provenance} />
+                  <ProvenanceNote
+                    name={entitlement.name}
+                    provenance={entitlement.provenance}
+                    source={entitlement.effectiveSource ?? entitlement.source}
+                  />
                 </div>
                 <Badge variant={badge.variant} className={badge.className}>
                   {`${reading.percentOfGrant}%`}

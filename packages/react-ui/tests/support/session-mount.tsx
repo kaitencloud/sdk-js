@@ -15,6 +15,7 @@ export function mount(
   server: SessionServer,
   ui: ReactNode,
   locale?: KaitenLocalizationOverrides,
+  options: { hideBranding?: boolean } = {},
 ): RenderResult {
   return render(
     <KaitenProvider
@@ -23,6 +24,7 @@ export function mount(
       apiUrl={API}
       polling={{ enabled: false }}
       locale={locale}
+      hideBranding={options.hideBranding}
     >
       {ui}
     </KaitenProvider>,

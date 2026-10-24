@@ -274,7 +274,9 @@ export const Canceled: Story = {
   play: async ({ canvasElement }) => {
     const canvas = await drawn(canvasElement);
     await expect(canvas.getByText("Canceled")).toBeInTheDocument();
-    await expect(canvas.getByText("Your subscription has ended.")).toBeInTheDocument();
+    await expect(
+      canvas.getByText("Your subscription has ended. Your current plan is Pro."),
+    ).toBeInTheDocument();
     await expect(canvas.queryByRole("button", { name: /subscription$/ })).toBeNull();
   },
 };
@@ -316,8 +318,8 @@ export const Provenance: Story = {
     );
     await userEvent.click(canvas.getByRole("button", { name: "How this limit is made up: Seats" }));
     await expect(canvas.getAllByRole("note").map((note) => note.textContent)).toEqual([
-      "(100,000 base) × 2 voucher = 200,000",
-      "5 base + 3 × 1 add-on = 8",
+      "Source: Current plan. (100,000 base) × 2 voucher = 200,000",
+      "Source: Current plan. 5 base + 3 × 1 add-on = 8",
     ]);
   },
 };
@@ -413,7 +415,7 @@ export const ManageAddOns: Story = {
     await expect(
       panel.getByText(/^Takes effect now, and is billed from your renewal on/),
     ).toBeInTheDocument();
-    await expect(panel.getByText(/^Removed now\./)).toBeInTheDocument();
+    await expect(panel.getByText(/^Removal scheduled for/)).toBeInTheDocument();
     await expect(panel.getByRole("button", { name: "Confirm changes" })).not.toHaveAttribute(
       "aria-disabled",
     );
@@ -477,7 +479,8 @@ export const ManageAddOnsDone: Story = {
         ),
       SLOW,
     );
-    await expect(canvas.queryByText("GPU pack")).toBeNull();
+    await expect(canvas.getByText("GPU pack")).toBeInTheDocument();
+    await expect(canvas.getByText(/^Removal scheduled for/)).toBeInTheDocument();
     await expect(canvas.getByText("Your add-ons have been updated.")).toBeInTheDocument();
     // The keyboard is back on the button that opened the panel.
     await waitFor(() =>
@@ -538,7 +541,7 @@ export const ManageAddOnsFromThePlan: Story = {
     await userEvent.click(fromThePlan!);
     const panel = within(await canvas.findByRole("dialog", { name: "Manage add-ons" }, SLOW));
     await userEvent.click(panel.getByRole("button", { name: "Remove one Extra seats" }));
-    await expect(panel.getByText(/^Takes effect now\. Your renewal on/)).toBeInTheDocument();
+    await expect(panel.getByText(/^The lower quantity takes effect on/)).toBeInTheDocument();
     // Escape drops what was set, and the keyboard is back where it was.
     await userEvent.keyboard("{Escape}");
     await waitFor(() => expect(canvas.queryByRole("dialog")).toBeNull());

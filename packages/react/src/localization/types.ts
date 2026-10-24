@@ -263,6 +263,8 @@ export interface KaitenSubscriptionWords {
   changesOn: (price: string, isoDate: string) => string;
   pastDueNotice: string;
   canceledNotice: string;
+  /** Names the plan currently served, without claiming a reason for the ended subscription. */
+  canceledPlanNotice?: (name: string) => string;
   /** Said of a subscription that waits for its first payment: its plan starts once it is confirmed. */
   incompleteNotice: string;
   /** Said where a subscription would be: a session bound to the customer, with no instance. */
@@ -334,6 +336,13 @@ export interface KaitenPortalBillingWords {
   addonsCancel: string;
   /** Said once the panel's changes all went through. */
   addonsUpdated: string;
+  /** Optional additions: older language packs use the English UI fallback. Dates are RAW ISO. */
+  addonPendingQuantity?: (quantity: string, isoDate: string) => string;
+  addonPendingRemoval?: (isoDate: string) => string;
+  addonKeepQuantity?: string;
+  billingAdvance?: string;
+  billingArrears?: string;
+  addonOverage?: (percent: string) => string;
   /** An increase, with a live subscription that renews. Receives the RAW date of the renewal. */
   addonBilledFrom: (isoDate: string) => string;
   /** A lower quantity, with a live subscription that renews. Receives the RAW date of the renewal. */
@@ -352,9 +361,8 @@ export interface KaitenPortalBillingWords {
   /** Any change while no subscription is live: nothing is billed. */
   addonUnbilled: string;
   /**
-   * Said under the changes when one raises a quantity: the renewal may also bill the current period
-   * at the highest quantity held in it. Said of every add-on, since the portal does not say which
-   * are billed that way.
+   * Compatibility copy for a host that knows the family's policy. The current public payload
+   * omits that policy, so the SDK's portal does not render this note.
    */
   addonTrueUpNote: string;
   /** A refusal of the panel, said of the add-on it stopped at. Receives its name and the reason. */
@@ -413,6 +421,18 @@ export interface KaitenPortalBillingWords {
   /** A limit the add-ons set in another way than by adding: the server's figure after them. */
   provenanceWithAddOns: string;
   provenanceUnlimited: string;
+  provenanceLayer?: (name: string) => string;
+  provenanceException?: string;
+  provenanceBeforeException?: (value: string) => string;
+  provenanceEffective?: (value: string) => string;
+  grantSet?: (value: string) => string;
+  grantAdd?: (value: string) => string;
+  grantMultiply?: (value: string) => string;
+  grantMinimum?: (value: string) => string;
+  grantFrom?: (isoDate: string) => string;
+  grantNoEnd?: string;
+  voucherDiscount?: (value: string) => string;
+  voucherFlag?: (name: string, variant: string) => string;
 }
 
 /** What `PaymentMethodCard` says. */

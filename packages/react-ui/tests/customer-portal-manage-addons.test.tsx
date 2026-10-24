@@ -59,17 +59,24 @@ async function pressInPanel(name: string | RegExp) {
 /** The quantity the panel holds for an add-on. */
 const staged = (name: string) => inPanel().getByLabelText(`Quantity of ${name}`).textContent;
 
-/** The text of each line of the card, as it is seen: what the instance holds. */
+/** Each card's name, fee and quantity held; metadata has its own assertions. */
 const held = () =>
   [...document.querySelectorAll('[data-slot="addon"]')].map((row) => {
     const seen = row.cloneNode(true) as Element;
-    for (const hidden of seen.querySelectorAll(".sr-only")) hidden.remove();
+    for (const hidden of seen.querySelectorAll(
+      '.sr-only, [data-slot="addon-billing-timing"], [data-slot="addon-pending-quantity"], [data-slot="addon-metered-price"]',
+    ))
+      hidden.remove();
     return flat(seen.textContent);
   });
 
 /** The text of each change the panel's summary lists. */
 const changes = () =>
-  [...panel().querySelectorAll('[data-slot="addon-change"]')].map((line) => flat(line.textContent));
+  [...panel().querySelectorAll('[data-slot="addon-change"]')].map((line) => {
+    const copy = line.cloneNode(true) as Element;
+    copy.querySelector('[data-slot="addon-change-billing-timing"]')?.remove();
+    return flat(copy.textContent);
+  });
 
 /** The quantities sent, in the order they were sent, as `slug=quantity`. */
 const sent = (server: ReturnType<typeof sessionServer>) =>
@@ -157,15 +164,11 @@ test("the summary says each change, its fee at the add-on's own price and when i
   expect(changes()).toEqual([
     `Extra seats 3 → 4 +1 × €10.00/monthTakes effect now, and is billed from your renewal on ${RENEWAL}.`,
     // The GPU pack has no price: the change is said without one.
-    `GPU pack 1 → 0 −1Removed now. Your renewal on ${RENEWAL} no longer bills it, and nothing is refunded for the current period.`,
+    `GPU pack 1 → 0 −1Removal scheduled for ${RENEWAL}. You keep this add-on until then.`,
   ]);
   // An increase may also be billed for the current period: said once, of every add-on, since the
   // portal does not say which are billed that way.
-  expect(
-    inPanel().getByText(
-      "A higher quantity can also be billed for the current period, at the most you hold during it, on your next invoice.",
-    ),
-  ).toBeTruthy();
+  expect(inPanel().queryByText(/A higher quantity/)).toBeNull();
 });
 
 test("the summary never adds a fee up: two more seats are two units at the add-on's price", async () => {
@@ -181,13 +184,13 @@ test("the summary never adds a fee up: two more seats are two units at the add-o
   expect(summary).not.toContain("50.00");
 });
 
-test("a lower quantity takes effect now, as the contract makes it, and the renewal bills what is left", async () => {
+test("a lower quantity is scheduled for the boundary, retaining the current quantity until then", async () => {
   mount(sessionServer(), <AddOns />);
   await openPanel();
   await pressInPanel("Remove one Extra seats");
 
   expect(changes()).toEqual([
-    `Extra seats 3 → 2 −1 × €10.00/monthTakes effect now. Your renewal on ${RENEWAL} bills the new quantity, and nothing is refunded for the current period.`,
+    `Extra seats 3 → 2 −1 × €10.00/monthThe lower quantity takes effect on ${RENEWAL}. You keep your current quantity until then.`,
   ]);
   // Nothing is raised: no word of the current period.
   expect(inPanel().queryByText(/A higher quantity/)).toBeNull();
@@ -230,7 +233,7 @@ test("in a trial, a change is billed from the trial's end, with no word of the c
   const end = formatKaitenDate("2026-10-15T00:00:00Z");
   expect(changes()).toEqual([
     `Extra seats 3 → 4 +1 × €10.00/monthTakes effect now, and is billed from the end of your trial on ${end}.`,
-    `GPU pack 1 → 0 −1Removed now. It isn't billed when your trial ends on ${end}.`,
+    `GPU pack 1 → 0 −1Removal scheduled for ${end}. You keep this add-on until then.`,
   ]);
   // A trial is never trued up: nothing is said of the current period.
   expect(inPanel().queryByText(/A higher quantity/)).toBeNull();
@@ -302,7 +305,10 @@ test("Confirm sends one change per add-on, in order, and the portal then says wh
   expect(sent(server)).toEqual(["extra-seats-v1=5", "gpu-pack-v1=0"]);
   // Each change read the portal again: the card is what the server now holds.
   expect(server.to("GET", "portal").length).toBeGreaterThanOrEqual(3);
-  expect(held()).toEqual(["Extra seats€10.00/month× 5"]);
+  expect(held()).toEqual(["Extra seats€10.00/month× 5", "GPU pack× 1"]);
+  expect(
+    screen.getByText(`Removal scheduled for ${RENEWAL}. You keep this add-on until then.`),
+  ).toBeTruthy();
   expect(screen.getByText("Your add-ons have been updated.").getAttribute("role")).toBe("status");
 });
 
@@ -561,10 +567,12 @@ test("the changes are said once in the portal: by the card they were made from, 
   expect(updated()[0]!.closest('[data-slot="card"]')!.textContent).toContain("Add-ons");
 });
 
-test("removing the last add-on keeps the card, which says so, and the keyboard goes to what it says", async () => {
+test("without a subscription, removing the last add-on keeps feedback and moves keyboard focus", async () => {
   // No catalogue is read: once the GPU pack goes, nothing is held and nothing is offered.
   const portal = structuredClone(answers.portal);
   portal.addOns = portal.addOns.filter((addon) => addon.addonSlug === "gpu-pack-v1");
+  portal.subscription = null as never;
+  portal.upcomingInvoice = null as never;
   const server = sessionServer({ portal });
   mount(server, <AddOns />);
   await openPanel();

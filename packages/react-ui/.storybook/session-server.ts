@@ -198,10 +198,19 @@ export function sessionServer(
       const held = (portal.addOns as Array<Record<string, any>>).find((a) => a.addonSlug === slug);
       const known = held ?? attachable.get(slug);
       if (!known) return refusal("addonIncompatible");
-      const next = { ...known, quantity: body.quantity };
+      if (portal.subscription?.status === "INCOMPLETE")
+        return {
+          status: 409,
+          body: { code: "SetSessionAddonQuantity.SubscriptionIncomplete", status: 409 },
+        };
+      const live = ["TRIAL", "ACTIVE", "PAST_DUE"].includes(portal.subscription?.status);
+      const next: Record<string, any> =
+        held && live && body.quantity < held.quantity
+          ? { ...held, pendingQuantity: body.quantity }
+          : { ...known, quantity: body.quantity, pendingQuantity: null };
       change({
         addOns:
-          body.quantity === 0
+          next.quantity === 0
             ? (portal.addOns as Array<Record<string, any>>).filter((a) => a.addonSlug !== slug)
             : held
               ? (portal.addOns as Array<Record<string, any>>).map((a) =>

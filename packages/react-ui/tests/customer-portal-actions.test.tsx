@@ -368,7 +368,9 @@ test("a limit a voucher moved says how, in the server's figures", async () => {
 
   fireEvent.click(screen.getByRole("button", { name: "How this limit is made up: API calls" }));
 
-  expect(screen.getByRole("note").textContent).toBe("(100,000 base) × 2 voucher = 200,000");
+  expect(screen.getByRole("note").textContent).toBe(
+    "Source: Current plan. (100,000 base) × 2 voucher = 200,000",
+  );
 });
 
 test("a limit add-ons raised says so, and a limit nothing moved has nothing to say", async () => {
@@ -376,7 +378,9 @@ test("a limit add-ons raised says so, and a limit nothing moved has nothing to s
   await screen.findByText("Seats");
 
   fireEvent.click(screen.getByRole("button", { name: "How this limit is made up: Seats" }));
-  expect(screen.getByRole("note").textContent).toBe("5 base + 3 × 1 add-on = 8");
+  expect(screen.getByRole("note").textContent).toBe(
+    "Source: Current plan. 5 base + 3 × 1 add-on = 8",
+  );
   expect(
     screen.queryByRole("button", { name: "How this limit is made up: AI credits" }),
   ).toBeNull();
@@ -390,7 +394,9 @@ test("the same note is on the included features", async () => {
   });
   expect(buttons.length).toBeGreaterThan(0);
   fireEvent.click(buttons[0]!);
-  expect(screen.getAllByRole("note")[0]!.textContent).toBe("(100,000 base) × 2 voucher = 200,000");
+  expect(screen.getAllByRole("note")[0]!.textContent).toBe(
+    "Source: Current plan. (100,000 base) × 2 voucher = 200,000",
+  );
 });
 
 test("the note opens on a press and closes on another", async () => {
@@ -410,7 +416,9 @@ test("unstyled, the note is there too, in plain markup", async () => {
   const button = screen.getByRole("button", { name: "How this limit is made up: API calls" });
   expect(button.closest("[data-slot='provenance']")).toBeTruthy();
   fireEvent.click(button);
-  expect(screen.getByRole("note").textContent).toBe("(100,000 base) × 2 voucher = 200,000");
+  expect(screen.getByRole("note").textContent).toBe(
+    "Source: Current plan. (100,000 base) × 2 voucher = 200,000",
+  );
   expect(container.querySelector("[data-slot='provenance'] [class]")).toBeNull();
 
   cleanup();
@@ -429,7 +437,7 @@ test("in French", async () => {
   fireEvent.click(screen.getByRole("button", { name: "D'où vient cette limite: API calls" }));
   // The figures are written in the browser's own locale; the words are the pack's.
   expect(screen.getByRole("note").textContent).toMatch(
-    /^\(100.000 de base\) × 2 code promo = 200.000$/,
+    /^Origine : Offre actuelle\. \(100.000 de base\) × 2 code promo = 200.000$/,
   );
 });
 

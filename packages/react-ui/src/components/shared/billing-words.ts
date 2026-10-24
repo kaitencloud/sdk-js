@@ -17,7 +17,7 @@ import {
 // host's override of one string is merged over these.
 
 /** How a subscription is said: the status of the current plan and of the billing summary. */
-export const englishSubscriptionWords: KaitenSubscriptionWords = {
+export const englishSubscriptionWords: Required<KaitenSubscriptionWords> = {
   trial: "Trial",
   active: "Active",
   pastDue: "Payment failed",
@@ -28,13 +28,14 @@ export const englishSubscriptionWords: KaitenSubscriptionWords = {
   changesOn: (price, isoDate) => `Changes to ${price} on ${formatKaitenDate(isoDate)}`,
   pastDueNotice: "Your latest payment didn't go through.",
   canceledNotice: "Your subscription has ended.",
+  canceledPlanNotice: (name) => `Your subscription has ended. Your current plan is ${name}.`,
   incompleteNotice: "Your plan starts once your payment is confirmed.",
   none: "There's no subscription to show.",
   subscribe: "Subscribe",
 };
 
 /** What the customer portal says of a session's invoices, cancellation, add-ons and vouchers. */
-export const englishPortalBillingWords: KaitenPortalBillingWords = {
+export const englishPortalBillingWords: Required<KaitenPortalBillingWords> = {
   invoices: "Invoices",
   noInvoices: "No invoices yet.",
   invoicePeriod: (from, to) => `${formatKaitenDate(from)} – ${formatKaitenDate(to)}`,
@@ -75,18 +76,26 @@ export const englishPortalBillingWords: KaitenPortalBillingWords = {
   addonsConfirm: "Confirm changes",
   addonsCancel: "Cancel",
   addonsUpdated: "Your add-ons have been updated.",
+  addonPendingQuantity: (quantity, date) =>
+    `Quantity ${quantity} from ${formatKaitenDate(date)}. You keep your current quantity until then.`,
+  addonPendingRemoval: (date) =>
+    `Removal scheduled for ${formatKaitenDate(date)}. You keep this add-on until then.`,
+  addonKeepQuantity: "Keep the current quantity and cancel the scheduled change.",
+  billingAdvance: "Billed for the period ahead.",
+  billingArrears: "Billed for the period that has ended.",
+  addonOverage: (percent) => `${percent}% extra usage allowed above the included amount.`,
   addonBilledFrom: (isoDate) =>
     `Takes effect now, and is billed from your renewal on ${formatKaitenDate(isoDate)}.`,
   addonLowerFrom: (isoDate) =>
-    `Takes effect now. Your renewal on ${formatKaitenDate(isoDate)} bills the new quantity, and nothing is refunded for the current period.`,
+    `The lower quantity takes effect on ${formatKaitenDate(isoDate)}. You keep your current quantity until then.`,
   addonRemovedFrom: (isoDate) =>
-    `Removed now. Your renewal on ${formatKaitenDate(isoDate)} no longer bills it, and nothing is refunded for the current period.`,
+    `Removal scheduled for ${formatKaitenDate(isoDate)}. You keep this add-on until then.`,
   addonEnding: (isoDate) =>
     `Takes effect now. Your subscription ends on ${formatKaitenDate(isoDate)} and isn't renewed.`,
   addonBilledFromTrialEnd: (isoDate) =>
     `Takes effect now, and is billed from the end of your trial on ${formatKaitenDate(isoDate)}.`,
   addonRemovedInTrial: (isoDate) =>
-    `Removed now. It isn't billed when your trial ends on ${formatKaitenDate(isoDate)}.`,
+    `Removal scheduled for your trial's end on ${formatKaitenDate(isoDate)}. You keep this add-on until then.`,
   addonUnbilled: "Takes effect now. Nothing is billed without a subscription.",
   addonTrueUpNote:
     "A higher quantity can also be billed for the current period, at the most you hold during it, on your next invoice.",
@@ -127,7 +136,19 @@ export const englishPortalBillingWords: KaitenPortalBillingWords = {
   provenanceAddOn: "add-on",
   provenanceVoucher: "voucher",
   provenanceWithAddOns: "with add-ons",
-  provenanceUnlimited: "Unlimited with a voucher",
+  provenanceUnlimited: "Unlimited",
+  provenanceLayer: (name) => `Source: ${name}.`,
+  provenanceException: "adjustment",
+  provenanceBeforeException: (value) => `Before adjustment: ${value}`,
+  provenanceEffective: (value) => `Effective allowance: ${value}`,
+  grantSet: (value) => `Set to ${value}`,
+  grantAdd: (value) => `Add ${value}`,
+  grantMultiply: (value) => `Multiply by ${value}`,
+  grantMinimum: (value) => `At least ${value}`,
+  grantFrom: (date) => `From ${formatKaitenDate(date)}.`,
+  grantNoEnd: "No end date.",
+  voucherDiscount: (value) => `${value} off.`,
+  voucherFlag: (name, variant) => `Feature ${name}: ${variant}.`,
 };
 
 /** What the payment method card says. */
@@ -151,23 +172,35 @@ export const englishPaymentMethodWords: KaitenPaymentMethodWords = {
   error: "Something went wrong. Please try again.",
 };
 
-/** The words of a subscription's state: the language's, and the host's own over them, over the English ones. */
-export function useSubscriptionWords(): KaitenSubscriptionWords {
+/** Undefined optional words cannot erase the English fallback. */
+function definedWords<T extends object>(words: T | undefined): Partial<T> {
+  return Object.fromEntries(
+    Object.entries(words ?? {}).filter(([, value]) => value !== undefined),
+  ) as Partial<T>;
+}
+
+export function useSubscriptionWords(): Required<KaitenSubscriptionWords> {
   const { subscription } = useLocalization();
-  return React.useMemo(() => ({ ...englishSubscriptionWords, ...subscription }), [subscription]);
+  return React.useMemo(
+    () => ({ ...englishSubscriptionWords, ...definedWords(subscription) }),
+    [subscription],
+  );
 }
 
 /** The words of the portal's invoices, cancellation, add-ons and vouchers. */
-export function usePortalBillingWords(): KaitenPortalBillingWords {
+export function usePortalBillingWords(): Required<KaitenPortalBillingWords> {
   const { portalBilling } = useLocalization();
-  return React.useMemo(() => ({ ...englishPortalBillingWords, ...portalBilling }), [portalBilling]);
+  return React.useMemo(
+    () => ({ ...englishPortalBillingWords, ...definedWords(portalBilling) }),
+    [portalBilling],
+  );
 }
 
 /** The words of the payment method card. */
 export function usePaymentMethodWords(): KaitenPaymentMethodWords {
   const { paymentMethodCard } = useLocalization();
   return React.useMemo(
-    () => ({ ...englishPaymentMethodWords, ...paymentMethodCard }),
+    () => ({ ...englishPaymentMethodWords, ...definedWords(paymentMethodCard) }),
     [paymentMethodCard],
   );
 }

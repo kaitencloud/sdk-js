@@ -148,7 +148,9 @@ export const Over: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(await canvas.findByText("Canceled", {}, SLOW)).toBeInTheDocument();
-    await expect(canvas.getByText("Your subscription has ended.")).toBeInTheDocument();
+    await expect(
+      canvas.getByText("Your subscription has ended. Your current plan is Pro."),
+    ).toBeInTheDocument();
   },
 };
 

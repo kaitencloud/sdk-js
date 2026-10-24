@@ -12,11 +12,18 @@ import {
 } from "@kaitencloud/react";
 
 import { addonFeeFor, saleOfPrice, type AddonSale } from "../../shared/addon-fee.ts";
+import { cn } from "../../../lib/utils.ts";
 import { usePortalBillingWords } from "../../shared/billing-words.ts";
 import { Action, Message } from "../../shared/feedback.tsx";
+import { billingTimingText, grantDescription } from "../../shared/grant-description.ts";
 import { Dialog, DialogDescription, DialogTitle } from "../../ui/dialog.tsx";
 import type { AddOnsPanel } from "./addons-panel-state.ts";
-import { unitPriceText, type SessionAddonRow, type SessionAddOns } from "./session-addon-rows.ts";
+import {
+  pendingAddonText,
+  unitPriceText,
+  type SessionAddonRow,
+  type SessionAddOns,
+} from "./session-addon-rows.ts";
 
 /** What the panel says of a refused change: why, when the API said why, and what to do. */
 function refusalText(problem: AddonQuantityProblem, words: KaitenPortalBillingWords): string {
@@ -46,31 +53,32 @@ function refusalText(problem: AddonQuantityProblem, words: KaitenPortalBillingWo
 
 /**
  * When a change is billed, as the contract the SDK targets bills it: an increase from the next
- * renewal, a lower quantity or a removal at once, with the next renewal billing what is left and
- * nothing refunded. A trial is never billed for the time it lasts: the invoice at its end bills
+ * boundary. A lower quantity or removal on a live subscription waits for that boundary.
+ * Nothing is said of a decrease on an older server that omits pendingQuantity. A trial is never billed for the time it lasts: the invoice at its end bills
  * what is held then, and nothing if it ends without converting. A subscription that ends renews
  * nothing, and without a live one nothing is billed.
  */
 function whenText(
-  from: number,
+  row: SessionAddonRow,
   to: number,
   live: PortalSubscription | null,
   words: KaitenPortalBillingWords,
-): string {
+): string | null {
   if (!live) return words.addonUnbilled;
+  if (!["TRIAL", "ACTIVE", "PAST_DUE"].includes(live.status)) return null;
+  if (to === row.quantity) return words.addonKeepQuantity ?? null;
+  if (to < row.quantity) {
+    if (row.addon.pendingQuantity === undefined) return null;
+    return to === 0
+      ? words.addonRemovedFrom(live.currentPeriodEnd)
+      : words.addonLowerFrom(live.currentPeriodEnd);
+  }
   if (live.status === "TRIAL") {
     const end = live.trialEndsAt ?? live.currentPeriodEnd;
-    return to === 0 ? words.addonRemovedInTrial(end) : words.addonBilledFromTrialEnd(end);
+    return words.addonBilledFromTrialEnd(end);
   }
   if (live.cancelAtPeriodEnd) return words.addonEnding(live.currentPeriodEnd);
-  if (to > from) return words.addonBilledFrom(live.currentPeriodEnd);
-  // TODO: the contract's portal add-ons carry `pendingQuantity` (a decrease scheduled for the next
-  // renewal, whose units are kept until then), and the client does not map it yet, so a decrease is
-  // still said as it was made before: at once, the renewal billing the new quantity. Map it, then
-  // say a decrease as scheduled for the renewal instead, and show the quantity scheduled.
-  return to === 0
-    ? words.addonRemovedFrom(live.currentPeriodEnd)
-    : words.addonLowerFrom(live.currentPeriodEnd);
+  return words.addonBilledFrom(live.currentPeriodEnd);
 }
 
 /**
@@ -224,10 +232,12 @@ function ManageAddOnsPanel({
     };
   }, []);
 
-  const quantityOf = (row: SessionAddonRow) => wanted.get(row.addon.slug) ?? row.quantity;
+  const original = (row: SessionAddonRow) =>
+    addOns.live ? (row.addon.pendingQuantity ?? row.quantity) : row.quantity;
+  const quantityOf = (row: SessionAddonRow) => wanted.get(row.addon.slug) ?? original(row);
   // What the panel would change: the add-ons whose quantity is not the server's, in the list's order.
   const changes: Change[] = addOns.rows
-    .filter((row) => quantityOf(row) !== row.quantity)
+    .filter((row) => quantityOf(row) !== original(row))
     .map((row) => ({ row, to: quantityOf(row) }));
 
   const stage = (row: SessionAddonRow, to: number) => {
@@ -268,11 +278,6 @@ function ManageAddOnsPanel({
     refused !== null && change.problem
       ? words.addonRefusedFor(refused, refusalText(change.problem, words))
       : null;
-  // A higher quantity can be trued up at the next invoice, for the current period; a trial's never is.
-  const raises =
-    addOns.live !== null &&
-    addOns.live.status !== "TRIAL" &&
-    changes.some(({ row, to }) => to > row.quantity);
   // The fee a change is billed at from the renewal: a plan change scheduled for it bills the
   // add-ons at the fees of its own billing period.
   const billedAt = renewalSale(addOns.live) ?? addOns.sale;
@@ -328,6 +333,38 @@ function ManageAddOnsPanel({
                         .join(" · ")}
                     </span>
                   ) : null}
+                  {pendingAddonText(row.addon, addOns.subscription, words) ? (
+                    <p
+                      data-slot="addon-pending-quantity"
+                      className={cn("ktn-own", !unstyled && "text-sm break-words")}
+                    >
+                      {pendingAddonText(row.addon, addOns.subscription, words)}
+                    </p>
+                  ) : null}
+                  {(row.version.entitlements ?? []).map((grant) => {
+                    const operation =
+                      grant.overrideBehavior === "OVERRIDE" ? "SET" : grant.overrideBehavior;
+                    const effect = operation
+                      ? grantDescription(operation, grant.value?.value, words, localization)
+                      : null;
+                    const allowance =
+                      typeof grant.limitCapExceededOveragePercent === "number" &&
+                      grant.limitCapExceededOveragePercent >= 0
+                        ? words.addonOverage?.(String(grant.limitCapExceededOveragePercent))
+                        : null;
+                    return effect || allowance ? (
+                      <p
+                        key={grant.slug}
+                        data-slot="addon-grant"
+                        className={cn(
+                          "ktn-own",
+                          !unstyled && "text-xs break-words text-ktn-muted-foreground",
+                        )}
+                      >
+                        {grant.name}: {[effect, allowance].filter(Boolean).join(" · ")}
+                      </p>
+                    ) : null;
+                  })}
                 </div>{" "}
                 <div className={unstyled ? undefined : "ktn-own flex items-center gap-2"}>
                   <Action
@@ -416,24 +453,27 @@ function ManageAddOnsPanel({
                         data-slot="addon-change-fee"
                         className={unstyled ? undefined : "ktn-own font-medium tabular-nums"}
                       >
-                        {feeText ? `${units} × ${feeText}` : units}
+                        {to === from ? null : feeText ? `${units} × ${feeText}` : units}
                       </span>
                     </div>
                     <p
                       className={unstyled ? undefined : "ktn-own text-xs text-ktn-muted-foreground"}
                     >
-                      {whenText(from, to, addOns.live, words)}
+                      {whenText(row, to, addOns.live, words)}
                     </p>
+                    {billingTimingText(fee, words) ? (
+                      <p
+                        data-slot="addon-change-billing-timing"
+                        className={cn("ktn-own", !unstyled && "text-xs text-ktn-muted-foreground")}
+                      >
+                        {billingTimingText(fee, words)}
+                      </p>
+                    ) : null}
                   </li>
                 );
               })}
             </ul>
           )}
-          {raises ? (
-            <p className={unstyled ? undefined : "ktn-own text-xs text-ktn-muted-foreground"}>
-              {words.addonTrueUpNote}
-            </p>
-          ) : null}
         </section>
       </div>
 

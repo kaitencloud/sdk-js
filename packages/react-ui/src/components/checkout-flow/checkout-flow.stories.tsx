@@ -265,7 +265,7 @@ export const CardDeclined: Story = {
   play: async ({ canvasElement }) => {
     const canvas = await subscribe(canvasElement);
     await expect(
-      await canvas.findByText("You're subscribed, but your card was declined.", {}, SLOW),
+      await canvas.findByText("You're subscribed, but your payment didn't go through.", {}, SLOW),
     ).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Update payment method" })).toBeEnabled();
     await expect(canvas.getByRole("link", { name: "Pay invoice" })).toBeInTheDocument();
@@ -294,7 +294,7 @@ export const CardDeclinedBeforeThePlanStarts: Story = {
     await expect(
       await canvas.findByText("Your plan starts once your payment is confirmed.", {}, SLOW),
     ).toBeInTheDocument();
-    await expect(canvas.getByText("Your card was declined.")).toBeInTheDocument();
+    await expect(canvas.getByText("Your payment didn't go through.")).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Update payment method" })).toBeEnabled();
     await expect(canvas.getByRole("link", { name: "Pay invoice" })).toBeInTheDocument();
   },

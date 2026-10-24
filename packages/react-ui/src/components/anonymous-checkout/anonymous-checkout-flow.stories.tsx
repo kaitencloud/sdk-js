@@ -410,7 +410,9 @@ export const CardDeclined: Story = {
   play: async ({ canvasElement }) => {
     const canvas = await reviewed(canvasElement);
     await userEvent.click(canvas.getByRole("button", { name: "Continue to payment" }));
-    await expect(await canvas.findByText("Your card was declined.", {}, SLOW)).toBeInTheDocument();
+    await expect(
+      await canvas.findByText("Your payment didn't go through.", {}, SLOW),
+    ).toBeInTheDocument();
     // Still read on a schedule, but not said: "waiting" under "declined" would contradict it.
     await expect(canvas.queryByText("Waiting for your payment...")).toBeNull();
     await expect(canvas.getByRole("link", { name: "Pay invoice" })).toBeInTheDocument();

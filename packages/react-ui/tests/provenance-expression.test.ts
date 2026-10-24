@@ -169,6 +169,6 @@ test("add-ons alone grant a limit", () => {
 
 test("unlimited is said, with no arithmetic", () => {
   expect(provenanceExpression(provenance({ unlimited: true, effective: -1 }), words)).toBe(
-    "Unlimited with a voucher",
+    "Unlimited",
   );
 });

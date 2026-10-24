@@ -204,9 +204,9 @@ export const es: KaitenLocalization = {
     waitingForPayment: "Esperando su pago…",
     paymentStillOpen:
       "Todavía no hemos visto su pago. Lo comprobaremos de nuevo cuando vuelva a esta ventana.",
-    paymentFailed: "Está suscrito, pero su tarjeta fue rechazada.",
+    paymentFailed: "Está suscrito, pero su pago no se ha completado.",
     startsOncePaid: "Su plan empieza en cuanto se confirme su pago.",
-    cardDeclined: "Su tarjeta fue rechazada.",
+    cardDeclined: "Su pago no se ha completado.",
     updatePaymentMethod: "Actualizar el método de pago",
     paymentMethodUpdated: "Método de pago actualizado.",
     payInvoice: "Pagar la factura",
@@ -297,6 +297,7 @@ export const es: KaitenLocalization = {
       `Pasa a ${price} el ${formatKaitenDate(isoDate, { locale: "es-ES" })}`,
     pastDueNotice: "Su último pago no se pudo completar.",
     canceledNotice: "Su suscripción ha terminado.",
+    canceledPlanNotice: (name) => `Su suscripción ha terminado. Su plan actual es ${name}.`,
     incompleteNotice: "Su plan empieza en cuanto se confirme su pago.",
     none: "No hay ninguna suscripción que mostrar.",
     subscribe: "Suscribirse",
@@ -347,18 +348,27 @@ export const es: KaitenLocalization = {
     addonsConfirm: "Confirmar cambios",
     addonsCancel: "Cancelar",
     addonsUpdated: "Sus complementos se han actualizado.",
+    addonPendingQuantity: (quantity, date) =>
+      `Cantidad de ${quantity} a partir del ${formatKaitenDate(date, { locale: "es-ES" })}. Conserva la cantidad actual hasta entonces.`,
+    addonPendingRemoval: (date) =>
+      `Retirada prevista para el ${formatKaitenDate(date, { locale: "es-ES" })}. Conserva este complemento hasta entonces.`,
+    addonKeepQuantity: "Conservar la cantidad actual y cancelar el cambio previsto.",
+    billingAdvance: "Se factura por el periodo siguiente.",
+    billingArrears: "Se factura por el periodo que ha terminado.",
+    addonOverage: (percent) =>
+      `Se permite un ${percent} % de uso adicional sobre la cantidad incluida.`,
     addonBilledFrom: (isoDate) =>
       `Se aplica ahora y se factura desde su renovación del ${formatKaitenDate(isoDate, { locale: "es-ES" })}.`,
     addonLowerFrom: (isoDate) =>
-      `Se aplica ahora. Su renovación del ${formatKaitenDate(isoDate, { locale: "es-ES" })} factura la nueva cantidad, y no se reembolsa nada del periodo en curso.`,
+      `La cantidad reducida se aplica el ${formatKaitenDate(isoDate, { locale: "es-ES" })}. Conserva la cantidad actual hasta entonces.`,
     addonRemovedFrom: (isoDate) =>
-      `Se quita ahora. Su renovación del ${formatKaitenDate(isoDate, { locale: "es-ES" })} ya no lo factura, y no se reembolsa nada del periodo en curso.`,
+      `Retirada prevista para el ${formatKaitenDate(isoDate, { locale: "es-ES" })}. Conserva este complemento hasta entonces.`,
     addonEnding: (isoDate) =>
       `Se aplica ahora. Su suscripción termina el ${formatKaitenDate(isoDate, { locale: "es-ES" })} y no se renueva.`,
     addonBilledFromTrialEnd: (isoDate) =>
       `Se aplica ahora y se factura desde el final de su prueba el ${formatKaitenDate(isoDate, { locale: "es-ES" })}.`,
     addonRemovedInTrial: (isoDate) =>
-      `Se quita ahora. No se factura cuando su prueba termine el ${formatKaitenDate(isoDate, { locale: "es-ES" })}.`,
+      `Retirada prevista para el final de su prueba, el ${formatKaitenDate(isoDate, { locale: "es-ES" })}. Conserva este complemento hasta entonces.`,
     addonUnbilled: "Se aplica ahora. No se factura nada sin suscripción.",
     addonTrueUpNote:
       "Una cantidad mayor también puede facturarse por el periodo en curso, por la cantidad más alta que tenga en él, en su próxima factura.",
@@ -405,7 +415,19 @@ export const es: KaitenLocalization = {
     provenanceAddOn: "complemento",
     provenanceVoucher: "código promocional",
     provenanceWithAddOns: "con los complementos",
-    provenanceUnlimited: "Ilimitado con un código promocional",
+    provenanceUnlimited: "Ilimitado",
+    provenanceLayer: (name) => `Origen: ${name}.`,
+    provenanceException: "ajuste",
+    provenanceBeforeException: (value) => `Antes del ajuste: ${value}`,
+    provenanceEffective: (value) => `Cantidad efectiva: ${value}`,
+    grantSet: (value) => `Valor fijado en ${value}`,
+    grantAdd: (value) => `Añadir ${value}`,
+    grantMultiply: (value) => `Multiplicar por ${value}`,
+    grantMinimum: (value) => `Al menos ${value}`,
+    grantFrom: (date) => `A partir del ${formatKaitenDate(date, { locale: "es-ES" })}.`,
+    grantNoEnd: "Sin fecha de fin.",
+    voucherDiscount: (value) => `${value.replace(/%$/, " %")} de descuento.`,
+    voucherFlag: (name, variant) => `Función ${name}: ${variant}.`,
   },
   paymentMethodCard: {
     title: "Método de pago",

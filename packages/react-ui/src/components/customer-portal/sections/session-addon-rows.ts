@@ -8,6 +8,7 @@ import {
   usePortal,
   type Addon,
   type KaitenLocalization,
+  type KaitenPortalBillingWords,
   type PortalSubscription,
 } from "@kaitencloud/react";
 import { useKaitenDataContext } from "@kaitencloud/react/internal";
@@ -19,6 +20,7 @@ import {
   type AddonSale,
 } from "../../shared/addon-fee.ts";
 import { getAddonDisplayPrice } from "./addon-price.ts";
+import { billingTimingText } from "../../shared/grant-description.ts";
 
 /** One add-on of a customer session's portal, and how many units of it the instance holds. */
 export interface SessionAddonRow {
@@ -52,6 +54,54 @@ export interface SessionAddOns {
 }
 
 const NONE: SessionAddonRow[] = [];
+
+/** Metered rates are the API's per-sale-unit prices, never multiplied by add-on quantity. */
+export function meteredAddonPrices(
+  addon: Addon,
+  localization: KaitenLocalization,
+  words: KaitenPortalBillingWords,
+): { key: string; text: string }[] {
+  return (addon.billingPrices ?? []).flatMap((price, index) => {
+    if (price.billingModel !== "USAGE_BASED" && price.billingModel !== "OVERAGE") return [];
+    const amount = formatKaitenPrice(price, localization);
+    if (!amount) return [];
+    const timing = billingTimingText(price, words);
+    return [{ key: price.id ?? String(index), text: [amount, timing].filter(Boolean).join(" · ") }];
+  });
+}
+
+/** A scheduled decrease is a second figure: it never replaces the quantity held. */
+export function pendingAddonText(
+  addon: Addon,
+  subscription: PortalSubscription | null,
+  words: KaitenPortalBillingWords,
+): string | null {
+  const pending = addon.pendingQuantity;
+  const end = subscription?.currentPeriodEnd;
+  if (
+    typeof pending !== "number" ||
+    !Number.isInteger(pending) ||
+    pending < 0 ||
+    !end ||
+    addon.quantity === undefined ||
+    pending >= addon.quantity
+  )
+    return null;
+  return pending === 0
+    ? (words.addonPendingRemoval?.(end) ?? null)
+    : (words.addonPendingQuantity?.(String(pending), end) ?? null);
+}
+
+export function unitTimingText(
+  addon: Addon,
+  subscription: PortalSubscription | null,
+  words: KaitenPortalBillingWords,
+): string | null {
+  return billingTimingText(
+    addonUnitPrice(addon, subscription ? saleOfSubscription(subscription) : null),
+    words,
+  );
+}
 
 /**
  * The add-ons of a customer session's instance: the ones it holds, and the public add-ons of the

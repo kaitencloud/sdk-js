@@ -205,9 +205,9 @@ export const de: KaitenLocalization = {
     waitingForPayment: "Warten auf Ihre Zahlung…",
     paymentStillOpen:
       "Wir haben Ihre Zahlung noch nicht gesehen. Wir prüfen erneut, wenn Sie zu diesem Fenster zurückkehren.",
-    paymentFailed: "Sie sind abonniert, aber Ihre Karte wurde abgelehnt.",
+    paymentFailed: "Sie sind abonniert, aber Ihre Zahlung ist nicht durchgegangen.",
     startsOncePaid: "Ihr Tarif beginnt, sobald Ihre Zahlung bestätigt ist.",
-    cardDeclined: "Ihre Karte wurde abgelehnt.",
+    cardDeclined: "Ihre Zahlung ist nicht durchgegangen.",
     updatePaymentMethod: "Zahlungsmethode aktualisieren",
     paymentMethodUpdated: "Zahlungsmethode aktualisiert.",
     payInvoice: "Rechnung bezahlen",
@@ -306,6 +306,7 @@ export const de: KaitenLocalization = {
       `Wechselt am ${formatKaitenDate(isoDate, { locale: "de-DE" })} zu ${price}`,
     pastDueNotice: "Ihre letzte Zahlung ist nicht durchgegangen.",
     canceledNotice: "Ihr Abonnement ist beendet.",
+    canceledPlanNotice: (name) => `Ihr Abonnement ist beendet. Ihr aktueller Tarif ist ${name}.`,
     incompleteNotice: "Ihr Tarif beginnt, sobald Ihre Zahlung bestätigt ist.",
     none: "Es gibt kein Abonnement anzuzeigen.",
     subscribe: "Abonnieren",
@@ -356,18 +357,27 @@ export const de: KaitenLocalization = {
     addonsConfirm: "Änderungen bestätigen",
     addonsCancel: "Abbrechen",
     addonsUpdated: "Ihre Zusatzoptionen wurden aktualisiert.",
+    addonPendingQuantity: (quantity, date) =>
+      `Menge ${quantity} ab dem ${formatKaitenDate(date, { locale: "de-DE" })}. Bis dahin behalten Sie Ihre aktuelle Menge.`,
+    addonPendingRemoval: (date) =>
+      `Entfernung zum ${formatKaitenDate(date, { locale: "de-DE" })} vorgesehen. Bis dahin behalten Sie diese Zusatzoption.`,
+    addonKeepQuantity: "Aktuelle Menge behalten und die vorgesehene Änderung aufheben.",
+    billingAdvance: "Wird für den kommenden Zeitraum berechnet.",
+    billingArrears: "Wird für den abgelaufenen Zeitraum berechnet.",
+    addonOverage: (percent) =>
+      `${percent} % zusätzliche Nutzung über die enthaltene Menge hinaus erlaubt.`,
     addonBilledFrom: (isoDate) =>
       `Gilt sofort und wird ab Ihrer Verlängerung am ${formatKaitenDate(isoDate, { locale: "de-DE" })} berechnet.`,
     addonLowerFrom: (isoDate) =>
-      `Gilt sofort. Ihre Verlängerung am ${formatKaitenDate(isoDate, { locale: "de-DE" })} berechnet die neue Menge, und für den laufenden Zeitraum wird nichts erstattet.`,
+      `Die niedrigere Menge gilt ab dem ${formatKaitenDate(isoDate, { locale: "de-DE" })}. Bis dahin behalten Sie Ihre aktuelle Menge.`,
     addonRemovedFrom: (isoDate) =>
-      `Sofort entfernt. Ihre Verlängerung am ${formatKaitenDate(isoDate, { locale: "de-DE" })} berechnet sie nicht mehr, und für den laufenden Zeitraum wird nichts erstattet.`,
+      `Entfernung zum ${formatKaitenDate(isoDate, { locale: "de-DE" })} vorgesehen. Bis dahin behalten Sie diese Zusatzoption.`,
     addonEnding: (isoDate) =>
       `Gilt sofort. Ihr Abonnement endet am ${formatKaitenDate(isoDate, { locale: "de-DE" })} und wird nicht verlängert.`,
     addonBilledFromTrialEnd: (isoDate) =>
       `Gilt sofort und wird ab dem Ende Ihrer Testphase am ${formatKaitenDate(isoDate, { locale: "de-DE" })} berechnet.`,
     addonRemovedInTrial: (isoDate) =>
-      `Sofort entfernt. Zum Ende Ihrer Testphase am ${formatKaitenDate(isoDate, { locale: "de-DE" })} wird es nicht berechnet.`,
+      `Entfernung zum Ende Ihrer Testphase am ${formatKaitenDate(isoDate, { locale: "de-DE" })} vorgesehen. Bis dahin behalten Sie diese Zusatzoption.`,
     addonUnbilled: "Gilt sofort. Ohne Abonnement wird nichts berechnet.",
     addonTrueUpNote:
       "Eine höhere Menge kann auf Ihrer nächsten Rechnung auch für den laufenden Zeitraum berechnet werden, zur höchsten darin gehaltenen Menge.",
@@ -415,7 +425,19 @@ export const de: KaitenLocalization = {
     provenanceAddOn: "Zusatzoption",
     provenanceVoucher: "Gutschein",
     provenanceWithAddOns: "mit Zusatzoptionen",
-    provenanceUnlimited: "Unbegrenzt mit einem Gutschein",
+    provenanceUnlimited: "Unbegrenzt",
+    provenanceLayer: (name) => `Quelle: ${name}.`,
+    provenanceException: "Anpassung",
+    provenanceBeforeException: (value) => `Vor der Anpassung: ${value}`,
+    provenanceEffective: (value) => `Tatsächliches Kontingent: ${value}`,
+    grantSet: (value) => `Festgelegt auf ${value}`,
+    grantAdd: (value) => `${value} hinzufügen`,
+    grantMultiply: (value) => `Mit ${value} multiplizieren`,
+    grantMinimum: (value) => `Mindestens ${value}`,
+    grantFrom: (date) => `Ab dem ${formatKaitenDate(date, { locale: "de-DE" })}.`,
+    grantNoEnd: "Ohne Enddatum.",
+    voucherDiscount: (value) => `${value.replace(/%$/, " %")} Rabatt.`,
+    voucherFlag: (name, variant) => `Funktion ${name}: ${variant}.`,
   },
   paymentMethodCard: {
     title: "Zahlungsmethode",

@@ -25,7 +25,9 @@ import { Button } from "../../ui/button.tsx";
 import { Skeleton } from "../../ui/skeleton.tsx";
 import { KaitenBranding } from "../../shared/kaiten-branding.tsx";
 import { SectionError } from "../../shared/section-error.tsx";
-import { useSubscriptionWords } from "../../shared/billing-words.ts";
+import { usePortalBillingWords, useSubscriptionWords } from "../../shared/billing-words.ts";
+import { billingTimingText } from "../../shared/grant-description.ts";
+import { PendingPayment } from "../../shared/pending-payment.tsx";
 import {
   describeSubscription,
   useSubscriptionState,
@@ -114,6 +116,7 @@ function CurrentPlanImpl({
   const icons = useIcons();
   const localization = useLocalization();
   const subscriptionWords = useSubscriptionWords();
+  const billingWords = usePortalBillingWords();
   const subscriptionState = useSubscriptionState();
 
   // What there is to say about the plan. A customer's licence says it all: version,
@@ -211,6 +214,9 @@ function CurrentPlanImpl({
     onUpgradeVersion,
     onAddQuota,
     onAddAddOn,
+    upgradeLabel: subscriptionState?.capabilities.checkout
+      ? subscriptionWords.subscribe
+      : undefined,
   };
 
   if (unstyled) {
@@ -231,8 +237,16 @@ function CurrentPlanImpl({
           </p>
         ) : null}
         {detail ? <p>{detail}</p> : null}
+        {billingTimingText(price, billingWords) ? (
+          <p data-slot="current-plan-billing-timing" className="ktn-own">
+            {billingTimingText(price, billingWords)}
+          </p>
+        ) : null}
         {described?.change ? <p>{described.change}</p> : null}
         {described?.notice ? <p role="status">{described.notice}</p> : null}
+        {subscriptionState?.kind === "incomplete" && subscriptionState.capabilities.invoices ? (
+          <PendingPayment unstyled since={subscription!.currentPeriodStart} />
+        ) : null}
         {credits.data?.length ? (
           <ul>
             {credits.data.map((credit) => (
@@ -305,6 +319,17 @@ function CurrentPlanImpl({
             {described.notice}
           </p>
         ) : null}
+        {billingTimingText(price, billingWords) ? (
+          <p
+            data-slot="current-plan-billing-timing"
+            className="ktn-own text-xs text-ktn-muted-foreground"
+          >
+            {billingTimingText(price, billingWords)}
+          </p>
+        ) : null}
+        {subscriptionState?.kind === "incomplete" && subscriptionState.capabilities.invoices ? (
+          <PendingPayment unstyled={false} since={subscription!.currentPeriodStart} />
+        ) : null}
 
         {credits.data?.length ? (
           <div className="rounded-ktn-lg border border-ktn-border bg-ktn-secondary/40 p-3">
@@ -347,6 +372,7 @@ interface PlanActionsProps {
   onAddAddOn?: () => void | Promise<void>;
   /** The way into the add-ons panel, beside the host's actions. */
   addOns?: React.ReactNode;
+  upgradeLabel?: string;
 }
 
 /**
@@ -365,6 +391,7 @@ function PlanActions({
   onAddQuota,
   onAddAddOn,
   addOns,
+  upgradeLabel,
 }: PlanActionsProps) {
   const localization = useLocalization();
   const [pendingAction, setPendingAction] = React.useState<"upgrade" | "quota" | "addon" | null>(
@@ -404,7 +431,7 @@ function PlanActions({
               })
             }
           >
-            {localization.currentPlan.upgradeVersion}
+            {upgradeLabel ?? localization.currentPlan.upgradeVersion}
           </button>
         )}
         {onAddQuota && (
@@ -431,7 +458,7 @@ function PlanActions({
           aria-busy={pendingAction === "upgrade"}
           onClick={() => void trigger("upgrade", onUpgradeVersion, "kaiten:plan-changed")}
         >
-          {localization.currentPlan.upgradeVersion}
+          {upgradeLabel ?? localization.currentPlan.upgradeVersion}
         </Button>
       )}
       {onAddQuota && (

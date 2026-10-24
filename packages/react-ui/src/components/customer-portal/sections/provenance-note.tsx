@@ -3,10 +3,15 @@
 
 import * as React from "react";
 
-import type { EntitlementProvenance, KaitenPortalBillingWords } from "@kaitencloud/react";
+import {
+  useLocalization,
+  type EntitlementProvenance,
+  type KaitenPortalBillingWords,
+} from "@kaitencloud/react";
 
 import { cn } from "../../../lib/utils.ts";
 import { usePortalBillingWords } from "../../shared/billing-words.ts";
+import { grantDescription } from "../../shared/grant-description.ts";
 
 interface Term {
   negative: boolean;
@@ -29,6 +34,24 @@ export function provenanceExpression(
 ): string | null {
   const number = provenance?.number;
   if (!provenance || !number) return null;
+  if (provenance.exception) {
+    return (
+      [
+        number.afterBoosts !== undefined
+          ? words.provenanceBeforeException?.(
+              number.afterBoosts === -1
+                ? words.provenanceUnlimited
+                : number.afterBoosts.toLocaleString(),
+            )
+          : null,
+        words.provenanceEffective?.(
+          number.effective === -1 ? words.provenanceUnlimited : number.effective.toLocaleString(),
+        ),
+      ]
+        .filter(Boolean)
+        .join(" · ") || null
+    );
+  }
   if (number.unlimited) return words.provenanceUnlimited;
 
   const terms: Term[] = [];
@@ -76,20 +99,55 @@ export function provenanceExpression(
 export function ProvenanceNote({
   name,
   provenance,
+  source,
   className,
   unstyled = false,
 }: {
   /** The entitlement's name, for the button's accessible name. */
   name: string;
   provenance: EntitlementProvenance | undefined;
+  source?: string;
   className?: string;
   /** Plain markup, with no class: the note of a host that draws its own. */
   unstyled?: boolean;
 }) {
   const words = usePortalBillingWords();
+  const localization = useLocalization();
   const [open, setOpen] = React.useState(false);
   const id = React.useId();
-  const expression = provenanceExpression(provenance, words);
+  const adjustment = provenance?.exception;
+  const effect = adjustment
+    ? grantDescription(adjustment.kind, adjustment.value?.value, words, localization)
+    : null;
+  const boostValues = (provenance?.boosts ?? []).flatMap((boost) => {
+    if (boost.value == null) return [];
+    const text = grantDescription(boost.modifierType, boost.value.value, words, localization);
+    return text ? [`${words.provenanceVoucher}: ${text}.`] : [];
+  });
+  const details = [
+    provenanceExpression(provenance, words),
+    ...boostValues,
+    effect ? `${words.provenanceException}: ${effect}.` : null,
+    adjustment?.startsAt ? words.grantFrom(adjustment.startsAt) : null,
+    adjustment
+      ? adjustment.endsAt === null
+        ? words.grantNoEnd
+        : typeof adjustment.endsAt === "string"
+          ? words.voucherUntil(adjustment.endsAt)
+          : null
+      : null,
+  ].filter(Boolean);
+  const layer =
+    source === "license"
+      ? localization.currentPlan.title
+      : source === "addon"
+        ? words.provenanceAddOn
+        : source === "exception"
+          ? words.provenanceException
+          : source;
+  if (layer && (details.length > 0 || source !== "license"))
+    details.unshift(words.provenanceLayer(layer));
+  const expression = details.join(" ");
   if (!expression) return null;
 
   if (unstyled) {
@@ -105,7 +163,7 @@ export function ProvenanceNote({
           <span aria-hidden="true">i</span>
         </button>
         {open ? (
-          <span id={id} role="note">
+          <span id={id} role="note" data-exception-id={adjustment?.instanceEntitlementExceptionId}>
             {expression}
           </span>
         ) : null}
@@ -129,6 +187,7 @@ export function ProvenanceNote({
         <p
           id={id}
           role="note"
+          data-exception-id={adjustment?.instanceEntitlementExceptionId}
           className="ktn-own min-w-0 flex-1 text-xs break-words text-ktn-muted-foreground"
         >
           {expression}

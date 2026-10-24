@@ -11,15 +11,17 @@ import { monthsOf } from "./addon-fee.ts";
  * another. A usage price is never bought on its own, and a fee with no amount cannot be named.
  */
 export function purchasablePrices(plan: Plan, chosen: string | undefined): BillingPrice[] {
-  return (plan.billingPrices ?? [])
-    .filter(
-      (price) =>
-        price.billingModel === "FLAT_FEE" &&
-        price.amount !== undefined &&
-        price.interval !== undefined &&
-        (price.isDefault || price.id === chosen),
-    )
-    .sort((a, b) => monthsOf(a) - monthsOf(b));
+  const prices = (plan.billingPrices ?? []).filter(
+    (price) =>
+      price.billingModel === "FLAT_FEE" &&
+      price.amount !== undefined &&
+      price.interval !== undefined &&
+      (price.isDefault || price.id === chosen),
+  );
+  const ordered = prices.every((price) => price.displayOrder !== undefined);
+  return prices.sort(
+    (a, b) => (ordered ? a.displayOrder! - b.displayOrder! : 0) || monthsOf(a) - monthsOf(b),
+  );
 }
 
 /** The price a checkout starts at: the one asked for, else the monthly fee, else the shortest period. */

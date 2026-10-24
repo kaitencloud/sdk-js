@@ -1071,7 +1071,7 @@ describe("the payment", () => {
     const root = within(flow());
     expect(root.getByText("You're subscribed")).toBeTruthy();
     expect(root.getByRole("alert").textContent).toBe(
-      "You're subscribed, but your card was declined.",
+      "You're subscribed, but your payment didn't go through.",
     );
     const pay = root.getByRole("link", { name: "Pay invoice" });
     expect(pay.getAttribute("href")).toBe("https://pay.example.test/i/inv_activation");
@@ -1101,7 +1101,7 @@ describe("the payment", () => {
 
     const root = within(flow());
     expect(root.getByRole("alert").textContent).toBe(
-      "You're subscribed, but your card was declined.",
+      "You're subscribed, but your payment didn't go through.",
     );
     expect(root.queryByText("Waiting for your payment...")).toBeNull();
     expect(root.getByRole("button", { name: "Update payment method" })).toBeTruthy();
@@ -1149,7 +1149,7 @@ describe("the payment", () => {
 
     const root = within(flow());
     expect(root.getByText("Your plan starts once your payment is confirmed.")).toBeTruthy();
-    expect(root.getByRole("alert").textContent).toBe("Your card was declined.");
+    expect(root.getByRole("alert").textContent).toBe("Your payment didn't go through.");
     expect(root.queryByText(/^You're subscribed/)).toBeNull();
     expect(root.getByRole("button", { name: "Update payment method" })).toBeTruthy();
     expect(root.getByRole("link", { name: "Pay invoice" }).getAttribute("href")).toBe(
@@ -1178,7 +1178,9 @@ describe("the payment", () => {
     client.setInvoices([activationInvoice("PAID")]);
     await settle(5_000);
     expect(within(flow()).getByText("Payment received.")).toBeTruthy();
-    expect(within(flow()).queryByText("You're subscribed, but your card was declined.")).toBeNull();
+    expect(
+      within(flow()).queryByText("You're subscribed, but your payment didn't go through."),
+    ).toBeNull();
   });
 });
 

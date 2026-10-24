@@ -7,8 +7,10 @@ import { useRedeemVoucher, useValidateVoucher } from "@kaitencloud/react/billing
 import {
   RateLimitedError,
   usePortal,
+  useLocalization,
   type KaitenPortalBillingWords,
   type PortalVoucher,
+  type VoucherSummary,
 } from "@kaitencloud/react";
 import { useTrackComponent } from "@kaitencloud/react/internal";
 
@@ -18,6 +20,7 @@ import { cn } from "../../../lib/utils.ts";
 import { useAssertWrappedByKaitenProvider } from "../../../style-root/kaiten-style-root.tsx";
 import { usePortalBillingWords } from "../../shared/billing-words.ts";
 import { Action, Message } from "../../shared/feedback.tsx";
+import { grantDescription } from "../../shared/grant-description.ts";
 import { useFocusScope } from "../../shared/focus.ts";
 import { KaitenBranding } from "../../shared/kaiten-branding.tsx";
 import { useBefore } from "../../shared/use-before.ts";
@@ -122,7 +125,8 @@ const hasPricePart = (redemption: PortalVoucher) =>
   redemption.voucherType === "PRICE" || redemption.voucherType === "COMPOSITE";
 
 /** Whether a redemption has a part that takes effect at once, for a window. */
-const hasGrantPart = (redemption: PortalVoucher) => redemption.voucherType !== "PRICE";
+const hasGrantPart = (redemption: PortalVoucher) =>
+  ["ENTITLEMENT_BOOST", "FLAG_GRANT", "COMPOSITE"].includes(redemption.voucherType);
 
 /**
  * What a redemption does, in sentences. `offered` is a code about to be applied or just applied:
@@ -424,13 +428,15 @@ function RedeemFlow({ unstyled }: { unstyled: boolean }) {
 
 /** What the last check came to. Never the code: it is not kept. */
 type Outcome =
-  | { kind: "valid"; name: string }
+  | { kind: "valid"; voucher: VoucherSummary }
   | { kind: "invalid" }
   | { kind: "limited"; seconds: number }
   | { kind: "failed" };
 
 function ValidateFlow({ unstyled }: { unstyled: boolean }) {
   const words = usePortalBillingWords();
+  const localization = useLocalization();
+  const entitlements = usePortal().data?.entitlements ?? [];
   const validate = useValidateVoucher();
   const [draft, setDraft] = React.useState("");
   const [outcome, setOutcome] = React.useState<Outcome | null>(null);
@@ -450,7 +456,7 @@ function ValidateFlow({ unstyled }: { unstyled: boolean }) {
     setOutcome(null);
     try {
       const result = await validate.mutateAsync({ code });
-      setOutcome(result.valid ? { kind: "valid", name: result.voucher.name } : { kind: "invalid" });
+      setOutcome(result.valid ? { kind: "valid", voucher: result.voucher } : { kind: "invalid" });
     } catch (error) {
       if (error instanceof RateLimitedError) {
         // A wait the API gave, as the whole seconds a sentence can say.
@@ -467,12 +473,41 @@ function ValidateFlow({ unstyled }: { unstyled: boolean }) {
     outcome === null
       ? null
       : outcome.kind === "valid"
-        ? { tone: "success" as const, text: `${outcome.name} — ${words.voucherAtCheckout}` }
+        ? { tone: "success" as const, text: `${outcome.voucher.name} — ${words.voucherAtCheckout}` }
         : outcome.kind === "invalid"
           ? { tone: "error" as const, text: words.voucherInvalid }
           : outcome.kind === "limited"
             ? { tone: "error" as const, text: words.voucherWait(outcome.seconds) }
             : { tone: "error" as const, text: words.actionFailed };
+
+  const parts: string[] = [];
+  if (outcome?.kind === "valid") {
+    const { voucher } = outcome;
+    const discount = voucher.discount;
+    if (discount) {
+      const value =
+        discount.type === "PERCENTAGE"
+          ? `${discount.value}%`
+          : discount.type === "FIXED_AMOUNT" && discount.currencyCode
+            ? localization.formatMoney(discount.value, discount.currencyCode)
+            : null;
+      if (value) parts.push(words.voucherDiscount(value));
+    }
+    for (const boost of voucher.boosts ?? []) {
+      const effect = grantDescription(
+        boost.modifierType,
+        boost.value ?? boost.modifierValue,
+        words,
+        localization,
+      );
+      const name =
+        entitlements.find((each) => each.slug === boost.entitlementSlug)?.name ??
+        boost.entitlementSlug;
+      if (effect) parts.push(`${name}: ${effect}`);
+    }
+    for (const grant of voucher.flagGrants ?? [])
+      parts.push(words.voucherFlag(grant.flagSlug, grant.variant));
+  }
 
   return (
     <div className={cn("ktn-own", !unstyled && "flex flex-col gap-2")}>
@@ -496,6 +531,16 @@ function ValidateFlow({ unstyled }: { unstyled: boolean }) {
             text={message.text}
             slot="voucher-entry-message"
           />
+        ) : null}
+        {parts.length > 0 ? (
+          <ul
+            data-slot="voucher-parts"
+            className={cn("ktn-own", !unstyled && "grid gap-1 text-sm break-words")}
+          >
+            {parts.map((part, index) => (
+              <li key={index}>{part}</li>
+            ))}
+          </ul>
         ) : null}
       </div>
     </div>

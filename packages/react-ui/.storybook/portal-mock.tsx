@@ -27,6 +27,7 @@ export interface PortalStoryOptions {
   scripts?: Record<string, Reply[]>;
   /** Calls take this long to answer. */
   delayMs?: number;
+  hideBranding?: boolean;
 }
 
 function PortalShell({
@@ -56,6 +57,7 @@ function PortalShell({
         apiUrl={API}
         polling={{ enabled: false }}
         locale={locale}
+        hideBranding={options.hideBranding}
       >
         <KaitenStyleRoot>{children}</KaitenStyleRoot>
       </KaitenProvider>

@@ -57,9 +57,9 @@ export const englishCheckoutWords: KaitenCheckoutWords = {
   waitingForPayment: "Waiting for your payment...",
   paymentStillOpen:
     "We haven't seen your payment yet. We'll check again when you come back to this window.",
-  paymentFailed: "You're subscribed, but your card was declined.",
+  paymentFailed: "You're subscribed, but your payment didn't go through.",
   startsOncePaid: "Your plan starts once your payment is confirmed.",
-  cardDeclined: "Your card was declined.",
+  cardDeclined: "Your payment didn't go through.",
   updatePaymentMethod: "Update payment method",
   paymentMethodUpdated: "Payment method updated.",
   payInvoice: "Pay invoice",

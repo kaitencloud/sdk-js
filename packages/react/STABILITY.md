@@ -25,6 +25,36 @@ caret range, so upgrading it never forks the provider; the core keeps, within a 
 everything a published UI package uses
 ([Compatibility with `@kaitencloud/react-ui`](#compatibility-with-kaitencloudreact-ui)).
 
+## Public portal billing details
+
+The styled and unstyled portal read the same public members (§14.4–§14.6 of the billing spec).
+`addon-pending-quantity` says a decrease or removal starts at `subscription.currentPeriodEnd`;
+the quantity held remains unchanged until then. A missing `pendingQuantity` says nothing about
+a scheduled change. The panel may replace a schedule, or cancel it by sending the quantity held.
+`addon-billing-timing` and `current-plan-billing-timing` render only known, supplied price timings.
+`addon-metered-price` quotes each supplied metered rate per sale unit, with its known timing,
+without multiplying it by the quantity held or combining it with the flat fee.
+
+`pending-payment` links only a payable ACTIVATION invoice with an HTTP(S) hosted URL, while the
+subscription is INCOMPLETE and invoices are allowed. It uses the existing settlement hook.
+An old, paid ACTIVATION is not mistaken for the pending checkout: optional `activationSince`
+limits the fallback search to the subscription's current service period.
+No deadline, pending licence or selection is synthesized. An ended subscription names the portal's
+actual current plan; a subscription action needs the host's handler and checkout capability.
+No cancellation or fallback reason is inferred, and a missing family `increaseBilling` policy
+produces no true-up assertion.
+
+Provenance notes open on click, tap or keyboard. They prefer `effectiveSource`, show exception
+kind/value/window and the server's `afterBoosts`/`effective` figures, and never calculate access
+from those figures. BOOLEAN/CONFIG boosts retain their supplied values. A note's
+`data-exception-id` identifies its exception; it displays neither author nor reason.
+`voucher-parts` describes supplied voucher validation parts, including flag variants and composite
+parts, without redeeming the code. Missing parts have no placeholder.
+
+The added members of `KaitenPortalBillingWords` and `KaitenSubscriptionWords` are optional;
+older packs use the UI's English fallback. All four shipped locales supply them. No existing
+localization member is removed or made required.
+
 ## Versioning policy
 
 - **The _stable_ surface:** standard semver. Patch = fixes; minor = features;

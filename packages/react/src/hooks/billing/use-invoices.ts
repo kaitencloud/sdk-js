@@ -130,6 +130,8 @@ export interface UseInvoiceSettlementOptions {
    * activation invoice of the customer.
    */
   invoiceId?: string | null;
+  /** With no invoice id, ignore older ACTIVATION invoices whose service period starts before this ISO bound. */
+  activationSince?: string;
   /** `false` waits on nothing. Default `true`. */
   enabled?: boolean;
   /** Pause between two reads. Default 5 seconds. */
@@ -179,6 +181,7 @@ export function useInvoiceSettlement(options: UseInvoiceSettlementOptions = {}):
 
   const {
     invoiceId = null,
+    activationSince,
     enabled = true,
     intervalMs = DEFAULT_SETTLEMENT_INTERVAL_MS,
     giveUpAfterMs = DEFAULT_SETTLEMENT_GIVE_UP_MS,
@@ -209,7 +212,12 @@ export function useInvoiceSettlement(options: UseInvoiceSettlementOptions = {}):
             : await sessionClient.listInvoices({ cursor });
         invoice =
           (invoiceId === null
-            ? page.items.find((candidate) => candidate.kind === "ACTIVATION")
+            ? page.items.find(
+                (candidate) =>
+                  candidate.kind === "ACTIVATION" &&
+                  (activationSince === undefined ||
+                    Date.parse(candidate.serviceFrom) >= Date.parse(activationSince)),
+              )
             : page.items.find((candidate) => candidate.id === invoiceId)) ?? null;
         if (!page.hasMore || page.nextCursor === undefined) break;
         cursor = page.nextCursor;
@@ -221,7 +229,7 @@ export function useInvoiceSettlement(options: UseInvoiceSettlementOptions = {}):
           status: paid ? "paid" : failed ? "failed" : previous.status,
           invoice,
         }));
-        if (paid || failed) {
+        if (paid || failed || invoice.status === "VOID") {
           void invalidatePortal(mutate, scopeKey);
           void invalidateInvoices(mutate, scopeKey);
         }
@@ -233,7 +241,7 @@ export function useInvoiceSettlement(options: UseInvoiceSettlementOptions = {}):
     } finally {
       reading.current = false;
     }
-  }, [sessionClient, invoiceId, stopOnFailure, mutate, scopeKey]);
+  }, [sessionClient, invoiceId, activationSince, stopOnFailure, mutate, scopeKey]);
 
   React.useEffect(() => {
     if (!active) {

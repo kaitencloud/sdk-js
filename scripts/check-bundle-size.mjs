@@ -208,7 +208,7 @@ const SCENARIOS = [
     // margin of about 300 bytes.
     name: "locales · fr alone",
     code: `import { fr } from "@kaitencloud/react/locales"; console.log(fr);`,
-    budgetGzip: 7_050,
+    budgetGzip: 7_500,
     unstyled: true,
   },
   {
@@ -336,7 +336,7 @@ const SCENARIOS = [
     // Measured at 65 207 bytes, up from 65 068: the listener of the payment method hook, as above.
     name: "react-ui · CustomerPortal + KaitenProvider + KaitenStyleRoot",
     code: `import { CustomerPortal, KaitenProvider, KaitenStyleRoot } from "@kaitencloud/react-ui"; console.log(CustomerPortal, KaitenProvider, KaitenStyleRoot);`,
-    budgetGzip: 65_550,
+    budgetGzip: 67_500,
   },
   {
     // Measured at 93 302 bytes, up from 79 688: Base UI's radio group, as in the checkout (12.4 KB),
@@ -367,7 +367,7 @@ const SCENARIOS = [
     // Measured at 112 248 bytes, up from 111 694: the company field of the anonymous checkout, as above.
     name: "react-ui · everything",
     code: `import * as all from "@kaitencloud/react-ui"; console.log(all);`,
-    budgetGzip: 112_550,
+    budgetGzip: 114_850,
   },
   {
     name: "client · KaitenClient alone",

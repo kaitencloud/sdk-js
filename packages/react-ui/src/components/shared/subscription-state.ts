@@ -42,6 +42,7 @@ export interface SubscriptionState {
   ending: boolean;
   /** What a customer can do by themselves, as the portal says it. */
   capabilities: KaitenPortal["capabilities"];
+  currentPlan?: string;
 }
 
 /** The state of the portal's subscription, `null` when there is no portal to read. */
@@ -70,6 +71,7 @@ export function subscriptionStateOf(portal: KaitenPortal | undefined): Subscript
     subscription,
     ending: subscription.cancelAtPeriodEnd && kind !== "canceled",
     capabilities,
+    currentPlan: instance.licenseName,
   };
 }
 
@@ -142,7 +144,10 @@ export function describeSubscription(
         status: { label: words.canceled, tone: "neutral" },
         detail: null,
         change: null,
-        notice: words.canceledNotice,
+        notice:
+          state.currentPlan && words.canceledPlanNotice
+            ? words.canceledPlanNotice(state.currentPlan)
+            : words.canceledNotice,
       };
     case "active":
       return {
