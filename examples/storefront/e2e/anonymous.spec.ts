@@ -440,7 +440,7 @@ test("a payment that never comes closes the session as expired, and the customer
   await provider.waitForEvent("close");
 
   // The card was refused: the checkout offers the invoice, and the instance is not on the plan.
-  await expect(flow(page)).toContainText("Your card was declined.");
+  await expect(flow(page)).toContainText("Your payment didn't go through.");
   await expect(flow(page).getByRole("link", { name: "Pay invoice" })).toBeVisible();
   expect(await standIn.state()).toMatchObject({
     subscribed: false,

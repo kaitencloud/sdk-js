@@ -16,7 +16,7 @@ async function atTheCheckout(page: import("@playwright/test").Page) {
   await expect(checkout(page)).toContainText("Due today");
 }
 
-test("a card that is declined still subscribes the customer, who can pay the invoice", async ({
+test("a declined card leaves the checkout awaiting payment, with its invoice available to pay", async ({
   page,
   context,
   standIn,
@@ -26,11 +26,12 @@ test("a card that is declined still subscribes the customer, who can pay the inv
   await atTheCheckout(page);
   await page.getByRole("button", { name: "Subscribe" }).click();
 
-  await expect(checkout(page)).toContainText("You're subscribed");
-  await expect(checkout(page)).toContainText("your card was declined");
+  await expect(checkout(page)).toContainText("Your plan starts once your payment is confirmed.");
+  await expect(checkout(page)).toContainText("Your payment didn't go through.");
   await expect(page.getByRole("button", { name: "Update payment method" })).toBeVisible();
   expect(await standIn.state()).toMatchObject({
     subscribed: true,
+    status: "INCOMPLETE",
     invoices: [{ status: "PAYMENT_FAILED", total: 4900 }],
   });
 
@@ -57,7 +58,7 @@ test("a payment that needs the customer's confirmation is waited on until they h
   await atTheCheckout(page);
   await page.getByRole("button", { name: "Subscribe" }).click();
 
-  await expect(checkout(page)).toContainText("You're subscribed");
+  await expect(checkout(page)).toContainText("Your plan starts once your payment is confirmed.");
   await expect(checkout(page)).toContainText("Confirm your payment to finish.");
   await expect(checkout(page)).toContainText("Waiting for your payment");
   expect(await standIn.state()).toMatchObject({ invoices: [{ status: "PAYMENT_FAILED" }] });

@@ -30,7 +30,7 @@ export interface StandInState {
   payment: PaymentOutcome;
   plan: string | null;
   planName: string | null;
-  status: "TRIAL" | "ACTIVE" | "PAST_DUE" | null;
+  status: "TRIAL" | "ACTIVE" | "PAST_DUE" | "INCOMPLETE" | "CANCELED" | null;
   free: boolean;
   trialEndsAt: string | null;
   currentPeriodEnd: string | null;

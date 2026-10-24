@@ -37,6 +37,8 @@ const SUBSCRIPTION_STATUS = {
   TRIAL: { label: "Trial", tone: "warn" },
   ACTIVE: { label: "Active", tone: "ok" },
   PAST_DUE: { label: "Past due", tone: "error" },
+  INCOMPLETE: { label: "Awaiting payment", tone: "warn" },
+  CANCELED: { label: "Canceled", tone: "warn" },
 } as const;
 
 /** An add-on's slug as a person says it: `extra-seats-v1` is Extra seats. */

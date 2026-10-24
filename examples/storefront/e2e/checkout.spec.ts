@@ -8,6 +8,58 @@
 import { checkout, planCard, portal, startCheckout } from "./support/page.ts";
 import { expect, test } from "./support/stand-in.ts";
 
+test("an add-on decrease stays scheduled across reload and applies at the renewal", async ({
+  page,
+  standIn,
+}) => {
+  await standIn.reset({ subscribed: true, card: true, email: true });
+  await page.goto("/portal");
+  await portal(page).currentPlan.getByRole("button", { name: "Manage add-ons" }).click();
+  const panel = page.getByRole("dialog", { name: "Manage add-ons" });
+  for (let quantity = 0; quantity < 3; quantity++)
+    await panel.getByRole("button", { name: "Add one Extra seats" }).click();
+  await panel.getByRole("button", { name: "Confirm changes" }).click();
+  await expect(panel).not.toBeVisible();
+  await portal(page).currentPlan.getByRole("button", { name: "Manage add-ons" }).click();
+  await panel.getByRole("button", { name: "Remove one Extra seats" }).click();
+  await panel.getByRole("button", { name: "Confirm changes" }).click();
+  await expect(panel).not.toBeVisible();
+  await page.reload();
+  const row = page.locator('[data-slot="addon"]').filter({ hasText: "Extra seats" });
+  await expect(row.locator('[data-slot="addon-quantity"]')).toContainText("3");
+  await expect(row.locator('[data-slot="addon-pending-quantity"]')).toContainText(
+    "Quantity 2 from",
+  );
+  await standIn.advance();
+  await page.reload();
+  await expect(row.locator('[data-slot="addon-quantity"]')).toContainText("2");
+  await expect(row.locator('[data-slot="addon-pending-quantity"]')).toHaveCount(0);
+});
+
+test("an INCOMPLETE portal names the held plan and settles through its actual payment page", async ({
+  page,
+  context,
+  standIn,
+}) => {
+  await standIn.reset({ card: true, email: true });
+  await standIn.payment("requires_action");
+  await page.goto("/checkout/pro-v2?price=00000000-0000-4000-8000-000000000201");
+  await checkout(page).getByRole("button", { name: "Subscribe", exact: true }).click();
+  await expect.poll(async () => (await standIn.state()).status).toBe("INCOMPLETE");
+  await page.goto("/portal");
+  const plan = portal(page).currentPlan;
+  await expect(plan).toContainText("Starter");
+  await expect(plan).toContainText("Your plan starts once your payment is confirmed.");
+  const opened = context.waitForEvent("page");
+  await plan.getByRole("link", { name: "Pay", exact: true }).click();
+  const provider = await opened;
+  await provider.getByRole("button", { name: /Confirm payment|Pay invoice/ }).click();
+  await page.bringToFront();
+  await expect(plan.getByText("Pro", { exact: true })).toBeVisible();
+  await expect(plan).not.toContainText("Your plan starts once your payment is confirmed.");
+  expect((await standIn.state()).status).toBe("ACTIVE");
+});
+
 test("the pricing table sells the catalogue's plans, and sends each to its checkout", async ({
   page,
   standIn,

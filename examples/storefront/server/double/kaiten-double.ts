@@ -372,6 +372,16 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
    * invoices composed after it.
    */
   let redeemed: Json | null;
+  /** A paid selection waiting for its ACTIVATION, kept out of the instance's effective state. */
+  let pendingCheckout: {
+    invoiceId: string;
+    plan: Json;
+    addOns: Json[];
+    redeemed: Json | null;
+    subscription: Json;
+    meta: typeof subscriptionMeta;
+    replacing: boolean;
+  } | null = null;
   let setups: Map<
     string,
     {
@@ -451,6 +461,7 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
     planName = null;
     planSlug = null;
     canceling = false;
+    pendingCheckout = null;
     pastDueSince = null;
     scheduled = null;
     card =
@@ -930,8 +941,8 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
         slug: stored.instanceSlug,
         name: stored.instanceSlug,
         // The plan outlives the subscription, as the licence does until a fallback moves it.
-        licenseSlug: planSlug ?? portal.instance.licenseSlug,
-        licenseName: planName ?? portal.instance.licenseName,
+        licenseSlug: planSlug ?? session.portalNeverSubscribed.instance.licenseSlug,
+        licenseName: planName ?? session.portalNeverSubscribed.instance.licenseName,
       };
       portal.subscription = subscription
         ? {
@@ -952,9 +963,15 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
       portal.capabilities = {
         paymentMethods: true,
         invoices: true,
-        unsubscribe: subscription !== null && !canceling,
+        unsubscribe:
+          subscription !== null &&
+          ["TRIAL", "ACTIVE", "PAST_DUE"].includes(subscription.status) &&
+          !canceling &&
+          !pendingCheckout,
         // An instance with no live subscription, or a free one, can check out.
-        checkout: subscription === null || isFree(),
+        checkout:
+          !pendingCheckout &&
+          (subscription === null || subscription.status === "CANCELED" || isFree()),
       };
     }
     portal.paymentMethod = card ? structuredClone(card) : null;
@@ -1591,6 +1608,22 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
     if (key === "POST /public/session/checkout") return checkout(stored, body, origin, request);
 
     if (key === "POST /public/session/billing/cancel") {
+      if (pendingCheckout) {
+        const replacing = pendingCheckout.replacing;
+        const invoice = invoices.find((each) => each.id === pendingCheckout!.invoiceId);
+        if (invoice) {
+          invoice.status = "VOID";
+          invoice.hostedInvoiceUrl = null;
+        }
+        if (!pendingCheckout.replacing && subscription)
+          subscription = { ...subscription, status: "CANCELED", cancelAtPeriodEnd: false };
+        pendingCheckout = null;
+        emit(
+          replacing ? "instance.invoice.voided" : "instance.billing.canceled",
+          "the unpaid checkout was canceled without applying its selection",
+        );
+        return reply(200, subscription);
+      }
       if (!subscription || canceling) {
         return problem(
           409,
@@ -1771,8 +1804,9 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
     const priced = price(order);
     if (priced.problem) return priced.problem;
     // A free subscription is replaced; any other live one is refused.
-    const replacing = subscription !== null && isFree();
-    if (subscription && !replacing) {
+    const live = subscription !== null && subscription.status !== "CANCELED";
+    const replacing = live && isFree();
+    if (pendingCheckout || (live && !replacing)) {
       return problem(
         409,
         "CreateSessionCheckout.AlreadySubscribed",
@@ -1843,7 +1877,19 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
     const found = findPrice(String(order.licensePriceId))!;
     const base = found.price;
     const periodEnd = addMonths(now, MONTHS[base.billingPeriod] ?? 1);
-    if (replacing) {
+    const waiting = due.total > 0 && outcome !== "paid";
+    const previous = {
+      planName,
+      planSlug,
+      addOns,
+      redeemed,
+      subscription,
+      meta: subscriptionMeta,
+      canceling,
+      pastDueSince,
+      scheduled,
+    };
+    if (replacing && !waiting) {
       // In the checkout's one transaction: the free subscription ends at once, with no invoice and
       // no fallback, and the new one is created.
       emit(
@@ -1881,11 +1927,12 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
     canceling = false;
     pastDueSince = null;
     scheduled = null;
-    emit(
-      "instance.billing.started",
-      `${plan.name}${trialing ? `, trial until ${priced.trialEndsAt}` : ""}${replacing ? ", resubscribed" : ""}`,
-      now,
-    );
+    if (!replacing || !waiting)
+      emit(
+        "instance.billing.started",
+        `${plan.name}${trialing ? `, trial until ${priced.trialEndsAt}` : ""}${replacing ? ", resubscribed" : ""}`,
+        now,
+      );
 
     if (due.total <= 0) {
       return reply(201, {
@@ -1896,6 +1943,28 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
     }
 
     const invoice = issueInvoice(origin, "ACTIVATION", due, now, periodEnd, now);
+    if (waiting) {
+      pendingCheckout = {
+        invoiceId: invoice.id,
+        plan,
+        addOns,
+        redeemed,
+        subscription,
+        meta: subscriptionMeta,
+        replacing,
+      };
+      planName = previous.planName;
+      planSlug = previous.planSlug;
+      addOns = previous.addOns;
+      redeemed = previous.redeemed;
+      if (replacing) {
+        subscription = previous.subscription;
+        subscriptionMeta = previous.meta;
+        canceling = previous.canceling;
+        pastDueSince = previous.pastDueSince;
+        scheduled = previous.scheduled;
+      } else subscription = { ...subscription, status: "INCOMPLETE" };
+    }
     return reply(201, {
       status: "subscribed",
       subscription,
@@ -2011,6 +2080,15 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
       );
     }
     // The plan the instance is on, which outlives its subscription: Starter before any.
+    const current = subscription;
+    if (current?.status === "INCOMPLETE" || pendingCheckout) {
+      return problem(
+        409,
+        "SetSessionAddonQuantity.SubscriptionIncomplete",
+        "the checkout is waiting for payment",
+        path,
+      );
+    }
     const licenseSlug = planSlug ?? session.portalNeverSubscribed.instance.licenseSlug;
     if (!planBySlug(licenseSlug)?.compatibleAddonFamilies.includes(addon.familySlug)) {
       return problem(
@@ -2020,7 +2098,6 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
         path,
       );
     }
-    const current = subscription;
     if (current) {
       // One currency per subscription: an add-on priced in another cannot be attached to it. One
       // with no price has none to differ.
@@ -2058,38 +2135,34 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
       );
     }
 
-    const before = addOns.find((each) => each.addonSlug === slug)?.quantity ?? 0;
-    if (quantity !== before) {
-      addOns = addOns.filter((each) => each.addonSlug !== slug);
-      if (quantity > 0) {
-        addOns.push({
-          addonSlug: addon.addonSlug,
-          familySlug: addon.familySlug,
-          name: addon.name,
-          quantity,
-          maxQuantity: addon.maxQuantity ?? null,
-          pendingQuantity: null,
-          prices: structuredClone(addon.prices),
-        });
-      }
-      emit(
-        before === 0
-          ? "instance.addon.added"
-          : quantity === 0
-            ? "instance.addon.removed"
-            : "instance.addon.quantity_changed",
-        `${addon.name}: ${before} → ${quantity}, in force now, ${current ? "billed from the next renewal" : "with no subscription to bill it"}`,
-      );
-    }
-    return reply(200, {
+    const held = addOns.find((each) => each.addonSlug === slug);
+    const before = held?.quantity ?? 0;
+    const live = current && ["TRIAL", "ACTIVE", "PAST_DUE"].includes(current.status);
+    const deferred = held && live && quantity < before;
+    const next = {
       addonSlug: addon.addonSlug,
       familySlug: addon.familySlug,
       name: addon.name,
-      quantity,
+      quantity: deferred ? before : quantity,
       maxQuantity: addon.maxQuantity ?? null,
-      pendingQuantity: null,
+      pendingQuantity: deferred ? quantity : null,
       prices: structuredClone(addon.prices),
-    });
+    };
+    if (quantity !== before || held?.pendingQuantity != null) {
+      addOns = addOns.filter((each) => each.addonSlug !== slug);
+      if (next.quantity > 0) addOns.push(next);
+      emit(
+        before === 0
+          ? "instance.addon.added"
+          : next.quantity === 0
+            ? "instance.addon.removed"
+            : "instance.addon.quantity_changed",
+        deferred
+          ? `${addon.name}: ${before} held, ${quantity} from ${current!.currentPeriodEnd}`
+          : `${addon.name}: ${before} → ${quantity}, in force now, ${current ? "billed at the next boundary" : "with no subscription to bill it"}`,
+      );
+    }
+    return reply(200, next);
   }
 
   // ---- The anonymous checkout -------------------------------------------------
@@ -2822,13 +2895,15 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
     for (const held of addOns) {
       const sold = findAddOnPrice(held.addonSlug, currency, price.billingPeriod);
       if (!sold) continue;
-      const amount = sold.price.unitAmount * held.quantity;
+      const quantity = held.pendingQuantity ?? held.quantity;
+      if (quantity === 0) continue;
+      const amount = sold.price.unitAmount * quantity;
       lines.push({
         seq: lines.length + 1,
         type: "ADDON",
         label: held.name,
-        description: `${held.quantity} × ${money(sold.price.unitAmount, currency)}`,
-        quantity: String(held.quantity),
+        description: `${quantity} × ${money(sold.price.unitAmount, currency)}`,
+        quantity: String(quantity),
         unitAmountDecimal: String(sold.price.unitAmount),
         amount,
         ...span,
@@ -2873,6 +2948,8 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
 
   function moveToBoundary(origin: string, only?: "trial"): BoundaryResult {
     if (!subscription) return refuse("no_subscription", "there is no subscription to move");
+    if (subscription.status === "INCOMPLETE")
+      return refuse("subscription_incomplete", "the checkout waits for payment, not a renewal");
     const trialing = subscription.status === "TRIAL";
     if (only === "trial" && !trialing) {
       return refuse("not_in_trial", "the subscription is not in a trial");
@@ -2899,6 +2976,7 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
         currentPeriodEnd: iso(to.getTime()),
       };
       emit("instance.billing.status_changed", "TRIAL → ACTIVE, the trial ended", at);
+      applyPendingAddons(at);
       if (due.total <= 0) return { ok: true, applied: "trial_converted", invoiceId: null };
       const invoice = issueInvoice(origin, "ACTIVATION", due, at, to, at);
       dunning.add(invoice.id);
@@ -2907,6 +2985,7 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
     }
 
     const end = new Date(subscription.currentPeriodEnd);
+    applyPendingAddons(end);
     if (canceling) {
       subscription = null;
       canceling = false;
@@ -2954,6 +3033,18 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
   }
 
   // ---- The provider's pages -------------------------------------------------
+  function applyPendingAddons(at: Date) {
+    addOns = addOns.flatMap((addon) => {
+      if (addon.pendingQuantity == null) return [addon];
+      const quantity = addon.pendingQuantity;
+      emit(
+        quantity === 0 ? "instance.addon.removed" : "instance.addon.quantity_changed",
+        `${addon.name}: ${addon.quantity} → ${quantity}, the scheduled change took effect`,
+        at,
+      );
+      return quantity === 0 ? [] : [{ ...addon, quantity, pendingQuantity: null }];
+    });
+  }
 
   function provider(request: Request, path: string): Response {
     const url = new URL(request.url);
@@ -3015,11 +3106,35 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
 
   function payInvoice(id: string): boolean {
     const found = invoices.find((each) => each.id === id);
-    if (!found) return false;
+    if (!found || found.status === "VOID") return false;
     if (found.status !== "PAID") {
       found.status = "PAID";
       found.paidAt = new Date().toISOString();
       emit("instance.invoice.paid", `${found.providerInvoiceNumber} was paid`);
+      if (pendingCheckout?.invoiceId === id) {
+        const pending = pendingCheckout;
+        if (pending.replacing)
+          emit(
+            "instance.billing.canceled",
+            "the free subscription was replaced after payment, with no final invoice",
+          );
+        planName = pending.plan.name;
+        planSlug = pending.plan.licenseSlug;
+        addOns = pending.addOns;
+        redeemed = pending.redeemed;
+        subscription = { ...pending.subscription, status: "ACTIVE" };
+        subscriptionMeta = pending.meta;
+        pendingCheckout = null;
+        canceling = false;
+        pastDueSince = null;
+        scheduled = null;
+        emit(
+          pending.replacing ? "instance.billing.started" : "instance.billing.status_changed",
+          pending.replacing
+            ? `${planName}, after payment`
+            : "INCOMPLETE → ACTIVE, the checkout was paid",
+        );
+      }
       // A visitor's checkout that waited for this payment completes with it.
       for (const waiting of checkouts.values()) {
         if (waiting.invoice === found && waiting.status === "AWAITING_PAYMENT") activate(waiting);
@@ -3137,7 +3252,7 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
   }
 
   const state = (): DoubleState => ({
-    subscribed: subscription !== null,
+    subscribed: subscription !== null && subscription.status !== "CANCELED",
     cancelAtPeriodEnd: canceling,
     cardOnFile: card !== null,
     billingEmail,

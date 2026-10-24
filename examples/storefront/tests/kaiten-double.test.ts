@@ -399,6 +399,87 @@ describe("what the stand-in does besides", () => {
     expect(contractProblems(recorder)).toEqual([]);
   });
 
+  test("an unpaid checkout keeps the previous licence and selection unapplied until its activation is paid", async () => {
+    const { double, customer, recorder } = world();
+    double.reset({ card: true, email: true });
+    double.payment("requires_action");
+    const session = await customer();
+    const result = await session.checkout({
+      licensePriceId: PRO_MONTHLY,
+      addOns: [{ addonSlug: "extra-seats-v1", quantity: 2 }],
+      voucherCode: "WELCOME20",
+    });
+    if (result.status !== "subscribed") throw new Error("expected a subscription");
+    expect(result.subscription.status).toBe("INCOMPLETE");
+    expect(await session.getPortal()).toMatchObject({
+      instance: { licenseName: "Starter" },
+      subscription: { status: "INCOMPLETE" },
+      addOns: [],
+      vouchers: [],
+    });
+    await expect(session.setAddonQuantity("extra-seats-v1", 1)).rejects.toMatchObject({
+      code: "SetSessionAddonQuantity.SubscriptionIncomplete",
+    });
+    expect(double.advance(ORIGIN)).toMatchObject({ ok: false, code: "subscription_incomplete" });
+    expect(double.payInvoice(result.activationInvoice!.id)).toBe(true);
+    expect(await session.getPortal()).toMatchObject({
+      instance: { licenseName: "Pro" },
+      subscription: { status: "ACTIVE" },
+      addOns: [{ quantity: 2, pendingQuantity: null }],
+      vouchers: [{ applicationsCount: 1 }],
+    });
+    expect(contractProblems(recorder)).toEqual([]);
+  });
+
+  test("a pending paid replacement leaves a free subscription unchanged, and cancelling it drops only the selection", async () => {
+    const { double, customer, recorder } = world();
+    double.reset({ card: true, email: true });
+    const session = await customer();
+    await session.checkout({ licensePriceId: STARTER_MONTHLY });
+    await session.cancelSubscription();
+    const before = (await session.getPortal()).subscription;
+    double.payment("processing");
+    const result = await session.checkout({ licensePriceId: PRO_MONTHLY });
+    if (result.status !== "subscribed") throw new Error("expected a subscription");
+    expect((await session.getPortal()).subscription).toEqual(before);
+    expect((await session.getPortal()).instance?.licenseName).toBe("Starter");
+    await session.cancelSubscription();
+    expect((await session.getPortal()).subscription).toEqual(before);
+    expect((await session.listInvoices()).items[0]?.status).toBe("VOID");
+    expect(double.payInvoice(result.activationInvoice!.id)).toBe(false);
+    expect(contractProblems(recorder)).toEqual([]);
+  });
+
+  test("a scheduled decrease can be replaced or cleared and the boundary bills its new quantity", async () => {
+    const { double, customer, recorder } = world();
+    double.reset({ subscribed: true });
+    const session = await customer();
+    await session.setAddonQuantity("extra-seats-v1", 5);
+    expect(await session.setAddonQuantity("extra-seats-v1", 2)).toMatchObject({
+      quantity: 5,
+      pendingQuantity: 2,
+    });
+    expect(await session.setAddonQuantity("extra-seats-v1", 3)).toMatchObject({
+      quantity: 5,
+      pendingQuantity: 3,
+    });
+    expect(await session.setAddonQuantity("extra-seats-v1", 5)).toMatchObject({
+      quantity: 5,
+      pendingQuantity: null,
+    });
+    await session.setAddonQuantity("extra-seats-v1", 1);
+    expect(double.advance(ORIGIN)).toMatchObject({ ok: true });
+    expect((await session.getPortal()).addOns[0]).toMatchObject({
+      quantity: 1,
+      pendingQuantity: null,
+    });
+    expect((await session.listInvoices()).items[0]?.lines).toMatchObject([
+      { type: "BASE" },
+      { type: "ADDON", quantity: "1", amount: 1000 },
+    ]);
+    expect(contractProblems(recorder)).toEqual([]);
+  });
+
   test("cancels and reactivates, and says what the portal is after each", async () => {
     const { double, customer, recorder } = world();
     double.reset({ subscribed: true });
@@ -953,7 +1034,7 @@ describe("the next boundary", () => {
 });
 
 describe("add-ons", () => {
-  test("an increase is in force at once and billed at the next renewal, a removal leaves the portal", async () => {
+  test("an increase applies now and a removal waits for the boundary, then leaves the portal", async () => {
     const { double, customer, recorder } = world();
     double.reset({ subscribed: true });
     const session = await customer();
@@ -988,6 +1069,8 @@ describe("add-ons", () => {
     });
 
     await session.setAddonQuantity("extra-seats-v1", 0);
+    expect((await session.getPortal()).addOns).toMatchObject([{ quantity: 5, pendingQuantity: 0 }]);
+    expect(double.advance(ORIGIN)).toMatchObject({ ok: true });
     expect((await session.getPortal()).addOns).toEqual([]);
     expect(contractProblems(recorder)).toEqual([]);
   });

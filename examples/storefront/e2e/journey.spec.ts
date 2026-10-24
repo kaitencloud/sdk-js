@@ -114,7 +114,7 @@ test("Change plan opens the plan's commercial link: the sales page, with the pla
 test("Change plan from the free plan goes to the pricing table", async ({ page, standIn }) => {
   await standIn.reset({ free: true });
   await page.goto("/portal");
-  await page.getByRole("button", { name: "Change plan" }).click();
+  await page.getByRole("button", { name: "Subscribe", exact: true }).click();
   await expect(page).toHaveURL(/\/$/);
   await expect(planCard(page, "Pro")).toBeVisible();
 });
