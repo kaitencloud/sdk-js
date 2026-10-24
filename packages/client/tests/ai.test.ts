@@ -97,7 +97,7 @@ describe("ai.reserve and ai.commit", () => {
     expect(result.transactionId).toMatch(
       /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
     );
-    expect(requests[0]!.headers.get("Idempotency-Key")).toMatch(/^[0-9a-f-]{36}$/);
+    expect(requests[0]!.headers.has("Idempotency-Key")).toBe(false);
     expect(result.outcome?.transactionId).toBe(result.transactionId);
   });
 
@@ -122,7 +122,7 @@ describe("ai.reserve and ai.commit", () => {
     });
   });
 
-  it("retries a commit three times under one key on transient failures, then gives up", async () => {
+  it("retries an identical commit three times under its transactionId, then gives up", async () => {
     const { client, requests } = fakeApi([
       { status: 503 },
       "network",
@@ -135,20 +135,37 @@ describe("ai.reserve and ai.commit", () => {
     ).rejects.toBeInstanceOf(KaitenError);
 
     expect(requests).toHaveLength(4);
-    const keys = new Set(requests.map((request) => request.headers.get("Idempotency-Key")));
-    expect(keys.size).toBe(1);
+    expect(requests.every((request) => !request.headers.has("Idempotency-Key"))).toBe(true);
+    for (const request of requests) expect(request.body).toEqual(requests[0]!.body);
     expect(new Set(requests.map((request) => request.body.value.transactionId))).toEqual(
       new Set(["t-1"]),
     );
   });
 
-  it("draws a new key for each logical call", async () => {
-    const { client, requests } = fakeApi();
+  it("pairs reserve and commit by transactionId without an inherited numeric-report header", async () => {
+    const fetch = vi.fn(async (input: RequestInfo | URL) => {
+      const request = new Request(input);
+      expect(request.headers.has("Idempotency-Key")).toBe(false);
+      const body = JSON.parse(await request.text());
+      expect(body.value.transactionId).toBe("a");
+      return new Response(JSON.stringify({ ai: { transactionId: "a" } }), {
+        headers: { "Content-Type": "application/json" },
+      });
+    });
+    const client = new KaitenClient({
+      authScheme: "none",
+      apiUrl: "https://kaiten.test/api",
+      defaultHeaders: { "idempotency-key": "numeric-report-key" },
+      fetch,
+    });
+    await client.ai.reserve({
+      ...TARGET,
+      transactionId: "a",
+      model: "gpt-4o",
+      requestType: "COMPLETION",
+    });
     await client.ai.commit({ ...TARGET, transactionId: "a", requestStatus: "SUCCESS" });
-    await client.ai.commit({ ...TARGET, transactionId: "b", requestStatus: "SUCCESS" });
-    expect(requests[0]!.headers.get("Idempotency-Key")).not.toBe(
-      requests[1]!.headers.get("Idempotency-Key"),
-    );
+    expect(fetch).toHaveBeenCalledTimes(2);
   });
 
   it.for([400, 404, 409, 422, 501])("never replays a %i", async (status) => {
@@ -181,15 +198,18 @@ describe("ai.reserve and ai.commit", () => {
     expect((failure as KaitenError).status).toBe(reply.status);
   });
 
-  it("leaves a malformed-body 422 as the KaitenError it is", async () => {
-    const { client } = fakeApi([problem(422, "InvalidTransactionId")]);
-    const failure = await client.ai
-      .commit({ ...TARGET, transactionId: "bad id", requestStatus: "SUCCESS" })
-      .catch((error: unknown) => error);
-    expect(failure).toBeInstanceOf(KaitenError);
-    expect(failure).not.toBeInstanceOf(AiUsageUnsupportedError);
-    expect((failure as KaitenError).code).toBe("ReportEntitlementUsageMetric.InvalidTransactionId");
-  });
+  it.for(["InvalidTransactionId", "AiIdempotencyKeyUnsupported"])(
+    "leaves a malformed-body 422 %s as the KaitenError it is",
+    async (code) => {
+      const { client } = fakeApi([problem(422, code)]);
+      const failure = await client.ai
+        .commit({ ...TARGET, transactionId: "bad id", requestStatus: "SUCCESS" })
+        .catch((error: unknown) => error);
+      expect(failure).toBeInstanceOf(KaitenError);
+      expect(failure).not.toBeInstanceOf(AiUsageUnsupportedError);
+      expect((failure as KaitenError).code).toBe(`ReportEntitlementUsageMetric.${code}`);
+    },
+  );
 });
 
 describe("ai.run", () => {

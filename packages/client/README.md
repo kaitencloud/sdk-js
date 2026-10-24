@@ -107,13 +107,19 @@ A refused reservation throws before the provider is called:
 `TransactionIdReusedError` is a caller bug and is never retried, and
 `AiUsageUnsupportedError` means the pool or the server cannot take an AI report.
 Both phases are retried three times on network errors and 500/502/503/504 under
-the same `transactionId` and `Idempotency-Key`. `fromOpenAI` and `fromAnthropic`
-map a provider's usage onto the disjoint token fields.
+the same `transactionId` and identical phase/body. AI reports do not send
+`Idempotency-Key`, even when it is configured in transport defaults: that header
+belongs to numeric usage adjustments and the API rejects it on `ai_usage` reports.
+`fromOpenAI` and `fromAnthropic` map a provider's usage onto the disjoint token
+fields; omitted usage remains unknown, not zero. Credit amounts, remaining credits
+and non-token units retain the API's exact decimal strings; ordinary AI pool reads
+still carry `{ type: "number", value: ... }`.
 
 You rarely write this by hand: `@kaitencloud/ai-openai`, `@kaitencloud/ai-anthropic`
-and `@kaitencloud/ai-vercel` wrap a provider client in one call, and
-`@kaitencloud/ai-claude-agent` and `@kaitencloud/ai-codex` do it per model turn
-of an agent run.
+and `@kaitencloud/ai-vercel` reserve before each bounded provider call.
+`@kaitencloud/ai-claude-agent` and `@kaitencloud/ai-copilot` observe post-call usage
+only; they cannot stop a model request before it runs. `@kaitencloud/ai-codex`
+gates submitted prompts, not each internal model inference.
 
 ## Testing without an API — `@kaitencloud/client/testing`
 

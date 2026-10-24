@@ -83,6 +83,7 @@ const MALFORMED_AI_BODY = new Set([
   "InvalidTransactionId",
   "InvalidAiUsage",
   "AiUsageRequiresAppend",
+  "AiIdempotencyKeyUnsupported",
   "AiCreditPoolAppendOnly",
 ]);
 

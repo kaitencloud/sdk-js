@@ -33,7 +33,7 @@ it("aliases the regenerated AI contract and preserves exact outcomes", async () 
     transactionId: "t",
     phase: "reserve",
     status: "RESERVED",
-    credits: { reserved: "1.2" },
+    credits: { reserved: "9007199254740993.123456" },
     remaining: null,
     warnings: [],
   };
@@ -45,7 +45,7 @@ it("aliases the regenerated AI contract and preserves exact outcomes", async () 
     licenseId: "l",
     licenseSlug: "l",
     value: { type: "number", value: 0 },
-    reserved: "1.2",
+    reserved: "9007199254740993.123456",
     ai: outcome,
   };
   const wireResponse: EntitlementUsage = response;
@@ -68,6 +68,8 @@ it("aliases the regenerated AI contract and preserves exact outcomes", async () 
   });
   expect(result.entitlementUsage).toEqual(response);
   expect(result.outcome?.remaining).toBeNull();
+  expect(result.outcome?.credits.reserved).toBe("9007199254740993.123456");
+  expect(result.entitlementUsage.value).toEqual({ type: "number", value: 0 });
 });
 
 it("exposes model, conversion rule and inference reads with filters and wire pagination", async () => {

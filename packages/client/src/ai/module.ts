@@ -124,10 +124,6 @@ export function createAiModule(transport: KaitenTransport): KaitenAiModule {
   async function report(target: AiTarget, value: AiUsageValue): Promise<AiReportResult> {
     const body: AiReportBody = { value };
     if (target.metadata) body.metadata = target.metadata;
-    // One key per logical call, reused by its retries. The server deduplicates
-    // on (pool, transactionId, phase) whatever this says; the header is for the
-    // gateway in front of it.
-    const idempotencyKey = crypto.randomUUID();
     try {
       const entitlementUsage = await transport.run(
         (client) =>
@@ -135,7 +131,9 @@ export function createAiModule(transport: KaitenTransport): KaitenAiModule {
             client,
             path: { instanceSlug: target.instance, entitlementSlug: target.entitlement },
             body,
-            headers: { "Idempotency-Key": idempotencyKey },
+            // AI phase replay uses transactionId, never the numeric-report
+            // header. Also remove a key inherited from transport defaults.
+            headers: { "Idempotency-Key": null },
           }),
         `ai.${value.phase}(${target.instance}, ${target.entitlement}, ${value.transactionId})`,
         // Keyed by `transactionId`, so a replay is answered from the first
