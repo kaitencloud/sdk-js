@@ -301,6 +301,9 @@ export function createMockKaitenSessionClient(
       currentPeriodStart: DEMO_SESSION_NOW,
       currentPeriodEnd: periodEnd,
       trialEndsAt: null,
+      incompleteExpiresAt: null,
+      canceledAt: null,
+      cancellationReason: null,
       cancelAtPeriodEnd: false,
       scheduledChange: null,
     };

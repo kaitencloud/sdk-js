@@ -642,7 +642,7 @@ describe("the provider's pages", () => {
     });
   });
 
-  test("a payment method the provider gives no labels for has them null, and no date", async () => {
+  test("a completed payment method with no labels or saved date carries the required nulls", async () => {
     const { client } = open(() => json(answer("paymentMethodCompletedBare")));
 
     const completed = await client.completePaymentMethodSession("cs_setup_2");
@@ -653,6 +653,7 @@ describe("the provider's pages", () => {
       last4: null,
       expMonth: null,
       expYear: null,
+      attachedAt: null,
     });
   });
 
@@ -1023,6 +1024,9 @@ describe("cancel and reactivate", () => {
       currentPeriodStart: "2026-10-01T00:00:00Z",
       currentPeriodEnd: "2026-11-01T00:00:00Z",
       trialEndsAt: null,
+      incompleteExpiresAt: null,
+      canceledAt: null,
+      cancellationReason: null,
       cancelAtPeriodEnd: true,
       scheduledChange: null,
     });
@@ -1063,6 +1067,7 @@ describe("cancel and reactivate", () => {
         displayLabel: "Annual",
         displayOrder: 0,
         isDefault: true,
+        metered: null,
       },
     };
     const { client } = open(() => json(wire));

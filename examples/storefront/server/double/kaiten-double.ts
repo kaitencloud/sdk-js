@@ -1045,7 +1045,7 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
       );
     }
     if (
-      body.billingEmail !== undefined &&
+      body.billingEmail != null &&
       (typeof body.billingEmail !== "string" ||
         body.billingEmail.length > 254 ||
         !body.billingEmail.includes("@"))
@@ -1181,7 +1181,7 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
     if (typeof body.name !== "string" || body.name.length < 1) {
       return problem(422, "UpdateCustomer.InvalidName", "name is required", path);
     }
-    if (typeof body.domain === "string" && !DOMAIN.test(body.domain)) {
+    if (typeof body.domain === "string" && body.domain !== "" && !DOMAIN.test(body.domain)) {
       return problem(422, "UpdateCustomer.InvalidDomain", "domain is not a domain name", path);
     }
     if (body.slug !== undefined && body.slug !== slug) {
@@ -1200,17 +1200,17 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
         path,
       );
     }
-    if (body.billingEmail !== undefined && body.billingEmail !== "") {
+    if (body.billingEmail != null && body.billingEmail !== "") {
       if (!validBillingEmail(body.billingEmail)) {
         return billingEmailProblem("UpdateCustomer.InvalidBillingEmail", path);
       }
     }
     found.name = body.name;
-    found.domain = typeof body.domain === "string" ? body.domain : null;
-    found.externalCustomerId =
-      typeof body.externalCustomerId === "string" ? body.externalCustomerId : null;
+    if (typeof body.domain === "string") found.domain = body.domain || null;
+    if (typeof body.externalCustomerId === "string")
+      found.externalCustomerId = body.externalCustomerId || null;
     if (body.billingEmail === "") found.billingEmail = null;
-    else if (body.billingEmail !== undefined) found.billingEmail = body.billingEmail;
+    else if (body.billingEmail != null) found.billingEmail = body.billingEmail;
     found.updatedAt = new Date(Math.max(Date.now(), Date.parse(found.updatedAt) + 1)).toISOString();
     return reply(204, null);
   }
@@ -1616,7 +1616,14 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
           invoice.hostedInvoiceUrl = null;
         }
         if (!pendingCheckout.replacing && subscription)
-          subscription = { ...subscription, status: "CANCELED", cancelAtPeriodEnd: false };
+          subscription = {
+            ...subscription,
+            status: "CANCELED",
+            cancelAtPeriodEnd: false,
+            canceledAt: iso(Date.now()),
+            cancellationReason: null,
+          };
+        if (subscription) subscription = { ...subscription, incompleteExpiresAt: null };
         pendingCheckout = null;
         emit(
           replacing ? "instance.invoice.voided" : "instance.billing.canceled",
@@ -1944,6 +1951,8 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
 
     const invoice = issueInvoice(origin, "ACTIVATION", due, now, periodEnd, now);
     if (waiting) {
+      const expiresAt = iso(now.getTime() + 23 * 60 * 60 * 1000);
+      subscription = { ...subscription, incompleteExpiresAt: expiresAt };
       pendingCheckout = {
         invoiceId: invoice.id,
         plan,
@@ -1958,7 +1967,7 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
       addOns = previous.addOns;
       redeemed = previous.redeemed;
       if (replacing) {
-        subscription = previous.subscription;
+        subscription = { ...previous.subscription, incompleteExpiresAt: expiresAt };
         subscriptionMeta = previous.meta;
         canceling = previous.canceling;
         pastDueSince = previous.pastDueSince;
@@ -2707,7 +2716,7 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
       trialEndsAt: sub.trialEndsAt,
       reminderAt: sub.trialEndsAt ? reminderAt(sub) : null,
       pendingLicenseSlug: null,
-      incompleteExpiresAt: null,
+      incompleteExpiresAt: sub.incompleteExpiresAt ?? null,
       scheduledChange: scheduled
         ? {
             price: vendorPrice(scheduled.price),
@@ -2718,8 +2727,8 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
         : null,
       cancelAtPeriodEnd: canceling,
       cancelRequestedAt: null,
-      canceledAt: null,
-      cancellationReason: null,
+      canceledAt: sub.canceledAt ?? null,
+      cancellationReason: sub.cancellationReason ?? null,
       pastDueSince,
       createdAt: subscriptionMeta.createdAt,
       updatedAt: new Date().toISOString(),
@@ -3122,7 +3131,13 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
         planSlug = pending.plan.licenseSlug;
         addOns = pending.addOns;
         redeemed = pending.redeemed;
-        subscription = { ...pending.subscription, status: "ACTIVE" };
+        subscription = {
+          ...pending.subscription,
+          status: "ACTIVE",
+          incompleteExpiresAt: null,
+          canceledAt: null,
+          cancellationReason: null,
+        };
         subscriptionMeta = pending.meta;
         pendingCheckout = null;
         canceling = false;

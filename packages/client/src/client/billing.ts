@@ -86,7 +86,7 @@ export function mapBillingPrice(raw: PublicPrice): BillingPrice {
   if (raw.displayOrder !== undefined) price.displayOrder = raw.displayOrder;
   // `unitAmount` is present exactly when the price is a whole number of minor
   // units. It is taken as it is: never multiplied, divided or rounded.
-  if (Number.isSafeInteger(unitAmount)) price.amount = unitAmount;
+  if (unitAmount !== null && Number.isSafeInteger(unitAmount)) price.amount = unitAmount;
   if (displayLabel != null) price.label = displayLabel;
   if (metered) {
     price.meteredEntitlementSlug = metered.entitlementSlug;

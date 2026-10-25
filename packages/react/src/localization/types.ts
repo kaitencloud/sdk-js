@@ -100,6 +100,8 @@ export interface KaitenCheckoutWords {
    * place of `subscribed`: what it bought starts once the payment is confirmed.
    */
   startsOncePaid: string;
+  /** The API's checkout expiry, never inferred from the billing period. */
+  incompleteUntil?: (isoDate: string) => string;
   /** A card declined on such a checkout, in place of `paymentFailed`: nothing has started yet. */
   cardDeclined: string;
   updatePaymentMethod: string;
@@ -267,6 +269,10 @@ export interface KaitenSubscriptionWords {
   canceledPlanNotice?: (name: string) => string;
   /** Said of a subscription that waits for its first payment: its plan starts once it is confirmed. */
   incompleteNotice: string;
+  incompleteUntil?: (isoDate: string) => string;
+  canceledOn?: (isoDate: string) => string;
+  trialEndedWithoutPaymentMethod?: string;
+  incompleteExpired?: string;
   /** Said where a subscription would be: a session bound to the customer, with no instance. */
   none: string;
   /** What a wall offers a customer who can buy a plan by themselves. */

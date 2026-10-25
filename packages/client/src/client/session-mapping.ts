@@ -51,6 +51,9 @@ export function mapSubscription(raw: Api.SessionSubscription): PortalSubscriptio
     currentPeriodStart: raw.currentPeriodStart,
     currentPeriodEnd: raw.currentPeriodEnd,
     trialEndsAt: raw.trialEndsAt ?? null,
+    incompleteExpiresAt: raw.incompleteExpiresAt ?? null,
+    canceledAt: raw.canceledAt ?? null,
+    cancellationReason: raw.cancellationReason ?? null,
     cancelAtPeriodEnd: raw.cancelAtPeriodEnd === true,
     scheduledChange: change
       ? { price: mapBillingPrice(change.price), effectiveAt: change.effectiveAt }
@@ -177,7 +180,7 @@ export function mapPaymentMethod(
     last4: raw.last4 ?? null,
     expMonth: raw.expMonth ?? null,
     expYear: raw.expYear ?? null,
-    ...("attachedAt" in raw && raw.attachedAt ? { attachedAt: raw.attachedAt } : {}),
+    ...("attachedAt" in raw ? { attachedAt: raw.attachedAt ?? null } : {}),
   };
 }
 

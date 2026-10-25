@@ -633,12 +633,22 @@ function Outcome({ checkout, unstyled }: { checkout: UseCheckoutResult; unstyled
   // An older Kaiten starts the subscription whatever became of the payment, and says ACTIVE.
   const notStarted = result.subscription.status === "INCOMPLETE";
   const headline = (
-    <Message
-      unstyled={unstyled}
-      tone={notStarted ? "info" : "success"}
-      text={notStarted ? words.startsOncePaid : words.subscribed}
-      focusKey="step"
-    />
+    <>
+      <Message
+        unstyled={unstyled}
+        tone={notStarted ? "info" : "success"}
+        text={notStarted ? words.startsOncePaid : words.subscribed}
+        focusKey="step"
+      />
+      {notStarted && result.subscription.incompleteExpiresAt && words.incompleteUntil ? (
+        <FeedbackMessage
+          unstyled={unstyled}
+          tone="muted"
+          text={words.incompleteUntil(result.subscription.incompleteExpiresAt)}
+          slot="checkout-incomplete-until"
+        />
+      ) : null}
+    </>
   );
 
   if (paid) {

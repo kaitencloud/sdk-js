@@ -39,9 +39,11 @@ without multiplying it by the quantity held or combining it with the flat fee.
 subscription is INCOMPLETE and invoices are allowed. It uses the existing settlement hook.
 An old, paid ACTIVATION is not mistaken for the pending checkout: optional `activationSince`
 limits the fallback search to the subscription's current service period.
+The current REST contract supplies nullable expiry/cancellation dates and system cancellation
+reasons. Supplied values are shown; nulls and unknown reasons have no explanation invented for them.
 No deadline, pending licence or selection is synthesized. An ended subscription names the portal's
 actual current plan; a subscription action needs the host's handler and checkout capability.
-No cancellation or fallback reason is inferred, and a missing family `increaseBilling` policy
+No fallback reason is inferred, and a missing family `increaseBilling` policy
 produces no true-up assertion.
 
 Provenance notes open on click, tap or keyboard. They prefer `effectiveSource`, show exception

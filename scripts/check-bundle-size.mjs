@@ -278,7 +278,7 @@ const SCENARIOS = [
     // field) and the hook's company beside its name.
     name: "react-ui · AnonymousCheckoutFlow + KaitenProvider + KaitenStyleRoot",
     code: `import { AnonymousCheckoutFlow, KaitenProvider, KaitenStyleRoot } from "@kaitencloud/react-ui"; console.log(AnonymousCheckoutFlow, KaitenProvider, KaitenStyleRoot);`,
-    budgetGzip: 70_450,
+    budgetGzip: 70_600,
   },
   {
     // What a host that shows a customer how they pay ships: the card, the billing hooks that add or
@@ -367,7 +367,7 @@ const SCENARIOS = [
     // Measured at 112 248 bytes, up from 111 694: the company field of the anonymous checkout, as above.
     name: "react-ui · everything",
     code: `import * as all from "@kaitencloud/react-ui"; console.log(all);`,
-    budgetGzip: 114_850,
+    budgetGzip: 115_050,
   },
   {
     name: "client · KaitenClient alone",

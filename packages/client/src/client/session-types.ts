@@ -95,6 +95,16 @@ export interface PortalSubscription {
   /** The end of the current period: when the subscription renews, or ends. */
   currentPeriodEnd: string;
   trialEndsAt: string | null;
+  /** Checkout expiry supplied by the API, null when none. Optional for host fixtures made before it shipped. */
+  incompleteExpiresAt?: string | null;
+  /** When cancellation took effect, null before it did. Optional for older host fixtures. */
+  canceledAt?: string | null;
+  /** System reasons only; never vendor free text. Open for future system reasons. */
+  cancellationReason?:
+    | "TRIAL_ENDED_WITHOUT_PAYMENT_METHOD"
+    | "INCOMPLETE_EXPIRED"
+    | (string & {})
+    | null;
   /** True when the subscription ends at `currentPeriodEnd` instead of renewing. */
   cancelAtPeriodEnd: boolean;
   /** A plan change that takes effect at a later boundary. */
@@ -112,7 +122,7 @@ export interface PaymentMethodSummary {
   expMonth: number | null;
   expYear: number | null;
   /** When the payment method was saved. Only on the answer that completes a payment method session. */
-  attachedAt?: string;
+  attachedAt?: string | null;
 }
 
 /** The payment provider's billing portal, to send the customer to. */

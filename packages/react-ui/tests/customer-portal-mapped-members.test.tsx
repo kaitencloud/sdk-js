@@ -16,7 +16,10 @@ import {
 } from "../src/index.ts";
 import type { Plan } from "../src/index.ts";
 import { purchasablePrices } from "../src/components/shared/purchasable-prices.ts";
-import { englishPortalBillingWords } from "../src/components/shared/billing-words.ts";
+import {
+  englishPortalBillingWords,
+  englishSubscriptionWords,
+} from "../src/components/shared/billing-words.ts";
 import { sessionServer } from "../.storybook/session-server.ts";
 import { mount, press } from "./support/session-mount.tsx";
 // Keep this test-only helper outside tsgo's declaration graph: a static cross-package import
@@ -46,6 +49,44 @@ const variants = locales.flatMap((locale) =>
   [false, true].map((unstyled) => ({ ...locale, unstyled })),
 );
 const portal = (): Record<string, any> => structuredClone(answers.portal);
+
+test.each(locales)(
+  "$name: a supplied incomplete deadline is shown, not inferred from the period",
+  async ({ locale }) => {
+    const body = portal();
+    body.subscription.status = "INCOMPLETE";
+    body.subscription.incompleteExpiresAt = "2026-10-24T12:34:00Z";
+    const words = { ...englishSubscriptionWords, ...locale?.subscription };
+    mount(sessionServer({ portal: body }), <CurrentPlan />, locale);
+    expect(
+      await screen.findByText(words.incompleteUntil(body.subscription.incompleteExpiresAt)),
+    ).toBeTruthy();
+  },
+);
+
+test.each(locales)(
+  "$name: known system reasons explain cancellation and unknown text stays private",
+  async ({ locale }) => {
+    const words = { ...englishSubscriptionWords, ...locale?.subscription };
+    for (const [reason, expected] of [
+      ["INCOMPLETE_EXPIRED", words.incompleteExpired],
+      ["TRIAL_ENDED_WITHOUT_PAYMENT_METHOD", words.trialEndedWithoutPaymentMethod],
+      ["private_vendor_text", null],
+    ] as const) {
+      const body = portal();
+      Object.assign(body.subscription, {
+        status: "CANCELED",
+        canceledAt: "2026-10-24T12:34:00Z",
+        cancellationReason: reason,
+      });
+      const view = mount(sessionServer({ portal: body }), <CurrentPlan />, locale);
+      await screen.findByText(words.canceledOn(body.subscription.canceledAt));
+      if (expected) expect(view.container.textContent).toContain(expected);
+      expect(view.container.textContent).not.toContain("private_vendor_text");
+      cleanup();
+    }
+  },
+);
 
 test("an older custom language pack's undefined additions keep the English fallback", async () => {
   const body = portal();

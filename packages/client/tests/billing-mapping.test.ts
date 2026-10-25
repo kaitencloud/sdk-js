@@ -107,7 +107,12 @@ describe("money: API price to BillingPrice", () => {
   test("a factor that is not a finite number above zero is left out, never NaN or 1", () => {
     for (const saleUnitFactor of ["0", "-3", "", "many", "Infinity"]) {
       const wire = rawPrice(PRICE.proTokens);
-      wire.metered = { entitlementSlug: "tokens", saleUnitFactor };
+      wire.metered = {
+        entitlementSlug: "tokens",
+        saleUnitFactor,
+        saleUnitSingular: null,
+        saleUnitPlural: null,
+      };
       const grant = rawPlan("pro").entitlements.find((entry) => entry.slug === "tokens")!;
 
       expect(mapBillingPrice(wire)).not.toHaveProperty("saleUnitFactor");
@@ -346,6 +351,8 @@ describe("a price's billing timing", () => {
     unitAmountDecimal: "4900",
     displayOrder: 0,
     isDefault: true,
+    displayLabel: null,
+    metered: null,
   } as const;
 
   test("is said as the API says it", () => {

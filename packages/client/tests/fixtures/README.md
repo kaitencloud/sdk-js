@@ -38,6 +38,11 @@ A second exception, of the same kind: when the contract added the required `bran
 (`poweredByRemovable`), the value is `false` here, the answer for a vendor whose plan does not let it hide
 "Powered by Kaiten". It was added by hand, and the next regeneration replaces it.
 
+The sync to `510ec73aa` adds the newly required nullable presentation/price members by hand,
+using `null` only where the recorded scenario had no value: metered price periods, fractional
+integer amounts, display labels, meters on flat fees, and unused grant labels/allowances.
+The next projection run replaces these additions; the response-schema guard verifies them meanwhile.
+
 The scenario, with the ids the tests name (`00000000-0000-4000-8000-` followed
 by twelve hex digits):
 
@@ -85,6 +90,10 @@ The sync to `57283b6f5` also adds the required provenance members by hand: `exce
 and `number.afterBoosts` equal to the recorded `effective` value (no exception follows it).
 `session-exceptions-and-grants.test.ts` builds exception and boolean/config/flag-grant scenarios
 from the generated types and checks their payloads against the response schemas.
+
+The `510ec73aa` sync likewise adds nullable price members and the three subscription lifecycle
+members (`incompleteExpiresAt`, `canceledAt`, `cancellationReason`) with `null` for these scenarios.
+The bare completed payment method now carries its five required nullable labels/date, all `null`.
 
 The redemption of a code (`POST /public/session/vouchers/redeem`) is written by hand, from the
 route's use case and checked against the contract's `SessionRedemption` and `Problem`: `redemption` (a

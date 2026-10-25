@@ -16,7 +16,8 @@
         "unitAmountDecimal": "1000",
         "displayLabel": "Monthly",
         "displayOrder": 0,
-        "isDefault": true
+        "isDefault": true,
+        "metered": null
       },
       {
         "id": "00000000-0000-4000-8000-00000000a102",
@@ -31,7 +32,10 @@
           "saleUnitPlural": "1k calls"
         },
         "displayOrder": 1,
-        "isDefault": false
+        "isDefault": false,
+        "billingPeriod": null,
+        "unitAmount": null,
+        "displayLabel": null
       }
     ],
     "pendingQuantity": null
@@ -61,13 +65,17 @@
       "unitAmountDecimal": "4900",
       "displayLabel": "Monthly",
       "displayOrder": 0,
-      "isDefault": true
+      "isDefault": true,
+      "metered": null
     },
     "currentPeriodStart": "2026-10-01T00:00:00Z",
     "currentPeriodEnd": "2026-11-01T00:00:00Z",
     "trialEndsAt": null,
     "cancelAtPeriodEnd": true,
-    "scheduledChange": null
+    "scheduledChange": null,
+    "incompleteExpiresAt": null,
+    "canceledAt": null,
+    "cancellationReason": null
   },
   "checkoutPreview": {
     "status": "preview",
@@ -148,13 +156,17 @@
         "unitAmountDecimal": "4900",
         "displayLabel": "Monthly",
         "displayOrder": 0,
-        "isDefault": true
+        "isDefault": true,
+        "metered": null
       },
       "currentPeriodStart": "2026-10-01T00:00:00Z",
       "currentPeriodEnd": "2026-11-01T00:00:00Z",
       "trialEndsAt": null,
       "cancelAtPeriodEnd": false,
-      "scheduledChange": null
+      "scheduledChange": null,
+      "incompleteExpiresAt": null,
+      "canceledAt": null,
+      "cancellationReason": null
     },
     "activationInvoice": {
       "id": "00000000-0000-4000-8000-000000000401",
@@ -210,13 +222,17 @@
         "unitAmountDecimal": "4900",
         "displayLabel": "Monthly",
         "displayOrder": 0,
-        "isDefault": true
+        "isDefault": true,
+        "metered": null
       },
       "currentPeriodStart": "2026-10-01T00:00:00Z",
       "currentPeriodEnd": "2026-11-01T00:00:00Z",
       "trialEndsAt": null,
       "cancelAtPeriodEnd": false,
-      "scheduledChange": null
+      "scheduledChange": null,
+      "incompleteExpiresAt": null,
+      "canceledAt": null,
+      "cancellationReason": null
     },
     "activationInvoice": {
       "id": "00000000-0000-4000-8000-000000000301",
@@ -272,13 +288,17 @@
         "unitAmountDecimal": "4900",
         "displayLabel": "Monthly",
         "displayOrder": 0,
-        "isDefault": true
+        "isDefault": true,
+        "metered": null
       },
       "currentPeriodStart": "2026-10-01T00:00:00Z",
       "currentPeriodEnd": "2026-11-01T00:00:00Z",
       "trialEndsAt": "2026-11-01T00:00:00Z",
       "cancelAtPeriodEnd": false,
-      "scheduledChange": null
+      "scheduledChange": null,
+      "incompleteExpiresAt": null,
+      "canceledAt": null,
+      "cancellationReason": null
     },
     "payment": {
       "status": "not_required"
@@ -576,7 +596,12 @@
   },
   "paymentMethodCompletedBare": {
     "paymentMethod": {
-      "status": "ACTIVE"
+      "status": "ACTIVE",
+      "brand": null,
+      "last4": null,
+      "expMonth": null,
+      "expYear": null,
+      "attachedAt": null
     }
   },
   "paymentMethodSession": {
@@ -613,13 +638,17 @@
         "unitAmountDecimal": "4900",
         "displayLabel": "Monthly",
         "displayOrder": 0,
-        "isDefault": true
+        "isDefault": true,
+        "metered": null
       },
       "currentPeriodStart": "2026-10-01T00:00:00Z",
       "currentPeriodEnd": "2026-11-01T00:00:00Z",
       "trialEndsAt": null,
       "cancelAtPeriodEnd": false,
-      "scheduledChange": null
+      "scheduledChange": null,
+      "incompleteExpiresAt": null,
+      "canceledAt": null,
+      "cancellationReason": null
     },
     "entitlements": [
       {
@@ -873,7 +902,8 @@
             "unitAmountDecimal": "1000",
             "displayLabel": "Monthly",
             "displayOrder": 0,
-            "isDefault": true
+            "isDefault": true,
+            "metered": null
           },
           {
             "id": "00000000-0000-4000-8000-00000000a102",
@@ -888,7 +918,10 @@
               "saleUnitPlural": "1k calls"
             },
             "displayOrder": 1,
-            "isDefault": false
+            "isDefault": false,
+            "billingPeriod": null,
+            "unitAmount": null,
+            "displayLabel": null
           }
         ],
         "pendingQuantity": null
@@ -980,13 +1013,17 @@
         "unitAmountDecimal": "4900",
         "displayLabel": "Monthly",
         "displayOrder": 0,
-        "isDefault": true
+        "isDefault": true,
+        "metered": null
       },
       "currentPeriodStart": "2026-10-01T00:00:00Z",
       "currentPeriodEnd": "2026-11-01T00:00:00Z",
       "trialEndsAt": null,
       "cancelAtPeriodEnd": true,
-      "scheduledChange": null
+      "scheduledChange": null,
+      "incompleteExpiresAt": null,
+      "canceledAt": null,
+      "cancellationReason": null
     },
     "entitlements": [
       {
@@ -1240,7 +1277,8 @@
             "unitAmountDecimal": "1000",
             "displayLabel": "Monthly",
             "displayOrder": 0,
-            "isDefault": true
+            "isDefault": true,
+            "metered": null
           },
           {
             "id": "00000000-0000-4000-8000-00000000a102",
@@ -1255,7 +1293,10 @@
               "saleUnitPlural": "1k calls"
             },
             "displayOrder": 1,
-            "isDefault": false
+            "isDefault": false,
+            "billingPeriod": null,
+            "unitAmount": null,
+            "displayLabel": null
           }
         ],
         "pendingQuantity": null
@@ -1455,13 +1496,17 @@
         "unitAmountDecimal": "13500",
         "displayLabel": "Quarterly",
         "displayOrder": 0,
-        "isDefault": true
+        "isDefault": true,
+        "metered": null
       },
       "currentPeriodStart": "2026-10-01T00:00:00Z",
       "currentPeriodEnd": "2026-11-01T00:00:00Z",
       "trialEndsAt": null,
       "cancelAtPeriodEnd": false,
-      "scheduledChange": null
+      "scheduledChange": null,
+      "incompleteExpiresAt": null,
+      "canceledAt": null,
+      "cancellationReason": null
     },
     "entitlements": [
       {
@@ -1715,7 +1760,8 @@
             "unitAmountDecimal": "1000",
             "displayLabel": "Monthly",
             "displayOrder": 0,
-            "isDefault": true
+            "isDefault": true,
+            "metered": null
           },
           {
             "id": "00000000-0000-4000-8000-00000000a102",
@@ -1730,7 +1776,10 @@
               "saleUnitPlural": "1k calls"
             },
             "displayOrder": 1,
-            "isDefault": false
+            "isDefault": false,
+            "billingPeriod": null,
+            "unitAmount": null,
+            "displayLabel": null
           }
         ],
         "pendingQuantity": null
@@ -1816,7 +1865,8 @@
         "unitAmountDecimal": "4900",
         "displayLabel": "Monthly",
         "displayOrder": 0,
-        "isDefault": true
+        "isDefault": true,
+        "metered": null
       },
       "currentPeriodStart": "2026-10-01T00:00:00Z",
       "currentPeriodEnd": "2026-11-01T00:00:00Z",
@@ -1833,10 +1883,14 @@
           "unitAmountDecimal": "49000",
           "displayLabel": "Annual",
           "displayOrder": 0,
-          "isDefault": true
+          "isDefault": true,
+          "metered": null
         },
         "effectiveAt": "2026-11-01T00:00:00Z"
-      }
+      },
+      "incompleteExpiresAt": null,
+      "canceledAt": null,
+      "cancellationReason": null
     },
     "entitlements": [
       {
@@ -2090,7 +2144,8 @@
             "unitAmountDecimal": "1000",
             "displayLabel": "Monthly",
             "displayOrder": 0,
-            "isDefault": true
+            "isDefault": true,
+            "metered": null
           },
           {
             "id": "00000000-0000-4000-8000-00000000a102",
@@ -2105,7 +2160,10 @@
               "saleUnitPlural": "1k calls"
             },
             "displayOrder": 1,
-            "isDefault": false
+            "isDefault": false,
+            "billingPeriod": null,
+            "unitAmount": null,
+            "displayLabel": null
           }
         ],
         "pendingQuantity": null
@@ -2187,13 +2245,17 @@
       "unitAmountDecimal": "4900",
       "displayLabel": "Monthly",
       "displayOrder": 0,
-      "isDefault": true
+      "isDefault": true,
+      "metered": null
     },
     "currentPeriodStart": "2026-10-01T00:00:00Z",
     "currentPeriodEnd": "2026-11-01T00:00:00Z",
     "trialEndsAt": null,
     "cancelAtPeriodEnd": false,
-    "scheduledChange": null
+    "scheduledChange": null,
+    "incompleteExpiresAt": null,
+    "canceledAt": null,
+    "cancellationReason": null
   },
   "voucherBoost": {
     "valid": true,

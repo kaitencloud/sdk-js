@@ -70,7 +70,14 @@ function invoice(overrides: Partial<Invoice> = {}): Invoice {
     daysUntilDue: 30,
     discountTotal: 580,
     dueAt: "2026-10-31T00:00:00Z",
-    handoff: { claimCount: 1, status: "PENDING" },
+    handoff: {
+      claimCount: 1,
+      status: "PENDING",
+      acknowledgedAt: null,
+      externalReference: null,
+      leaseId: null,
+      leasedUntil: null,
+    },
     handoffStatus: "PENDING",
     hold: null,
     holdDetail: null,
@@ -205,6 +212,8 @@ describe("billing.handoff.ack", () => {
         claimCount: 1,
         externalReference: "ERP-1",
         status: "ACKNOWLEDGED",
+        leaseId: null,
+        leasedUntil: null,
       },
     });
     const { billing, seen } = billingAnswering(() => json(acknowledged));

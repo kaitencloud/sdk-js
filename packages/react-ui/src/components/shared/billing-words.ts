@@ -30,6 +30,11 @@ export const englishSubscriptionWords: Required<KaitenSubscriptionWords> = {
   canceledNotice: "Your subscription has ended.",
   canceledPlanNotice: (name) => `Your subscription has ended. Your current plan is ${name}.`,
   incompleteNotice: "Your plan starts once your payment is confirmed.",
+  incompleteUntil: (date) =>
+    `Confirm payment by ${formatKaitenDate(date, { timeStyle: "short" })}.`,
+  canceledOn: (date) => `Ended on ${formatKaitenDate(date, { timeStyle: "short" })}.`,
+  trialEndedWithoutPaymentMethod: "Your trial ended without a payment method.",
+  incompleteExpired: "The time to confirm your payment has run out.",
   none: "There's no subscription to show.",
   subscribe: "Subscribe",
 };

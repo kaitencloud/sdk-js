@@ -207,6 +207,8 @@ export const de: KaitenLocalization = {
       "Wir haben Ihre Zahlung noch nicht gesehen. Wir prüfen erneut, wenn Sie zu diesem Fenster zurückkehren.",
     paymentFailed: "Sie sind abonniert, aber Ihre Zahlung ist nicht durchgegangen.",
     startsOncePaid: "Ihr Tarif beginnt, sobald Ihre Zahlung bestätigt ist.",
+    incompleteUntil: (date) =>
+      `Bestätigen Sie Ihre Zahlung bis ${formatKaitenDate(date, { locale: "de-DE", timeStyle: "short" })}.`,
     cardDeclined: "Ihre Zahlung ist nicht durchgegangen.",
     updatePaymentMethod: "Zahlungsmethode aktualisieren",
     paymentMethodUpdated: "Zahlungsmethode aktualisiert.",
@@ -308,6 +310,12 @@ export const de: KaitenLocalization = {
     canceledNotice: "Ihr Abonnement ist beendet.",
     canceledPlanNotice: (name) => `Ihr Abonnement ist beendet. Ihr aktueller Tarif ist ${name}.`,
     incompleteNotice: "Ihr Tarif beginnt, sobald Ihre Zahlung bestätigt ist.",
+    incompleteUntil: (date) =>
+      `Bestätigen Sie Ihre Zahlung bis ${formatKaitenDate(date, { locale: "de-DE", timeStyle: "short" })}.`,
+    canceledOn: (date) =>
+      `Beendet am ${formatKaitenDate(date, { locale: "de-DE", timeStyle: "short" })}.`,
+    trialEndedWithoutPaymentMethod: "Ihre Testphase endete ohne Zahlungsmethode.",
+    incompleteExpired: "Die Frist zur Bestätigung Ihrer Zahlung ist abgelaufen.",
     none: "Es gibt kein Abonnement anzuzeigen.",
     subscribe: "Abonnieren",
   },

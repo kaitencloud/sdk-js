@@ -205,6 +205,8 @@ export const fr: KaitenLocalization = {
       "Nous n'avons pas encore vu votre paiement. Nous vérifierons à nouveau à votre retour dans cette fenêtre.",
     paymentFailed: "Vous êtes abonné, mais votre paiement n'a pas abouti.",
     startsOncePaid: "Votre offre démarre dès que votre paiement est confirmé.",
+    incompleteUntil: (date) =>
+      `Confirmez votre paiement avant le ${formatKaitenDate(date, { locale: "fr-FR", timeStyle: "short" })}.`,
     cardDeclined: "Votre paiement n'a pas abouti.",
     updatePaymentMethod: "Mettre à jour le moyen de paiement",
     paymentMethodUpdated: "Moyen de paiement mis à jour.",
@@ -301,6 +303,12 @@ export const fr: KaitenLocalization = {
     canceledNotice: "Votre abonnement est terminé.",
     canceledPlanNotice: (name) => `Votre abonnement est terminé. Votre offre actuelle est ${name}.`,
     incompleteNotice: "Votre offre démarre dès que votre paiement est confirmé.",
+    incompleteUntil: (date) =>
+      `Confirmez votre paiement avant le ${formatKaitenDate(date, { locale: "fr-FR", timeStyle: "short" })}.`,
+    canceledOn: (date) =>
+      `Terminé le ${formatKaitenDate(date, { locale: "fr-FR", timeStyle: "short" })}.`,
+    trialEndedWithoutPaymentMethod: "Votre essai a pris fin sans moyen de paiement.",
+    incompleteExpired: "Le délai pour confirmer votre paiement est écoulé.",
     none: "Aucun abonnement à afficher.",
     subscribe: "Souscrire",
   },

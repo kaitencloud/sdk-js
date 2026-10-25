@@ -24,7 +24,8 @@
           "unitAmountDecimal": "0",
           "displayLabel": "Monthly",
           "displayOrder": 0,
-          "isDefault": true
+          "isDefault": true,
+          "metered": null
         }
       ],
       "compatibleAddonFamilies": [],
@@ -38,7 +39,12 @@
           "limitCapExceededOveragePercent": 0,
           "unitSingular": "seat",
           "unitPlural": "seats",
-          "displayOrder": 0
+          "displayOrder": 0,
+          "description": null,
+          "icon": null,
+          "saleUnitSingular": null,
+          "saleUnitPlural": null,
+          "saleUnitFactor": null
         }
       ]
     },
@@ -66,7 +72,8 @@
           "unitAmountDecimal": "4900",
           "displayLabel": "Monthly",
           "displayOrder": 0,
-          "isDefault": true
+          "isDefault": true,
+          "metered": null
         },
         {
           "id": "00000000-0000-4000-8000-000000000202",
@@ -78,7 +85,8 @@
           "unitAmountDecimal": "13500",
           "displayLabel": "Quarterly",
           "displayOrder": 1,
-          "isDefault": true
+          "isDefault": true,
+          "metered": null
         },
         {
           "id": "00000000-0000-4000-8000-000000000203",
@@ -90,7 +98,8 @@
           "unitAmountDecimal": "26000",
           "displayLabel": "Semi-annual",
           "displayOrder": 2,
-          "isDefault": true
+          "isDefault": true,
+          "metered": null
         },
         {
           "id": "00000000-0000-4000-8000-000000000204",
@@ -102,7 +111,8 @@
           "unitAmountDecimal": "49000",
           "displayLabel": "Annual",
           "displayOrder": 3,
-          "isDefault": true
+          "isDefault": true,
+          "metered": null
         },
         {
           "id": "00000000-0000-4000-8000-000000000205",
@@ -114,7 +124,8 @@
           "unitAmountDecimal": "4500",
           "displayLabel": "Monthly (legacy)",
           "displayOrder": 4,
-          "isDefault": false
+          "isDefault": false,
+          "metered": null
         },
         {
           "id": "00000000-0000-4000-8000-000000000206",
@@ -130,7 +141,9 @@
             "saleUnitPlural": "1M tokens"
           },
           "displayOrder": 5,
-          "isDefault": false
+          "isDefault": false,
+          "billingPeriod": null,
+          "displayLabel": null
         },
         {
           "id": "00000000-0000-4000-8000-000000000207",
@@ -140,10 +153,15 @@
           "unitAmountDecimal": "0.0002",
           "metered": {
             "entitlementSlug": "api-calls",
-            "saleUnitFactor": "1"
+            "saleUnitFactor": "1",
+            "saleUnitSingular": null,
+            "saleUnitPlural": null
           },
           "displayOrder": 6,
-          "isDefault": false
+          "isDefault": false,
+          "billingPeriod": null,
+          "unitAmount": null,
+          "displayLabel": null
         }
       ],
       "compatibleAddonFamilies": ["extra-seats", "gpu-pack"],
@@ -158,7 +176,11 @@
           "icon": "lucide:zap",
           "unitSingular": "call",
           "unitPlural": "calls",
-          "displayOrder": 0
+          "displayOrder": 0,
+          "description": null,
+          "saleUnitSingular": null,
+          "saleUnitPlural": null,
+          "saleUnitFactor": null
         },
         {
           "slug": "tokens",
@@ -173,7 +195,8 @@
           "saleUnitSingular": "1M tokens",
           "saleUnitPlural": "1M tokens",
           "saleUnitFactor": "1000000",
-          "displayOrder": 1
+          "displayOrder": 1,
+          "description": null
         },
         {
           "slug": "seats",
@@ -185,7 +208,11 @@
           "icon": "lucide:users",
           "unitSingular": "seat",
           "unitPlural": "seats",
-          "displayOrder": 2
+          "displayOrder": 2,
+          "description": null,
+          "saleUnitSingular": null,
+          "saleUnitPlural": null,
+          "saleUnitFactor": null
         },
         {
           "slug": "sso",
@@ -194,7 +221,14 @@
           "value": true,
           "unlimited": false,
           "icon": "lucide:key",
-          "displayOrder": 3
+          "displayOrder": 3,
+          "description": null,
+          "limitCapExceededOveragePercent": null,
+          "unitSingular": null,
+          "unitPlural": null,
+          "saleUnitSingular": null,
+          "saleUnitPlural": null,
+          "saleUnitFactor": null
         }
       ]
     },
@@ -222,7 +256,8 @@
           "unitAmountDecimal": "9900",
           "displayLabel": "Monthly",
           "displayOrder": 0,
-          "isDefault": true
+          "isDefault": true,
+          "metered": null
         }
       ],
       "compatibleAddonFamilies": ["extra-seats"],
@@ -252,7 +287,8 @@
           "unitAmountDecimal": "1900",
           "displayLabel": "Monthly",
           "displayOrder": 0,
-          "isDefault": true
+          "isDefault": true,
+          "metered": null
         }
       ],
       "compatibleAddonFamilies": [],
@@ -283,7 +319,12 @@
           "limitCapExceededOveragePercent": -1,
           "unitSingular": "seat",
           "unitPlural": "seats",
-          "displayOrder": 0
+          "displayOrder": 0,
+          "description": null,
+          "icon": null,
+          "saleUnitSingular": null,
+          "saleUnitPlural": null,
+          "saleUnitFactor": null
         }
       ]
     },
@@ -311,7 +352,8 @@
           "unitAmountDecimal": "900",
           "displayLabel": "Monthly",
           "displayOrder": 0,
-          "isDefault": false
+          "isDefault": false,
+          "metered": null
         }
       ],
       "compatibleAddonFamilies": [],
@@ -341,7 +383,8 @@
           "unitAmountDecimal": "980",
           "displayLabel": "Monthly",
           "displayOrder": 0,
-          "isDefault": true
+          "isDefault": true,
+          "metered": null
         }
       ],
       "compatibleAddonFamilies": ["jp-pack"],
@@ -371,7 +414,8 @@
           "unitAmountDecimal": "12500",
           "displayLabel": "Monthly",
           "displayOrder": 0,
-          "isDefault": true
+          "isDefault": true,
+          "metered": null
         }
       ],
       "compatibleAddonFamilies": [],
@@ -398,7 +442,8 @@
           "unitAmountDecimal": "1000",
           "displayLabel": "Monthly",
           "displayOrder": 0,
-          "isDefault": true
+          "isDefault": true,
+          "metered": null
         },
         {
           "id": "00000000-0000-4000-8000-00000000a102",
@@ -410,7 +455,8 @@
           "unitAmountDecimal": "10000",
           "displayLabel": "Annual",
           "displayOrder": 1,
-          "isDefault": true
+          "isDefault": true,
+          "metered": null
         }
       ],
       "entitlements": [
@@ -419,7 +465,8 @@
           "name": "Seats",
           "type": "NUMBER",
           "value": 1,
-          "overrideBehavior": "ADD"
+          "overrideBehavior": "ADD",
+          "limitCapExceededOveragePercent": null
         }
       ],
       "compatibleLicenseFamilies": ["growth", "pro"]
@@ -443,7 +490,8 @@
           "unitAmountDecimal": "3000",
           "displayLabel": "Monthly",
           "displayOrder": 0,
-          "isDefault": true
+          "isDefault": true,
+          "metered": null
         }
       ],
       "entitlements": [],
@@ -468,7 +516,8 @@
           "unitAmountDecimal": "500",
           "displayLabel": "Monthly",
           "displayOrder": 0,
-          "isDefault": true
+          "isDefault": true,
+          "metered": null
         }
       ],
       "entitlements": [],

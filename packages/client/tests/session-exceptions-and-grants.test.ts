@@ -171,19 +171,18 @@ describe("all the parts of a voucher check", () => {
   });
 });
 
-test("INCOMPLETE is passed through without a pending selection or deadline the contract does not serve", async () => {
+test("INCOMPLETE keeps the lifecycle members the contract serves, but invents no pending selection", async () => {
   const body = answer("portal");
   body.subscription!.status = "INCOMPLETE";
   const portal = await read(body);
   expect(portal.subscription?.status).toBe("INCOMPLETE");
   expect(portal.instance).toEqual(body.instance);
-  for (const member of [
-    "incompleteExpiresAt",
-    "pendingLicenseSlug",
-    "pendingSelection",
-    "canceledAt",
-    "cancellationReason",
-  ]) {
+  expect(portal.subscription).toMatchObject({
+    incompleteExpiresAt: null,
+    canceledAt: null,
+    cancellationReason: null,
+  });
+  for (const member of ["pendingLicenseSlug", "pendingSelection"]) {
     expect(portal.subscription).not.toHaveProperty(member);
   }
   const double = createMockKaitenSessionClient({ portal });

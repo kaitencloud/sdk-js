@@ -1804,6 +1804,7 @@ export type {
   UpsertInstanceIntegrationByExternalIdErrors,
   UpsertInstanceIntegrationByExternalIdResponse,
   UpsertInstanceIntegrationByExternalIdResponses,
+  UsageLedger,
   UsageReport,
   UsageReportPage,
   User,

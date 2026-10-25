@@ -146,9 +146,9 @@ export type Addon = {
    */
   lifecycleState: "DRAFT" | "PUBLISHED" | "ARCHIVED";
   /**
-   * The largest quantity an instance can hold; unbounded when absent
+   * The largest quantity an instance can hold; unbounded when null
    */
-  maxQuantity?: number;
+  maxQuantity: number | null;
   name: string;
   pricingType: "FREE" | "PAID" | "CUSTOM";
   /**
@@ -205,9 +205,9 @@ export type AddonDelivered = {
    */
   lifecycleState: "DRAFT" | "PUBLISHED" | "ARCHIVED";
   /**
-   * The largest quantity an instance can hold; unbounded when absent
+   * The largest quantity an instance can hold; unbounded when null
    */
-  maxQuantity?: number;
+  maxQuantity: number | null;
   name: string;
   pricingType: "FREE" | "PAID" | "CUSTOM";
   /**
@@ -231,9 +231,9 @@ export type AddonEntitlement = {
   entitlementType: "BOOLEAN" | "NUMBER" | "CONFIG" | "NUMBER_AI_CREDIT";
   readonly id: string;
   /**
-   * The overage the add-on allows; absent inherits the licence grant's
+   * The overage the add-on allows; null inherits the licence grant's
    */
-  limitCapExceededOveragePercent?: number;
+  limitCapExceededOveragePercent: number | null;
   /**
    * How a number grant combines with the licence's: ADD sums value × quantity, OVERRIDE replaces it with the latest attached add-on's, MAX keeps the larger. A boolean always ORs, a config always overrides.
    */
@@ -248,9 +248,9 @@ export type AddonEntitlement = {
 
 export type AddonFamily = {
   /**
-   * The default version, else the highest PUBLISHED one; absent when none is published
+   * The default version, else the highest PUBLISHED one; null when none is published
    */
-  currentVersion?: Addon;
+  currentVersion: Addon | null;
   readonly id: string;
   /**
    * How a mid-period increase or attachment of the family's ADVANCE add-ons is billed (V31-70)
@@ -316,9 +316,9 @@ export type AddonGrantUpdateDelivered = {
   entitlementType: "BOOLEAN" | "NUMBER" | "CONFIG" | "NUMBER_AI_CREDIT";
   readonly id: string;
   /**
-   * The overage the add-on allows; absent inherits the licence grant's
+   * The overage the add-on allows; null inherits the licence grant's
    */
-  limitCapExceededOveragePercent?: number;
+  limitCapExceededOveragePercent: number | null;
   /**
    * How a number grant combines with the licence's: ADD sums value × quantity, OVERRIDE replaces it with the latest attached add-on's, MAX keeps the larger. A boolean always ORs, a config always overrides.
    */
@@ -449,9 +449,9 @@ export type AddonUpdateDelivered = {
    */
   lifecycleState: "DRAFT" | "PUBLISHED" | "ARCHIVED";
   /**
-   * The largest quantity an instance can hold; unbounded when absent
+   * The largest quantity an instance can hold; unbounded when null
    */
-  maxQuantity?: number;
+  maxQuantity: number | null;
   name: string;
   pricingType: "FREE" | "PAID" | "CUSTOM";
   /**
@@ -564,6 +564,10 @@ export type BillingCapabilities = {
    */
   usageHistoryRetentionMonths: number | null;
   /**
+   * Where the retention comes from: KBK, the organization's licence or an add-on; ENV, the deployment's KAITEN_USAGE_LEDGER_RETENTION_MONTHS; UNKNOWN, the licensing authority could not tell. A null usageHistoryRetentionMonths reads as kept forever with KBK or ENV, and as unknown with UNKNOWN (V31-11).
+   */
+  usageHistoryRetentionSource: "KBK" | "ENV" | "UNKNOWN";
+  /**
    * How long a usage report's transactionId is remembered, in days
    */
   usageIdempotencyWindowDays: number;
@@ -584,13 +588,17 @@ export type BillingFeatures = {
 
 export type BillingHealth = {
   /**
-   * Subscriptions whose period ended and has not closed yet
+   * Subscriptions whose period ended more than KAITEN_BILLING_CLOSE_GRACE ago and has not closed yet
    */
   closeBacklog: CloseBacklog;
   handoff: HandoffBacklog;
   heldInvoices: HeldInvoices;
   overdueInvoices: number;
   pastDueSubscriptions: number;
+  /**
+   * ACTIVE payment methods whose card expires in the next 30 days
+   */
+  paymentMethodsExpiring30d: number;
   providerSync: Array<ProviderSync>;
   /**
    * Invoices whose push failed at least as many times as the alert threshold
@@ -600,6 +608,7 @@ export type BillingHealth = {
    * Invoices whose provider's amounts differed from Kaiten's, in the last 30 days
    */
   reconciliationMismatches30d: number;
+  usageLedger: UsageLedger;
 };
 
 export type BillingProvider = {
@@ -614,13 +623,13 @@ export type BillingProvider = {
   connected: boolean;
   kind: "NOOP" | "STRIPE";
   /**
-   * Whether the connection reaches the provider's live account rather than a test one; absent when not connected, and for NOOP
+   * Whether the connection reaches the provider's live account rather than a test one; null when not connected, and for NOOP
    */
-  livemode?: boolean;
+  livemode: boolean | null;
   /**
-   * Why it is not available; absent when it is
+   * Why it is not available; null when it is, and when the licensing authority cannot answer
    */
-  unavailableReason?: "NOT_ENTITLED" | "VAULT_NOT_CONFIGURED";
+  unavailableReason: "NOT_ENTITLED" | "VAULT_NOT_CONFIGURED" | null;
 };
 
 export type BillingSettings = {
@@ -1203,7 +1212,7 @@ export type CheckoutSessionStart = {
 
 export type CloseBacklog = {
   count: number;
-  oldestDueAt?: string;
+  oldestDueAt: string | null;
 };
 
 export type ClosePeriodsReport = {
@@ -1515,9 +1524,9 @@ export type CreatedCustomerSession = {
 
 export type Customer = {
   /**
-   * Where invoices sent to this customer are delivered, at most 254 characters (CreateCustomer.InvalidBillingEmail). Absent when there is none. On update, omit it to keep the stored value, or send an empty string to remove it. Personal data: never included in event payloads.
+   * Where invoices sent to this customer are delivered, at most 254 characters (CreateCustomer.InvalidBillingEmail). Absent when there is none. On update, omit it or send null to keep the stored value, or send an empty string to remove it. Personal data: never included in event payloads.
    */
-  billingEmail?: string;
+  billingEmail?: string | null;
   /**
    * Timestamp when the customer was created
    */
@@ -2723,11 +2732,11 @@ export type Grant = {
    */
   modifierType: "SET" | "ADD" | "MULTIPLY" | "UNLIMITED";
   /**
-   * A NUMBER grant's decimal: >= 0 for SET, > 0 for ADD and MULTIPLY, absent for UNLIMITED; absent on a BOOLEAN or CONFIG grant
+   * A NUMBER grant's decimal: >= 0 for SET, > 0 for ADD and MULTIPLY, null for UNLIMITED; null on a BOOLEAN or CONFIG grant. Optional on write.
    */
-  modifierValue?: string;
+  modifierValue?: string | null;
   /**
-   * What a BOOLEAN or CONFIG SET grant sets: true or false, or the CONFIG document as an object; absent on a NUMBER grant
+   * What a BOOLEAN or CONFIG SET grant sets: true or false, or the CONFIG document as an object; null on a NUMBER grant. Optional on write.
    */
   value?:
     | boolean
@@ -2759,8 +2768,12 @@ export type HandoffAcknowledgementDelivered = {
 };
 
 export type HandoffBacklog = {
-  oldestPendingIssuedAt?: string;
+  oldestPendingIssuedAt: string | null;
   pending: number;
+  /**
+   * PENDING invoices claimed again after a lease expired, whose latest lease runs or ended in the last 24 hours: a consumer that claims and does not acknowledge
+   */
+  reclaimedLast24h: number;
 };
 
 export type HandoffBooking = {
@@ -2932,13 +2945,13 @@ export type HoldDetail = {
 };
 
 export type HoldRecord = {
-  heldAt?: string;
-  releaseReason?: string;
-  releasedAt?: string;
+  heldAt: string | null;
+  releaseReason: string | null;
+  releasedAt: string | null;
   /**
-   * The user who released it; absent when it was released by a later check
+   * The user who released it; null when it was released by a later check
    */
-  releasedBy?: string;
+  releasedBy: string | null;
 };
 
 export type HoldRelease = {
@@ -3063,7 +3076,7 @@ export type InstanceAddon = {
   attachedAt: string;
   familySlug: string;
   readonly id: string;
-  maxQuantity?: number;
+  maxQuantity: number | null;
   /**
    * The add-on version's name
    */
@@ -3077,7 +3090,7 @@ export type InstanceAddon = {
    */
   prices: Array<Price>;
   quantity: number;
-  removedAt?: string;
+  removedAt: string | null;
 };
 
 export type InstanceAddonUpdateDelivered = {
@@ -3095,7 +3108,7 @@ export type InstanceAddonUpdateDelivered = {
   familySlug: string;
   readonly id: string;
   instanceSlug: string;
-  maxQuantity?: number;
+  maxQuantity: number | null;
   /**
    * The add-on version's name
    */
@@ -3113,7 +3126,7 @@ export type InstanceAddonUpdateDelivered = {
    */
   prices: Array<Price>;
   quantity: number;
-  removedAt?: string;
+  removedAt: string | null;
   /**
    * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
    */
@@ -3863,17 +3876,17 @@ export type Invoice = {
 };
 
 export type InvoiceHandoff = {
-  acknowledgedAt?: string;
+  acknowledgedAt: string | null;
   claimCount: number;
   /**
    * The invoice's number in the organization's accounting system
    */
-  externalReference?: string;
+  externalReference: string | null;
   /**
    * The claim currently holding it
    */
-  leaseId?: string;
-  leasedUntil?: string;
+  leaseId: string | null;
+  leasedUntil: string | null;
   status: "NOT_REQUIRED" | "PENDING" | "ACKNOWLEDGED";
 };
 
@@ -4440,25 +4453,25 @@ export type License = {
    */
   name: string;
   /**
-   * How this version is sold. FREE and PAID can be bought self-serve; CUSTOM sends a buyer to selfServeCtaUrl or a conversation. Always present in responses. On create it defaults to CUSTOM; on update, omit it to keep the stored value.
+   * How this version is sold. FREE and PAID can be bought self-serve; CUSTOM sends a buyer to selfServeCtaUrl or a conversation. Always present in responses. On create it defaults to CUSTOM; on update, omit it or send null to keep the stored value.
    */
   pricingType?: "FREE" | "PAID" | "CUSTOM";
   /**
-   * Whether self-serve signup captures a payment method before activation. Always present in responses; false when omitted on create. On update, omit it to keep the stored value.
+   * Whether self-serve signup captures a payment method before activation. Always present in responses; false when omitted on create. On update, omit it or send null to keep the stored value.
    */
-  requiresPaymentMethod?: boolean;
+  requiresPaymentMethod?: boolean | null;
   /**
-   * Where a buyer is sent when this version cannot be bought self-serve: an http(s) URL of at most 2048 characters (CreateLicense.InvalidSelfServeCtaUrl). Absent when there is none. On update, omit it to keep the stored value, or send an empty string to remove it.
+   * Where a buyer is sent when this version cannot be bought self-serve: an http(s) URL of at most 2048 characters (CreateLicense.InvalidSelfServeCtaUrl). Null when there is none. On update, omit it or send null to keep the stored value, or send an empty string to remove it.
    */
-  selfServeCtaUrl?: string;
+  selfServeCtaUrl?: string | null;
   /**
    * Optional URL-friendly identifier, unique per organization. When omitted, a new version of an existing family takes {familySlug}-v{version}, and any other license gets one generated from its name. A license that opens a new family gives the family its slug.
    */
   slug?: string;
   /**
-   * Trial length, in days, a subscription to this version starts with by default. Absent when there is none. From 1 to 365 (CreateLicense.InvalidTrialDays, UpdateLicense.InvalidTrialDays). On update, omit it to keep the stored value, or send 0 to remove the trial.
+   * Trial length, in days, a subscription to this version starts with by default. Null when there is none. From 1 to 365 (CreateLicense.InvalidTrialDays, UpdateLicense.InvalidTrialDays). On update, omit it or send null to keep the stored value, or send 0 to remove the trial.
    */
-  trialPeriodDays?: number;
+  trialPeriodDays?: number | null;
   /**
    * Type of the license determining its capabilities and restrictions
    */
@@ -4515,25 +4528,25 @@ export type LicenseDelivered = {
    */
   name: string;
   /**
-   * How this version is sold. FREE and PAID can be bought self-serve; CUSTOM sends a buyer to selfServeCtaUrl or a conversation. Always present in responses. On create it defaults to CUSTOM; on update, omit it to keep the stored value.
+   * How this version is sold. FREE and PAID can be bought self-serve; CUSTOM sends a buyer to selfServeCtaUrl or a conversation. Always present in responses. On create it defaults to CUSTOM; on update, omit it or send null to keep the stored value.
    */
   pricingType?: "FREE" | "PAID" | "CUSTOM";
   /**
-   * Whether self-serve signup captures a payment method before activation. Always present in responses; false when omitted on create. On update, omit it to keep the stored value.
+   * Whether self-serve signup captures a payment method before activation. Always present in responses; false when omitted on create. On update, omit it or send null to keep the stored value.
    */
-  requiresPaymentMethod?: boolean;
+  requiresPaymentMethod?: boolean | null;
   /**
-   * Where a buyer is sent when this version cannot be bought self-serve: an http(s) URL of at most 2048 characters (CreateLicense.InvalidSelfServeCtaUrl). Absent when there is none. On update, omit it to keep the stored value, or send an empty string to remove it.
+   * Where a buyer is sent when this version cannot be bought self-serve: an http(s) URL of at most 2048 characters (CreateLicense.InvalidSelfServeCtaUrl). Null when there is none. On update, omit it or send null to keep the stored value, or send an empty string to remove it.
    */
-  selfServeCtaUrl?: string;
+  selfServeCtaUrl?: string | null;
   /**
    * Optional URL-friendly identifier, unique per organization. When omitted, a new version of an existing family takes {familySlug}-v{version}, and any other license gets one generated from its name. A license that opens a new family gives the family its slug.
    */
   slug?: string;
   /**
-   * Trial length, in days, a subscription to this version starts with by default. Absent when there is none. From 1 to 365 (CreateLicense.InvalidTrialDays, UpdateLicense.InvalidTrialDays). On update, omit it to keep the stored value, or send 0 to remove the trial.
+   * Trial length, in days, a subscription to this version starts with by default. Null when there is none. From 1 to 365 (CreateLicense.InvalidTrialDays, UpdateLicense.InvalidTrialDays). On update, omit it or send null to keep the stored value, or send 0 to remove the trial.
    */
-  trialPeriodDays?: number;
+  trialPeriodDays?: number | null;
   /**
    * Type of the license determining its capabilities and restrictions
    */
@@ -4692,19 +4705,19 @@ export type LicenseFamilyUpdate = {
   /**
    * Another FREE family of the organization (every version of it priced FREE), whose default PUBLISHED version an instance moves to when its subscription ends. "" removes the fallback. Anything else answers 422 .InvalidFallback, an unknown family included.
    */
-  fallbackLicenseFamilySlug?: string;
+  fallbackLicenseFamilySlug?: string | null;
   /**
    * List the family's default PUBLISHED version, with its ACTIVE prices, in the public catalogue
    */
-  isPublic?: boolean;
+  isPublic?: boolean | null;
   /**
    * CANCEL or CONVERT: what a trial charged automatically with a total above 0 becomes at its end when the customer has no ACTIVE payment method. CANCEL cancels it; CONVERT makes it ACTIVE, whose first charge then fails. Any other value answers 422 .InvalidTrialEndBehavior.
    */
-  trialEndWithoutPaymentMethod?: string;
+  trialEndWithoutPaymentMethod?: string | null;
   /**
    * How many days before a trial's end trial_will_end fires: an integer from 1 to 30 (else 422 .InvalidTrialReminderDays), for the trials started after the change
    */
-  trialReminderDays?: number;
+  trialReminderDays?: number | null;
 };
 
 export type LicenseFamilyView = {
@@ -6211,11 +6224,11 @@ export type PaymentMethodExpiringDelivered = {
 };
 
 export type PaymentMethodLabels = {
-  attachedAt?: string;
-  brand?: string;
-  expMonth?: number;
-  expYear?: number;
-  last4?: string;
+  attachedAt: string | null;
+  brand: string | null;
+  expMonth: number | null;
+  expYear: number | null;
+  last4: string | null;
   /**
    * ACTIVE: charged automatically. EXPIRED, FAILED: a charge said it is no longer usable; save another one
    */
@@ -6564,8 +6577,14 @@ export type PriceMeter = {
    * Measured units in one sale unit, captured when the price was created (1 when the entitlement has no sale unit): 10000 bills per 10,000 tokens.
    */
   saleUnitFactor: string;
-  saleUnitPlural?: string;
-  saleUnitSingular?: string;
+  /**
+   * The sale unit's plural label; null when the entitlement has none
+   */
+  saleUnitPlural: string | null;
+  /**
+   * The sale unit's singular label; null when the entitlement has none
+   */
+  saleUnitSingular: string | null;
 };
 
 export type Problem = {
@@ -6762,59 +6781,62 @@ export type ProviderLineLimit = {
 };
 
 export type ProviderRecord = {
-  externalCustomerId?: string;
-  externalInvoiceId?: string;
-  hostedInvoiceUrl?: string;
+  externalCustomerId: string | null;
+  externalInvoiceId: string | null;
+  hostedInvoiceUrl: string | null;
   /**
    * The provider's invoice number
    */
-  invoiceNumber?: string;
-  invoicePdfUrl?: string;
+  invoiceNumber: string | null;
+  invoicePdfUrl: string | null;
   /**
    * Why the last automatic charge failed, as the provider coded it: authentication_required (the customer must confirm the payment on the hosted invoice page), card_declined, expired_card, no_payment_method...
    */
-  lastPaymentError?: string;
+  lastPaymentError: string | null;
   /**
    * The provider's code and message of the last failed push step
    */
-  lastPushError?: string;
+  lastPushError: string | null;
   /**
-   * When the push queue tries it next; absent when it waits for a human (finalization in the provider) or is pushed
+   * When the push queue tries it next; null when it waits for a human (finalization in the provider) or is pushed
    */
-  nextPushAt?: string;
+  nextPushAt: string | null;
   pushAttempts: number;
-  pushedAt?: string;
-  reconciledAt?: string;
+  pushedAt: string | null;
+  reconciledAt: string | null;
   /**
    * What differs, on a MISMATCH
    */
-  reconciliationDetail?: Reconciliation;
-  reconciliationStatus?: "MATCHED" | "MISMATCH";
+  reconciliationDetail: Reconciliation | null;
+  reconciliationStatus: "MATCHED" | "MISMATCH" | null;
   /**
    * The provider's status, mirrored verbatim
    */
-  status?: "draft" | "open" | "paid" | "uncollectible" | "void";
-  syncedAt?: string;
+  status: "draft" | "open" | "paid" | "uncollectible" | "void" | null;
+  syncedAt: string | null;
   /**
    * The provider's total excluding tax, read back
    */
-  totalExcludingTax?: number;
+  totalExcludingTax: number | null;
 };
 
 export type ProviderSync = {
   consecutiveFailures: number;
   /**
-   * Seconds since the last pass
+   * Seconds since the last pass; null before the first
    */
-  lagSeconds?: number;
-  lastFullSweepAt?: string;
+  lagSeconds: number | null;
+  lastFullSweepAt: string | null;
   /**
-   * The last pass that ended SUCCESS; absent before the first (V31-11)
+   * The end of the last pass that ended SUCCESS; null before the first (V31-11)
    */
-  lastSuccessfulSyncAt?: string;
-  lastSyncError?: string;
-  lastSyncStatus?: "SUCCESS" | "PARTIAL" | "FAILED";
-  lastSyncedAt?: string;
+  lastSuccessfulSyncAt: string | null;
+  lastSyncError: string | null;
+  lastSyncStatus: "SUCCESS" | "PARTIAL" | "FAILED" | null;
+  /**
+   * The end of the last pass, whatever its status; null before the first
+   */
+  lastSyncedAt: string | null;
   providerKind: "NOOP" | "STRIPE";
 };
 
@@ -6841,14 +6863,14 @@ export type PublicAddOn = {
 };
 
 export type PublicAddOnEntitlement = {
-  limitCapExceededOveragePercent?: number;
+  limitCapExceededOveragePercent: number | null;
   name: string;
   /**
    * How the grant combines with the plan's: added to it, replacing it, or the larger of the two
    */
   overrideBehavior: "ADD" | "OVERRIDE" | "MAX";
   slug: string;
-  type: "BOOLEAN" | "NUMBER" | "CONFIG";
+  type: "BOOLEAN" | "NUMBER" | "NUMBER_AI_CREDIT" | "CONFIG";
   value: unknown;
 };
 
@@ -6897,8 +6919,14 @@ export type PublicMeter = {
    * Measured units in one sale unit
    */
   saleUnitFactor: string;
-  saleUnitPlural?: string;
-  saleUnitSingular?: string;
+  /**
+   * The sale unit's plural label; null when the entitlement has none
+   */
+  saleUnitPlural: string | null;
+  /**
+   * The sale unit's singular label; null when the entitlement has none
+   */
+  saleUnitSingular: string | null;
 };
 
 export type PublicPlan = {
@@ -6953,21 +6981,21 @@ export type PublicPlan = {
 };
 
 export type PublicPlanEntitlement = {
-  description?: string;
+  description: string | null;
   displayOrder: number;
-  icon?: string;
+  icon: string | null;
   /**
-   * How far usage may exceed a NUMBER grant before it is refused: 0 is a hard limit, -1 is unlimited; absent for other types
+   * How far usage may exceed a NUMBER grant before it is refused: 0 is a hard limit, -1 is unlimited; null for other types
    */
-  limitCapExceededOveragePercent?: number;
+  limitCapExceededOveragePercent: number | null;
   name: string;
-  saleUnitFactor?: string;
-  saleUnitPlural?: string;
-  saleUnitSingular?: string;
+  saleUnitFactor: string | null;
+  saleUnitPlural: string | null;
+  saleUnitSingular: string | null;
   slug: string;
-  type: "BOOLEAN" | "NUMBER" | "CONFIG";
-  unitPlural?: string;
-  unitSingular?: string;
+  type: "BOOLEAN" | "NUMBER" | "NUMBER_AI_CREDIT" | "CONFIG";
+  unitPlural: string | null;
+  unitSingular: string | null;
   /**
    * A NUMBER grant with no limit
    */
@@ -6984,12 +7012,15 @@ export type PublicPrice = {
    */
   billingModel: "FLAT_FEE" | "USAGE_BASED" | "OVERAGE";
   /**
-   * The period a FLAT_FEE price is charged for; absent on metered prices
+   * The period a FLAT_FEE price is charged for; null on metered prices
    */
-  billingPeriod?: "MONTHLY" | "QUARTERLY" | "SEMI_ANNUAL" | "ANNUAL";
+  billingPeriod: "MONTHLY" | "QUARTERLY" | "SEMI_ANNUAL" | "ANNUAL" | null;
   billingTiming: "ADVANCE" | "ARREARS";
   currency: string;
-  displayLabel?: string;
+  /**
+   * The price's label; null when it has none
+   */
+  displayLabel: string | null;
   displayOrder: number;
   id: string;
   /**
@@ -6997,13 +7028,13 @@ export type PublicPrice = {
    */
   isDefault: boolean;
   /**
-   * What a metered price measures; absent on FLAT_FEE prices
+   * What a metered price measures; null on FLAT_FEE prices
    */
-  metered?: PublicMeter;
+  metered: PublicMeter | null;
   /**
-   * The amount in minor units, when it is a whole number of them; absent otherwise (render unitAmountDecimal)
+   * The amount in minor units, when it is a whole number of them; null otherwise (render unitAmountDecimal)
    */
-  unitAmount?: number;
+  unitAmount: number | null;
   /**
    * The amount in minor units, up to 12 decimal places
    */
@@ -7280,7 +7311,7 @@ export type PushFailedInvoiceDelivered = {
 
 export type PushFailures = {
   count: number;
-  oldestFailedAt?: string;
+  oldestFailedAt: string | null;
 };
 
 export type PushedInvoiceDelivered = {
@@ -7491,7 +7522,7 @@ export type Reconciliation = {
   /**
    * A SEND_INVOICE invoice the provider gives another due date than Kaiten's dueAt
    */
-  dueDate?: DueDateDifference;
+  dueDate: DueDateDifference | null;
   /**
    * Discounts the provider applied that Kaiten did not create, such as a coupon added in its dashboard
    */
@@ -8324,6 +8355,14 @@ export type SessionSubscription = {
    * The subscription ends at currentPeriodEnd; reactivate it before then to keep it
    */
   cancelAtPeriodEnd: boolean;
+  /**
+   * When the subscription was canceled
+   */
+  canceledAt: string | null;
+  /**
+   * Why the system ended it; null when it did not, a vendor's own reason is never shown
+   */
+  cancellationReason: "TRIAL_ENDED_WITHOUT_PAYMENT_METHOD" | "INCOMPLETE_EXPIRED" | null;
   collectionMethod: "SEND_INVOICE" | "CHARGE_AUTOMATICALLY";
   currency: string;
   /**
@@ -8331,6 +8370,10 @@ export type SessionSubscription = {
    */
   currentPeriodEnd: string;
   currentPeriodStart: string;
+  /**
+   * INCOMPLETE only: when the checkout ends unpaid
+   */
+  incompleteExpiresAt: string | null;
   providerKind: "NOOP" | "STRIPE";
   /**
    * A plan change the vendor scheduled for the next boundary
@@ -8984,6 +9027,17 @@ export type UncollectibleInvoiceDelivered = {
   via?: "customer_session" | "checkout_session";
 };
 
+export type UsageLedger = {
+  /**
+   * How long usage reports are kept, in months; null when they are kept forever (ENV) or the retention is unknown (UNKNOWN)
+   */
+  retentionMonths: number | null;
+  /**
+   * KBK: the organization's licence or an add-on; ENV: KAITEN_USAGE_LEDGER_RETENTION_MONTHS, with no licensing authority; UNKNOWN: the licensing authority could not tell
+   */
+  retentionSource: "KBK" | "ENV" | "UNKNOWN";
+};
+
 export type UsageReport = {
   /**
    * The entitlement's aggregation method when the report was accepted
@@ -9016,7 +9070,7 @@ export type UsageReport = {
   /**
    * The limit in force when the report was accepted. Null when unlimited.
    */
-  limitValue?: string;
+  limitValue: string | null;
   /**
    * How much the usage above limitValue moved: max(0, valueAfter - limitValue) - max(0, valueBefore - limitValue). 0 when unlimited.
    */
@@ -9024,13 +9078,13 @@ export type UsageReport = {
   /**
    * The overage allowed above limitValue, in percent, when the report was accepted. Null when unlimited.
    */
-  overagePercent?: number;
+  overagePercent: number | null;
   /**
-   * The report's metadata, when it was stored
+   * The report's metadata; null when none was stored
    */
-  properties?: {
+  properties: {
     [key: string]: unknown;
-  };
+  } | null;
   /**
    * Position of the report among the pair's accepted reports, from 1, without gaps
    */
@@ -9044,9 +9098,9 @@ export type UsageReport = {
    */
   reportedValue: string;
   /**
-   * The report's idempotency key, when it was sent with one
+   * The report's idempotency key; null when it was sent without one
    */
-  transactionId?: string;
+  transactionId: string | null;
   /**
    * The counter after the report
    */
@@ -9058,11 +9112,11 @@ export type UsageReport = {
   /**
    * End of the usage window the report counted in (exclusive). Null for a lifetime entitlement.
    */
-  windowEnd?: string;
+  windowEnd: string | null;
   /**
    * Start of the usage window the report counted in (inclusive). Null for a lifetime entitlement.
    */
-  windowStart?: string;
+  windowStart: string | null;
 };
 
 export type UsageReportPage = {
@@ -9263,14 +9317,14 @@ export type Voucher = {
   /**
    * The currency of a FIXED_AMOUNT discount
    */
-  currency?: string;
-  description?: string;
+  currency: string | null;
+  description: string | null;
   /**
    * PRICE: how many invoices it discounts (one, durationInPeriods, or every one). BOOST and FLAG_GRANT: how long a redemption lasts, in the subscription's billing periods. COMPOSITE: both, each for its part.
    */
   duration: "ONE_TIME" | "REPEATING" | "FOREVER";
-  durationInPeriods?: number;
-  expiresAt?: string;
+  durationInPeriods: number | null;
+  expiresAt: string | null;
   /**
    * The flag variants a FLAG_GRANT grants
    */
@@ -9280,21 +9334,21 @@ export type Voucher = {
    */
   grants: Array<Grant>;
   readonly id: string;
-  maxRedemptions?: number;
+  maxRedemptions: number | null;
   name: string;
-  priceAppliesTo?: "LICENSE_BASE" | "ADDONS" | "BOTH" | "SELECTED_PRICES";
-  priceDiscountType?: "PERCENTAGE" | "FIXED_AMOUNT";
+  priceAppliesTo: "LICENSE_BASE" | "ADDONS" | "BOTH" | "SELECTED_PRICES" | null;
+  priceDiscountType: "PERCENTAGE" | "FIXED_AMOUNT" | null;
   /**
    * A percentage in (0, 100], or an integer amount in minor units of currency
    */
-  priceDiscountValue?: string;
+  priceDiscountValue: string | null;
   redemptionRules: RedemptionRules;
   redemptionsCount: number;
   /**
    * Only this customer's instances can redeem it
    */
-  restrictedCustomerSlug?: string;
-  startsAt?: string;
+  restrictedCustomerSlug: string | null;
+  startsAt: string | null;
   status: "DRAFT" | "ACTIVE" | "EXPIRED" | "EXHAUSTED" | "ARCHIVED";
   readonly updatedAt: string;
   voucherType: "PRICE" | "ENTITLEMENT_BOOST" | "FLAG_GRANT" | "COMPOSITE";
@@ -9343,18 +9397,18 @@ export type VoucherDelivered = {
   /**
    * The currency of a FIXED_AMOUNT discount
    */
-  currency?: string;
+  currency: string | null;
   /**
    * With via customer_session: the session
    */
   customerSessionId?: string;
-  description?: string;
+  description: string | null;
   /**
    * PRICE: how many invoices it discounts (one, durationInPeriods, or every one). BOOST and FLAG_GRANT: how long a redemption lasts, in the subscription's billing periods. COMPOSITE: both, each for its part.
    */
   duration: "ONE_TIME" | "REPEATING" | "FOREVER";
-  durationInPeriods?: number;
-  expiresAt?: string;
+  durationInPeriods: number | null;
+  expiresAt: string | null;
   /**
    * The flag variants a FLAG_GRANT grants
    */
@@ -9364,21 +9418,21 @@ export type VoucherDelivered = {
    */
   grants: Array<Grant>;
   readonly id: string;
-  maxRedemptions?: number;
+  maxRedemptions: number | null;
   name: string;
-  priceAppliesTo?: "LICENSE_BASE" | "ADDONS" | "BOTH" | "SELECTED_PRICES";
-  priceDiscountType?: "PERCENTAGE" | "FIXED_AMOUNT";
+  priceAppliesTo: "LICENSE_BASE" | "ADDONS" | "BOTH" | "SELECTED_PRICES" | null;
+  priceDiscountType: "PERCENTAGE" | "FIXED_AMOUNT" | null;
   /**
    * A percentage in (0, 100], or an integer amount in minor units of currency
    */
-  priceDiscountValue?: string;
+  priceDiscountValue: string | null;
   redemptionRules: RedemptionRules;
   redemptionsCount: number;
   /**
    * Only this customer's instances can redeem it
    */
-  restrictedCustomerSlug?: string;
-  startsAt?: string;
+  restrictedCustomerSlug: string | null;
+  startsAt: string | null;
   status: "DRAFT" | "ACTIVE" | "EXPIRED" | "EXHAUSTED" | "ARCHIVED";
   readonly updatedAt: string;
   /**
@@ -9451,9 +9505,9 @@ export type AddonWritable = {
    */
   lifecycleState: "DRAFT" | "PUBLISHED" | "ARCHIVED";
   /**
-   * The largest quantity an instance can hold; unbounded when absent
+   * The largest quantity an instance can hold; unbounded when null
    */
-  maxQuantity?: number;
+  maxQuantity: number | null;
   name: string;
   pricingType: "FREE" | "PAID" | "CUSTOM";
   /**
@@ -9486,9 +9540,9 @@ export type AddonDeliveredWritable = {
    */
   lifecycleState: "DRAFT" | "PUBLISHED" | "ARCHIVED";
   /**
-   * The largest quantity an instance can hold; unbounded when absent
+   * The largest quantity an instance can hold; unbounded when null
    */
-  maxQuantity?: number;
+  maxQuantity: number | null;
   name: string;
   pricingType: "FREE" | "PAID" | "CUSTOM";
   /**
@@ -9506,9 +9560,9 @@ export type AddonEntitlementWritable = {
   entitlementSlug: string;
   entitlementType: "BOOLEAN" | "NUMBER" | "CONFIG" | "NUMBER_AI_CREDIT";
   /**
-   * The overage the add-on allows; absent inherits the licence grant's
+   * The overage the add-on allows; null inherits the licence grant's
    */
-  limitCapExceededOveragePercent?: number;
+  limitCapExceededOveragePercent: number | null;
   /**
    * How a number grant combines with the licence's: ADD sums value × quantity, OVERRIDE replaces it with the latest attached add-on's, MAX keeps the larger. A boolean always ORs, a config always overrides.
    */
@@ -9523,9 +9577,9 @@ export type AddonEntitlementWritable = {
 
 export type AddonFamilyWritable = {
   /**
-   * The default version, else the highest PUBLISHED one; absent when none is published
+   * The default version, else the highest PUBLISHED one; null when none is published
    */
-  currentVersion?: AddonWritable;
+  currentVersion: AddonWritable | null;
   /**
    * How a mid-period increase or attachment of the family's ADVANCE add-ons is billed (V31-70)
    */
@@ -9561,9 +9615,9 @@ export type AddonGrantUpdateDeliveredWritable = {
   entitlementSlug: string;
   entitlementType: "BOOLEAN" | "NUMBER" | "CONFIG" | "NUMBER_AI_CREDIT";
   /**
-   * The overage the add-on allows; absent inherits the licence grant's
+   * The overage the add-on allows; null inherits the licence grant's
    */
-  limitCapExceededOveragePercent?: number;
+  limitCapExceededOveragePercent: number | null;
   /**
    * How a number grant combines with the licence's: ADD sums value × quantity, OVERRIDE replaces it with the latest attached add-on's, MAX keeps the larger. A boolean always ORs, a config always overrides.
    */
@@ -9678,9 +9732,9 @@ export type AddonUpdateDeliveredWritable = {
    */
   lifecycleState: "DRAFT" | "PUBLISHED" | "ARCHIVED";
   /**
-   * The largest quantity an instance can hold; unbounded when absent
+   * The largest quantity an instance can hold; unbounded when null
    */
-  maxQuantity?: number;
+  maxQuantity: number | null;
   name: string;
   pricingType: "FREE" | "PAID" | "CUSTOM";
   /**
@@ -10131,9 +10185,9 @@ export type ConnectorSettingsWritable = {
 
 export type CustomerWritable = {
   /**
-   * Where invoices sent to this customer are delivered, at most 254 characters (CreateCustomer.InvalidBillingEmail). Absent when there is none. On update, omit it to keep the stored value, or send an empty string to remove it. Personal data: never included in event payloads.
+   * Where invoices sent to this customer are delivered, at most 254 characters (CreateCustomer.InvalidBillingEmail). Absent when there is none. On update, omit it or send null to keep the stored value, or send an empty string to remove it. Personal data: never included in event payloads.
    */
-  billingEmail?: string;
+  billingEmail?: string | null;
   /**
    * Optional customer domain name
    */
@@ -10806,7 +10860,7 @@ export type InstanceAddonWritable = {
   addonSlug: string;
   attachedAt: string;
   familySlug: string;
-  maxQuantity?: number;
+  maxQuantity: number | null;
   /**
    * The add-on version's name
    */
@@ -10820,7 +10874,7 @@ export type InstanceAddonWritable = {
    */
   prices: Array<PriceWritable>;
   quantity: number;
-  removedAt?: string;
+  removedAt: string | null;
 };
 
 export type InstanceAddonUpdateDeliveredWritable = {
@@ -10837,7 +10891,7 @@ export type InstanceAddonUpdateDeliveredWritable = {
   customerSessionId?: string;
   familySlug: string;
   instanceSlug: string;
-  maxQuantity?: number;
+  maxQuantity: number | null;
   /**
    * The add-on version's name
    */
@@ -10855,7 +10909,7 @@ export type InstanceAddonUpdateDeliveredWritable = {
    */
   prices: Array<PriceWritable>;
   quantity: number;
-  removedAt?: string;
+  removedAt: string | null;
   /**
    * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
    */
@@ -11573,25 +11627,25 @@ export type LicenseWritable = {
    */
   name: string;
   /**
-   * How this version is sold. FREE and PAID can be bought self-serve; CUSTOM sends a buyer to selfServeCtaUrl or a conversation. Always present in responses. On create it defaults to CUSTOM; on update, omit it to keep the stored value.
+   * How this version is sold. FREE and PAID can be bought self-serve; CUSTOM sends a buyer to selfServeCtaUrl or a conversation. Always present in responses. On create it defaults to CUSTOM; on update, omit it or send null to keep the stored value.
    */
   pricingType?: "FREE" | "PAID" | "CUSTOM";
   /**
-   * Whether self-serve signup captures a payment method before activation. Always present in responses; false when omitted on create. On update, omit it to keep the stored value.
+   * Whether self-serve signup captures a payment method before activation. Always present in responses; false when omitted on create. On update, omit it or send null to keep the stored value.
    */
-  requiresPaymentMethod?: boolean;
+  requiresPaymentMethod?: boolean | null;
   /**
-   * Where a buyer is sent when this version cannot be bought self-serve: an http(s) URL of at most 2048 characters (CreateLicense.InvalidSelfServeCtaUrl). Absent when there is none. On update, omit it to keep the stored value, or send an empty string to remove it.
+   * Where a buyer is sent when this version cannot be bought self-serve: an http(s) URL of at most 2048 characters (CreateLicense.InvalidSelfServeCtaUrl). Null when there is none. On update, omit it or send null to keep the stored value, or send an empty string to remove it.
    */
-  selfServeCtaUrl?: string;
+  selfServeCtaUrl?: string | null;
   /**
    * Optional URL-friendly identifier, unique per organization. When omitted, a new version of an existing family takes {familySlug}-v{version}, and any other license gets one generated from its name. A license that opens a new family gives the family its slug.
    */
   slug?: string;
   /**
-   * Trial length, in days, a subscription to this version starts with by default. Absent when there is none. From 1 to 365 (CreateLicense.InvalidTrialDays, UpdateLicense.InvalidTrialDays). On update, omit it to keep the stored value, or send 0 to remove the trial.
+   * Trial length, in days, a subscription to this version starts with by default. Null when there is none. From 1 to 365 (CreateLicense.InvalidTrialDays, UpdateLicense.InvalidTrialDays). On update, omit it or send null to keep the stored value, or send 0 to remove the trial.
    */
-  trialPeriodDays?: number;
+  trialPeriodDays?: number | null;
   /**
    * Type of the license determining its capabilities and restrictions
    */
@@ -11636,25 +11690,25 @@ export type LicenseDeliveredWritable = {
    */
   name: string;
   /**
-   * How this version is sold. FREE and PAID can be bought self-serve; CUSTOM sends a buyer to selfServeCtaUrl or a conversation. Always present in responses. On create it defaults to CUSTOM; on update, omit it to keep the stored value.
+   * How this version is sold. FREE and PAID can be bought self-serve; CUSTOM sends a buyer to selfServeCtaUrl or a conversation. Always present in responses. On create it defaults to CUSTOM; on update, omit it or send null to keep the stored value.
    */
   pricingType?: "FREE" | "PAID" | "CUSTOM";
   /**
-   * Whether self-serve signup captures a payment method before activation. Always present in responses; false when omitted on create. On update, omit it to keep the stored value.
+   * Whether self-serve signup captures a payment method before activation. Always present in responses; false when omitted on create. On update, omit it or send null to keep the stored value.
    */
-  requiresPaymentMethod?: boolean;
+  requiresPaymentMethod?: boolean | null;
   /**
-   * Where a buyer is sent when this version cannot be bought self-serve: an http(s) URL of at most 2048 characters (CreateLicense.InvalidSelfServeCtaUrl). Absent when there is none. On update, omit it to keep the stored value, or send an empty string to remove it.
+   * Where a buyer is sent when this version cannot be bought self-serve: an http(s) URL of at most 2048 characters (CreateLicense.InvalidSelfServeCtaUrl). Null when there is none. On update, omit it or send null to keep the stored value, or send an empty string to remove it.
    */
-  selfServeCtaUrl?: string;
+  selfServeCtaUrl?: string | null;
   /**
    * Optional URL-friendly identifier, unique per organization. When omitted, a new version of an existing family takes {familySlug}-v{version}, and any other license gets one generated from its name. A license that opens a new family gives the family its slug.
    */
   slug?: string;
   /**
-   * Trial length, in days, a subscription to this version starts with by default. Absent when there is none. From 1 to 365 (CreateLicense.InvalidTrialDays, UpdateLicense.InvalidTrialDays). On update, omit it to keep the stored value, or send 0 to remove the trial.
+   * Trial length, in days, a subscription to this version starts with by default. Null when there is none. From 1 to 365 (CreateLicense.InvalidTrialDays, UpdateLicense.InvalidTrialDays). On update, omit it or send null to keep the stored value, or send 0 to remove the trial.
    */
-  trialPeriodDays?: number;
+  trialPeriodDays?: number | null;
   /**
    * Type of the license determining its capabilities and restrictions
    */
@@ -13019,14 +13073,14 @@ export type VoucherWritable = {
   /**
    * The currency of a FIXED_AMOUNT discount
    */
-  currency?: string;
-  description?: string;
+  currency: string | null;
+  description: string | null;
   /**
    * PRICE: how many invoices it discounts (one, durationInPeriods, or every one). BOOST and FLAG_GRANT: how long a redemption lasts, in the subscription's billing periods. COMPOSITE: both, each for its part.
    */
   duration: "ONE_TIME" | "REPEATING" | "FOREVER";
-  durationInPeriods?: number;
-  expiresAt?: string;
+  durationInPeriods: number | null;
+  expiresAt: string | null;
   /**
    * The flag variants a FLAG_GRANT grants
    */
@@ -13035,21 +13089,21 @@ export type VoucherWritable = {
    * What an ENTITLEMENT_BOOST changes
    */
   grants: Array<Grant>;
-  maxRedemptions?: number;
+  maxRedemptions: number | null;
   name: string;
-  priceAppliesTo?: "LICENSE_BASE" | "ADDONS" | "BOTH" | "SELECTED_PRICES";
-  priceDiscountType?: "PERCENTAGE" | "FIXED_AMOUNT";
+  priceAppliesTo: "LICENSE_BASE" | "ADDONS" | "BOTH" | "SELECTED_PRICES" | null;
+  priceDiscountType: "PERCENTAGE" | "FIXED_AMOUNT" | null;
   /**
    * A percentage in (0, 100], or an integer amount in minor units of currency
    */
-  priceDiscountValue?: string;
+  priceDiscountValue: string | null;
   redemptionRules: RedemptionRules;
   redemptionsCount: number;
   /**
    * Only this customer's instances can redeem it
    */
-  restrictedCustomerSlug?: string;
-  startsAt?: string;
+  restrictedCustomerSlug: string | null;
+  startsAt: string | null;
   status: "DRAFT" | "ACTIVE" | "EXPIRED" | "EXHAUSTED" | "ARCHIVED";
   voucherType: "PRICE" | "ENTITLEMENT_BOOST" | "FLAG_GRANT" | "COMPOSITE";
 };
@@ -13080,18 +13134,18 @@ export type VoucherDeliveredWritable = {
   /**
    * The currency of a FIXED_AMOUNT discount
    */
-  currency?: string;
+  currency: string | null;
   /**
    * With via customer_session: the session
    */
   customerSessionId?: string;
-  description?: string;
+  description: string | null;
   /**
    * PRICE: how many invoices it discounts (one, durationInPeriods, or every one). BOOST and FLAG_GRANT: how long a redemption lasts, in the subscription's billing periods. COMPOSITE: both, each for its part.
    */
   duration: "ONE_TIME" | "REPEATING" | "FOREVER";
-  durationInPeriods?: number;
-  expiresAt?: string;
+  durationInPeriods: number | null;
+  expiresAt: string | null;
   /**
    * The flag variants a FLAG_GRANT grants
    */
@@ -13100,21 +13154,21 @@ export type VoucherDeliveredWritable = {
    * What an ENTITLEMENT_BOOST changes
    */
   grants: Array<Grant>;
-  maxRedemptions?: number;
+  maxRedemptions: number | null;
   name: string;
-  priceAppliesTo?: "LICENSE_BASE" | "ADDONS" | "BOTH" | "SELECTED_PRICES";
-  priceDiscountType?: "PERCENTAGE" | "FIXED_AMOUNT";
+  priceAppliesTo: "LICENSE_BASE" | "ADDONS" | "BOTH" | "SELECTED_PRICES" | null;
+  priceDiscountType: "PERCENTAGE" | "FIXED_AMOUNT" | null;
   /**
    * A percentage in (0, 100], or an integer amount in minor units of currency
    */
-  priceDiscountValue?: string;
+  priceDiscountValue: string | null;
   redemptionRules: RedemptionRules;
   redemptionsCount: number;
   /**
    * Only this customer's instances can redeem it
    */
-  restrictedCustomerSlug?: string;
-  startsAt?: string;
+  restrictedCustomerSlug: string | null;
+  startsAt: string | null;
   status: "DRAFT" | "ACTIVE" | "EXPIRED" | "EXHAUSTED" | "ARCHIVED";
   /**
    * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise

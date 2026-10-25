@@ -119,7 +119,9 @@ export function describeSubscription(
       // Nothing it bought has started, so it is not said to renew or to end.
       return {
         status: { label: words.incomplete, tone: "neutral" },
-        detail: null,
+        detail: subscription.incompleteExpiresAt
+          ? (words.incompleteUntil?.(subscription.incompleteExpiresAt) ?? null)
+          : null,
         change,
         notice: words.incompleteNotice,
       };
@@ -139,16 +141,26 @@ export function describeSubscription(
         change,
         notice: words.pastDueNotice,
       };
-    case "canceled":
+    case "canceled": {
+      const reason =
+        subscription.cancellationReason === "TRIAL_ENDED_WITHOUT_PAYMENT_METHOD"
+          ? words.trialEndedWithoutPaymentMethod
+          : subscription.cancellationReason === "INCOMPLETE_EXPIRED"
+            ? words.incompleteExpired
+            : null;
+      const ended =
+        state.currentPlan && words.canceledPlanNotice
+          ? words.canceledPlanNotice(state.currentPlan)
+          : words.canceledNotice;
       return {
         status: { label: words.canceled, tone: "neutral" },
-        detail: null,
+        detail: subscription.canceledAt
+          ? (words.canceledOn?.(subscription.canceledAt) ?? null)
+          : null,
         change: null,
-        notice:
-          state.currentPlan && words.canceledPlanNotice
-            ? words.canceledPlanNotice(state.currentPlan)
-            : words.canceledNotice,
+        notice: [reason, ended].filter(Boolean).join(" "),
       };
+    }
     case "active":
       return {
         status: null,

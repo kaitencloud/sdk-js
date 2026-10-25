@@ -7,7 +7,7 @@ import { fr, es, de } from "@kaitencloud/react/locales";
 import type { KaitenLocalizationOverrides } from "@kaitencloud/react";
 import { initechSession } from "../../../.storybook/kaiten-mock.tsx";
 import { portalDecorator } from "../../../.storybook/portal-mock.tsx";
-import { englishPortalBillingWords } from "../shared/billing-words.ts";
+import { englishPortalBillingWords, englishSubscriptionWords } from "../shared/billing-words.ts";
 import { CustomerPortal } from "./customer-portal.tsx";
 
 const meta: Meta<typeof CustomerPortal> = {
@@ -103,12 +103,13 @@ export const Spanish: Story = active(es);
 export const German: Story = active(de);
 export const Unstyled: Story = active(undefined, true);
 
-const waiting = {
+const waiting: Record<string, any> = {
   ...structuredClone(initechSession.portalNeverSubscribed),
   subscription: { ...structuredClone(initechSession.portal.subscription), status: "INCOMPLETE" },
 };
 waiting.capabilities.unsubscribe = false;
 waiting.capabilities.checkout = false;
+waiting.subscription.incompleteExpiresAt = "2026-10-24T12:34:00Z";
 
 export const AwaitingPayment: Story = {
   args: { elements: ["CurrentPlan"] },
@@ -165,6 +166,57 @@ export const CurrentPlanAfterCancellation: Story = {
     ).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Subscribe" })).toBeInTheDocument();
     await expect(canvas.queryByText(/BILLING_FALLBACK|INCOMPLETE_EXPIRED/)).toBeNull();
+  },
+};
+
+export const ExpiredCheckout: Story = {
+  args: { elements: ["CurrentPlan"] },
+  decorators: [
+    portalDecorator({
+      portal: {
+        ...ended,
+        subscription: {
+          ...ended.subscription,
+          canceledAt: "2026-10-24T12:34:00Z",
+          cancellationReason: "INCOMPLETE_EXPIRED",
+        },
+      },
+    }),
+  ],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(
+      await canvas.findByText(
+        englishSubscriptionWords.canceledOn("2026-10-24T12:34:00Z"),
+        {},
+        SLOW,
+      ),
+    ).toBeInTheDocument();
+    await expect(
+      canvas.getByText(/^The time to confirm your payment has run out\./),
+    ).toBeInTheDocument();
+  },
+};
+
+export const TrialEndedWithoutPaymentMethod: Story = {
+  args: { elements: ["CurrentPlan"] },
+  decorators: [
+    portalDecorator({
+      portal: {
+        ...ended,
+        subscription: {
+          ...ended.subscription,
+          canceledAt: "2026-10-24T12:34:00Z",
+          cancellationReason: "TRIAL_ENDED_WITHOUT_PAYMENT_METHOD",
+        },
+      },
+    }),
+  ],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(
+      await canvas.findByText(/^Your trial ended without a payment method\./, {}, SLOW),
+    ).toBeInTheDocument();
   },
 };
 

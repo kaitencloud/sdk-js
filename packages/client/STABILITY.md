@@ -164,11 +164,16 @@ Voucher validation's `VoucherSummary` knows `FLAG_GRANT` and `COMPOSITE` in its 
 composite can carry its discount, boosts and flag grants together. Catalogue grants also expose
 their overage allowance and add-on `overrideBehavior` (open), already copied by the mapper.
 
-The current public contract serves `INCOMPLETE`, but **not** `incompleteExpiresAt`, pending licence
-or selection members, `canceledAt`, `cancellationReason`, `licenseChangeReason`, add-on
-`increaseBilling`, or invoice-line `trueUp`. These are not fabricated from vendor-only schemas,
-the period end, the current licence or a label. A component cannot state a deadline, a fallback
-reason or a family's true-up policy from these public payloads yet.
+The public contract now serves required nullable `incompleteExpiresAt`, `canceledAt` and
+`cancellationReason` (system reasons only). The mapper keeps those nulls and never substitutes a
+period boundary, client clock or vendor text. The SDK additions are optional for older
+host-constructed subscription fixtures; mapped responses always include the nullable members.
+Completed payment methods keep `attachedAt: string | null`; the portal's own payment method has no
+such member, so only that absence remains meaningful.
+
+The contract still does **not** serve pending licence/selection members, `licenseChangeReason`,
+add-on `increaseBilling` or invoice-line `trueUp`. A screen can state a supplied checkout deadline
+and a known system cancellation reason, but cannot infer a licence-change reason or family policy.
 
 ## How enumerations grow
 

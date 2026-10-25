@@ -441,7 +441,10 @@ describe("what the stand-in does besides", () => {
     double.payment("processing");
     const result = await session.checkout({ licensePriceId: PRO_MONTHLY });
     if (result.status !== "subscribed") throw new Error("expected a subscription");
-    expect((await session.getPortal()).subscription).toEqual(before);
+    expect((await session.getPortal()).subscription).toEqual({
+      ...before,
+      incompleteExpiresAt: result.subscription.incompleteExpiresAt,
+    });
     expect((await session.getPortal()).instance?.licenseName).toBe("Starter");
     await session.cancelSubscription();
     expect((await session.getPortal()).subscription).toEqual(before);
@@ -1214,10 +1217,17 @@ describe("add-ons", () => {
           id: randomUUID(),
           billingModel: "USAGE_BASED",
           billingTiming: "ARREARS",
+          billingPeriod: null,
+          displayLabel: null,
           currency: "EUR",
           unitAmount: 90,
           unitAmountDecimal: "90",
-          metered: { entitlementSlug: "gpu-hours", saleUnitFactor: "1" },
+          metered: {
+            entitlementSlug: "gpu-hours",
+            saleUnitFactor: "1",
+            saleUnitSingular: null,
+            saleUnitPlural: null,
+          },
           displayOrder: 0,
           isDefault: false,
         },
@@ -1234,6 +1244,7 @@ describe("add-ons", () => {
           displayLabel: "Annual",
           displayOrder: 0,
           isDefault: true,
+          metered: null,
         },
       ]),
       proAddon("dedicated-region", "Dedicated region", "CUSTOM", []),
@@ -1295,6 +1306,7 @@ describe("a checkout of an instance that holds add-ons", () => {
           displayLabel: "Monthly",
           displayOrder: 0,
           isDefault: true,
+          metered: null,
         },
       ],
       entitlements: [],
@@ -3084,7 +3096,7 @@ describe("the vendor's reads and updates of a customer and an instance, against 
     expect(contractProblems(recorder)).toEqual([]);
   });
 
-  test("renames a customer by a full replacement: the e-mail is kept when omitted, the domain is cleared when omitted", async () => {
+  test("a customer's omitted/null PUT members keep their values; empty strings clear them", async () => {
     const { double, recorder, server, bought } = await shop();
     const update = (body: Record<string, unknown>) =>
       Customers.updateCustomer({
@@ -3115,16 +3127,32 @@ describe("the vendor's reads and updates of a customer and an instance, against 
     });
     expect(double.state().customers).toMatchObject([{ name: "Analytical Engines" }]);
 
-    // Sent again with the slug on record: accepted. The domain and the external id are not sent: cleared.
+    // Sent again with the slug on record: omitted members keep their stored values.
     await update({ name: "Analytical Engines Ltd", slug: bought.slug });
-    const cleared = await read();
-    expect(cleared.name).toBe("Analytical Engines Ltd");
-    expect(cleared).not.toHaveProperty("domain");
-    expect(cleared).not.toHaveProperty("externalCustomerId");
+    const kept = await read();
+    expect(kept).toMatchObject({
+      name: "Analytical Engines Ltd",
+      domain: "engines.test",
+      externalCustomerId: "x-1",
+    });
+    await update({ name: "Analytical Engines Ltd", billingEmail: null, externalCustomerId: null });
+    expect(await read()).toMatchObject({
+      billingEmail: "ada@acme.test",
+      externalCustomerId: "x-1",
+      domain: "engines.test",
+    });
 
     // An empty address removes it.
-    await update({ name: "Analytical Engines Ltd", billingEmail: "" });
-    expect(await read()).not.toHaveProperty("billingEmail");
+    await update({
+      name: "Analytical Engines Ltd",
+      billingEmail: "",
+      domain: "",
+      externalCustomerId: "",
+    });
+    const cleared = await read();
+    expect(cleared).not.toHaveProperty("billingEmail");
+    expect(cleared).not.toHaveProperty("domain");
+    expect(cleared).not.toHaveProperty("externalCustomerId");
     expect(contractProblems(recorder)).toEqual([]);
   });
 
