@@ -219,6 +219,12 @@ not a whole number of minor units. New price shapes will arrive there, never in
 
 ## Errors and retries
 
+The GraphQL snapshot uses the backend's real enums and decimal price amounts. The two shipped
+licensing documents do not select gated prices, billing or add-ons. If a GraphQL error (including
+`Billing.*`) rejects the read, the catalog/snapshot composer reports one degradation and uses REST;
+partial GraphQL data is not accepted as a complete licensing answer. The fallback never bypasses
+the REST route's own authorization or invents billing capabilities.
+
 A call the API refuses rejects with a `KaitenError`, which carries `status`, `code`,
 `detail`, `errorId` and, when the API sent a `Retry-After`, `retryAfterSeconds`. Eight
 refusals are a **subclass of `KaitenError`**, so `instanceof KaitenError`, `status` and

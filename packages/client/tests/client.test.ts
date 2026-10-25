@@ -556,6 +556,43 @@ describe("snapshot instance selection", () => {
 });
 
 describe("onDegraded", () => {
+  test.each(["Billing.Disabled", "Billing.NotEntitled", "Billing.EntitlementCheckUnavailable"])(
+    "%s still falls back to REST for both licensing reads",
+    async (code) => {
+      for (const operation of ["catalog", "snapshot"] as const) {
+        const rest = installSnapshotApi({
+          graphqlOrder: [instanceRow("alpha")],
+          graphqlAvailable: false,
+        });
+        const onDegraded = vi.fn();
+        const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+          const path = new URL(input instanceof Request ? input.url : String(input)).pathname;
+          if (path.endsWith("/graphql"))
+            return json({
+              data: { licenses: { items: [], hasMore: false } },
+              errors: [{ message: "Billing field unavailable", extensions: { code } }],
+            });
+          return rest(input, init);
+        });
+        vi.stubGlobal("fetch", fetch);
+        const client = new KaitenClient({
+          authScheme: "none",
+          apiUrl: "https://api.test",
+          onDegraded,
+        });
+        if (operation === "catalog")
+          expect((await client.getCatalog()).plans.length).toBeGreaterThan(0);
+        else expect((await client.getLicensingSnapshot("acme")).instance?.slug).toBe("alpha");
+        expect(onDegraded).toHaveBeenCalledOnce();
+        expect(
+          fetch.mock.calls.filter(([input]) =>
+            String(input instanceof Request ? input.url : input).includes("/graphql"),
+          ),
+        ).toHaveLength(1);
+      }
+    },
+  );
+
   // The fallback works, so nothing looks wrong — while every license costs its
   // own request and the presentation metadata silently disappears. Whether that
   // is a permanent schema mismatch or a passing outage was unknowable, because

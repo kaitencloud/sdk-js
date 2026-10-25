@@ -11,34 +11,35 @@ type Addon {
   id: UUID!
 
   """
-  The family's TRUE_UP or NEXT_BOUNDARY: how a mid-period increase of its
-  ADVANCE add-ons is billed.
+  The family's: how a mid-period increase of its ADVANCE add-ons is billed.
   """
-  increaseBilling: String!
+  increaseBilling: IncreaseBilling!
 
   """The version the family resolves to. Only a PUBLISHED version."""
   isDefault: Boolean!
-
-  """DRAFT, PUBLISHED or ARCHIVED."""
-  lifecycleState: String!
+  lifecycleState: AddonLifecycleState!
 
   """The most one instance may hold; null when unbounded."""
   maxQuantity: Int
   name: String!
 
-  """
-  The version's prices in display order; status ACTIVE or DEPRECATED narrows
-  them.
-  """
-  prices(status: String): [AddonPrice!]!
+  """The version's prices in display order; status narrows them."""
+  prices(status: PriceStatus): [AddonPrice!]!
 
-  """FREE, PAID or CUSTOM: how this version is sold."""
-  pricingType: String!
+  """How this version is sold."""
+  pricingType: PricingType!
   slug: String!
 
   """The version number in its family."""
   version: Int!
   versionName: String!
+}
+
+"""The lifecycle of an add-on version."""
+enum AddonLifecycleState {
+  ARCHIVED
+  DRAFT
+  PUBLISHED
 }
 
 """A cursor-paginated page of add-on versions."""
@@ -52,17 +53,14 @@ type AddonPage {
 
 """
 A price of an add-on version. It has the shape of a licence price.
-Amounts are in minor units of currency.
+Amounts are in minor units of currency; unitAmountDecimal is the amount.
 """
 type AddonPrice {
-  """FLAT_FEE, USAGE_BASED or OVERAGE."""
-  billingModel: String!
+  billingModel: PriceBillingModel!
 
-  """MONTHLY, QUARTERLY, SEMI_ANNUAL or ANNUAL; null on a metered price."""
-  billingPeriod: String
-
-  """ADVANCE or ARREARS."""
-  billingTiming: String!
+  """Null on a metered price."""
+  billingPeriod: PriceBillingPeriod
+  billingTiming: PriceBillingTiming!
   currency: String!
   deprecatedAt: Time
   displayLabel: String
@@ -79,12 +77,7 @@ type AddonPrice {
   Measured units in one sale unit of a metered price; null on a flat fee.
   """
   saleUnitFactor: String
-
-  """ACTIVE or DEPRECATED."""
-  status: String!
-
-  """The amount, when it is a whole number of minor units; null otherwise."""
-  unitAmount: Int
+  status: PriceStatus!
 
   """The amount in minor units, up to 12 decimal places."""
   unitAmountDecimal: String!
@@ -313,6 +306,59 @@ type Entitlement {
 }
 
 """
+The vendor's dated decision on one entitlement of one instance, without a
+code: the last layer of its effective entitlements. Never gated by billing.
+"""
+type EntitlementException {
+  createdAt: Time!
+
+  """Null: no end."""
+  endsAt: Time
+  entitlementSlug: String!
+  entitlementType: EntitlementType!
+  id: UUID!
+  kind: EntitlementExceptionKind!
+
+  """Why the vendor decided it."""
+  reason: String!
+  revokedAt: Time
+  startsAt: Time!
+  status: EntitlementExceptionStatus!
+
+  """
+  The value in the {type, value} shape of a licence grant; null for UNLIMITED.
+  """
+  value: Map
+}
+
+"""Which exceptions of an instance to list."""
+enum EntitlementExceptionFilter {
+  """Neither revoked nor ended, scheduled ones included."""
+  ACTIVE
+
+  """Every exception of the instance, revoked and ended ones included."""
+  ALL
+}
+
+"""
+How an exception sets its entitlement: SET works on every type, ADD and
+UNLIMITED on NUMBER and NUMBER_AI_CREDIT only.
+"""
+enum EntitlementExceptionKind {
+  ADD
+  SET
+  UNLIMITED
+}
+
+"""An exception's status at the read."""
+enum EntitlementExceptionStatus {
+  ACTIVE
+  EXPIRED
+  REVOKED
+  SCHEDULED
+}
+
+"""
 Lightweight reference to an entitlement group (category axis for presentation).
 """
 type EntitlementGroupSummary {
@@ -395,16 +441,11 @@ type EntitlementUsage {
   limitCapExceededOveragePercent: Int
 
   """
-  What the licence, the add-ons and the boosts each contribute, as the
-  REST gauge read returns it.
+  What the licence, the add-ons, the boosts and the exception each
+  contribute, as the REST gauge read returns it.
   """
   provenance: Map
-
-  """
-  license when the licence grants it (add-ons and boosts may change it), addon
-  when only add-ons do.
-  """
-  source: String!
+  source: EntitlementUsageSource!
 
   """
   Typed usage value. Shapes: {type:"number",value:N,event_count:C},
@@ -413,8 +454,31 @@ type EntitlementUsage {
   value: Map!
 }
 
+"""Where an entitlement of an instance comes from."""
+enum EntitlementUsageSource {
+  """An add-on attached grants it."""
+  addon
+
+  """Only the instance's exception grants it."""
+  exception
+
+  """The licence grants it; add-ons, boosts and an exception may change it."""
+  license
+}
+
+"""
+How a mid-period increase of an add-on family's ADVANCE add-ons is billed.
+"""
+enum IncreaseBilling {
+  NEXT_BOUNDARY
+  TRUE_UP
+}
+
 type Instance {
-  """The add-ons the instance holds now, oldest attachment first."""
+  """
+  The add-ons the instance holds now, oldest attachment first. Like the REST
+  list, it needs billing to be enabled for the organization.
+  """
   addons: [InstanceAddon!]!
 
   """Cursor-paginated audit trail entries for this instance."""
@@ -432,7 +496,8 @@ type Instance {
 
   """
   The instance's subscription; null when it was never subscribed. Requires
-  read:billing: fetch it in a document of its own, once billing is enabled.
+  read:billing and billing enabled for the organization: fetch it in a
+  document of its own, once billing is enabled.
   """
   billing: InstanceBillingSummary
   createdAt: Time!
@@ -449,6 +514,12 @@ type Instance {
   deploymentZoneSlug: String
   description: String!
   endLicenseDate: Time!
+
+  """
+  The instance's entitlement exceptions, latest start first, as
+  GET /instances/{instanceSlug}/entitlement-exceptions lists them.
+  """
+  entitlementExceptions(filter: EntitlementExceptionFilter = ACTIVE): [EntitlementException!]!
 
   """
   Current entitlement usage for this instance (one row per license grant)
@@ -499,14 +570,8 @@ type InstanceBillingSummary {
   cancelAtPeriodEnd: Boolean!
   currentPeriodEnd: Time!
   pastDueSince: Time
-
-  """NOOP or STRIPE."""
-  providerKind: String!
-
-  """
-  INCOMPLETE, TRIAL, ACTIVE, PAST_DUE or CANCELED. INCOMPLETE: a public checkout waiting for its first payment.
-  """
-  status: String!
+  providerKind: ProviderKind!
+  status: SubscriptionStatus!
   trialEndsAt: Time
 }
 
@@ -554,13 +619,13 @@ type License {
   name: String!
 
   """
-  The version's prices in display order; status ACTIVE or DEPRECATED narrows
-  them.
+  The version's prices in display order; status narrows them. Like the REST
+  list, it needs billing to be enabled for the organization.
   """
-  prices(status: String): [LicensePrice!]!
+  prices(status: PriceStatus): [LicensePrice!]!
 
-  """FREE, PAID or CUSTOM: how this version is sold."""
-  pricingType: String!
+  """How this version is sold."""
+  pricingType: PricingType!
 
   """Whether self-serve signup captures a payment method before activation."""
   requiresPaymentMethod: Boolean
@@ -717,16 +782,16 @@ type LicensePage {
   nextCursor: String
 }
 
-"""A price of a licence version. Amounts are in minor units of currency."""
+"""
+A price of a licence version. Amounts are in minor units of currency.
+unitAmountDecimal is the amount: GraphQL has no Int wide enough for every one.
+"""
 type LicensePrice {
-  """FLAT_FEE, USAGE_BASED or OVERAGE."""
-  billingModel: String!
+  billingModel: PriceBillingModel!
 
-  """MONTHLY, QUARTERLY, SEMI_ANNUAL or ANNUAL; null on a metered price."""
-  billingPeriod: String
-
-  """ADVANCE or ARREARS."""
-  billingTiming: String!
+  """Null on a metered price."""
+  billingPeriod: PriceBillingPeriod
+  billingTiming: PriceBillingTiming!
   currency: String!
   deprecatedAt: Time
   displayLabel: String
@@ -743,12 +808,7 @@ type LicensePrice {
   Measured units in one sale unit of a metered price; null on a flat fee.
   """
   saleUnitFactor: String
-
-  """ACTIVE or DEPRECATED."""
-  status: String!
-
-  """The amount, when it is a whole number of minor units; null otherwise."""
-  unitAmount: Int
+  status: PriceStatus!
 
   """The amount in minor units, up to 12 decimal places."""
   unitAmountDecimal: String!
@@ -862,6 +922,50 @@ type OrganizationAuditTrailPage {
 
   """Opaque cursor for the next page. Null when hasMore is false."""
   nextCursor: String
+}
+
+"""
+How a price bills: a flat fee per period, or the usage of an entitlement.
+"""
+enum PriceBillingModel {
+  FLAT_FEE
+  OVERAGE
+  USAGE_BASED
+}
+
+"""The length of a flat fee's period."""
+enum PriceBillingPeriod {
+  ANNUAL
+  MONTHLY
+  QUARTERLY
+  SEMI_ANNUAL
+}
+
+"""
+When a price bills: at the start of the period it covers, or at its end.
+"""
+enum PriceBillingTiming {
+  ADVANCE
+  ARREARS
+}
+
+"""Whether a price is still offered."""
+enum PriceStatus {
+  ACTIVE
+  DEPRECATED
+}
+
+"""How a licence or add-on version is sold."""
+enum PricingType {
+  CUSTOM
+  FREE
+  PAID
+}
+
+"""The payment provider a subscription's invoices go to."""
+enum ProviderKind {
+  NOOP
+  STRIPE
 }
 
 """Health check endpoint"""
@@ -1029,6 +1133,17 @@ type ReleasePage {
 
   """Opaque cursor for the next page. Null when hasMore is false."""
   nextCursor: String
+}
+
+"""
+The status of a subscription. INCOMPLETE: a public checkout waiting for its first payment.
+"""
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELED
+  INCOMPLETE
+  PAST_DUE
+  TRIAL
 }
 
 """Custom scalar for timestamps"""
