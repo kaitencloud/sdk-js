@@ -57,7 +57,7 @@ jobs:
         with:
           persist-credentials: false
       - uses: pnpm/action-setup@v6.1.0
-      - uses: actions/setup-node@v7.0.0
+      - uses: actions/setup-node@v7.1.0
         with:
           node-version-file: .node-version
           package-manager-cache: false
@@ -82,11 +82,11 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - uses: pnpm/action-setup@v6.1.0
-      - uses: actions/setup-node@v7.0.0
+      - uses: actions/setup-node@v7.1.0
         with:
           node-version-file: .node-version
           package-manager-cache: false
-      - uses: voidzero-dev/setup-vp@v1.21.1
+      - uses: voidzero-dev/setup-vp@v1.21.2
         with:
           # actions/setup-node and pnpm/action-setup own Node.js and pnpm. Vite+
           # only provides vp, for the `vp fmt` in version-packages.
@@ -119,11 +119,11 @@ jobs:
         with:
           persist-credentials: false
       - uses: pnpm/action-setup@v6.1.0
-      - uses: actions/setup-node@v7.0.0
+      - uses: actions/setup-node@v7.1.0
         with:
           node-version-file: .node-version
           package-manager-cache: false
-      - uses: voidzero-dev/setup-vp@v1.21.1
+      - uses: voidzero-dev/setup-vp@v1.21.2
         with:
           # actions/setup-node and pnpm/action-setup own Node.js and pnpm. Vite+
           # only provides vp, at the catalog's vite-plus version.
@@ -174,7 +174,7 @@ jobs:
         with:
           persist-credentials: false
       - uses: pnpm/action-setup@v6.1.0
-      - uses: actions/setup-node@v7.0.0
+      - uses: actions/setup-node@v7.1.0
         with:
           node-version-file: .node-version
           package-manager-cache: false
