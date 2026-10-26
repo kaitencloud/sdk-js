@@ -18,10 +18,9 @@ export default defineConfig({
     browser: {
       enabled: false,
     },
-    // Thresholds are NOT set here on purpose: vite-plus 0.1.24 ignores a
-    // `coverage` block in this config entirely (verified — a `lines: 99.9`
-    // threshold still exited 0, and include/exclude had no effect). They live on
-    // the `test:unit:coverage` script as `--coverage.thresholds.*` CLI flags,
-    // which do take effect. A threshold that cannot fail is worse than none.
+    // Coverage settings live on `test:unit:coverage` as CLI flags: older Vite+
+    // releases ignored this project's coverage block. Keep the thresholds there,
+    // and leave `.storybook/` scaffolding out of the unit ratchet: tests import
+    // its doubles, but their unused scenario branches are not component code.
   },
 });
