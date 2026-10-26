@@ -128,9 +128,10 @@ The components have a Storybook playground: `vp run @kaitencloud/react-ui#storyb
   purpose in 1.1.0 (`REMOVED_SINCE_1_0`). Not required to merge, because it reads
   the npm registry.
 - **release-dependencies**: the shape of what a release would publish, with npm's own
-  dry run, and, once the React packages are in the tree, that they compile against
-  the lowest client their range allows. Advisory: it is meant to fail while the client
-  a React package needs is not on npm yet, and it blocks in the release procedure.
+  dry run, and that React compiles against the lowest client its range allows.
+  Advisory in PR CI: it fails while npm lacks the required client exports/version.
+  The Release workflow makes the floor check blocking, allowing the exact client
+  packed in the same release when its version is not on npm yet.
 - **Conformance** (its own workflow, `conformance.yml`, run by hand or on a pull
   request): a customer's whole journey through a running Kaiten with the two packages
   alone, each answer held to the API contract. It reads the stack it runs against from the
@@ -230,70 +231,28 @@ release carries billing, the sentence says so. The pull request of the first rel
 needs a Kaiten with billing replaces "the first Kaiten release with billing" by that Kaiten's
 version, in all five.
 
-### The React packages are private until billing ships
+### First public React versions
 
-`@kaitencloud/react` and `@kaitencloud/react-ui` are `"private": true` in their
-`package.json` until Kaiten billing ships, and nothing publishes them before that.
-Changesets neither versions nor publishes a private package: a change to them needs
-no changeset, and a changeset that names them bumps nothing. Their changelogs are
-written by hand until their first release. CI still builds them, tests them, checks
-their bundle size and the shape of the tarball they will ship, so making them public
-is a change of two lines.
+`@kaitencloud/react` and `@kaitencloud/react-ui` are public packages, starting at
+1.0.0 alongside client 1.2.0 and server 1.1.0. Their package names already exist
+on npm with 0.x versions, so a maintainer configures a GitHub Actions trusted
+publisher on npmjs.com for **each** package before merging the SDK PR: organization
+`kaitencloud`, repository `sdk-js`, workflow `release.yml`, and no environment
+(the publish job does not use one). No manual publish or second branch is needed.
 
-Make them public together. `node scripts/check-version-invariants.mjs` fails when a
-public package depends on a private one, and Changesets itself refuses a tree where
-`react-ui` would be released without `react`.
+The first-version notes are folded into the 1.0.0 changelogs; their changesets are
+removed so Changesets keeps both versions at 1.0.0. The remaining changesets open
+the normal version PR for client/server. Once that PR is merged, the Release
+workflow also publishes the React versions npm does not have. Later changes to
+any public package need a changeset.
 
-npm accepts a trusted publisher only on a package that already exists, so their
-first version is published by hand, once, by a maintainer of the `@kaitencloud`
-npm scope:
-
-1. On a branch from `main`, delete `"private": true` from both `package.json`
-   files, check that each `CHANGELOG.md` describes the version in its
-   `package.json` (1.0.0 today), and add an empty changeset
-   (`pnpm changeset --empty`).
-   The READMEs of the packages already on npm say nothing about these two until they
-   exist there: add the sentence to `packages/client/README.md` that names
-   `@kaitencloud/react` and `@kaitencloud/react-ui` as built on the client, and name
-   both in the Node 22.12+ note of `packages/server/README.md`.
-   Say in the same change that the React packages are on npm. The "Not on npm yet" note
-   in the Installation section of `packages/react/README.md` and
-   `packages/react-ui/README.md` goes first: a tarball carries its README to
-   npmjs.com, and the release-dependencies check below fails while one of them says
-   so. The status line of `packages/react/STABILITY.md`, the paragraph and the install
-   block of the root `README.md` that call the React packages unpublished, the opening
-   of `ARCHITECTURE.md`, the comments of `release.yml` and `check-published-shape.mjs`
-   that call them private, and this section, which becomes a note on first versions,
-   change with them.
-2. Build, check and pack both packages on that branch, as the Release workflow
-   does, so the tarballs carry the catalog's real ranges. The release-dependencies
-   check blocks here: it compiles what `@kaitencloud/react` imports from the client
-   against the lowest client its range allows, fetched from npm, so the client that
-   carries those exports has to be published first and be the one this branch
-   builds with:
-
-   ```bash
-   vp run -r build
-   node scripts/check-published-shape.mjs
-   node scripts/check-release-dependencies.mjs
-   mkdir -p /tmp/kaiten-react-release
-   (cd packages/react && pnpm pack --pack-destination /tmp/kaiten-react-release)
-   (cd packages/react-ui && pnpm pack --pack-destination /tmp/kaiten-react-release)
-   ```
-
-3. Read the file list of each tarball (`tar -tzf`). Then, logged in to npmjs.com,
-   publish `@kaitencloud/react` first, then `@kaitencloud/react-ui`, from those
-   tarballs: `npm publish /tmp/kaiten-react-release/kaitencloud-react-1.0.0.tgz`, then
-   the same for `kaitencloud-react-ui-1.0.0.tgz`. If your `.npmrc` maps `@kaitencloud` to
-   another registry, add `--@kaitencloud:registry=https://registry.npmjs.org/`. Run each
-   with `--dry-run` first and read the line it prints, "Publishing to ...": it has to name
-   `https://registry.npmjs.org/`.
-4. On npmjs.com, add this repository's `release.yml` as the trusted publisher of
-   each package.
-5. Merge the branch, and not before step 3: the Release workflow publishes every
-   package whose current version npm lacks, so a merge that came first would have it
-   try to publish these two, with no trusted publisher yet. Once npm has 1.0.0, the
-   workflow has nothing to publish for them, and publishes their later versions itself.
+The release builds and checks all four packages before packing. Its blocking
+client-floor check uses npm's minimum client, or, with
+`--allow-unpublished-client`, the public packed client at that exact version in
+this release if npm does not have it yet. Changesets v3 preserves the dependency
+order in the packed plan and stops on failure: client/server, then React, then
+react-ui. React therefore cannot be published before the client carrying its
+imports. A registry error is not treated as an unpublished version.
 
 ## Pull requests
 

@@ -1,7 +1,6 @@
 {
   "name": "@kaitencloud/react",
   "version": "1.0.0",
-  "private": true,
   "description": "Kaiten React SDK — headless core: provider, hooks and control primitives for licensing & monetization",
   "homepage": "https://github.com/kaitencloud/sdk-js/tree/main/packages/react#readme",
   "bugs": {

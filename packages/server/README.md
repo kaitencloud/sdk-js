@@ -23,7 +23,8 @@ const { createKaitenClient } = require("@kaitencloud/server"); // CommonJS
 ```
 
 It is the only package here that is dual-built, because it is the only one meant to run on
-a backend. The browser package, `@kaitencloud/client`, is **ESM-only and requires Node 22.12+**
+a backend. `@kaitencloud/client`, `@kaitencloud/react` and `@kaitencloud/react-ui`
+are **ESM-only and require Node 22.12+**
 when used outside a bundler — 22.12 is the release where Node can `require()` an ES module.
 Every bundler handles it regardless of your app's module format.
 

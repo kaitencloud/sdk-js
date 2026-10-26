@@ -4,6 +4,9 @@ Kaiten SDK for the embedded monetization surface: the plan catalog, a customer's
 licensing snapshot, entitlement usage and feature flags. It is built for browsers,
 where it never holds a secret, and it runs on servers too.
 
+`@kaitencloud/react` (the headless hooks and provider) and `@kaitencloud/react-ui`
+(the components) are public npm packages built on this client.
+
 ## Install
 
 ```bash
