@@ -1,12 +1,7 @@
 name: Release
 
-# Versions and publishes @kaitencloud/client and @kaitencloud/server to npm.
-#
-# @kaitencloud/react and @kaitencloud/react-ui are `"private": true` until Kaiten
-# billing ships: Changesets neither versions nor publishes a private package, so
-# no run of this workflow can put them on npm. The pack job still builds, tests
-# and shape-checks them, so they are ready the day they are flipped.
-# CONTRIBUTING.md ("Releasing the React packages") says how.
+# Versions and publishes all four public SDK packages to npm: client, server,
+# react and react-ui. The React packages start their public line at 1.0.0.
 #
 # On every push to main, Changesets picks what the run does:
 #   version  a changeset that bumps something is pending: open or refresh the
@@ -24,11 +19,14 @@ name: Release
 # one job that publishes, which installs without running scripts and builds
 # nothing. npm adds provenance on its own once the repository is public.
 #
-# npm accepts a trusted publisher only on a package that already exists, so the
-# first version of a package is published by hand, from its packed tarball, and
-# its trusted publisher configured on npmjs.com before this workflow can publish
-# the next one. @kaitencloud/react and @kaitencloud/react-ui will start that way,
-# at 1.0.0, when they stop being private.
+# Both React package names already exist on npm with 0.x versions. A maintainer
+# configures their trusted publishers on npmjs.com before merging the SDK PR;
+# their first public 1.0.0 versions use this workflow too.
+#
+# Changesets v3 packs a dependency-ordered publish plan and publishes its groups
+# sequentially: client/server, then react, then react-ui. A failed group stops
+# publication. The floor check below verifies npm's client, or the exact client
+# version being packed in this release when that version is not on npm yet.
 #
 # No job restores a dependency cache: a poisoned cache entry would reach the
 # tarballs.
@@ -155,6 +153,8 @@ jobs:
         run: vp run test:unit
       - name: Check the published shape of every package
         run: node scripts/check-published-shape.mjs
+      - name: Check React imports against the minimum client
+        run: node scripts/check-release-dependencies.mjs --step 1 --allow-unpublished-client
       # pnpm packs, so the tarballs carry the catalog's real ranges rather than
       # `catalog:`. The publish job below uploads these tarballs as they are.
       - name: Pack the packages npm does not have yet

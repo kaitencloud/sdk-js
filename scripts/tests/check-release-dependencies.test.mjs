@@ -263,6 +263,112 @@ describe("the floor of the client", () => {
     expect(result.detail).not.toContain("publish the client before");
   });
 
+  test.each(["E404", "ETARGET"])(
+    "checks the exact packed client when npm reports its unpublished floor with %s",
+    async (code) => {
+      const root = treeWithReact({
+        source: 'import { KaitenClient } from "@kaitencloud/client";\n',
+      });
+      const [result] = await checkClientFloor(root, {
+        allowUnpublishedClient: true,
+        fetchTarball: () => {
+          throw Object.assign(new Error("unpublished"), { stderr: `npm error code ${code}` });
+        },
+        pack: (_dir, into) => clientTarball(into, ["KaitenClient"]),
+      });
+
+      expect(result.status).toBe("ok");
+      expect(result.detail).toContain("this release's packed client");
+    },
+    LONG,
+  );
+
+  test(
+    "still rejects missing imports in the unpublished client",
+    async () => {
+      const root = treeWithReact({
+        source: 'import { KaitenSessionClient } from "@kaitencloud/client";\n',
+      });
+      const [result] = await checkClientFloor(root, {
+        allowUnpublishedClient: true,
+        fetchTarball: () => {
+          throw Object.assign(new Error("unpublished"), { stderr: "npm error code E404" });
+        },
+        pack: (_dir, into) => clientTarball(into, []),
+      });
+
+      expect(result.status).toBe("fail");
+      expect(result.detail).toContain("KaitenSessionClient");
+    },
+    LONG,
+  );
+
+  test.each([
+    ["a registry failure", "1.0.0", "workspace:^", "ENOTFOUND"],
+    ["a floor older than the release", "1.2.0", "^1.0.0", "E404"],
+    ["a floor newer than the release", "1.0.0", "^1.2.0", "E404"],
+  ])(
+    "does not substitute the release's client for %s",
+    async (_label, clientVersion, range, code) => {
+      const root = treeWithReact({
+        clientVersion,
+        range,
+        source: 'import { KaitenClient } from "@kaitencloud/client";\n',
+      });
+      let packed = false;
+      const [result] = await checkClientFloor(root, {
+        allowUnpublishedClient: true,
+        fetchTarball: () => {
+          throw Object.assign(new Error("npm pack failed"), { stderr: `npm error code ${code}` });
+        },
+        pack: () => {
+          packed = true;
+          throw new Error("must not pack");
+        },
+      });
+
+      expect(result.status).toBe("fail");
+      expect(packed).toBe(false);
+    },
+  );
+
+  test("rejects a packed client whose version is not the unpublished floor", async () => {
+    const root = treeWithReact({
+      clientVersion: "1.2.0",
+      source: 'import { KaitenClient } from "@kaitencloud/client";\n',
+    });
+    const [result] = await checkClientFloor(root, {
+      allowUnpublishedClient: true,
+      fetchTarball: () => {
+        throw Object.assign(new Error("unpublished"), { stderr: "npm error code E404" });
+      },
+      pack: (_dir, into) => clientTarball(into, ["KaitenClient"]),
+    });
+
+    expect(result.status).toBe("fail");
+    expect(result.detail).toContain("must be public @kaitencloud/client@1.2.0");
+  });
+
+  test(
+    "keeps checking npm's client when the floor is already published",
+    async () => {
+      const root = treeWithReact({
+        source: 'import { KaitenSessionClient } from "@kaitencloud/client";\n',
+      });
+      const [result] = await checkClientFloor(root, {
+        allowUnpublishedClient: true,
+        fetchTarball: (_spec, into) => clientTarball(into, []),
+        pack: () => {
+          throw new Error("must not replace npm's client");
+        },
+      });
+
+      expect(result.status).toBe("fail");
+      expect(result.detail).toContain("KaitenSessionClient");
+    },
+    LONG,
+  );
+
   test("fails when a package imports the client without declaring it", async () => {
     const root = treeWithReact({
       range: null,
@@ -543,11 +649,14 @@ describe("this repository", () => {
       const results = checkReleaseShape(repoRoot, { dryRun: accepted });
 
       expect(results.filter((result) => result.status === "fail")).toEqual([]);
-      // The two React packages join these the day they stop being private, and this
-      // test must not be what stands in the way: it holds for whichever are public.
       const published = publishedPackages(repoRoot).map(({ name }) => name);
       expect(published).toEqual(
-        expect.arrayContaining(["@kaitencloud/client", "@kaitencloud/server"]),
+        expect.arrayContaining([
+          "@kaitencloud/client",
+          "@kaitencloud/server",
+          "@kaitencloud/react",
+          "@kaitencloud/react-ui",
+        ]),
       );
       expect(results.filter((result) => result.rule.endsWith("tarball"))).toHaveLength(
         published.length,

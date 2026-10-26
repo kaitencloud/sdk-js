@@ -13,7 +13,9 @@
 //    package imports from the client must exist in the floor itself. This step
 //    fetches `@kaitencloud/client` at that floor from npm, unpacks it in a
 //    throwaway folder, and compiles the imports the React packages make from it. A
-//    floor that is not on npm yet fails too: the client is published first.
+//    floor that is not on npm yet fails too, unless --allow-unpublished-client
+//    checks the packed client at that exact version in this release. The Release
+//    workflow uses this before Changesets publishes in dependency order.
 //    It has nothing to check until `packages/react` or `packages/react-ui` exist in
 //    the tree, and says so.
 //
@@ -29,8 +31,9 @@
 //   node scripts/check-release-dependencies.mjs --step 1     # the floor only
 //   node scripts/check-release-dependencies.mjs --step 2     # the shape only
 //   node scripts/check-release-dependencies.mjs --root <dir> # another tree
+//   node scripts/check-release-dependencies.mjs --step 1 --allow-unpublished-client
 //
-// Advisory in CI. Blocking in the release procedure, before anything is published.
+// Advisory in CI. The floor check blocks the Release workflow before packing.
 
 import { execFileSync } from "node:child_process";
 import {
@@ -411,7 +414,9 @@ export function clientImports(srcDir) {
 
 /** What `npm pack` said when the version is not there, as opposed to the registry not answering. */
 const notOnNpm = (error) =>
-  /E404|404 Not Found|No match found for version/i.test(String(error.stderr ?? error.message));
+  /E404|ETARGET|404 Not Found|No match found for version|No matching version found/i.test(
+    String(error.stderr ?? error.message),
+  );
 
 /**
  * Compiles the imports the React packages make from the client against the client
@@ -420,7 +425,14 @@ const notOnNpm = (error) =>
  *
  * @returns {Promise<Result[]>}
  */
-export async function checkClientFloor(root, { fetchTarball = fetchPublishedTarball } = {}) {
+export async function checkClientFloor(
+  root,
+  {
+    fetchTarball = fetchPublishedTarball,
+    allowUnpublishedClient = false,
+    pack = packWorkspacePackage,
+  } = {},
+) {
   const present = workspacePackages(root).filter(({ manifest }) =>
     REACT_PACKAGES.some((name) => manifest.name === `@kaitencloud/${name}`),
   );
@@ -476,18 +488,35 @@ export async function checkClientFloor(root, { fetchTarball = fetchPublishedTarb
       const into = join(project, "tarball");
       mkdirSync(into);
       let tarball;
+      let origin = "npm";
       try {
         tarball = fetchTarball(`${CLIENT}@${floor}`, into);
       } catch (error) {
-        results.push(
-          fail(
-            rule,
-            notOnNpm(error)
-              ? `${CLIENT}@${floor}, the floor of ${name}, is not on npm: publish the client before ${name}`
-              : `${CLIENT}@${floor} could not be fetched from npm: ${String(error.stderr ?? error.message).trim()}`,
-          ),
-        );
-        continue;
+        if (allowUnpublishedClient && notOnNpm(error) && floor === treeVersion) {
+          try {
+            tarball = pack(rootOf(root, "packages/client"), into);
+            const packed = tarballManifest(tarball);
+            if (packed.name !== CLIENT || packed.version !== floor || packed.private === true) {
+              throw new Error(`the packed client must be public ${CLIENT}@${floor}`);
+            }
+            origin = "this release's packed client; Changesets must publish it first";
+          } catch (packError) {
+            results.push(
+              fail(rule, `could not check the client in this release: ${packError.message}`),
+            );
+            continue;
+          }
+        } else {
+          results.push(
+            fail(
+              rule,
+              notOnNpm(error)
+                ? `${CLIENT}@${floor}, the floor of ${name}, is not on npm: publish the client before ${name}`
+                : `${CLIENT}@${floor} could not be fetched from npm: ${String(error.stderr ?? error.message).trim()}`,
+            ),
+          );
+          continue;
+        }
       }
       unpackAsDependency(tarball, project, CLIENT);
       // One file per statement. The statements come from dozens of source files, and
@@ -537,7 +566,7 @@ export async function checkClientFloor(root, { fetchTarball = fetchPublishedTarb
             )
           : ok(
               rule,
-              `the ${imports.length} import(s) of ${name} compile against ${CLIENT}@${floor}, its floor`,
+              `the ${imports.length} import(s) of ${name} compile against ${CLIENT}@${floor}, its floor (${origin})`,
             ),
       );
     }
@@ -563,8 +592,13 @@ function print(results) {
 async function main() {
   let root = repoRoot;
   let step;
+  let allowUnpublishedClient = false;
   try {
-    const { values } = readArguments(process.argv.slice(2), { options: ["--root", "--step"] });
+    const { values, switches } = readArguments(process.argv.slice(2), {
+      options: ["--root", "--step"],
+      switches: ["--allow-unpublished-client"],
+    });
+    allowUnpublishedClient = switches.has("--allow-unpublished-client");
     if (values["--root"][0] !== undefined) root = resolve(values["--root"][0]);
     step = values["--step"][0];
     if (step !== undefined && step !== "1" && step !== "2") throw new Error("--step takes 1 or 2.");
@@ -576,7 +610,7 @@ async function main() {
   let failed = false;
   if (step !== "2") {
     console.log("Step 1: the floor of the client");
-    failed = print(await checkClientFloor(root)) || failed;
+    failed = print(await checkClientFloor(root, { allowUnpublishedClient })) || failed;
   }
   if (step !== "1") {
     if (!existsSync(rootOf(root, "packages/client/dist"))) {
