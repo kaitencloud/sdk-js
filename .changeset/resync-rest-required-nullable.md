@@ -1,8 +1,6 @@
 ---
 "@kaitencloud/client": minor
 "@kaitencloud/server": minor
-"@kaitencloud/react": minor
-"@kaitencloud/react-ui": minor
 ---
 
 Resync OpenAPI to Kaiten `510ec73aa` and regenerate both REST clients (343 operation declarations).
