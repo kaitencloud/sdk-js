@@ -52,7 +52,16 @@ const EMAIL_MAX = 254;
  */
 export const isPlausibleEmail = (value: string): boolean => {
   const email = value.trim();
-  return Array.from(email).length <= EMAIL_MAX && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  let length = 0;
+  for (const _character of email) {
+    if (++length > EMAIL_MAX) return false;
+  }
+  if (/\s/.test(email)) return false;
+  const at = email.indexOf("@");
+  if (at <= 0 || email.indexOf("@", at + 1) !== -1) return false;
+  const domain = email.slice(at + 1);
+  const dot = domain.indexOf(".", 1);
+  return dot > 0 && dot < domain.length - 1;
 };
 
 export function emptyCheckoutSelection(
