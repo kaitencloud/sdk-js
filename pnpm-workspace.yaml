@@ -20,7 +20,7 @@ catalog:
   # run openapi-ts take TypeScript 6 from the `codegen` catalog below instead.
   typescript: ~7.0.2
   vite: npm:@voidzero-dev/vite-plus-core@1.0.0
-  vite-plus: 1.0.0
+  vite-plus: 1.1.0
   # vite-plus bundles upstream vitest and exposes it via `vite-plus/test`. Pin the
   # exact version it ships (`vp toolchain vitest`), 5.0.1 for vite-plus 1.0.0, so the
   # project shares a single Vitest copy. Dependabot leaves it to `vp migrate`, which
