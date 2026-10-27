@@ -29,6 +29,8 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { workspaceCatalog } from "./lib/workspace-catalog.mjs";
+
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const read = (relativePath) => readFileSync(resolve(repoRoot, relativePath), "utf8");
 
@@ -39,39 +41,7 @@ const passed = [];
 const fail = (rule, detail) => failures.push({ rule, detail });
 const pass = (rule, detail) => passed.push({ rule, detail });
 
-/** A `  key: value` entry from the workspace catalog. */
-const catalogEntry = (key) => {
-  const pattern = new RegExp(`^\\s{2}"?${key.replace(/[/@.]/g, "\\$&")}"?:\\s*(.+?)\\s*$`, "m");
-  return pattern.exec(workspace)?.[1]?.replace(/^["']|["']$/g, "");
-};
-
-/** The lines under a top-level `name:` key of the workspace, up to the next one. */
-const topLevelBlock = (name) => {
-  const lines = workspace.split("\n");
-  const start = lines.indexOf(`${name}:`);
-  if (start < 0) return [];
-  const block = [];
-  for (const line of lines.slice(start + 1)) {
-    if (line && !/^\s/.test(line)) break;
-    block.push(line);
-  }
-  return block;
-};
-
-/** A `    key: value` entry from a named catalog under `catalogs:`. */
-const namedCatalogEntry = (catalog, key) => {
-  const lines = topLevelBlock("catalogs");
-  const start = lines.indexOf(`  ${catalog}:`);
-  if (start < 0) return undefined;
-  for (const line of lines.slice(start + 1)) {
-    if (!/^\s{4}/.test(line)) break;
-    const match = new RegExp(`^\\s{4}"?${key.replace(/[/@.]/g, "\\$&")}"?:\\s*(.+?)\\s*$`).exec(
-      line,
-    );
-    if (match) return match[1].replace(/^["']|["']$/g, "");
-  }
-  return undefined;
-};
+const { catalogEntry, namedCatalogEntry, topLevelBlock } = workspaceCatalog(workspace);
 
 /** The TypeScript version a package installs, through the catalog it names. */
 const typescriptOf = (manifest) => {
