@@ -161,6 +161,28 @@ function registryFiles(root) {
   return files;
 }
 
+/** Whether a registry address names GitHub Packages as its host, including npmrc's `//` form. */
+export function namesGitHubPackages(text) {
+  for (const [address] of text.matchAll(
+    /(?:[a-z][a-z\d+.-]*:)?\/\/[^\s"'<>()[\]{},]+|[^\s"'=<>()[\]{},]+/gi,
+  )) {
+    let url;
+    try {
+      url = new URL(
+        /^[a-z][a-z\d+.-]*:\/\//i.test(address)
+          ? address
+          : address.startsWith("//")
+            ? `https:${address}`
+            : `https://${address}`,
+      );
+    } catch {
+      continue;
+    }
+    if (url.hostname.replace(/\.$/, "") === "npm.pkg.github.com") return true;
+  }
+  return false;
+}
+
 /** Asks npm whether it would accept the tarball. A version npm has is not a failure. */
 function npmDryRun(tarball) {
   try {
@@ -255,7 +277,7 @@ export function checkReleaseShape(root, { pack = packWorkspacePackage, dryRun = 
 
   // No GitHub Packages, anywhere a registry can be named.
   const github = registryFiles(root)
-    .filter((file) => readFileSync(file, "utf8").includes("npm.pkg.github.com"))
+    .filter((file) => namesGitHubPackages(readFileSync(file, "utf8")))
     .map((file) => relative(root, file));
   results.push(
     github.length > 0

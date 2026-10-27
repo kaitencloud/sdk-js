@@ -21,6 +21,7 @@ import {
   checkReleaseShape,
   clientImports,
   floorOf,
+  namesGitHubPackages,
   publishedPackages,
 } from "../check-release-dependencies.mjs";
 import { packWorkspacePackage, repoRoot } from "../lib/npm-package.mjs";
@@ -50,6 +51,34 @@ const write = (path, text) => {
 
 /** The result of one rule, by its name. */
 const byRule = (results, rule) => results.find((result) => result.rule === rule);
+
+describe("the registry host", () => {
+  test.each([
+    "registry-url: https://npm.pkg.github.com\n",
+    '@kaitencloud:registry="https://NPM.PKG.GITHUB.COM:443/"',
+    "//npm.pkg.github.com/:always-auth=true",
+    '{"registry":"https://npm.pkg.github.com./"}',
+    "registry=npm.pkg.github.com:443",
+    "tarball: https://npm.pkg.github.com/download/package.tgz",
+    "registry=https://%6e%70%6d.pkg.github.com/",
+  ])("finds GitHub Packages in %s", (text) => {
+    expect(namesGitHubPackages(text)).toBe(true);
+  });
+
+  test.each([
+    "https://npm.pkg.github.com.example.org/",
+    "https://example-npm.pkg.github.com/",
+    "https://npm.pkg.github.com@example.org/",
+    "https://registry.npmjs.org/npm.pkg.github.com",
+    "https://registry.npmjs.org/?registry=npm.pkg.github.com.example.org",
+    "registry=https://registry.npmjs.org/?registry=npm.pkg.github.com",
+    "https://registry.npmjs.org/#npm.pkg.github.com",
+    "https://[invalid/npm.pkg.github.com",
+    "https://registry.npmjs.org/",
+  ])("does not mistake another address for the host in %s", (text) => {
+    expect(namesGitHubPackages(text)).toBe(false);
+  });
+});
 
 describe("floorOf", () => {
   test.each([
@@ -511,6 +540,15 @@ describe("the shape of the release", () => {
 
     expect(byRule(results, "registry")).toMatchObject({ status: "fail" });
     expect(byRule(results, "registry").detail).toContain("publish.yml");
+  });
+
+  test("accepts other registry hosts even when their paths name GitHub Packages", () => {
+    const root = releaseTree();
+    write(join(root, ".npmrc"), "registry=https://registry.npmjs.org/npm.pkg.github.com\n");
+
+    const results = checkReleaseShape(root, { pack: packer(), dryRun: accepted });
+
+    expect(byRule(results, "registry")).toMatchObject({ status: "ok" });
   });
 
   test("fails when the lockfile resolves a 0.x line of a Kaiten package", () => {
