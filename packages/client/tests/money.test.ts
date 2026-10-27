@@ -19,6 +19,15 @@ const price = (unitAmountDecimal: string, currencyCode: string) =>
   majorUnitAmount({ unitAmountDecimal, currencyCode });
 
 describe("a price in major units, exactly", () => {
+  test("long runs of zeros retain every significant digit without repeated suffix searches", () => {
+    const zeros = "0".repeat(100_000);
+    const start = performance.now();
+    expect(price(`0.${zeros}1`, "JPY")).toBe(`0.${zeros}1`);
+    expect(price(`-0.${zeros}1${zeros}`, "EUR")).toBe(`-0.00${zeros}1`);
+    expect(price(`0.${zeros}`, "KWD")).toBe("0");
+    expect(performance.now() - start).toBeLessThan(1_000);
+  });
+
   test.for([
     // [minor units, currency, major units]
     ["4900", "EUR", "49"],

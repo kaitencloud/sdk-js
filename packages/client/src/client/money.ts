@@ -63,7 +63,9 @@ function shiftLeft(decimal: string, places: number): string | undefined {
   const decimals = (point > 0 ? "" : "0".repeat(-point)) + digits.slice(Math.max(point, 0));
 
   const shown = integer.replace(/^0+(?=\d)/, "") || "0";
-  const trimmed = decimals.replace(/0+$/, "");
+  let end = decimals.length;
+  while (end > 0 && decimals[end - 1] === "0") end -= 1;
+  const trimmed = decimals.slice(0, end);
   const magnitude = trimmed ? `${shown}.${trimmed}` : shown;
   return sign && magnitude !== "0" ? `-${magnitude}` : magnitude;
 }
