@@ -610,18 +610,23 @@ export async function checkDependencyFloors(
               notOnNpm(error) &&
               version === local?.manifest.version
             ) {
-              if (local.manifest.private === true)
+              // What reaches npm needs a public dependency; a private package, which
+              // nothing publishes, is checked against the tree's own packed one.
+              const published = manifest.private !== true;
+              if (published && local.manifest.private === true)
                 throw new Error(`the packed dependency must be public ${dependency}@${version}`);
               tarball = pack(local.dir, into);
               const packed = tarballManifest(tarball);
               if (
                 packed.name !== dependency ||
                 packed.version !== version ||
-                packed.private === true
+                (published && packed.private === true)
               ) {
                 throw new Error(`the packed dependency must be public ${dependency}@${version}`);
               }
-              origin = `this release's packed ${dependency}; Changesets must publish it first`;
+              origin = published
+                ? `this release's packed ${dependency}; Changesets must publish it first`
+                : `this tree's packed ${dependency}; ${name} is private, so nothing is published`;
             } else {
               throw new Error(
                 notOnNpm(error)

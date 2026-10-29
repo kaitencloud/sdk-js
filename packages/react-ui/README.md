@@ -12,6 +12,10 @@ only gates its own UI installs the core alone and never pays for this package.
 
 ## Installation
 
+> **Not on npm yet.** Its first version, 1.0.0, is published after
+> `@kaitencloud/client` 1.2.0, which carries the billing it reads. Until then it is
+> built from this repository, and the line below is how it will install.
+
 ```bash
 npm install @kaitencloud/react-ui
 ```

@@ -147,11 +147,12 @@ describe("the imports a package makes from the client", () => {
 });
 
 /** A client tarball as npm would serve one: a manifest and declarations that export `names`. */
-function clientTarball(into, names) {
+function clientTarball(into, names, manifest = {}) {
   const staging = mkdtempSync(join(work, "client-"));
   write(join(staging, "package", "package.json"), {
     name: "@kaitencloud/client",
     version: "1.0.0",
+    ...manifest,
     type: "module",
     types: "./dist/index.d.mts",
     exports: { ".": "./dist/index.mjs", "./testing": "./dist/testing.mjs" },
@@ -171,16 +172,23 @@ function clientTarball(into, names) {
 }
 
 /** A tree with a client and a React package whose range and imports are given. */
-function treeWithReact({ range = "workspace:^", clientVersion = "1.0.0", source }) {
+function treeWithReact({
+  range = "workspace:^",
+  clientVersion = "1.0.0",
+  clientPrivate = false,
+  reactPrivate = true,
+  source,
+}) {
   const root = mkdtempSync(join(work, "tree-"));
   write(join(root, "packages/client/package.json"), {
     name: "@kaitencloud/client",
     version: clientVersion,
+    ...(clientPrivate ? { private: true } : {}),
   });
   write(join(root, "packages/react/package.json"), {
     name: "@kaitencloud/react",
     version: "1.0.0",
-    private: true,
+    ...(reactPrivate ? { private: true } : {}),
     ...(range === null ? {} : { dependencies: { "@kaitencloud/client": range } }),
   });
   write(join(root, "packages/react/src/index.ts"), source);
@@ -304,6 +312,7 @@ describe("the floor of the client", () => {
     "checks the exact packed client when npm reports its unpublished floor with %s",
     async (code) => {
       const root = treeWithReact({
+        reactPrivate: false,
         source: 'import { KaitenClient } from "@kaitencloud/client";\n',
       });
       const [result] = await checkClientFloor(root, {
@@ -380,6 +389,45 @@ describe("the floor of the client", () => {
         throw Object.assign(new Error("unpublished"), { stderr: "npm error code E404" });
       },
       pack: (_dir, into) => clientTarball(into, ["KaitenClient"]),
+    });
+
+    expect(result.status).toBe("fail");
+    expect(result.detail).toContain("must be public @kaitencloud/client@1.2.0");
+  });
+
+  test("lets a private package compile against the tree's own private dependency", async () => {
+    const root = treeWithReact({
+      clientVersion: "1.2.0",
+      clientPrivate: true,
+      source: 'import { KaitenClient } from "@kaitencloud/client";\n',
+    });
+    const [result] = await checkClientFloor(root, {
+      allowUnpublishedWorkspace: true,
+      fetchTarball: () => {
+        throw Object.assign(new Error("unpublished"), { stderr: "npm error code E404" });
+      },
+      pack: (_dir, into) =>
+        clientTarball(into, ["KaitenClient"], { version: "1.2.0", private: true }),
+    });
+
+    expect(result.status).toBe("ok");
+    expect(result.detail).toContain("is private, so nothing is published");
+  });
+
+  test("still needs a public dependency for a package that is published", async () => {
+    const root = treeWithReact({
+      clientVersion: "1.2.0",
+      clientPrivate: true,
+      reactPrivate: false,
+      source: 'import { KaitenClient } from "@kaitencloud/client";\n',
+    });
+    const [result] = await checkClientFloor(root, {
+      allowUnpublishedWorkspace: true,
+      fetchTarball: () => {
+        throw Object.assign(new Error("unpublished"), { stderr: "npm error code E404" });
+      },
+      pack: (_dir, into) =>
+        clientTarball(into, ["KaitenClient"], { version: "1.2.0", private: true }),
     });
 
     expect(result.status).toBe("fail");
@@ -695,14 +743,11 @@ describe("this repository", () => {
       const results = checkReleaseShape(repoRoot, { dryRun: accepted });
 
       expect(results.filter((result) => result.status === "fail")).toEqual([]);
+      // The two React packages join these the day they stop being private, and this
+      // test must not be what stands in the way: it holds for whichever are public.
       const published = publishedPackages(repoRoot).map(({ name }) => name);
       expect(published).toEqual(
-        expect.arrayContaining([
-          "@kaitencloud/client",
-          "@kaitencloud/server",
-          "@kaitencloud/react",
-          "@kaitencloud/react-ui",
-        ]),
+        expect.arrayContaining(["@kaitencloud/client", "@kaitencloud/server"]),
       );
       expect(results.filter((result) => result.rule.endsWith("tarball"))).toHaveLength(
         published.length,

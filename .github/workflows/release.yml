@@ -1,7 +1,13 @@
 name: Release
 
-# Versions and publishes all four public SDK packages to npm: client, server,
-# react and react-ui. The React packages start their public line at 1.0.0.
+# Versions and publishes @kaitencloud/client and @kaitencloud/server to npm.
+#
+# @kaitencloud/react and @kaitencloud/react-ui are `"private": true` until their
+# first version, 1.0.0, is published by hand: npm accepts a trusted publisher only
+# on a package that already exists, and neither name exists on npm yet. Changesets
+# neither versions nor publishes a private package, so no run of this workflow can
+# put them on npm before that. CONTRIBUTING.md says how; once they are public, this
+# workflow publishes their later versions.
 #
 # On every push to main, Changesets picks what the run does:
 #   version  a changeset that bumps something is pending: open or refresh the
@@ -18,10 +24,6 @@ name: Release
 # there, as in any repository but kaitencloud/sdk-js. The permission sits on the
 # one job that publishes, which installs without running scripts and builds
 # nothing. npm adds provenance on its own once the repository is public.
-#
-# Both React package names already exist on npm with 0.x versions. A maintainer
-# configures their trusted publishers on npmjs.com before merging the SDK PR;
-# their first public 1.0.0 versions use this workflow too.
 #
 # Changesets v3 packs a dependency-ordered publish plan and publishes its groups
 # sequentially: client/server, then react, then react-ui. A failed group stops

@@ -7,8 +7,8 @@
 
 # Stability & versioning — `@kaitencloud/react` and `@kaitencloud/react-ui`
 
-> **Status: public `1.x` on npm.** Both packages start their public line at
-> 1.0.0, and the guarantees below hold from that release on. The
+> **Status: `1.x`, not on npm yet.** Both packages are published at 1.0.0, after
+> `@kaitencloud/client` 1.2.0, and the guarantees below hold from that release on. The
 > _stable_ surface follows semantic versioning: a breaking change to it needs a
 > major release. The surface marked _experimental_ has **no stability
 > guarantee**: it may change in a minor release. Pin an exact version if you
