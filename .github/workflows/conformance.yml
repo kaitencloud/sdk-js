@@ -43,7 +43,7 @@ jobs:
         with:
           node-version-file: .node-version
           cache: pnpm
-      - uses: voidzero-dev/setup-vp@v1.21.2
+      - uses: voidzero-dev/setup-vp@v1.22.0
         with:
           # actions/setup-node and pnpm/action-setup own Node.js and pnpm. Vite+
           # only provides vp, at the catalog's vite-plus version.
