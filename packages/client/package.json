@@ -24,6 +24,7 @@
   "types": "./dist/index.d.mts",
   "exports": {
     ".": "./dist/index.mjs",
+    "./ai": "./dist/ai.mjs",
     "./testing": "./dist/testing.mjs",
     "./package.json": "./package.json"
   },

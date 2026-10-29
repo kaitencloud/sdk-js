@@ -1,3 +1,11 @@
+enum AiRequestType {
+  AUDIO
+  COMPLETION
+  EMBEDDING
+  IMAGE_GENERATION
+  VIDEO
+}
+
 """
 AuditTrail records a single domain event captured from the outbox CDC pipeline.
 """
@@ -28,6 +36,12 @@ type AuditTrailPage {
   nextCursor: String
 }
 
+enum ChargeOnErrorPolicy {
+  ALWAYS
+  NEVER
+  PROVIDER_ERROR_ONLY
+}
+
 """
 Component represents a software component, optionally included in releases.
 """
@@ -49,6 +63,40 @@ type ComponentPage {
 
   """Opaque cursor for the next page. Null when hasMore is false."""
   nextCursor: String
+}
+
+type ConversionRates {
+  perCacheWriteToken: String
+  perCachedInputToken: String
+  perInputToken: String
+  perOutputToken: String
+  perRequest: String
+  perSecond: String
+  perUnit: String
+}
+
+"""
+An immutable license/pool/model/request identity with mutable exact pricing.
+"""
+type ConversionRule {
+  chargeOnError: ChargeOnErrorPolicy!
+  createdAt: Time!
+  entitlementSlug: String!
+  grantedByLicense: Boolean!
+  id: UUID!
+  licenseSlug: String!
+  maximumCreditsPerRequest: String
+  minimumCreditsPerRequest: String!
+  modelSlug: String
+  rates: ConversionRates!
+  requestType: AiRequestType
+  status: ConversionRuleStatus!
+  updatedAt: Time!
+}
+
+enum ConversionRuleStatus {
+  ACTIVE
+  ARCHIVED
 }
 
 """Customer represents a client organization of a organization."""
@@ -354,6 +402,10 @@ enum InstanceStatus {
 License defines the commercial and functional rules for one or more instances.
 """
 type License {
+  """
+  All rules when status is omitted; an explicit status filters that relation.
+  """
+  conversionRules(status: ConversionRuleStatus): [ConversionRule!]!
   description: String!
 
   """Entitlements granted by this license"""
@@ -539,6 +591,37 @@ enum MetadataFieldResourceType {
 }
 
 """
+An organization-scoped model catalogue entry. Vendor costs are intentionally
+REST-only under read:models. Deprecated models keep existing pricing; archived
+models remain in the catalogue but authorize no usage.
+"""
+type Model {
+  externalIds: [String!]!
+  id: UUID!
+  metadata: Map
+  modality: ModelModality!
+  name: String!
+  slug: String!
+  status: ModelStatus!
+  vendor: String!
+}
+
+enum ModelModality {
+  AUDIO
+  EMBEDDING
+  IMAGE
+  MULTIMODAL
+  TEXT
+  VIDEO
+}
+
+enum ModelStatus {
+  ACTIVE
+  ARCHIVED
+  DEPRECATED
+}
+
+"""
 OrganizationAuditTrail is an organization-wide audit trail entry. Instance and
 customer context is only present for instance-scoped events; organization-level
 events (e.g. customer or entitlement lifecycle) carry null instance fields.
@@ -670,6 +753,11 @@ type Query {
     limit: Int
     resourceType: MetadataFieldResourceType!
   ): MetadataFieldPage!
+
+  """
+  All catalogue models in the current organization, optionally filtered by status.
+  """
+  models(status: ModelStatus): [Model!]!
 
   """
   List every audit trail entry of the current organization, newest first,

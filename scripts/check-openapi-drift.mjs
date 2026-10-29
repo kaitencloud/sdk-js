@@ -10,9 +10,9 @@
 // CI job only proves `src/generated` matches the *snapshot*; this check proves
 // the *snapshot* matches kaiten's source of truth.
 //
-// Source resolution — the published contract, never a sibling checkout:
+// Source resolution — published by default, with an explicit source override:
 //   - $KAITEN_OPENAPI when set to a non-empty path — CI's contract-drift
-//     workflow packs @kaitencloud/openapi and points us at the extracted spec.
+//     workflow points us at the npm spec or an immutable companion commit.
 //   - else the published contract is fetched here (npm pack
 //     @kaitencloud/openapi@latest), so the check needs no local kaiten.
 //
@@ -55,7 +55,7 @@ const source = readFileSync(sourcePath, "utf8");
 
 if (snapshot === source) {
   console.log(
-    `✔ OpenAPI snapshot is in sync with @kaitencloud/openapi (${countOps(source)} operations).`,
+    `✔ OpenAPI snapshot is in sync with ${sourceLabel} (${countOps(source)} operations).`,
   );
   process.exit(0);
 }
@@ -65,11 +65,11 @@ const verdict =
   delta > 0
     ? `→ the published SDK is ${delta} operation(s) behind the backend.`
     : delta < 0
-      ? `→ the snapshot has ${-delta} operation(s) the backend no longer exposes.`
+      ? `→ the snapshot has ${-delta} operation(s) absent from this upstream contract.`
       : `→ same operation count but the specs differ (schema/shape change).`;
 
 console.error(
-  `✘ OpenAPI snapshot has drifted from the published contract.\n` +
+  `✘ OpenAPI snapshot has drifted from the selected upstream contract.\n` +
     `  snapshot: contracts/openapi.yaml (${countOps(snapshot)} operations)\n` +
     `  source:   ${sourceLabel} (${countOps(source)} operations)\n` +
     `  ${verdict}\n\n` +

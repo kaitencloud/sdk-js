@@ -28,6 +28,10 @@ import {
 } from "./normalize.ts";
 import { isEvaluationSuccess } from "./feature-flags.ts";
 import { KaitenTransport } from "../core/index.ts";
+import { createModelsModule, createConversionRulesModule } from "../ai/catalog.ts";
+import type { KaitenModelsModule, KaitenConversionRulesModule } from "../ai/catalog.ts";
+import { createAiModule } from "../ai/module.ts";
+import type { KaitenAiModule } from "../ai/module.ts";
 import { LICENSING_CATALOG_QUERY, LICENSING_SNAPSHOT_QUERY } from "../graphql/documents.ts";
 import type {
   LicensingCatalogQuery,
@@ -106,6 +110,7 @@ export interface KaitenInstancesModule {
 }
 
 export interface KaitenLicensesModule {
+  conversionRules: KaitenConversionRulesModule;
   get: (licenseSlug: string) => Promise<License>;
   list: () => Promise<License[] | null>;
   getEntitlement: (licenseSlug: string, entitlementSlug: string) => Promise<LicenseEntitlement>;
@@ -341,6 +346,13 @@ export class KaitenClient implements KaitenClientLike {
   public readonly licenses: KaitenLicensesModule;
   public readonly usage: KaitenUsageModule;
   public readonly flags: KaitenFlagsModule;
+  /**
+   * AI credits: `reserve`, `commit` and `run` on an AI credit pool. The
+   * provider wrappers (`@kaitencloud/ai-openai`, `@kaitencloud/ai-anthropic`, …)
+   * drive it for you. Server-side: the report needs a `ksh_` token.
+   */
+  public readonly ai: KaitenAiModule;
+  public readonly models: KaitenModelsModule;
 
   constructor(config: KaitenClientConfig) {
     // No default scheme: publishable keys are not served yet, and a default that
@@ -369,7 +381,9 @@ export class KaitenClient implements KaitenClientLike {
       list: () => this.listInstances(),
     };
 
+    this.models = createModelsModule(this.transport);
     this.licenses = {
+      conversionRules: createConversionRulesModule(this.transport),
       get: (licenseSlug) => this.getLicense(licenseSlug),
       list: () => this.listLicenses(),
       getEntitlement: (licenseSlug, entitlementSlug) =>
@@ -386,6 +400,8 @@ export class KaitenClient implements KaitenClientLike {
       getByGroup: (groupSlug, instanceSlug) =>
         this.getEntitlementGroupUsage(groupSlug, instanceSlug),
     };
+
+    this.ai = createAiModule(this.transport);
 
     this.flags = {
       evaluate: (key, context) => this.evaluateFlag(key, context),
@@ -1072,12 +1088,21 @@ export class KaitenClient implements KaitenClientLike {
     entitlementSlug: string,
     input: ReportUsageInput,
   ): Promise<EntitlementUsage> {
+    // The regenerated write union accepts numeric reports only here; AI reports
+    // go through ai.reserve/commit. Keep the legacy input type but reject other
+    // read-value variants before issuing an invalid request.
+    if (input.value.type !== "number") {
+      throw new TypeError(
+        "reportUsage requires a numeric value; use ai.reserve or ai.commit for AI usage.",
+      );
+    }
+    const body = { ...input, value: input.value };
     return this.transport.run(
       (client) =>
         reportEntitlementUsageMetric({
           client,
           path: { instanceSlug, entitlementSlug },
-          body: input,
+          body,
         }),
       `reportUsage(${instanceSlug}, ${entitlementSlug})`,
       // Never replayed. The endpoint carries no idempotency key, so a retry
