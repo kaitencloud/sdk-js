@@ -43,6 +43,14 @@ that an app holds one provider; in return, within a major, the core removes and 
 nothing that a published UI package imports, from any of its entries,
 `@kaitencloud/react/internal` included.
 
+The dependency-floor gate checks both hops using the versions a consumer can
+actually install. PR CI projects the Changesets versioning in an isolated copy
+of the built tree; the release checks its already-versioned manifests. Published
+floors come from npm, while an unpublished floor must be the exact public package
+packed in the same release. React UI's probe also resolves React's client floor.
+This catches missing dependency bumps without requiring one package to be published
+before the PR that introduces it. Changesets publishes client, then React, then UI.
+
 ## Contracts, not sources
 
 The API is described by two snapshots in [`contracts/`](contracts): `openapi.yaml`

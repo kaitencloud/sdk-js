@@ -17,9 +17,9 @@ import { dirname, join } from "node:path";
 import { afterAll, beforeAll, describe, expect, test } from "vite-plus/test";
 
 import {
-  checkClientFloor,
+  checkDependencyFloors as checkClientFloor,
   checkReleaseShape,
-  clientImports,
+  dependencyImports,
   floorOf,
   namesGitHubPackages,
   publishedPackages,
@@ -128,8 +128,16 @@ describe("the imports a package makes from the client", () => {
     );
     write(join(src, "card", "card.test.tsx"), 'import { Tested } from "@kaitencloud/client";\n');
     write(join(src, "card", "card.spec.ts"), 'import { Specified } from "@kaitencloud/client";\n');
+    write(
+      join(src, "comments.ts"),
+      [
+        '// import for both. export { Fake } from "@kaitencloud/client";',
+        'const example = `import { Fake } from "@kaitencloud/client";`;',
+        'import { /* ignored */ KaitenClient, type Plan } from "@kaitencloud/client";',
+      ].join("\n"),
+    );
 
-    expect(clientImports(src)).toEqual([
+    expect(dependencyImports(src, "@kaitencloud/client")).toEqual([
       'export { type Addon } from "@kaitencloud/client";',
       'import type { KaitenCatalog } from "@kaitencloud/client";',
       'import { KaitenClient, type Plan } from "@kaitencloud/client";',
@@ -275,7 +283,7 @@ describe("the floor of the client", () => {
 
     expect(result.status).toBe("fail");
     expect(result.detail).toContain("@kaitencloud/client@1.1.0");
-    expect(result.detail).toContain("publish the client before");
+    expect(result.detail).toContain("publish the dependency before");
   });
 
   test("does not call an unreachable registry a missing version", async () => {
@@ -289,7 +297,7 @@ describe("the floor of the client", () => {
 
     expect(result.status).toBe("fail");
     expect(result.detail).toContain("could not be fetched");
-    expect(result.detail).not.toContain("publish the client before");
+    expect(result.detail).not.toContain("publish the dependency before");
   });
 
   test.each(["E404", "ETARGET"])(
@@ -299,7 +307,7 @@ describe("the floor of the client", () => {
         source: 'import { KaitenClient } from "@kaitencloud/client";\n',
       });
       const [result] = await checkClientFloor(root, {
-        allowUnpublishedClient: true,
+        allowUnpublishedWorkspace: true,
         fetchTarball: () => {
           throw Object.assign(new Error("unpublished"), { stderr: `npm error code ${code}` });
         },
@@ -307,7 +315,7 @@ describe("the floor of the client", () => {
       });
 
       expect(result.status).toBe("ok");
-      expect(result.detail).toContain("this release's packed client");
+      expect(result.detail).toContain("this release's packed @kaitencloud/client");
     },
     LONG,
   );
@@ -319,7 +327,7 @@ describe("the floor of the client", () => {
         source: 'import { KaitenSessionClient } from "@kaitencloud/client";\n',
       });
       const [result] = await checkClientFloor(root, {
-        allowUnpublishedClient: true,
+        allowUnpublishedWorkspace: true,
         fetchTarball: () => {
           throw Object.assign(new Error("unpublished"), { stderr: "npm error code E404" });
         },
@@ -346,7 +354,7 @@ describe("the floor of the client", () => {
       });
       let packed = false;
       const [result] = await checkClientFloor(root, {
-        allowUnpublishedClient: true,
+        allowUnpublishedWorkspace: true,
         fetchTarball: () => {
           throw Object.assign(new Error("npm pack failed"), { stderr: `npm error code ${code}` });
         },
@@ -367,7 +375,7 @@ describe("the floor of the client", () => {
       source: 'import { KaitenClient } from "@kaitencloud/client";\n',
     });
     const [result] = await checkClientFloor(root, {
-      allowUnpublishedClient: true,
+      allowUnpublishedWorkspace: true,
       fetchTarball: () => {
         throw Object.assign(new Error("unpublished"), { stderr: "npm error code E404" });
       },
@@ -385,7 +393,7 @@ describe("the floor of the client", () => {
         source: 'import { KaitenSessionClient } from "@kaitencloud/client";\n',
       });
       const [result] = await checkClientFloor(root, {
-        allowUnpublishedClient: true,
+        allowUnpublishedWorkspace: true,
         fetchTarball: (_spec, into) => clientTarball(into, []),
         pack: () => {
           throw new Error("must not replace npm's client");
@@ -709,12 +717,16 @@ describe("this repository", () => {
       // The floor is the version of the client in this tree, so the tarball the tree packs
       // for the client is the floor. Whatever react imports has to be in it.
       const results = await checkClientFloor(repoRoot, {
-        fetchTarball: (_spec, into) =>
-          packWorkspacePackage(join(repoRoot, "packages", "client"), into),
+        fetchTarball: (spec, into) =>
+          packWorkspacePackage(
+            join(repoRoot, "packages", spec.startsWith("@kaitencloud/react@") ? "react" : "client"),
+            into,
+          ),
       });
 
       const react = results.find(({ rule }) => rule === "@kaitencloud/react client floor");
       expect(react).toMatchObject({ status: "ok" });
+      expect(byRule(results, "@kaitencloud/react-ui react floor")).toMatchObject({ status: "ok" });
     },
     LONG,
   );
@@ -730,12 +742,16 @@ describe("this repository", () => {
       expect(results.map(({ rule }) => rule).toSorted((a, b) => a.localeCompare(b))).toEqual([
         "@kaitencloud/react client floor",
         "@kaitencloud/react-ui client floor",
+        "@kaitencloud/react-ui react floor",
       ]);
       const react = results.find(({ rule }) => rule === "@kaitencloud/react client floor");
       const reactUi = results.find(({ rule }) => rule === "@kaitencloud/react-ui client floor");
       expect(react?.status).toBe("fail");
       expect(react?.detail).toContain("KaitenSessionClientLike");
       expect(reactUi).toMatchObject({ status: "skip" });
+      expect(byRule(results, "@kaitencloud/react-ui react floor")).toMatchObject({
+        status: "fail",
+      });
     },
     LONG,
   );
@@ -773,7 +789,7 @@ describe("the command line of the release check", () => {
     const result = run("--step", "1", "--root", root);
 
     expect(result.status).toBe(0);
-    expect(result.stdout).toContain("Step 1: the floor of the client");
+    expect(result.stdout).toContain("Step 1: the floors of workspace dependencies");
     expect(result.stdout).toContain("skipped");
     expect(result.stdout).not.toContain("Step 2");
   });

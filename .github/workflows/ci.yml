@@ -335,8 +335,8 @@ jobs:
       - name: Verify shipped GraphQL operations validate against the snapshot
         run: node scripts/check-graphql-drift.mjs --operations-only
 
-  # The jobs below are not required by the main-branch ruleset. Both read the npm
-  # registry, and a registry that is down should not hold a merge.
+  # Compatibility with already published 1.0.0 packages reads the npm registry.
+  # This job is not required by the main-branch ruleset.
 
   # Code written against 1.0.0 compiles against the tarball npm serves for 1.0.0,
   # and against the one this tree would publish, and the server keeps every name
@@ -366,15 +366,14 @@ jobs:
       - name: Compile a 1.0.0 consumer against 1.0.0 and against this tree, and compare the exports
         run: node scripts/check-compat-1.0.mjs
 
-  # What a release needs: the floor of the client for the React packages, once they
-  # are in the tree, and the shape of every published package, with npm's own dry
-  # run. Advisory here, because it is meant to fail while the client a React package
-  # needs is not on npm yet. It blocks in the release procedure. See
-  # scripts/check-release-dependencies.mjs.
+  # Check the release Changesets would produce, not new code against pre-release
+  # manifest versions. --project versions an isolated copy of the built tree and
+  # checks React -> client and React UI -> React at their dependency floors.
+  # A not-yet-published floor may use only its exact public same-release tarball;
+  # missing changesets, incompatible imports and registry failures still fail.
   release-dependencies:
     name: release-dependencies
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v7.0.1
       - uses: pnpm/action-setup@v6.1.0
@@ -394,5 +393,5 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Build packages
         run: vp run -r build
-      - name: Check the floor of the client and the shape of the release
-        run: node scripts/check-release-dependencies.mjs
+      - name: Check dependency floors and the shape of the projected release
+        run: node scripts/check-release-dependencies.mjs --project

@@ -25,8 +25,8 @@ name: Release
 #
 # Changesets v3 packs a dependency-ordered publish plan and publishes its groups
 # sequentially: client/server, then react, then react-ui. A failed group stops
-# publication. The floor check below verifies npm's client, or the exact client
-# version being packed in this release when that version is not on npm yet.
+# publication. The floor check verifies React -> client and React UI -> React
+# against npm's versions, or the exact public same-release tarballs when missing.
 #
 # No job restores a dependency cache: a poisoned cache entry would reach the
 # tarballs.
@@ -153,8 +153,8 @@ jobs:
         run: vp run test:unit
       - name: Check the published shape of every package
         run: node scripts/check-published-shape.mjs
-      - name: Check React imports against the minimum client
-        run: node scripts/check-release-dependencies.mjs --step 1 --allow-unpublished-client
+      - name: Check React and React UI imports against their minimum dependencies
+        run: node scripts/check-release-dependencies.mjs --step 1 --allow-unpublished-workspace
       # pnpm packs, so the tarballs carry the catalog's real ranges rather than
       # `catalog:`. The publish job below uploads these tarballs as they are.
       - name: Pack the packages npm does not have yet

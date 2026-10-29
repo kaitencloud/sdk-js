@@ -128,10 +128,13 @@ The components have a Storybook playground: `vp run @kaitencloud/react-ui#storyb
   purpose in 1.1.0 (`REMOVED_SINCE_1_0`). Not required to merge, because it reads
   the npm registry.
 - **release-dependencies**: the shape of what a release would publish, with npm's own
-  dry run, and that React compiles against the lowest client its range allows.
-  Advisory in PR CI: it fails while npm lacks the required client exports/version.
-  The Release workflow makes the floor check blocking, allowing the exact client
-  packed in the same release when its version is not on npm yet.
+  dry run, and that React and React UI compile against their minimum client/React
+  dependencies, including React's internal entries and transitive client floor.
+  After the build, PR CI applies Changesets' versioning to an isolated copy and checks
+  its manifests and tarballs. A version PR with consumed changesets keeps its versions.
+  Published floors are checked against npm; a missing floor can use only its exact
+  public same-release tarball. A missing changeset, incompatible import or registry
+  failure fails CI. The Release workflow repeats the floor check as a blocking gate.
 - **Conformance** (its own workflow, `conformance.yml`, run by hand or on a pull
   request): a customer's whole journey through a running Kaiten with the two packages
   alone, each answer held to the API contract. It reads the stack it runs against from the
@@ -247,12 +250,20 @@ workflow also publishes the React versions npm does not have. Later changes to
 any public package need a changeset.
 
 The release builds and checks all four packages before packing. Its blocking
-client-floor check uses npm's minimum client, or, with
-`--allow-unpublished-client`, the public packed client at that exact version in
+dependency-floor check uses npm's minimum client and React, or, with
+`--allow-unpublished-workspace`, the public packed dependency at that exact version in
 this release if npm does not have it yet. Changesets v3 preserves the dependency
 order in the packed plan and stops on failure: client/server, then React, then
 react-ui. React therefore cannot be published before the client carrying its
 imports. A registry error is not treated as an unpublished version.
+
+`pnpm run check:release-dependencies` runs the same `--project` check as PR CI, after
+`vp run -r build`. Projection copies the built artifacts and sources, then runs the
+installed Changesets CLI with changelog generation, formatting and commits disabled
+in the copy only. pnpm's workspace links point at that copy's versioned manifests.
+No install or publish runs in the copy, and the working tree's versions and changesets
+are untouched. An empty changeset cannot substitute for a required package bump:
+if the dependency version stays published, its older npm tarball remains the probe.
 
 ## Pull requests
 

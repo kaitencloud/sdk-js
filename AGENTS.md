@@ -70,6 +70,11 @@ release. Add a tool name to select part of the graph. For example, run
   install them, so that no package's script runs.
 - The tests of the scripts live in `scripts/tests` and run from the root with
   `vp test run scripts`, after the build.
+- `pnpm run check:release-dependencies` projects Changesets' versioning in a temporary
+  copy of the built tree and checks React → client and React UI → React at their
+  minimum versions. Never fix a missing export by blindly substituting a local
+  package: a published floor must use npm's tarball. The Release workflow allows
+  only an exact public same-release tarball for an unpublished workspace floor.
 - **Vite+ owns the Vite and Vitest versions.** Never bump `vite`, `vitest` or a
   `@vitest/*` package by itself: upgrade `vite-plus` as CONTRIBUTING.md describes, and
   `node scripts/check-version-invariants.mjs` checks that the pins agree.

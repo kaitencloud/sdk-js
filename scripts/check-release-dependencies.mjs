@@ -6,18 +6,11 @@
 //
 // Two steps, in the order a release needs them.
 //
-// 1. The floor of the client. A package that depends on `@kaitencloud/client` is
-//    packed with the lowest version of it that satisfies its range, and a
-//    workspace range packs as the version the client has in this tree. A host that
-//    installs the package gets any client from that floor up, so every name the
-//    package imports from the client must exist in the floor itself. This step
-//    fetches `@kaitencloud/client` at that floor from npm, unpacks it in a
-//    throwaway folder, and compiles the imports the React packages make from it. A
-//    floor that is not on npm yet fails too, unless --allow-unpublished-client
-//    checks the packed client at that exact version in this release. The Release
-//    workflow uses this before Changesets publishes in dependency order.
-//    It has nothing to check until `packages/react` or `packages/react-ui` exist in
-//    the tree, and says so.
+// 1. Dependency floors: React -> client and React UI -> React (including internal
+//    entries). Imports must compile against the lowest allowed versions, with
+//    transitive workspace dependencies also resolved at their floors.
+//    Published versions always come from npm. --allow-unpublished-workspace permits
+//    only an exact public package packed in this release on E404/ETARGET.
 //
 // 2. The shape of the release. For every package that is not private: the license,
 //    `publishConfig`, the legal files at the root and in each tarball, the DCO
@@ -31,12 +24,17 @@
 //   node scripts/check-release-dependencies.mjs --step 1     # the floor only
 //   node scripts/check-release-dependencies.mjs --step 2     # the shape only
 //   node scripts/check-release-dependencies.mjs --root <dir> # another tree
-//   node scripts/check-release-dependencies.mjs --step 1 --allow-unpublished-client
+//   node scripts/check-release-dependencies.mjs --project    # the planned release
+//   node scripts/check-release-dependencies.mjs --step 1 --allow-unpublished-workspace
 //
-// Advisory in CI. The floor check blocks the Release workflow before packing.
+// PR CI uses --project: copy the built tree, apply Changesets' real versioning,
+// then check the resulting manifests/tarballs, allowing same-release packages.
+// A missing changeset still checks npm's old version and fails on new imports.
+// Both PR CI and Release fail on actual incompatibilities.
 
 import { execFileSync } from "node:child_process";
 import {
+  cpSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -44,10 +42,12 @@ import {
   readdirSync,
   rmSync,
   statSync,
+  symlinkSync,
   writeFileSync,
 } from "node:fs";
+import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
-import { join, relative, resolve } from "node:path";
+import { basename, dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { readArguments } from "./lib/arguments.mjs";
@@ -66,6 +66,8 @@ import {
 } from "./lib/npm-package.mjs";
 
 const CLIENT = "@kaitencloud/client";
+const REACT = "@kaitencloud/react";
+const WORKSPACE_DEPENDENCIES = [CLIENT, REACT];
 const REGISTRY = "https://registry.npmjs.org";
 const LICENSE = "Apache-2.0";
 const REACT_PACKAGES = ["react", "react-ui"];
@@ -89,6 +91,9 @@ const skip = (rule, detail) => ({ status: "skip", rule, detail });
 
 const readJson = (path) => JSON.parse(readFileSync(path, "utf8"));
 const rootOf = (root, ...parts) => join(root, ...parts);
+// The codegen package installs TypeScript 6, whose parser API is available in JS.
+const ts = createRequire(join(repoRoot, "packages/client/package.json"))("typescript");
+const importPrinter = ts.createPrinter({ removeComments: true });
 
 /** The packages of `packages/*` with a manifest, as `{ dir, name, manifest }`. */
 export function workspacePackages(root) {
@@ -106,6 +111,67 @@ export function workspacePackages(root) {
 /** The ones that are published: not `private`. */
 export const publishedPackages = (root) =>
   workspacePackages(root).filter(({ manifest }) => manifest.private !== true);
+
+/** Copy built artifacts and their sources, then let Changesets version only the copy. */
+export function projectRelease(root, into) {
+  for (const name of [
+    "package.json",
+    "pnpm-workspace.yaml",
+    "pnpm-lock.yaml",
+    ".changeset",
+    ".github",
+    "packages",
+    "examples",
+    "README.md",
+    ...LEGAL_AT_ROOT,
+  ]) {
+    const source = join(root, name);
+    if (!existsSync(source)) continue;
+    cpSync(source, join(into, name), {
+      recursive: true,
+      filter: (path) =>
+        !["node_modules", ".git", "storybook-static", "test-results", "playwright-report"].includes(
+          basename(path),
+        ),
+    });
+  }
+  const changesets = join(into, ".changeset");
+  const pending =
+    existsSync(changesets) &&
+    readdirSync(changesets).some((name) => name.endsWith(".md") && name !== "README.md");
+  const exitingPre =
+    existsSync(join(changesets, "pre.json")) &&
+    readJson(join(changesets, "pre.json")).mode === "exit";
+  if (pending || exitingPre) {
+    const configPath = join(changesets, "config.json");
+    // Changelog formatting/links and commits do not affect versions or ranges.
+    writeFileSync(
+      configPath,
+      `${JSON.stringify({ ...readJson(configPath), changelog: false, commit: false, format: false }, null, 2)}\n`,
+    );
+    const cli = createRequire(import.meta.url).resolve("@changesets/cli/bin.js");
+    execFileSync(process.execPath, [cli, "version"], {
+      cwd: into,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+  }
+  // pnpm pack resolves workspace:^ through installed links. Point those links at
+  // the versioned copy, never at the original tree's older package manifests.
+  const packages = workspacePackages(into);
+  const byName = new Map(packages.map((pkg) => [pkg.name, pkg]));
+  for (const pkg of packages) {
+    for (const field of [...DEPENDENCY_FIELDS, "devDependencies"]) {
+      for (const [dependency, range] of Object.entries(pkg.manifest[field] ?? {})) {
+        const local = byName.get(dependency);
+        if (!range.startsWith("workspace:") || !local) continue;
+        const target = join(pkg.dir, "node_modules", dependency);
+        mkdirSync(dirname(target), { recursive: true });
+        if (!existsSync(target)) symlinkSync(local.dir, target, "dir");
+      }
+    }
+  }
+  return into;
+}
 
 /**
  * The lowest version a dependency range allows, as `1.2.0`, or `null` when the
@@ -410,24 +476,36 @@ export function checkReleaseShape(root, { pack = packWorkspacePackage, dryRun = 
   return results;
 }
 
-// -- Step 1: the floor of the client ---------------------------------------------
+// -- Step 1: the floors of workspace dependencies --------------------------------
 
 /** A story or a test: it sits in `src` but is not part of what the package ships. */
 const NOT_SHIPPED = /\.(?:stories|test|spec)\.(?:ts|tsx)$/;
 
 /**
- * The `import ... from "@kaitencloud/client"` statements of the `.ts` and `.tsx`
- * files of a source directory that end up in the package: its stories and tests
- * import the client's `testing` entry, which the package never depends on.
+ * Import/re-export statements from a dependency, including its subpaths, excluding
+ * stories/tests. Each statement is compiled separately to avoid duplicate bindings.
  */
-export function clientImports(srcDir) {
+export function dependencyImports(srcDir, dependency) {
   const statements = new Set();
-  const pattern =
-    /\b(?:import|export)\s+(?:type\s+)?[^;'"]*?\bfrom\s+["'](@kaitencloud\/client(?:\/[A-Za-z0-9_-]+)?)["']/g;
   for (const file of filesBelow(srcDir)) {
     if (!/\.(ts|tsx)$/.test(file) || file.endsWith(".d.ts") || NOT_SHIPPED.test(file)) continue;
-    for (const match of readFileSync(file, "utf8").matchAll(pattern)) {
-      statements.add(`${match[0].replace(/\s+/g, " ").trim()};`);
+    const source = ts.createSourceFile(
+      file,
+      readFileSync(file, "utf8"),
+      ts.ScriptTarget.Latest,
+      true,
+    );
+    for (const statement of source.statements) {
+      if (!ts.isImportDeclaration(statement) && !ts.isExportDeclaration(statement)) continue;
+      const specifier = statement.moduleSpecifier;
+      if (!specifier || !ts.isStringLiteral(specifier)) continue;
+      if (specifier.text !== dependency && !specifier.text.startsWith(`${dependency}/`)) continue;
+      statements.add(
+        importPrinter
+          .printNode(ts.EmitHint.Unspecified, statement, source)
+          .replace(/\s+/g, " ")
+          .trim(),
+      );
     }
   }
   // By code point, so that the order does not depend on the machine's locale.
@@ -441,156 +519,196 @@ const notOnNpm = (error) =>
   );
 
 /**
- * Compiles the imports the React packages make from the client against the client
- * at the floor of their range, fetched from npm. `fetchTarball` is how a version
- * reaches the check; the tests replace it.
+ * Compile the React packages' imports against dependency floors. Resolve transitive
+ * workspace floors too, so React UI cannot borrow the local client's newer types.
  *
  * @returns {Promise<Result[]>}
  */
-export async function checkClientFloor(
+export async function checkDependencyFloors(
   root,
   {
     fetchTarball = fetchPublishedTarball,
-    allowUnpublishedClient = false,
+    allowUnpublishedWorkspace = false,
     pack = packWorkspacePackage,
   } = {},
 ) {
-  const present = workspacePackages(root).filter(({ manifest }) =>
+  const packages = workspacePackages(root);
+  const present = packages.filter(({ manifest }) =>
     REACT_PACKAGES.some((name) => manifest.name === `@kaitencloud/${name}`),
   );
   if (present.length === 0) {
     return [
       skip(
-        "client floor",
+        "dependency floors",
         "skipped: packages/react and packages/react-ui are not in this tree, so nothing imports the client yet",
       ),
     ];
   }
 
-  const clientManifest = existsSync(rootOf(root, "packages/client/package.json"))
-    ? readJson(rootOf(root, "packages/client/package.json"))
-    : undefined;
-  const treeVersion = clientManifest?.version;
+  const packagesByName = new Map(packages.map((pkg) => [pkg.name, pkg]));
 
   /** @type {Result[]} */
   const results = [];
   const work = mkdtempSync(join(tmpdir(), "kaiten-floor-"));
   try {
     for (const { dir, name, manifest } of present) {
-      const rule = `${name} client floor`;
-      const imports = clientImports(join(dir, "src"));
-      const range =
-        manifest.peerDependencies?.[CLIENT] ??
-        manifest.dependencies?.[CLIENT] ??
-        manifest.optionalDependencies?.[CLIENT];
+      for (const dependency of WORKSPACE_DEPENDENCIES) {
+        if (dependency === name) continue;
+        const rule = `${name} ${dependency.split("/").at(-1)} floor`;
+        const imports = dependencyImports(join(dir, "src"), dependency);
+        const range =
+          manifest.peerDependencies?.[dependency] ??
+          manifest.dependencies?.[dependency] ??
+          manifest.optionalDependencies?.[dependency];
 
-      if (range === undefined) {
-        results.push(
-          imports.length > 0
-            ? fail(rule, `imports ${CLIENT} but declares no dependency or peer dependency on it`)
-            : skip(rule, `${name} does not import ${CLIENT}`),
-        );
-        continue;
-      }
-      const floor = floorOf(range, treeVersion);
-      if (floor === null) {
-        results.push(
-          fail(rule, `${CLIENT} is ${JSON.stringify(range)}, which has no lowest version to check`),
-        );
-        continue;
-      }
-      if (imports.length === 0) {
-        results.push(skip(rule, `${name} does not import ${CLIENT}`));
-        continue;
-      }
-
-      const project = join(work, name.replace(/[^a-z0-9]+/gi, "-"));
-      mkdirSync(join(project, "probe"), { recursive: true });
-      writeFileSync(join(project, "package.json"), '{ "type": "module" }\n');
-      const into = join(project, "tarball");
-      mkdirSync(into);
-      let tarball;
-      let origin = "npm";
-      try {
-        tarball = fetchTarball(`${CLIENT}@${floor}`, into);
-      } catch (error) {
-        if (allowUnpublishedClient && notOnNpm(error) && floor === treeVersion) {
-          try {
-            tarball = pack(rootOf(root, "packages/client"), into);
-            const packed = tarballManifest(tarball);
-            if (packed.name !== CLIENT || packed.version !== floor || packed.private === true) {
-              throw new Error(`the packed client must be public ${CLIENT}@${floor}`);
-            }
-            origin = "this release's packed client; Changesets must publish it first";
-          } catch (packError) {
-            results.push(
-              fail(rule, `could not check the client in this release: ${packError.message}`),
-            );
-            continue;
-          }
-        } else {
+        if (range === undefined) {
+          results.push(
+            imports.length > 0
+              ? fail(
+                  rule,
+                  `imports ${dependency} but declares no dependency or peer dependency on it`,
+                )
+              : skip(rule, `${name} does not import ${dependency}`),
+          );
+          continue;
+        }
+        const floor = floorOf(range, packagesByName.get(dependency)?.manifest.version);
+        if (floor === null) {
           results.push(
             fail(
               rule,
-              notOnNpm(error)
-                ? `${CLIENT}@${floor}, the floor of ${name}, is not on npm: publish the client before ${name}`
-                : `${CLIENT}@${floor} could not be fetched from npm: ${String(error.stderr ?? error.message).trim()}`,
+              `${dependency} is ${JSON.stringify(range)}, which has no lowest version to check`,
             ),
           );
           continue;
         }
-      }
-      unpackAsDependency(tarball, project, CLIENT);
-      // One file per statement. The statements come from dozens of source files, and
-      // many of them import the same name; in one file those are duplicate
-      // declarations, and the compiler fails on them whatever the client exports.
-      imports.forEach((statement, index) => {
-        const name = `import-${String(index + 1).padStart(3, "0")}.ts`;
-        writeFileSync(join(project, "probe", name), `${statement}\n`);
-      });
-
-      const attempts = [];
-      for (const profile of PROFILES) {
-        const config = join(project, `tsconfig.${profile.name}.json`);
-        writeFileSync(
-          config,
-          JSON.stringify({
-            compilerOptions: {
-              target: "es2023",
-              lib: ["es2023", "dom"],
-              module: profile.module,
-              moduleResolution: profile.moduleResolution,
-              strict: true,
-              noEmit: true,
-              types: [],
-              skipLibCheck: true,
-            },
-            include: ["probe/*.ts"],
-          }),
-        );
-        for (const compiler of typescriptCompilers()) {
-          attempts.push({
-            ...compile(compiler, config),
-            compiler: compiler.name,
-            profile: profile.name,
-          });
+        if (imports.length === 0) {
+          results.push(skip(rule, `${name} does not import ${dependency}`));
+          continue;
         }
-      }
-      const problems = distinctOutputs(
-        attempts,
-        ({ compiler, profile }) => `${compiler}, ${profile} resolution`,
-      ).map(({ output, labels }) => `${labels.join("; ")}:\n${output.replace(/^/gm, "    ")}`);
-      results.push(
-        problems.length > 0
-          ? fail(
+
+        const project = join(work, `${name}-${dependency}`.replace(/[^a-z0-9]+/gi, "-"));
+        mkdirSync(join(project, "probe"), { recursive: true });
+        writeFileSync(join(project, "package.json"), '{ "type": "module" }\n');
+        const installed = new Map();
+        function prepareDependency(dependency, version) {
+          if (installed.has(dependency)) {
+            if (installed.get(dependency) !== version)
+              throw new Error(`conflicting floors for ${dependency}`);
+            return "already unpacked";
+          }
+          const into = join(project, "tarballs", dependency.replace(/[^a-z0-9]+/gi, "-"));
+          mkdirSync(into, { recursive: true });
+          const local = packagesByName.get(dependency);
+          let tarball;
+          let origin = "npm";
+          try {
+            tarball = fetchTarball(`${dependency}@${version}`, into);
+          } catch (error) {
+            if (
+              allowUnpublishedWorkspace &&
+              notOnNpm(error) &&
+              version === local?.manifest.version
+            ) {
+              if (local.manifest.private === true)
+                throw new Error(`the packed dependency must be public ${dependency}@${version}`);
+              tarball = pack(local.dir, into);
+              const packed = tarballManifest(tarball);
+              if (
+                packed.name !== dependency ||
+                packed.version !== version ||
+                packed.private === true
+              ) {
+                throw new Error(`the packed dependency must be public ${dependency}@${version}`);
+              }
+              origin = `this release's packed ${dependency}; Changesets must publish it first`;
+            } else {
+              throw new Error(
+                notOnNpm(error)
+                  ? `${dependency}@${version} is not on npm: publish the dependency before ${name}`
+                  : `${dependency}@${version} could not be fetched from npm: ${String(error.stderr ?? error.message).trim()}`,
+              );
+            }
+          }
+          installed.set(dependency, version);
+          unpackAsDependency(tarball, project, dependency);
+          const packed = tarballManifest(tarball);
+          for (const child of WORKSPACE_DEPENDENCIES) {
+            const range =
+              packed.peerDependencies?.[child] ??
+              packed.dependencies?.[child] ??
+              packed.optionalDependencies?.[child];
+            if (range === undefined) continue;
+            const childFloor = floorOf(range);
+            if (childFloor === null || range.startsWith("workspace:"))
+              throw new Error(`${dependency} packs an unresolved ${child} range: ${range}`);
+            prepareDependency(child, childFloor);
+          }
+          return origin;
+        }
+        let origin;
+        try {
+          origin = prepareDependency(dependency, floor);
+        } catch (error) {
+          results.push(
+            fail(
               rule,
-              `${name} imports from ${CLIENT} what ${CLIENT}@${floor}, its floor, does not export:\n${problems.join("\n")}`,
-            )
-          : ok(
-              rule,
-              `the ${imports.length} import(s) of ${name} compile against ${CLIENT}@${floor}, its floor (${origin})`,
+              `could not check ${dependency}@${floor}: ${String(error.stderr ?? error.message).trim()}`,
             ),
-      );
+          );
+          continue;
+        }
+        // One file per statement. The statements come from dozens of source files, and
+        // many of them import the same name; in one file those are duplicate
+        // declarations, and the compiler fails on them whatever the client exports.
+        imports.forEach((statement, index) => {
+          const name = `import-${String(index + 1).padStart(3, "0")}.ts`;
+          writeFileSync(join(project, "probe", name), `${statement}\n`);
+        });
+
+        const attempts = [];
+        for (const profile of PROFILES) {
+          const config = join(project, `tsconfig.${profile.name}.json`);
+          writeFileSync(
+            config,
+            JSON.stringify({
+              compilerOptions: {
+                target: "es2023",
+                lib: ["es2023", "dom"],
+                module: profile.module,
+                moduleResolution: profile.moduleResolution,
+                strict: true,
+                noEmit: true,
+                types: [],
+                skipLibCheck: true,
+              },
+              include: ["probe/*.ts"],
+            }),
+          );
+          for (const compiler of typescriptCompilers()) {
+            attempts.push({
+              ...compile(compiler, config),
+              compiler: compiler.name,
+              profile: profile.name,
+            });
+          }
+        }
+        const problems = distinctOutputs(
+          attempts,
+          ({ compiler, profile }) => `${compiler}, ${profile} resolution`,
+        ).map(({ output, labels }) => `${labels.join("; ")}:\n${output.replace(/^/gm, "    ")}`);
+        results.push(
+          problems.length > 0
+            ? fail(
+                rule,
+                `${name} imports from ${dependency} what ${dependency}@${floor}, its floor, does not export:\n${problems.join("\n")}`,
+              )
+            : ok(
+                rule,
+                `the ${imports.length} import(s) of ${name} compile against ${dependency}@${floor}, its floor (${origin})`,
+              ),
+        );
+      }
     }
   } finally {
     rmSync(work, { recursive: true, force: true });
@@ -614,13 +732,15 @@ function print(results) {
 async function main() {
   let root = repoRoot;
   let step;
-  let allowUnpublishedClient = false;
+  let allowUnpublishedWorkspace = false;
+  let project = false;
   try {
     const { values, switches } = readArguments(process.argv.slice(2), {
       options: ["--root", "--step"],
-      switches: ["--allow-unpublished-client"],
+      switches: ["--allow-unpublished-workspace", "--project"],
     });
-    allowUnpublishedClient = switches.has("--allow-unpublished-client");
+    allowUnpublishedWorkspace = switches.has("--allow-unpublished-workspace");
+    project = switches.has("--project");
     if (values["--root"][0] !== undefined) root = resolve(values["--root"][0]);
     step = values["--step"][0];
     if (step !== undefined && step !== "1" && step !== "2") throw new Error("--step takes 1 or 2.");
@@ -629,22 +749,36 @@ async function main() {
     process.exit(1);
   }
 
-  let failed = false;
-  if (step !== "2") {
-    console.log("Step 1: the floor of the client");
-    failed = print(await checkClientFloor(root, { allowUnpublishedClient })) || failed;
-  }
-  if (step !== "1") {
-    if (!existsSync(rootOf(root, "packages/client/dist"))) {
-      console.error("✘ packages/client/dist is missing: run `vp run -r build` first.");
-      process.exit(1);
+  const projected = project ? mkdtempSync(join(tmpdir(), "kaiten-planned-release-")) : undefined;
+  try {
+    if (projected) {
+      root = projectRelease(root, projected);
+      allowUnpublishedWorkspace = true;
+      console.log("Checking the release projected by Changesets.");
     }
-    console.log("Step 2: the shape of the release");
-    failed = print(checkReleaseShape(root)) || failed;
-  }
-  if (failed) {
-    console.error("\nThe release is not ready: the findings above say why.");
-    process.exit(1);
+    let failed = false;
+    if (step !== "2") {
+      console.log("Step 1: the floors of workspace dependencies");
+      failed = print(await checkDependencyFloors(root, { allowUnpublishedWorkspace })) || failed;
+    }
+    if (step !== "1") {
+      if (!existsSync(rootOf(root, "packages/client/dist"))) {
+        console.error("✘ packages/client/dist is missing: run `vp run -r build` first.");
+        process.exitCode = 1;
+        return;
+      }
+      console.log("Step 2: the shape of the release");
+      failed = print(checkReleaseShape(root)) || failed;
+    }
+    if (failed) {
+      console.error("\nThe release is not ready: the findings above say why.");
+      process.exitCode = 1;
+    }
+  } catch (error) {
+    console.error(`✘ Could not check the release: ${String(error.stderr ?? error.message).trim()}`);
+    process.exitCode = 1;
+  } finally {
+    if (projected) rmSync(projected, { recursive: true, force: true });
   }
 }
 
