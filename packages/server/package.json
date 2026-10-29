@@ -1,6 +1,6 @@
 {
   "name": "@kaitencloud/server",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Kaiten server SDK for Node — full typed contract surface (Bearer auth).",
   "homepage": "https://github.com/kaitencloud/sdk-js/tree/main/packages/server#readme",
   "bugs": {
