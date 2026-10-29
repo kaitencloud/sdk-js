@@ -1,8 +1,6 @@
 # Architecture
 
-This repository holds four packages. `@kaitencloud/client` and `@kaitencloud/server`
-are published; `@kaitencloud/react` and `@kaitencloud/react-ui` stay private until
-Kaiten billing ships (CONTRIBUTING.md says how they are released). Three boundaries
+This repository holds four packages, all published to npm. Three boundaries
 shape them, and each is enforced by the package graph rather than by convention.
 
 ## Browser and server

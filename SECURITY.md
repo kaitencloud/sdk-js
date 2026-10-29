@@ -22,8 +22,8 @@ a vulnerability before public disclosure.
 
 ## Reports about these packages
 
-Name the affected package, `@kaitencloud/client` or `@kaitencloud/server`, and its
-version.
+Name the affected package, `@kaitencloud/client`, `@kaitencloud/server`,
+`@kaitencloud/react` or `@kaitencloud/react-ui`, and its version.
 
 Never include a real credential. Replace it with a placeholder: its prefix (`ksh_`,
 `whsec_`, …) is enough to say which kind it was.

@@ -12,9 +12,8 @@ entitlements, report usage, show pricing and paywalls, and evaluate feature flag
 | [`@kaitencloud/react`](packages/react)       | React, headless: the provider, the hooks and `Gate` / `Show`, for apps that draw their own UI.                                                                |
 | [`@kaitencloud/react-ui`](packages/react-ui) | React components: `PricingTable`, `Paywall`, `CustomerPortal` and more, themed through `appearance`. It re-exports `@kaitencloud/react`.                      |
 
-`@kaitencloud/client` and `@kaitencloud/server` are on npm. The two React packages
-are not yet: they are published with Kaiten billing, whose public catalogue and
-customer sessions they read, and until then they can be built from this repository.
+All four packages are on npm. The React packages read the public catalogue and the
+customer sessions that Kaiten billing serves; see the "Kaiten version" section below.
 
 The design tokens the components use ship separately, as
 [`@kaitencloud/theme`](https://www.npmjs.com/package/@kaitencloud/theme).
@@ -43,7 +42,7 @@ npm install @kaitencloud/client      # catalogue, snapshot, usage and flags
 npm install @kaitencloud/server      # a Node backend
 ```
 
-With Kaiten billing, the React packages join them:
+For React:
 
 ```bash
 npm install @kaitencloud/react-ui    # the React components, with the headless core

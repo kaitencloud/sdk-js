@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // Bundle-size budgets for @kaitencloud/client, @kaitencloud/react and
-// @kaitencloud/react-ui, per import scenario. The two React packages are
-// measured while they are still private, so they reach npm within the budgets
+// @kaitencloud/react-ui, per import scenario. The two React packages were
+// measured before they were public, so they reached npm within the budgets
 // they were held to all along.
 //
 // Why: what a package costs a host is decided by its bundle graph, and the graph
