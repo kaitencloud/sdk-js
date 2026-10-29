@@ -46,8 +46,15 @@ export class KaitenError extends Error {
   public readonly errorId?: string;
   public readonly errors?: KaitenApiError["errors"];
   public readonly raw?: KaitenApiError;
+  /**
+   * How long the API asked to wait before trying again, in seconds, from the
+   * response's `Retry-After` header (a number of seconds or an HTTP date).
+   * Absent when the response carried none. The API sends one with its 429s, with
+   * a `*.BoundaryPending` and with a `*.ProviderUnavailable`.
+   */
+  public readonly retryAfterSeconds?: number;
 
-  constructor(apiError: KaitenApiError) {
+  constructor(apiError: KaitenApiError, options?: { retryAfterSeconds?: number }) {
     super(apiError.title);
     this.name = "KaitenError";
     this.status = apiError.status;
@@ -56,6 +63,9 @@ export class KaitenError extends Error {
     this.errorId = apiError.errorId;
     this.errors = apiError.errors;
     this.raw = apiError;
+    if (options?.retryAfterSeconds !== undefined) {
+      this.retryAfterSeconds = options.retryAfterSeconds;
+    }
   }
 }
 
@@ -75,11 +85,107 @@ export class KaitenNetworkError extends Error {
   }
 }
 
-/** Every error this package throws, as one discriminated union. */
-export type KaitenThrownError = KaitenError | KaitenNetworkError;
-
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
+
+/**
+ * The `Retry-After` of a response, in seconds, when it sends one that can be
+ * read: a whole number of seconds, or an HTTP date, counted from now.
+ */
+function retryAfterSeconds(response: Response): number | undefined {
+  const header = response.headers.get("Retry-After")?.trim();
+  if (!header) return undefined;
+  if (/^\d+$/.test(header)) return Number(header);
+  // An HTTP date always spells its month or day; this keeps a stray "-5" out.
+  const at = /[a-z]/i.test(header) ? Date.parse(header) : Number.NaN;
+  return Number.isNaN(at) ? undefined : Math.max(0, Math.ceil((at - Date.now()) / 1000));
+}
+
+/** The code the API returns when a usage report reuses a `transactionId` for another report. */
+const TRANSACTION_ID_REUSED = "ReportEntitlementUsageMetric.TransactionIdReused";
+
+/** The request header a usage report's key travels in, and the location the API names it by. */
+const IDEMPOTENCY_KEY_HEADER = "Idempotency-Key";
+const IDEMPOTENCY_KEY_LOCATION = `header.${IDEMPOTENCY_KEY_HEADER}`;
+
+/**
+ * Reads one header off the options a request was made with: a plain object, as
+ * the generated operations pass it on, or a `Headers`, as a call made on the
+ * client itself may. Names are matched without regard to case, as HTTP does.
+ */
+function headerValue(headers: unknown, name: string): string | undefined {
+  if (headers instanceof Headers) return headers.get(name) ?? undefined;
+  if (!isRecord(headers)) return undefined;
+  const wanted = name.toLowerCase();
+  for (const [key, value] of Object.entries(headers)) {
+    if (key.toLowerCase() === wanted && typeof value === "string") return value;
+  }
+  return undefined;
+}
+
+/**
+ * The report a `transactionId` was first accepted with, as the API names it in
+ * the 409 that refuses another report under the same key.
+ */
+export interface TransactionIdReusedOriginal {
+  /** Position of that report among the pair's accepted reports, from 1. */
+  reportSeq: number;
+  /** When the server accepted it (RFC 3339, UTC). */
+  reportedAt: string;
+  /** `append` or `set`, as it was sent. */
+  behavior: string;
+  /** The value as it was sent: a delta for `append`, an absolute value for `set`. */
+  value: number;
+}
+
+/** Reads the original report from the problem's `errors[]`, when the body carries it whole. */
+function originalReport(apiError: KaitenApiError): TransactionIdReusedOriginal | undefined {
+  const entry = apiError.errors?.find((error) => error.location === IDEMPOTENCY_KEY_LOCATION);
+  const value = entry?.value;
+  if (!isRecord(value)) return undefined;
+  const { reportSeq, reportedAt, behavior } = value;
+  const reported = value["value"];
+  if (
+    typeof reportSeq !== "number" ||
+    typeof reportedAt !== "string" ||
+    typeof behavior !== "string" ||
+    typeof reported !== "number"
+  ) {
+    return undefined;
+  }
+  return { reportSeq, reportedAt, behavior, value: reported };
+}
+
+/**
+ * Thrown when a usage report reuses a `transactionId` the API already accepted,
+ * within its idempotency horizon, for another report of the same instance and
+ * entitlement: a different `behavior` or value. HTTP 409 with the code
+ * `ReportEntitlementUsageMetric.TransactionIdReused`.
+ *
+ * It is a client bug, never a transient failure: retrying it loops, because the
+ * key is spent. The usual cause is a correction sent under the original key. A
+ * correction is a new report under a new key, with `behavior: "set"` for an
+ * absolute value.
+ *
+ * A `KaitenError`, so a handler that narrows on `instanceof KaitenError` or on
+ * `status`/`code` keeps working.
+ */
+export class TransactionIdReusedError extends KaitenError {
+  /** The key the refused report was sent with, when the request carried it in its `Idempotency-Key` header. */
+  public readonly transactionId?: string;
+  /** The report the key was first accepted with, when the API named it. */
+  public readonly original?: TransactionIdReusedOriginal;
+
+  constructor(apiError: KaitenApiError, transactionId?: string) {
+    super(apiError);
+    this.name = "TransactionIdReusedError";
+    this.transactionId = transactionId;
+    this.original = originalReport(apiError);
+  }
+}
+
+/** Every error this package throws, as one discriminated union. */
+export type KaitenThrownError = KaitenError | KaitenNetworkError;
 
 /**
  * Converts whatever the generated client rejected with into a real `Error`.
@@ -88,7 +194,11 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
  * when it is not JSON), so without this the value reaching a `catch` has no
  * stack, no `message`, and does not satisfy `instanceof Error`.
  */
-export function toKaitenError(error: unknown, response?: Response): KaitenThrownError {
+export function toKaitenError(
+  error: unknown,
+  response?: Response,
+  options?: { headers?: unknown },
+): KaitenThrownError {
   if (error instanceof KaitenError || error instanceof KaitenNetworkError) return error;
 
   // No response object at all: the request never completed.
@@ -104,10 +214,17 @@ export function toKaitenError(error: unknown, response?: Response): KaitenThrown
   // with a bare string still yields a usable status.
   if (isRecord(error) && typeof error["title"] === "string") {
     const body = error as unknown as KaitenApiError;
-    return new KaitenError({
+    const apiError = {
       ...body,
       status: typeof body.status === "number" ? body.status : response.status,
-    });
+    };
+    if (apiError.status === 409 && apiError.code === TRANSACTION_ID_REUSED) {
+      return new TransactionIdReusedError(
+        apiError,
+        headerValue(options?.headers, IDEMPOTENCY_KEY_HEADER),
+      );
+    }
+    return new KaitenError(apiError, { retryAfterSeconds: retryAfterSeconds(response) });
   }
 
   const detail =
@@ -117,11 +234,14 @@ export function toKaitenError(error: unknown, response?: Response): KaitenThrown
         ? error["detail"]
         : undefined;
 
-  return new KaitenError({
-    title: response.statusText || `HTTP ${response.status}`,
-    status: response.status,
-    ...(detail === undefined ? {} : { detail }),
-  });
+  return new KaitenError(
+    {
+      title: response.statusText || `HTTP ${response.status}`,
+      status: response.status,
+      ...(detail === undefined ? {} : { detail }),
+    },
+    { retryAfterSeconds: retryAfterSeconds(response) },
+  );
 }
 
 /** The code the API returns when a usage report would cross the entitlement's limit. */
@@ -141,4 +261,66 @@ const THRESHOLD_EXCEEDED = "ReportEntitlementUsageMetric.ThresholdExceeded";
  */
 export function isThresholdExceeded(error: unknown): error is KaitenError {
   return error instanceof KaitenError && error.status === 409 && error.code === THRESHOLD_EXCEEDED;
+}
+
+/**
+ * True when the API refused a usage report because its `transactionId` was
+ * already used for another report of the same instance and entitlement: HTTP
+ * 409 with the code `ReportEntitlementUsageMetric.TransactionIdReused`. The
+ * error is then a {@link TransactionIdReusedError}, which names the original
+ * report. Never retry it under the same key.
+ */
+export function isTransactionIdReused(error: unknown): error is TransactionIdReusedError {
+  return error instanceof TransactionIdReusedError;
+}
+
+/**
+ * True when `error` is a {@link KaitenError} refused with `status` and a code
+ * that ends in `suffix`. The code, not the status alone, says which refusal it
+ * is: the same status is answered for many other reasons.
+ */
+function refusedWith(error: unknown, status: number, suffix: string): error is KaitenError {
+  return error instanceof KaitenError && error.status === status && !!error.code?.endsWith(suffix);
+}
+
+/**
+ * True when the API refused a checkout because the instance already uses more
+ * than the plan it would move to allows: HTTP 422 with a code ending in
+ * `.QuotaExceeded`, `CreateSessionCheckout.QuotaExceeded` for a customer
+ * session. A `dryRun` is refused the same way.
+ *
+ * The entitlements over the plan are named in `error.errors?.[0]?.value`, as
+ * `{ entitlementSlugs: string[] }`. Nothing was changed.
+ */
+export function isQuotaExceeded(error: unknown): error is KaitenError {
+  return refusedWith(error, 422, ".QuotaExceeded");
+}
+
+/**
+ * True when the API refused a call because too many were made: HTTP 429 with a
+ * code ending in `.RateLimited`, such as `CreateCustomerSession.RateLimited`.
+ * `error.retryAfterSeconds` is how long the API asked to wait.
+ */
+export function isRateLimited(error: unknown): error is KaitenError {
+  return refusedWith(error, 429, ".RateLimited");
+}
+
+/**
+ * True when the API refused a change because the billing period that just ended
+ * is still being closed: HTTP 409 with a code ending in `.BoundaryPending`. The
+ * same call goes through once the close has run; `error.retryAfterSeconds` is
+ * how long that is expected to take. Nothing was changed.
+ */
+export function isBoundaryPending(error: unknown): error is KaitenError {
+  return refusedWith(error, 409, ".BoundaryPending");
+}
+
+/**
+ * True when the API could not reach the payment provider a call needs: HTTP 503
+ * with a code ending in `.ProviderUnavailable`. The call was neither carried out
+ * nor refused on its merits. `error.retryAfterSeconds` is how long to wait, at
+ * least 30 seconds from the API.
+ */
+export function isProviderUnavailable(error: unknown): error is KaitenError {
+  return refusedWith(error, 503, ".ProviderUnavailable");
 }

@@ -37,8 +37,20 @@ export class KaitenError extends Error {
   public readonly errorId?: string;
   public readonly errors?: KaitenApiError["errors"];
   public readonly raw?: KaitenApiError;
+  /**
+   * How long the API asked to wait before trying again, in seconds, from the
+   * response's `Retry-After` header (a number of seconds or an HTTP date).
+   * Absent when the response carried no readable one, which in a browser
+   * includes a response whose CORS policy does not expose the header.
+   *
+   * {@link RateLimitedError}, {@link BoundaryPendingError},
+   * {@link ProviderUnavailableError} and {@link TurnstileUnavailableError},
+   * which are refusals made to be waited out, always have it: 60 when the
+   * header could not be read.
+   */
+  public readonly retryAfterSeconds?: number;
 
-  constructor(apiError: KaitenApiError) {
+  constructor(apiError: KaitenApiError, options?: { retryAfterSeconds?: number }) {
     super(apiError.title);
     this.name = "KaitenError";
     this.status = apiError.status;
@@ -47,6 +59,9 @@ export class KaitenError extends Error {
     this.errorId = apiError.errorId;
     this.errors = apiError.errors;
     this.raw = apiError;
+    if (options?.retryAfterSeconds !== undefined) {
+      this.retryAfterSeconds = options.retryAfterSeconds;
+    }
   }
 }
 
@@ -72,3 +87,322 @@ export class KaitenNetworkError extends Error {
  * an HTTP `status`; `"network"` carries a `cause`).
  */
 export type KaitenThrownError = KaitenError | KaitenNetworkError;
+
+/** Where the API locates the key of a usage report in a problem's `errors[]`: the request header it travels in. */
+export const IDEMPOTENCY_KEY_LOCATION = "header.Idempotency-Key";
+
+/** The problem code of a usage report refused because its `transactionId` was already used. */
+export const TRANSACTION_ID_REUSED_CODE = "ReportEntitlementUsageMetric.TransactionIdReused";
+
+/** The problem code of a usage report refused because its `transactionId` is malformed. */
+export const INVALID_TRANSACTION_ID_CODE = "ReportEntitlementUsageMetric.InvalidTransactionId";
+
+/**
+ * The report a `transactionId` was first accepted with, as the API names it in
+ * the 409 that refuses another report under the same key.
+ */
+export interface TransactionIdReusedOriginal {
+  /** Position of that report among the pair's accepted reports, from 1. */
+  reportSeq: number;
+  /** When the server accepted it (RFC 3339, UTC). */
+  reportedAt: string;
+  /** `append` or `set`, as it was sent. */
+  behavior: string;
+  /** The value as it was sent: a delta for `append`, an absolute value for `set`. */
+  value: number;
+}
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
+
+/** Reads the original report from the problem's `errors[]`, when the body carries it whole. */
+function originalReport(apiError: KaitenApiError): TransactionIdReusedOriginal | undefined {
+  const entry = apiError.errors?.find((error) => error.location === IDEMPOTENCY_KEY_LOCATION);
+  const value = entry?.value;
+  if (!isRecord(value)) return undefined;
+  const { reportSeq, reportedAt, behavior } = value;
+  const reported = value["value"];
+  if (
+    typeof reportSeq !== "number" ||
+    typeof reportedAt !== "string" ||
+    typeof behavior !== "string" ||
+    typeof reported !== "number"
+  ) {
+    return undefined;
+  }
+  return { reportSeq, reportedAt, behavior, value: reported };
+}
+
+/**
+ * Thrown when a usage report reuses a `transactionId` the API already accepted,
+ * within its idempotency horizon, for another report of the same instance and
+ * entitlement: a different `behavior` or value. HTTP 409 with the code
+ * `ReportEntitlementUsageMetric.TransactionIdReused`.
+ *
+ * It is a client bug, never a transient failure, so the client does not retry
+ * it, and retrying it by hand loops: the key is spent. The usual cause is a
+ * correction sent under the original key. A correction is a new report under a
+ * new key, with `behavior: "set"` for an absolute value.
+ *
+ * A `KaitenError`, so a handler that narrows on `instanceof KaitenError` or on
+ * `status`/`code` keeps working.
+ */
+export class TransactionIdReusedError extends KaitenError {
+  /** The key the refused report was sent with. */
+  public readonly transactionId?: string;
+  /** The report the key was first accepted with, when the API named it. */
+  public readonly original?: TransactionIdReusedOriginal;
+
+  constructor(apiError: KaitenApiError, transactionId?: string) {
+    super(apiError);
+    this.name = "TransactionIdReusedError";
+    this.transactionId = transactionId;
+    this.original = originalReport(apiError);
+  }
+}
+
+/**
+ * Thrown when the API refuses a usage report's `transactionId` as malformed: it
+ * must be 1 to 128 characters of `[A-Za-z0-9._:-]`. HTTP 422 with the code
+ * `ReportEntitlementUsageMetric.InvalidTransactionId`. Nothing was counted, and
+ * the client does not retry it.
+ */
+export class InvalidTransactionIdError extends KaitenError {
+  /** The key the refused report was sent with. */
+  public readonly transactionId?: string;
+
+  constructor(apiError: KaitenApiError, transactionId?: string) {
+    super(apiError);
+    this.name = "InvalidTransactionIdError";
+    this.transactionId = transactionId;
+  }
+}
+
+/**
+ * What {@link RateLimitedError}, {@link BoundaryPendingError},
+ * {@link ProviderUnavailableError} and {@link TurnstileUnavailableError} say to wait, in seconds, when the response
+ * has no `Retry-After` the client can read. A browser calling another origin
+ * only sees that header if the API's CORS policy exposes it.
+ */
+export const DEFAULT_RETRY_AFTER_SECONDS = 60;
+
+/**
+ * Thrown when a checkout is refused because the instance already uses more than
+ * the plan it would move to allows: HTTP 422 with a code ending in
+ * `.QuotaExceeded`, `CreateSessionCheckout.QuotaExceeded` for a customer
+ * session's checkout. A `dryRun` is refused the same way, so a preview tells the
+ * customer before anything is attempted. Nothing was changed.
+ *
+ * `entitlementSlugs` names the entitlements whose usage is above what the plan
+ * grants. Offer a larger plan, or add-ons that make room for that usage.
+ *
+ * A `KaitenError`, so a handler that narrows on `instanceof KaitenError` or on
+ * `status`/`code` keeps working.
+ */
+export class QuotaExceededError extends KaitenError {
+  /** The entitlements whose current usage is above what the plan grants. */
+  public readonly entitlementSlugs: string[];
+
+  constructor(apiError: KaitenApiError) {
+    super(apiError);
+    this.name = "QuotaExceededError";
+    const value = apiError.errors?.[0]?.value;
+    const slugs = isRecord(value) ? value["entitlementSlugs"] : undefined;
+    this.entitlementSlugs = Array.isArray(slugs)
+      ? slugs.filter((slug): slug is string => typeof slug === "string")
+      : [];
+  }
+}
+
+/**
+ * A refusal made to be waited out: it says how long, and never replays itself.
+ * The classes below differ in what they refuse, not in what they carry.
+ */
+class WaitError extends KaitenError {
+  declare public readonly retryAfterSeconds: number;
+
+  constructor(apiError: KaitenApiError, options?: { retryAfterSeconds?: number }) {
+    super(apiError, {
+      retryAfterSeconds: options?.retryAfterSeconds ?? DEFAULT_RETRY_AFTER_SECONDS,
+    });
+  }
+}
+
+/**
+ * Thrown when the API refuses a call because the caller made too many: HTTP 429
+ * with a code ending in `.RateLimited`, such as
+ * `ValidateSessionVoucher.RateLimited`. Nothing was done.
+ *
+ * `retryAfterSeconds` is how long to wait: the API's `Retry-After`, or 60 when
+ * the response carries none the client can read. The client does not replay the
+ * call, a write or a read.
+ */
+export class RateLimitedError extends WaitError {
+  override name = "RateLimitedError";
+}
+
+/**
+ * Thrown when a change is refused because the billing period that just ended is
+ * still being closed: HTTP 409 with a code ending in `.BoundaryPending`, such as
+ * `CancelSessionSubscription.BoundaryPending`. Nothing was changed, and the same
+ * call goes through once the close has run.
+ *
+ * `retryAfterSeconds` is how long that is expected to take: the API's
+ * `Retry-After`, or 60 when the response carries none the client can read. The
+ * client does not send the call again; the host decides, usually by sending it
+ * once more after that delay.
+ */
+export class BoundaryPendingError extends WaitError {
+  override name = "BoundaryPendingError";
+}
+
+/**
+ * Thrown when the payment provider could not be reached: HTTP 503 with a code
+ * ending in `.ProviderUnavailable`, such as `CreateSessionCheckout.ProviderUnavailable`.
+ * The call was neither carried out nor refused on its merits.
+ *
+ * `retryAfterSeconds` is how long to wait, at least 30 from the API; when the
+ * response carries no `Retry-After` the client can read, it is 60. A read is
+ * sent again by the client after that delay, at most 30 seconds; a write never
+ * is, since whether it took effect is not known.
+ */
+export class ProviderUnavailableError extends WaitError {
+  override name = "ProviderUnavailableError";
+}
+
+/**
+ * Thrown by a call on an anonymous checkout session when the client holds no
+ * token for it, without sending anything: the page was opened in another tab or
+ * browser, the token's storage was cleared or is blocked (a private window), the
+ * API refused the token, or the 24 hours a closed session can still be read for
+ * went by. The client cannot tell which, and the session may have been paid for
+ * and completed while the visitor was away.
+ *
+ * **Never start a new checkout because of it, and never automatically.** Another
+ * checkout for the same buyer creates a second customer, instance and
+ * subscription. Look the outcome up where you keep it (your own events, the
+ * `clientReferenceId` you gave the start), and let the visitor decide. Status `0`,
+ * as for the other errors the client raises itself.
+ */
+export class CheckoutTokenMissingError extends KaitenError {
+  /** The session the call named. */
+  public readonly sessionId: string;
+
+  constructor(sessionId: string) {
+    super({
+      title: "No token for this checkout session",
+      status: 0,
+      detail:
+        "Kaiten: this client holds no token for that checkout session, which may already have " +
+        "completed. Check the outcome with your own events or the clientReferenceId before you " +
+        "start another checkout, and do not start one automatically.",
+    });
+    this.name = "CheckoutTokenMissingError";
+    this.sessionId = sessionId;
+  }
+}
+
+/**
+ * Thrown when a Turnstile token is refused at the start of an anonymous checkout:
+ * HTTP 422 with a code ending in `.TurnstileFailed`, such as
+ * `CreateCheckoutSession.TurnstileFailed`. The token is invalid, expired, already
+ * used, or from another host. A token is single-use, so the retry needs a new one:
+ * reset the widget, let the visitor pass it again, and start again. Nothing was
+ * written.
+ *
+ * A `KaitenError`, so a handler that narrows on `instanceof KaitenError` or on
+ * `status`/`code` keeps working.
+ */
+export class TurnstileFailedError extends KaitenError {
+  override name = "TurnstileFailedError";
+}
+
+/**
+ * Thrown when a checkout session is confirmed after it closed: HTTP 409 with a
+ * code ending in `.SessionClosed`, such as `ConfirmCheckoutSession.SessionClosed`.
+ * It was completed, abandoned or expired; `sessionStatus` says which (`COMPLETED`,
+ * `ABANDONED` or `EXPIRED`). A closed session never reopens: read it with
+ * `getCheckoutSession` to learn the outcome. Start a new one only when the visitor
+ * asks, and only if it was abandoned or expired: a completed one already created the
+ * customer.
+ *
+ * A `KaitenError`, so a handler that narrows on `instanceof KaitenError` or on
+ * `status`/`code` keeps working.
+ */
+export class CheckoutSessionClosedError extends KaitenError {
+  /** The status the session closed with, as the API names it in the problem's first `errors` entry. */
+  public readonly sessionStatus?: string;
+
+  override name = "CheckoutSessionClosedError";
+
+  constructor(apiError: KaitenApiError, options?: { retryAfterSeconds?: number }) {
+    super(apiError, options);
+    const value = apiError.errors?.[0]?.value;
+    const status = isRecord(value) ? value["status"] : undefined;
+    if (typeof status === "string") this.sessionStatus = status;
+  }
+}
+
+/**
+ * Thrown when the amount due changed between the start of an anonymous checkout
+ * and the confirm that follows the payment method setup: HTTP 409 with a code
+ * ending in `.DueTodayChanged`, such as `ConfirmCheckoutSession.DueTodayChanged`.
+ * A discount, a price or a trial the visitor was shown no longer holds. Nothing
+ * was charged. Read the session (`getCheckoutSession`) for the new amount, show it
+ * to the visitor, and start again with a new Turnstile token if they agree.
+ *
+ * A `KaitenError`, so a handler that narrows on `instanceof KaitenError` or on
+ * `status`/`code` keeps working.
+ */
+export class DueTodayChangedError extends KaitenError {
+  override name = "DueTodayChangedError";
+}
+
+/**
+ * Thrown when Turnstile's verification could not be reached from the Kaiten API:
+ * HTTP 503 with a code ending in `.TurnstileUnavailable`, such as
+ * `CreateCheckoutSession.TurnstileUnavailable`. The start was neither carried out
+ * nor refused on its merits, and the token may not have been spent.
+ *
+ * `retryAfterSeconds` is how long to wait, 30 from the API; when the response
+ * carries no `Retry-After` the client can read, it is 60. The client does not
+ * send the call again.
+ */
+export class TurnstileUnavailableError extends WaitError {
+  override name = "TurnstileUnavailableError";
+}
+
+/**
+ * The error for a failed response. The refusals a host acts on, told apart by
+ * status and code, are their own classes; every other one is a `KaitenError`
+ * with its `status` and `code`.
+ *
+ * `retryAfterSeconds` is the response's `Retry-After`, `undefined` when it
+ * cannot be read.
+ */
+export function kaitenErrorOf(apiError: KaitenApiError, retryAfterSeconds?: number): KaitenError {
+  const { status, code = "" } = apiError;
+  if (status === 422 && code.endsWith(".QuotaExceeded")) return new QuotaExceededError(apiError);
+  if (status === 429 && code.endsWith(".RateLimited")) {
+    return new RateLimitedError(apiError, { retryAfterSeconds });
+  }
+  if (status === 409 && code.endsWith(".BoundaryPending")) {
+    return new BoundaryPendingError(apiError, { retryAfterSeconds });
+  }
+  if (status === 503 && code.endsWith(".ProviderUnavailable")) {
+    return new ProviderUnavailableError(apiError, { retryAfterSeconds });
+  }
+  if (status === 422 && code.endsWith(".TurnstileFailed")) {
+    return new TurnstileFailedError(apiError, { retryAfterSeconds });
+  }
+  if (status === 409 && code.endsWith(".SessionClosed")) {
+    return new CheckoutSessionClosedError(apiError, { retryAfterSeconds });
+  }
+  if (status === 409 && code.endsWith(".DueTodayChanged")) {
+    return new DueTodayChangedError(apiError, { retryAfterSeconds });
+  }
+  if (status === 503 && code.endsWith(".TurnstileUnavailable")) {
+    return new TurnstileUnavailableError(apiError, { retryAfterSeconds });
+  }
+  return new KaitenError(apiError, { retryAfterSeconds });
+}

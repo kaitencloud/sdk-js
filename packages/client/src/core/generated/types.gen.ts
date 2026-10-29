@@ -8,9 +8,29 @@ export type ClientOptions = {
 };
 
 export type Webhooks =
+  | OnAddonEntitlementAssignedWebhookRequest
+  | OnAddonEntitlementUnassignedWebhookRequest
+  | OnAddonEntitlementUpdatedWebhookRequest
+  | OnAddonPriceCreatedWebhookRequest
+  | OnAddonPriceDeprecatedWebhookRequest
+  | OnAddonArchivedWebhookRequest
+  | OnAddonCreatedWebhookRequest
+  | OnAddonDeletedWebhookRequest
+  | OnAddonPublishedWebhookRequest
+  | OnAddonUnarchivedWebhookRequest
+  | OnAddonUpdatedWebhookRequest
+  | OnBillingProviderConnectedWebhookRequest
+  | OnBillingProviderDisconnectedWebhookRequest
+  | OnBillingProviderSyncFailedWebhookRequest
+  | OnCheckoutSessionAbandonedWebhookRequest
+  | OnCheckoutSessionCompletedWebhookRequest
+  | OnCheckoutSessionStartedWebhookRequest
   | OnComponentCreatedWebhookRequest
   | OnComponentDeletedWebhookRequest
   | OnComponentUpdatedWebhookRequest
+  | OnCustomerPaymentMethodAttachedWebhookRequest
+  | OnCustomerPaymentMethodDetachedWebhookRequest
+  | OnCustomerPaymentMethodExpiringWebhookRequest
   | OnCustomerCreatedWebhookRequest
   | OnCustomerCreationRejectedWebhookRequest
   | OnCustomerDeletedWebhookRequest
@@ -30,6 +50,19 @@ export type Webhooks =
   | OnFeatureFlagEvaluatedWebhookRequest
   | OnFeatureFlagUpdatedWebhookRequest
   | OnSystemOrganizationTokenIssuedWebhookRequest
+  | OnInstanceAddonAddedWebhookRequest
+  | OnInstanceAddonQuantityChangedWebhookRequest
+  | OnInstanceAddonRemovedWebhookRequest
+  | OnInstanceBillingCanceledWebhookRequest
+  | OnInstanceBillingCancellationRevertedWebhookRequest
+  | OnInstanceBillingCancellationScheduledWebhookRequest
+  | OnInstanceBillingPlanChangeCanceledWebhookRequest
+  | OnInstanceBillingPlanChangeScheduledWebhookRequest
+  | OnInstanceBillingPlanChangedWebhookRequest
+  | OnInstanceBillingProviderChangedWebhookRequest
+  | OnInstanceBillingStartedWebhookRequest
+  | OnInstanceBillingStatusChangedWebhookRequest
+  | OnInstanceBillingTrialWillEndWebhookRequest
   | OnInstanceEntitlementCapExceededWebhookRequest
   | OnInstanceEntitlementUsagePeriodRolledOverWebhookRequest
   | OnInstanceEntitlementUsageReachedWebhookRequest
@@ -37,6 +70,20 @@ export type Webhooks =
   | OnInstanceEntitlementUsageReportRejectedWebhookRequest
   | OnInstanceEntitlementUsageWarningThresholdReachedWebhookRequest
   | OnInstanceEntitlementValueGetWebhookRequest
+  | OnInstanceEntitlementExceptionCreatedWebhookRequest
+  | OnInstanceEntitlementExceptionExpiredWebhookRequest
+  | OnInstanceEntitlementExceptionRevokedWebhookRequest
+  | OnInstanceInvoiceHandoffAcknowledgedWebhookRequest
+  | OnInstanceInvoiceHeldWebhookRequest
+  | OnInstanceInvoiceIssuedWebhookRequest
+  | OnInstanceInvoiceMarkedUncollectibleWebhookRequest
+  | OnInstanceInvoicePaidWebhookRequest
+  | OnInstanceInvoicePaymentFailedWebhookRequest
+  | OnInstanceInvoicePushFailedWebhookRequest
+  | OnInstanceInvoicePushedWebhookRequest
+  | OnInstanceInvoiceReconciliationMismatchWebhookRequest
+  | OnInstanceInvoiceReleasedWebhookRequest
+  | OnInstanceInvoiceVoidedWebhookRequest
   | OnInstanceCreatedWebhookRequest
   | OnInstanceDeletedWebhookRequest
   | OnInstanceDeployedWebhookRequest
@@ -44,9 +91,15 @@ export type Webhooks =
   | OnInstanceMigratedWebhookRequest
   | OnInstanceStatusChangedWebhookRequest
   | OnInstanceUpdatedWebhookRequest
+  | OnInstanceVoucherExpiredWebhookRequest
+  | OnInstanceVoucherRedeemedWebhookRequest
+  | OnInstanceVoucherRevokedWebhookRequest
   | OnLicenseEntitlementAssignedWebhookRequest
   | OnLicenseEntitlementUnassignedWebhookRequest
   | OnLicenseEntitlementUpdatedWebhookRequest
+  | OnLicensePriceCreatedWebhookRequest
+  | OnLicensePriceDeprecatedWebhookRequest
+  | OnLicensePriceUpdatedWebhookRequest
   | OnLicenseArchivedWebhookRequest
   | OnLicenseCreatedWebhookRequest
   | OnLicenseDeletedWebhookRequest
@@ -61,10 +114,379 @@ export type Webhooks =
   | OnMetadataFieldReorderedWebhookRequest
   | OnMetadataFieldUnarchivedWebhookRequest
   | OnMetadataFieldUpdatedWebhookRequest
+  | OnPublishableKeyCreatedWebhookRequest
+  | OnPublishableKeyRevokedWebhookRequest
   | OnReleaseCreatedWebhookRequest
-  | OnReleaseDeletedWebhookRequest;
+  | OnReleaseDeletedWebhookRequest
+  | OnVoucherArchivedWebhookRequest
+  | OnVoucherCreatedWebhookRequest
+  | OnVoucherExhaustedWebhookRequest
+  | OnVoucherExpiredWebhookRequest
+  | OnVoucherPublishedWebhookRequest
+  | OnVoucherUpdatedWebhookRequest;
+
+export type Addon = {
+  readonly createdAt: string;
+  description: string;
+  /**
+   * The family the version belongs to
+   */
+  familySlug: string;
+  readonly id: string;
+  /**
+   * The family's: how a mid-period increase or attachment of an ADVANCE add-on is billed. TRUE_UP adds a true-up line for the elapsed period at the next renewal; NEXT_BOUNDARY bills from the next boundary only
+   */
+  readonly increaseBilling: "TRUE_UP" | "NEXT_BOUNDARY";
+  /**
+   * The version the family resolves to. Only a PUBLISHED version.
+   */
+  isDefault: boolean;
+  /**
+   * A DRAFT can be attached to try it; an ARCHIVED version stays on the instances holding it but cannot be attached again.
+   */
+  lifecycleState: "DRAFT" | "PUBLISHED" | "ARCHIVED";
+  /**
+   * The largest quantity an instance can hold; unbounded when null
+   */
+  maxQuantity: number | null;
+  name: string;
+  pricingType: "FREE" | "PAID" | "CUSTOM";
+  /**
+   * The version's slug, unique in the organization
+   */
+  slug: string;
+  readonly updatedAt: string;
+  /**
+   * The version number in its family, assigned on create
+   */
+  readonly version: number;
+  versionName: string;
+};
+
+export type AddonAmount = {
+  addonSlug: string;
+  quantity: number;
+};
+
+export type AddonChanges = {
+  description: string;
+  isDefault: boolean;
+  maxQuantity?: number;
+  name: string;
+  versionName?: string;
+};
+
+export type AddonDelivered = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  readonly createdAt: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  description: string;
+  /**
+   * The family the version belongs to
+   */
+  familySlug: string;
+  readonly id: string;
+  /**
+   * The family's: how a mid-period increase or attachment of an ADVANCE add-on is billed. TRUE_UP adds a true-up line for the elapsed period at the next renewal; NEXT_BOUNDARY bills from the next boundary only
+   */
+  readonly increaseBilling: "TRUE_UP" | "NEXT_BOUNDARY";
+  /**
+   * The version the family resolves to. Only a PUBLISHED version.
+   */
+  isDefault: boolean;
+  /**
+   * A DRAFT can be attached to try it; an ARCHIVED version stays on the instances holding it but cannot be attached again.
+   */
+  lifecycleState: "DRAFT" | "PUBLISHED" | "ARCHIVED";
+  /**
+   * The largest quantity an instance can hold; unbounded when null
+   */
+  maxQuantity: number | null;
+  name: string;
+  pricingType: "FREE" | "PAID" | "CUSTOM";
+  /**
+   * The version's slug, unique in the organization
+   */
+  slug: string;
+  readonly updatedAt: string;
+  /**
+   * The version number in its family, assigned on create
+   */
+  readonly version: number;
+  versionName: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
+export type AddonEntitlement = {
+  entitlementSlug: string;
+  entitlementType: "BOOLEAN" | "NUMBER" | "CONFIG" | "NUMBER_AI_CREDIT";
+  readonly id: string;
+  /**
+   * The overage the add-on allows; null inherits the licence grant's
+   */
+  limitCapExceededOveragePercent: number | null;
+  /**
+   * How a number grant combines with the licence's: ADD sums value × quantity, OVERRIDE replaces it with the latest attached add-on's, MAX keeps the larger. A boolean always ORs, a config always overrides.
+   */
+  overrideBehavior: "ADD" | "OVERRIDE" | "MAX";
+  /**
+   * {type, value}, shaped like a licence grant. A number counts once per unit of quantity.
+   */
+  value: {
+    [key: string]: unknown;
+  };
+};
+
+export type AddonFamily = {
+  /**
+   * The default version, else the highest PUBLISHED one; null when none is published
+   */
+  currentVersion: Addon | null;
+  readonly id: string;
+  /**
+   * How a mid-period increase or attachment of the family's ADVANCE add-ons is billed (V31-70)
+   */
+  increaseBilling: "TRUE_UP" | "NEXT_BOUNDARY";
+  /**
+   * Whether the family is listed in the public catalogue
+   */
+  isPublic: boolean;
+  /**
+   * The highest version number the family has assigned
+   */
+  lastVersion: number;
+  slug: string;
+  /**
+   * Every version, newest first
+   */
+  versions: Array<Addon> | null;
+};
+
+export type AddonFamilyVisibility = {
+  /**
+   * How a mid-period increase or attachment of the family's ADVANCE add-ons is billed, from the next composition: TRUE_UP (a true-up line for the elapsed period at the next renewal) or NEXT_BOUNDARY (from the next boundary only); another value answers 422 .InvalidIncreaseBilling
+   */
+  increaseBilling?: string;
+  /**
+   * List the family's default PUBLISHED version, with its ACTIVE prices, in the public catalogue
+   */
+  isPublic?: boolean;
+};
+
+export type AddonGrant = {
+  /**
+   * The overage the add-on allows: -1 with an unlimited value, 0 or more otherwise. Absent inherits the licence grant's.
+   */
+  limitCapExceededOveragePercent?: number;
+  /**
+   * How a number grant combines with the licence's
+   */
+  overrideBehavior?: "ADD" | "OVERRIDE" | "MAX";
+  /**
+   * {type, value}, shaped like a licence grant: a number counts once per unit of quantity
+   */
+  value: {
+    [key: string]: unknown;
+  };
+};
+
+export type AddonGrantUpdateDelivered = {
+  /**
+   * The add-on version the grant belongs to
+   */
+  addonSlug: string;
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  entitlementSlug: string;
+  entitlementType: "BOOLEAN" | "NUMBER" | "CONFIG" | "NUMBER_AI_CREDIT";
+  readonly id: string;
+  /**
+   * The overage the add-on allows; null inherits the licence grant's
+   */
+  limitCapExceededOveragePercent: number | null;
+  /**
+   * How a number grant combines with the licence's: ADD sums value × quantity, OVERRIDE replaces it with the latest attached add-on's, MAX keeps the larger. A boolean always ORs, a config always overrides.
+   */
+  overrideBehavior: "ADD" | "OVERRIDE" | "MAX";
+  /**
+   * {type, value}, shaped like a licence grant. A number counts once per unit of quantity.
+   */
+  value: {
+    [key: string]: unknown;
+  };
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
+export type AddonPriceUpdateDelivered = {
+  /**
+   * The add-on version the price belongs to
+   */
+  addonSlug: string;
+  /**
+   * FLAT_FEE: an amount per billing period. USAGE_BASED: an amount per sale unit of the metered entitlement's usage. OVERAGE: an amount per sale unit of the usage above the licence's limit.
+   */
+  billingModel: "FLAT_FEE" | "USAGE_BASED" | "OVERAGE";
+  /**
+   * The period a FLAT_FEE price is charged for. Null on metered prices, which bill on the subscription's period.
+   */
+  billingPeriod: "MONTHLY" | "QUARTERLY" | "SEMI_ANNUAL" | "ANNUAL" | null;
+  /**
+   * ADVANCE bills the period that starts; ARREARS the period that ended. Metered prices are always ARREARS.
+   */
+  billingTiming: "ADVANCE" | "ARREARS";
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  readonly createdAt: string;
+  /**
+   * ISO 4217 code, upper case. One currency per licence version.
+   */
+  currency: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  /**
+   * When the price was deprecated
+   */
+  deprecatedAt: string | null;
+  /**
+   * The invoice line's label; a default is derived when it is null.
+   */
+  displayLabel: string | null;
+  /**
+   * Order among the version's prices
+   */
+  displayOrder: number;
+  /**
+   * Unique identifier of the price
+   */
+  readonly id: string;
+  /**
+   * The FLAT_FEE price picked for its billing period when none is named. At most one per period; only an ACTIVE FLAT_FEE price.
+   */
+  isDefault: boolean;
+  /**
+   * What a metered price measures. Null on FLAT_FEE prices.
+   */
+  metered: PriceMeter | null;
+  /**
+   * A DEPRECATED price keeps billing what is already pinned to it but is no longer offered.
+   */
+  status: "ACTIVE" | "DEPRECATED";
+  /**
+   * unitAmountDecimal as an integer number of minor units, when it is one; null otherwise.
+   */
+  unitAmount: number | null;
+  /**
+   * Amount in the currency's minor units (cents for EUR): per period for FLAT_FEE, per sale unit for metered prices. Up to 12 decimal places.
+   */
+  unitAmountDecimal: string;
+  readonly updatedAt: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
+export type AddonQuantity = {
+  quantity: number;
+};
+
+export type AddonUpdateDelivered = {
+  /**
+   * The members the change touched, as the API names them
+   */
+  changedFields: Array<string> | null;
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * The licence families the version fits after the change
+   */
+  compatibleLicenseFamilies: Array<string> | null;
+  readonly createdAt: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  description: string;
+  /**
+   * The family the version belongs to
+   */
+  familySlug: string;
+  readonly id: string;
+  /**
+   * The family's: how a mid-period increase or attachment of an ADVANCE add-on is billed. TRUE_UP adds a true-up line for the elapsed period at the next renewal; NEXT_BOUNDARY bills from the next boundary only
+   */
+  readonly increaseBilling: "TRUE_UP" | "NEXT_BOUNDARY";
+  /**
+   * The version the family resolves to. Only a PUBLISHED version.
+   */
+  isDefault: boolean;
+  /**
+   * A DRAFT can be attached to try it; an ARCHIVED version stays on the instances holding it but cannot be attached again.
+   */
+  lifecycleState: "DRAFT" | "PUBLISHED" | "ARCHIVED";
+  /**
+   * The largest quantity an instance can hold; unbounded when null
+   */
+  maxQuantity: number | null;
+  name: string;
+  pricingType: "FREE" | "PAID" | "CUSTOM";
+  /**
+   * The version's slug, unique in the organization
+   */
+  slug: string;
+  readonly updatedAt: string;
+  /**
+   * The version number in its family, assigned on create
+   */
+  readonly version: number;
+  versionName: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
+export type AuditActor = {
+  id: string;
+  /**
+   * USER: a person. SERVICE: a service account. SYSTEM: Kaiten itself -- jobs, and the anonymous checkouts no one of the organization makes
+   */
+  kind: "USER" | "SERVICE" | "SYSTEM";
+  /**
+   * The user's name; "Kaiten (system)" for the work Kaiten does itself
+   */
+  name: string;
+};
 
 export type AuditTrail = {
+  /**
+   * Who the event is recorded under; null for an entry recorded before actors were (E-27), or whose user is gone
+   */
+  actor: AuditActor | null;
   /**
    * Event name (e.g. ENTITLEMENT_VALUE_GET)
    */
@@ -95,6 +517,15 @@ export type AuditTrail = {
   timestamp: string;
 };
 
+export type Authorization = {
+  externalOrganizationId: string;
+  kind: string;
+  organizationId: string;
+  scopes: Array<string>;
+  subject: string;
+  userId: string;
+};
+
 export type Basic = {
   type: "basic";
   value: string;
@@ -108,6 +539,206 @@ export type BasicTargeting = {
   rule: string;
   type: "basic";
   variant: string;
+};
+
+export type BillingCapabilities = {
+  /**
+   * Why they do not: billing is off on this deployment, or the organization's plan does not include it
+   */
+  disabledReason: "DEPLOYMENT_DISABLED" | "NOT_ENTITLED" | null;
+  /**
+   * Whether the billing routes answer for this organization
+   */
+  enabled: boolean;
+  /**
+   * Which parts of billing this release ships
+   */
+  features: BillingFeatures;
+  /**
+   * Who can collect invoices
+   */
+  providers: Array<BillingProvider>;
+  publicSurface: PublicSurface;
+  /**
+   * How long usage reports are kept, in months; null when they are kept forever or it cannot be told
+   */
+  usageHistoryRetentionMonths: number | null;
+  /**
+   * Where the retention comes from: KBK, the organization's licence or an add-on; ENV, the deployment's KAITEN_USAGE_LEDGER_RETENTION_MONTHS; UNKNOWN, the licensing authority could not tell. A null usageHistoryRetentionMonths reads as kept forever with KBK or ENV, and as unknown with UNKNOWN (V31-11).
+   */
+  usageHistoryRetentionSource: "KBK" | "ENV" | "UNKNOWN";
+  /**
+   * How long a usage report's transactionId is remembered, in days
+   */
+  usageIdempotencyWindowDays: number;
+};
+
+export type BillingFeatures = {
+  addons: boolean;
+  chargeAutomatically: boolean;
+  /**
+   * Cancellation, reactivation, plan changes and overdue tracking
+   */
+  lifecycle: boolean;
+  publicSurface: boolean;
+  stripe: boolean;
+  trials: boolean;
+  vouchers: boolean;
+};
+
+export type BillingHealth = {
+  /**
+   * Subscriptions whose period ended more than KAITEN_BILLING_CLOSE_GRACE ago and has not closed yet
+   */
+  closeBacklog: CloseBacklog;
+  handoff: HandoffBacklog;
+  heldInvoices: HeldInvoices;
+  overdueInvoices: number;
+  pastDueSubscriptions: number;
+  /**
+   * ACTIVE payment methods whose card expires in the next 30 days
+   */
+  paymentMethodsExpiring30d: number;
+  providerSync: Array<ProviderSync>;
+  /**
+   * Invoices whose push failed at least as many times as the alert threshold
+   */
+  pushFailures: PushFailures;
+  /**
+   * Invoices whose provider's amounts differed from Kaiten's, in the last 30 days
+   */
+  reconciliationMismatches30d: number;
+  usageLedger: UsageLedger;
+};
+
+export type BillingProvider = {
+  /**
+   * Whether the organization may connect it on this deployment
+   */
+  available: boolean;
+  capabilities: ProviderCapabilities;
+  /**
+   * Whether it is set up for the organization; NOOP always is
+   */
+  connected: boolean;
+  kind: "NOOP" | "STRIPE";
+  /**
+   * Whether the connection reaches the provider's live account rather than a test one; null when not connected, and for NOOP
+   */
+  livemode: boolean | null;
+  /**
+   * Why it is not available; null when it is, and when the licensing authority cannot answer
+   */
+  unavailableReason: "NOT_ENTITLED" | "VAULT_NOT_CONFIGURED" | null;
+};
+
+export type BillingSettings = {
+  /**
+   * How an invoice is collected when its subscription does not say: SEND_INVOICE sends it for payment; CHARGE_AUTOMATICALLY charges the customer's payment method, on a provider that can. A NOOP subscription sends its invoices whatever the default.
+   */
+  defaultCollectionMethod: "SEND_INVOICE" | "CHARGE_AUTOMATICALLY";
+  /**
+   * Days an invoice is due after it is issued, when its subscription does not say; 0 to 365.
+   */
+  defaultDaysUntilDue: number;
+  /**
+   * Whether invoices a payment provider issues also enter the handoff queue, for an accounting system that wants every invoice. Invoices without a provider always do.
+   */
+  handoffStripeInvoices: boolean;
+};
+
+export type BillingStartedDelivered = {
+  /**
+   * The instant its periods are counted from
+   */
+  anchorAt: string;
+  /**
+   * The FLAT_FEE price the subscription is pinned to, deprecated or not
+   */
+  basePrice: Price;
+  billingPeriod: "MONTHLY" | "QUARTERLY" | "SEMI_ANNUAL" | "ANNUAL";
+  cancelAtPeriodEnd: boolean;
+  cancelRequestedAt: string | null;
+  canceledAt: string | null;
+  cancellationReason: string | null;
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * Effective: the subscription's own, else the organization's default
+   */
+  collectionMethod: "SEND_INVOICE" | "CHARGE_AUTOMATICALLY";
+  /**
+   * The subscription's own collection method; null when it takes the organization's
+   */
+  collectionMethodOverride: string | null;
+  createdAt: string;
+  currency: string;
+  /**
+   * The next boundary: the period closes, and its invoice is composed, after it
+   */
+  currentPeriodEnd: string;
+  currentPeriodStart: string;
+  customerName: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  customerSlug: string;
+  /**
+   * Effective: the subscription's own, else the organization's default
+   */
+  daysUntilDue: number;
+  /**
+   * The subscription's own payment terms; null when it takes the organization's
+   */
+  daysUntilDueOverride: number | null;
+  id: string;
+  /**
+   * When a checkout waiting for its payment ends unpaid: INCOMPLETE, or a free subscription that carries one
+   */
+  incompleteExpiresAt: string | null;
+  instanceName: string;
+  /**
+   * As it was at the subscription's last write
+   */
+  instanceSlug: string;
+  pastDueSince: string | null;
+  /**
+   * The licence version a checkout waiting for its payment moves the instance to once paid
+   */
+  pendingLicenseSlug: string | null;
+  /**
+   * Who collects its invoices. NOOP: the organization itself, through the handoff queue
+   */
+  providerKind: "NOOP" | "STRIPE";
+  /**
+   * When trial_will_end is (or was) emitted: trialEndsAt minus the family's trialReminderDays as it was when the trial started; set with trialEndsAt
+   */
+  reminderAt: string | null;
+  /**
+   * Set when a CANCELED subscription was subscribed again
+   */
+  resubscribed: boolean;
+  /**
+   * A plan change waiting for the next boundary
+   */
+  scheduledChange: ScheduledChange | null;
+  /**
+   * When billing started: usage before it is never billed
+   */
+  startedAt: string;
+  status: "INCOMPLETE" | "TRIAL" | "ACTIVE" | "PAST_DUE" | "CANCELED";
+  /**
+   * When the trial ends, or ended: usage before it is never billed
+   */
+  trialEndsAt: string | null;
+  updatedAt: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
 export type BooleanEntitlementValue = {
@@ -138,8 +769,513 @@ export type BulkEvaluationRequest = {
   };
 };
 
+export type CanceledSubscription = {
+  /**
+   * The instant its periods are counted from
+   */
+  anchorAt: string;
+  /**
+   * The FLAT_FEE price the subscription is pinned to, deprecated or not
+   */
+  basePrice: Price;
+  billingPeriod: "MONTHLY" | "QUARTERLY" | "SEMI_ANNUAL" | "ANNUAL";
+  cancelAtPeriodEnd: boolean;
+  cancelRequestedAt: string | null;
+  canceledAt: string | null;
+  cancellationReason: string | null;
+  /**
+   * Effective: the subscription's own, else the organization's default
+   */
+  collectionMethod: "SEND_INVOICE" | "CHARGE_AUTOMATICALLY";
+  /**
+   * The subscription's own collection method; null when it takes the organization's
+   */
+  collectionMethodOverride: string | null;
+  createdAt: string;
+  currency: string;
+  /**
+   * The next boundary: the period closes, and its invoice is composed, after it
+   */
+  currentPeriodEnd: string;
+  currentPeriodStart: string;
+  customerName: string;
+  customerSlug: string;
+  /**
+   * Effective: the subscription's own, else the organization's default
+   */
+  daysUntilDue: number;
+  /**
+   * The subscription's own payment terms; null when it takes the organization's
+   */
+  daysUntilDueOverride: number | null;
+  /**
+   * The FINAL invoice of an immediate cancellation
+   */
+  finalInvoice?: InvoiceSummary;
+  id: string;
+  /**
+   * When a checkout waiting for its payment ends unpaid: INCOMPLETE, or a free subscription that carries one
+   */
+  incompleteExpiresAt: string | null;
+  instanceName: string;
+  /**
+   * As it was at the subscription's last write
+   */
+  instanceSlug: string;
+  pastDueSince: string | null;
+  /**
+   * The licence version a checkout waiting for its payment moves the instance to once paid
+   */
+  pendingLicenseSlug: string | null;
+  /**
+   * Who collects its invoices. NOOP: the organization itself, through the handoff queue
+   */
+  providerKind: "NOOP" | "STRIPE";
+  /**
+   * When trial_will_end is (or was) emitted: trialEndsAt minus the family's trialReminderDays as it was when the trial started; set with trialEndsAt
+   */
+  reminderAt: string | null;
+  /**
+   * A plan change waiting for the next boundary
+   */
+  scheduledChange: ScheduledChange | null;
+  /**
+   * When billing started: usage before it is never billed
+   */
+  startedAt: string;
+  status: "INCOMPLETE" | "TRIAL" | "ACTIVE" | "PAST_DUE" | "CANCELED";
+  /**
+   * When the trial ends, or ended: usage before it is never billed
+   */
+  trialEndsAt: string | null;
+  updatedAt: string;
+};
+
+export type CancellationChangeDelivered = {
+  /**
+   * The instant its periods are counted from
+   */
+  anchorAt: string;
+  /**
+   * The FLAT_FEE price the subscription is pinned to, deprecated or not
+   */
+  basePrice: Price;
+  billingPeriod: "MONTHLY" | "QUARTERLY" | "SEMI_ANNUAL" | "ANNUAL";
+  cancelAtPeriodEnd: boolean;
+  cancelRequestedAt: string | null;
+  canceledAt: string | null;
+  cancellationReason: string | null;
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * Effective: the subscription's own, else the organization's default
+   */
+  collectionMethod: "SEND_INVOICE" | "CHARGE_AUTOMATICALLY";
+  /**
+   * The subscription's own collection method; null when it takes the organization's
+   */
+  collectionMethodOverride: string | null;
+  createdAt: string;
+  currency: string;
+  /**
+   * The next boundary: the period closes, and its invoice is composed, after it
+   */
+  currentPeriodEnd: string;
+  currentPeriodStart: string;
+  customerName: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  customerSlug: string;
+  /**
+   * Effective: the subscription's own, else the organization's default
+   */
+  daysUntilDue: number;
+  /**
+   * The subscription's own payment terms; null when it takes the organization's
+   */
+  daysUntilDueOverride: number | null;
+  /**
+   * The boundary the cancellation takes effect at
+   */
+  effectiveAt: string;
+  id: string;
+  /**
+   * When a checkout waiting for its payment ends unpaid: INCOMPLETE, or a free subscription that carries one
+   */
+  incompleteExpiresAt: string | null;
+  instanceName: string;
+  /**
+   * As it was at the subscription's last write
+   */
+  instanceSlug: string;
+  pastDueSince: string | null;
+  /**
+   * The licence version a checkout waiting for its payment moves the instance to once paid
+   */
+  pendingLicenseSlug: string | null;
+  /**
+   * Who collects its invoices. NOOP: the organization itself, through the handoff queue
+   */
+  providerKind: "NOOP" | "STRIPE";
+  /**
+   * When trial_will_end is (or was) emitted: trialEndsAt minus the family's trialReminderDays as it was when the trial started; set with trialEndsAt
+   */
+  reminderAt: string | null;
+  /**
+   * A plan change waiting for the next boundary
+   */
+  scheduledChange: ScheduledChange | null;
+  /**
+   * When billing started: usage before it is never billed
+   */
+  startedAt: string;
+  status: "INCOMPLETE" | "TRIAL" | "ACTIVE" | "PAST_DUE" | "CANCELED";
+  /**
+   * When the trial ends, or ended: usage before it is never billed
+   */
+  trialEndsAt: string | null;
+  updatedAt: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
+export type CancellationDelivered = {
+  /**
+   * The instant its periods are counted from
+   */
+  anchorAt: string;
+  /**
+   * The FLAT_FEE price the subscription is pinned to, deprecated or not
+   */
+  basePrice: Price;
+  billingPeriod: "MONTHLY" | "QUARTERLY" | "SEMI_ANNUAL" | "ANNUAL";
+  cancelAtPeriodEnd: boolean;
+  cancelRequestedAt: string | null;
+  canceledAt: string | null;
+  cancellationReason: string | null;
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * Effective: the subscription's own, else the organization's default
+   */
+  collectionMethod: "SEND_INVOICE" | "CHARGE_AUTOMATICALLY";
+  /**
+   * The subscription's own collection method; null when it takes the organization's
+   */
+  collectionMethodOverride: string | null;
+  createdAt: string;
+  currency: string;
+  /**
+   * The next boundary: the period closes, and its invoice is composed, after it
+   */
+  currentPeriodEnd: string;
+  currentPeriodStart: string;
+  customerName: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  customerSlug: string;
+  /**
+   * Effective: the subscription's own, else the organization's default
+   */
+  daysUntilDue: number;
+  /**
+   * The subscription's own payment terms; null when it takes the organization's
+   */
+  daysUntilDueOverride: number | null;
+  /**
+   * The FINAL invoice; null when the cancellation issued none (a trial)
+   */
+  finalInvoiceId: string | null;
+  id: string;
+  /**
+   * When a checkout waiting for its payment ends unpaid: INCOMPLETE, or a free subscription that carries one
+   */
+  incompleteExpiresAt: string | null;
+  instanceName: string;
+  /**
+   * As it was at the subscription's last write
+   */
+  instanceSlug: string;
+  /**
+   * How it was canceled; a trial is canceled at once in either mode
+   */
+  mode: "AT_PERIOD_END" | "IMMEDIATE";
+  pastDueSince: string | null;
+  /**
+   * The licence version a checkout waiting for its payment moves the instance to once paid
+   */
+  pendingLicenseSlug: string | null;
+  /**
+   * Who collects its invoices. NOOP: the organization itself, through the handoff queue
+   */
+  providerKind: "NOOP" | "STRIPE";
+  /**
+   * When trial_will_end is (or was) emitted: trialEndsAt minus the family's trialReminderDays as it was when the trial started; set with trialEndsAt
+   */
+  reminderAt: string | null;
+  /**
+   * A plan change waiting for the next boundary
+   */
+  scheduledChange: ScheduledChange | null;
+  /**
+   * When billing started: usage before it is never billed
+   */
+  startedAt: string;
+  status: "INCOMPLETE" | "TRIAL" | "ACTIVE" | "PAST_DUE" | "CANCELED";
+  /**
+   * When the trial ends, or ended: usage before it is never billed
+   */
+  trialEndsAt: string | null;
+  updatedAt: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
+export type CheckoutConfirmation = {
+  session: CheckoutSession;
+  /**
+   * requires_payment_method only
+   */
+  setupExpiresAt?: string;
+  /**
+   * requires_payment_method only: the hosted page that saves the payment method
+   */
+  setupUrl?: string;
+  status: "requires_payment_method" | "awaiting_payment" | "completed";
+};
+
+export type CheckoutPayment = {
+  hostedInvoiceUrl: string | null;
+  status: "paid" | "requires_action" | "failed" | "processing" | "not_required";
+};
+
+export type CheckoutSession = {
+  /**
+   * Once an ACTIVATION was issued
+   */
+  activationInvoice: SessionInvoice | null;
+  addOns: Array<SessionAddonSelection>;
+  billingPeriod: string;
+  clientReferenceId: string | null;
+  completedAt: string | null;
+  createdAt: string;
+  /**
+   * Set by the completion
+   */
+  customerSlug: string | null;
+  /**
+   * The voucher's discount shows as a line; the code itself is never echoed
+   */
+  dueToday: DueToday;
+  email: string;
+  expiresAt: string;
+  /**
+   * Set by the completion
+   */
+  instanceSlug: string | null;
+  licenseSlug: string;
+  payment: CheckoutPayment | null;
+  priceId: string;
+  requiresPaymentMethod: boolean;
+  sessionId: string;
+  /**
+   * A session still OPEN after expiresAt reads ABANDONED
+   */
+  status: "OPEN" | "AWAITING_PAYMENT" | "COMPLETED" | "ABANDONED" | "EXPIRED";
+  trialEndsAt: string | null;
+  trialRefusedReason: string | null;
+};
+
+export type CheckoutSessionAdmin = {
+  addOns: Array<SessionAddonSelection>;
+  billingPeriod: string;
+  clientReferenceId: string | null;
+  /**
+   * When it became COMPLETED, ABANDONED or EXPIRED; null while OPEN or AWAITING_PAYMENT
+   */
+  closedAt: string | null;
+  completedAt: string | null;
+  createdAt: string;
+  /**
+   * Set by the completion
+   */
+  customerSlug: string | null;
+  dueToday: DueToday;
+  /**
+   * As the visitor gave it. Personal data
+   */
+  email: string;
+  expiresAt: string;
+  /**
+   * Set by the completion
+   */
+  instanceSlug: string | null;
+  licenseSlug: string;
+  priceId: string;
+  /**
+   * The key whose page started it
+   */
+  publishableKeyId: string;
+  sessionId: string;
+  /**
+   * A session still OPEN after expiresAt reads ABANDONED
+   */
+  status: "OPEN" | "AWAITING_PAYMENT" | "COMPLETED" | "ABANDONED" | "EXPIRED";
+  trialEndsAt: string | null;
+  trialRefusedReason: string | null;
+};
+
+export type CheckoutSessionDraft = {
+  addOns?: Array<SubscriptionAddon> | null;
+  /**
+   * MONTHLY, QUARTERLY, SEMI_ANNUAL or ANNUAL, with licenseSlug
+   */
+  billingPeriod?: string;
+  /**
+   * The vendor's opaque reference, echoed on the checkout_session events
+   */
+  clientReferenceId?: string;
+  /**
+   * Compute what would be due today, and write nothing
+   */
+  dryRun?: boolean;
+  /**
+   * The buyer's e-mail. It becomes the new customer's billing e-mail at completion. Required unless dryRun.
+   */
+  email?: string;
+  /**
+   * A public plan's version, with billingPeriod: its default ACTIVE FLAT_FEE price of that period
+   */
+  licenseSlug?: string;
+  /**
+   * A FLAT_FEE price of a public plan. Not with licenseSlug and billingPeriod.
+   */
+  priceId?: string;
+  /**
+   * Where the payment-method setup page sends the visitor back, with kaiten_checkout_session=<sessionId> appended: https, or http on localhost, on an origin the key allows. Required unless dryRun.
+   */
+  returnUrl?: string;
+  /**
+   * false declines the licence's trial
+   */
+  trial?: boolean;
+  /**
+   * The token the Turnstile widget gave the page. Single-use: a dryRun spends one too.
+   */
+  turnstileToken: string;
+  /**
+   * A code to apply, checked against the selection, with no customer yet: a voucher restricted to a customer never applies, and one without a PRICE part only when nothing is due today. Its discount counts in dueToday; the completion, or the payment, records its redemption. Any refusal answers 422 .VoucherInvalid
+   */
+  voucherCode?: string;
+};
+
+export type CheckoutSessionStart = {
+  dueToday: DueToday;
+  /**
+   * open only: 24 h after the start
+   */
+  expiresAt?: string;
+  /**
+   * Whether the confirm will send the visitor to a payment-method setup page
+   */
+  requiresPaymentMethod: boolean;
+  /**
+   * open only
+   */
+  sessionId?: string;
+  status: "preview" | "open";
+  /**
+   * open only: the session's ksc_, returned once. Keep it in memory and sessionStorage, never in a URL.
+   */
+  token?: string;
+  /**
+   * The end of the trial the subscription would start with; null without one
+   */
+  trialEndsAt: string | null;
+  /**
+   * ALREADY_CONSUMED: a customer with this e-mail already had a trial of the family, so none is given; null otherwise
+   */
+  trialRefusedReason: string | null;
+};
+
+export type CloseBacklog = {
+  count: number;
+  oldestDueAt: string | null;
+};
+
+export type ClosePeriodsReport = {
+  /**
+   * Periods closed into an invoice
+   */
+  closed: number;
+  /**
+   * Subscriptions the batch looked at
+   */
+  examined: number;
+  /**
+   * Set when due subscriptions are left beyond the batch
+   */
+  hasMore: boolean;
+  /**
+   * Of those, invoices held as DRAFTs for their usage journal
+   */
+  held: number;
+  invoices: Array<ClosedInvoice>;
+  /**
+   * Subscriptions left for later: held by another transaction, their meters' clock not at the boundary, or failed (logged)
+   */
+  skipped: number;
+};
+
+export type ClosePeriodsScope = {
+  /**
+   * Close only this instance's subscription
+   */
+  instanceSlug?: string;
+};
+
+export type ClosedInvoice = {
+  boundaryAt: string;
+  /**
+   * Set when the invoice is a held DRAFT
+   */
+  held: boolean;
+  id: string;
+  instanceSlug: string;
+  kind: "ACTIVATION" | "RENEWAL" | "FINAL";
+  status:
+    | "DRAFT"
+    | "PUSHED"
+    | "PUSH_FAILED"
+    | "MANUAL"
+    | "PAID"
+    | "PAYMENT_FAILED"
+    | "UNCOLLECTIBLE"
+    | "VOID";
+};
+
 export type Command = {
   entitlementSlug: string;
+};
+
+export type CompatibleLicenseFamilies = {
+  familySlugs: Array<string>;
+};
+
+export type CompletedPaymentMethodSession = {
+  paymentMethod: PaymentMethodLabels;
 };
 
 export type Component = {
@@ -177,6 +1313,53 @@ export type Component = {
   version: string;
 };
 
+export type ComponentDelivered = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * Timestamp when the component was created
+   */
+  readonly createdAt: string;
+  /**
+   * User who created this component
+   */
+  readonly createdBy: User;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  /**
+   * Description of the component
+   */
+  description?: string;
+  /**
+   * Unique identifier for the component
+   */
+  readonly id: string;
+  /**
+   * Name of the component
+   */
+  name: string;
+  /**
+   * Reference to the previous version of this component
+   */
+  previousComponentId?: string;
+  /**
+   * Optional URL-friendly identifier, unique per organization. Auto-generated if not provided.
+   */
+  slug?: string;
+  /**
+   * Version of the component
+   */
+  version: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
 export type ConfigEntitlementValue = {
   /**
    * Value type discriminator
@@ -188,6 +1371,33 @@ export type ConfigEntitlementValue = {
   value: {
     [key: string]: unknown;
   };
+};
+
+export type ConnectionDelivered = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * The connector that configures it
+   */
+  connectorName: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  /**
+   * Whether the connection reaches the provider's live account rather than a test one
+   */
+  livemode: boolean;
+  /**
+   * The payment provider
+   */
+  providerKind: "STRIPE";
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
 export type Connector = {
@@ -232,6 +1442,10 @@ export type ConnectorActivation = {
 
 export type ConnectorSettings = {
   /**
+   * Whether settings were ever stored for this connector. A connector never configured reads false, with empty settings, rather than 404.
+   */
+  readonly configured: boolean;
+  /**
    * Stable connector identifier
    */
   readonly connector_name: string;
@@ -270,7 +1484,7 @@ export type ConnectorState = {
    */
   activatedAt?: string;
   /**
-   * Whether this deployment has the connector registered
+   * Whether this installation has the connector registered
    */
   available: boolean;
   /**
@@ -278,7 +1492,7 @@ export type ConnectorState = {
    */
   connectorName: string;
   /**
-   * Whether this organization's licence includes the connector. True for an ungated connector.
+   * Whether this organization's license includes the connector. True for an ungated connector.
    */
   entitled: boolean;
   /**
@@ -287,7 +1501,32 @@ export type ConnectorState = {
   version?: string;
 };
 
+export type CreateRole = {
+  description: string;
+  name: string;
+  permissions: Array<string>;
+  slug: string;
+};
+
+export type CreatedCustomerSession = {
+  customerSlug: string;
+  expiresAt: string;
+  /**
+   * Revoke it with POST /customer-sessions/{id}/revoke
+   */
+  id: string;
+  instanceSlug?: string;
+  /**
+   * The kst_ token: hand it to the customer's browser, which sends it as Authorization: Bearer on /api/public/session routes. Shown once; only its digest is stored.
+   */
+  token: string;
+};
+
 export type Customer = {
+  /**
+   * Where invoices sent to this customer are delivered, at most 254 characters (CreateCustomer.InvalidBillingEmail). Absent when there is none. On update, omit it or send null to keep the stored value, or send an empty string to remove it. Personal data: never included in event payloads.
+   */
+  billingEmail?: string | null;
   /**
    * Timestamp when the customer was created
    */
@@ -332,6 +1571,17 @@ export type Customer = {
   readonly updatedBy: User;
 };
 
+export type CustomerBilling = {
+  /**
+   * Where the customer's invoices are sent. Personal data
+   */
+  billingEmail: string | null;
+  /**
+   * The customer in each payment provider; none for NOOP
+   */
+  providers: Array<CustomerInProvider>;
+};
+
 export type CustomerBody = {
   /**
    * Optional customer domain name
@@ -361,10 +1611,96 @@ export type CustomerBody = {
   webUrl?: string;
 };
 
-export type CustomerCreationRejected = {
+export type CustomerCreationRejectedDelivered = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
   name: string;
   reason: string;
   slug: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
+export type CustomerEventDelivered = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * Timestamp when the customer was created
+   */
+  createdAt: string;
+  /**
+   * User who created this customer
+   */
+  createdBy: User;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  /**
+   * Customer domain name
+   */
+  domain?: string;
+  /**
+   * Identifier for the customer in an external system, null when there is none
+   */
+  externalCustomerId: string | null;
+  /**
+   * Unique identifier for the customer
+   */
+  id: string;
+  /**
+   * Integrations grouped by adapter name
+   */
+  integrations?: {
+    [key: string]: CustomerIntegration;
+  };
+  /**
+   * Name of the customer
+   */
+  name: string;
+  /**
+   * URL-friendly identifier, unique per organization
+   */
+  slug?: string;
+  /**
+   * Timestamp when the customer was last updated
+   */
+  updatedAt: string;
+  /**
+   * User who last updated this customer
+   */
+  updatedBy: User;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
+export type CustomerInProvider = {
+  /**
+   * The customer's id in the provider
+   */
+  externalCustomerId: string;
+  /**
+   * Its default payment method; null when there is none
+   */
+  paymentMethod: PaymentMethodLabels | null;
+  providerKind: "STRIPE";
+  syncedAt: string | null;
+  /**
+   * The customer's page in the provider's dashboard
+   */
+  webUrl: string | null;
 };
 
 export type CustomerIntegration = {
@@ -421,6 +1757,21 @@ export type CustomerIntegrationResource = {
   webUrl?: string;
 };
 
+export type CustomerSessionDraft = {
+  /**
+   * The customer the session acts for
+   */
+  customerSlug: string;
+  /**
+   * Binds the session to one of the customer's instances; checkout, cancel and the other subscription routes need it. Omitted: the session reads the whole customer.
+   */
+  instanceSlug?: string;
+  /**
+   * How long the session lives, in seconds: 300 to 3600 (CreateCustomerSession.InvalidTtl otherwise). Default 30 minutes; mint a new one before it ends.
+   */
+  ttlSeconds?: number;
+};
+
 export type DefaultVariant =
   | ({
       type: "basic";
@@ -432,7 +1783,29 @@ export type DefaultVariant =
       type: "rollout_percentage";
     } & RolloutPercentage);
 
-export type Deployment = {
+export type DeletedAddonDelivered = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  familySlug: string;
+  id: string;
+  slug: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
+export type DeploymentDelivered = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
   /**
    * Timestamp when the deployment was recorded
    */
@@ -441,6 +1814,10 @@ export type Deployment = {
    * User who recorded this deployment
    */
   createdBy: User;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
   /**
    * Deployment zone the release was deployed to
    */
@@ -453,6 +1830,10 @@ export type Deployment = {
    * Release that was deployed
    */
   releaseId: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
 export type DeploymentZone = {
@@ -504,6 +1885,118 @@ export type DeploymentZone = {
   readonly updatedBy: User;
 };
 
+export type DeploymentZoneDelivered = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * Timestamp when the deployment zone was created
+   */
+  readonly createdAt: string;
+  /**
+   * User who created this deployment zone
+   */
+  readonly createdBy: User;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  /**
+   * Description of the deployment zone
+   */
+  description: string;
+  /**
+   * Unique identifier for the deployment zone
+   */
+  readonly id: string;
+  /**
+   * Typed metadata for the deployment zone, validated against the org-scoped MetadataField schema
+   */
+  metadata?: {
+    [key: string]: unknown;
+  };
+  /**
+   * Name of the deployment zone
+   */
+  name: string;
+  /**
+   * Currently deployed release ID
+   */
+  releaseId?: string;
+  /**
+   * Optional URL-friendly identifier, unique per organization. Auto-generated if not provided.
+   */
+  slug?: string;
+  /**
+   * Environment class of the deployment zone. Free-form: any value is stored as sent, but production, staging and development are the ones the console labels, and feature-flag targeting rules match on this field as __kaiten.deploymentZone.type.
+   */
+  type: string;
+  /**
+   * Timestamp when the deployment zone was last updated
+   */
+  readonly updatedAt: string;
+  /**
+   * User who last updated the deployment zone
+   */
+  readonly updatedBy: User;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
+export type DiscountAllocation = {
+  /**
+   * In minor units, positive
+   */
+  amount: number;
+  /**
+   * The target line
+   */
+  targetSeq: number;
+};
+
+export type DiscountDifference = {
+  /**
+   * The provider's discount, empty when none was recorded
+   */
+  couponId: string;
+  kaitenAmount: number;
+  /**
+   * The DISCOUNT line
+   */
+  lineId: string;
+  /**
+   * 0 when the provider did not apply it
+   */
+  providerAmount: number;
+  seq: number;
+  targetSeq: number;
+};
+
+export type DueDateDifference = {
+  kaitenDueAt: string;
+  providerDueAt: string;
+};
+
+export type DueToday = {
+  currency: string;
+  /**
+   * Minor units
+   */
+  discountTotal: number;
+  lines: Array<SessionLine>;
+  /**
+   * Minor units
+   */
+  subtotal: number;
+  /**
+   * Minor units
+   */
+  total: number;
+};
+
 export type Entitlement = {
   /**
    * Method used to fold each reported usage value into the stored total (NUMBER only). Defaults to SUM.
@@ -538,9 +2031,9 @@ export type Entitlement = {
    */
   name: string;
   /**
-   * Phase of the periodic usage window: CALENDAR (UTC calendar-aligned) or LICENSE_START (phased off the instance's license start date). Required exactly when resetPeriod is set; defaults to CALENDAR when omitted. Immutable once set.
+   * Phase of the periodic usage window: CALENDAR (UTC calendar-aligned), LICENSE_START (phased off the instance's license start date) or BILLING_PERIOD (phased off the instance's live subscription's billing anchor, LICENSE_START without one; with resetPeriod MONTH or YEAR only). Required exactly when resetPeriod is set; defaults to CALENDAR when omitted. Immutable once set.
    */
-  resetAnchor?: "CALENDAR" | "LICENSE_START";
+  resetAnchor?: "CALENDAR" | "LICENSE_START" | "BILLING_PERIOD";
   /**
    * Cadence at which usage automatically resets for this NUMBER entitlement. NULL means a lifetime counter (default). Immutable once set -- a full-replace PUT must echo back the stored value.
    */
@@ -587,6 +2080,131 @@ export type Entitlement = {
   warningThresholdPercent?: number;
 };
 
+export type EntitlementDelivered = {
+  /**
+   * Method used to fold each reported usage value into the stored total (NUMBER only). Defaults to SUM.
+   */
+  aggregationMethod?: "COUNT" | "SUM" | "AVERAGE" | "MIN" | "MAX" | "LATEST";
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * Timestamp when this entitlement was created
+   */
+  readonly createdAt: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  /**
+   * Description of the entitlement
+   */
+  description: string | null;
+  /**
+   * Sort order of this entitlement in customer-facing components (ascending). Defaults to 0.
+   */
+  displayOrder?: number;
+  /**
+   * Groups associated with this entitlement
+   */
+  readonly entitlementGroups?: Array<EntitlementGroupSummary> | null;
+  /**
+   * Optional icon, stored as a provider-namespaced token (provider:name). Decoupled from any specific icon library.
+   */
+  icon?: string;
+  /**
+   * Unique identifier for the entitlement
+   */
+  readonly id: string;
+  /**
+   * Name of the entitlement
+   */
+  name: string;
+  /**
+   * Phase of the periodic usage window: CALENDAR (UTC calendar-aligned), LICENSE_START (phased off the instance's license start date) or BILLING_PERIOD (phased off the instance's live subscription's billing anchor, LICENSE_START without one; with resetPeriod MONTH or YEAR only). Required exactly when resetPeriod is set; defaults to CALENDAR when omitted. Immutable once set.
+   */
+  resetAnchor?: "CALENDAR" | "LICENSE_START" | "BILLING_PERIOD";
+  /**
+   * Cadence at which usage automatically resets for this NUMBER entitlement. NULL means a lifetime counter (default). Immutable once set -- a full-replace PUT must echo back the stored value.
+   */
+  resetPeriod?: "HOUR" | "DAY" | "WEEK" | "MONTH" | "YEAR";
+  /**
+   * Number of base units one sale unit represents (1 sale unit = N base units).
+   */
+  saleUnitFactor?: number;
+  /**
+   * Plural label of the unit this entitlement is sold in, when it differs from the base unit.
+   */
+  saleUnitPlural?: string;
+  /**
+   * Singular label of the unit this entitlement is sold in, when it differs from the base unit. Requires the base unit labels and the full sale unit trio (saleUnitSingular, saleUnitPlural, saleUnitFactor).
+   */
+  saleUnitSingular?: string;
+  /**
+   * Optional URL-friendly identifier, unique per organization. Auto-generated if not provided.
+   */
+  slug?: string;
+  /**
+   * Type of the entitlement
+   */
+  type?: "BOOLEAN" | "NUMBER" | "CONFIG" | "NUMBER_AI_CREDIT";
+  /**
+   * Plural label of the base unit this entitlement is measured in (NUMBER type only). Must be provided together with unitSingular.
+   */
+  unitPlural?: string;
+  /**
+   * Singular label of the base unit this entitlement is measured in (NUMBER type only). Must be provided together with unitPlural.
+   */
+  unitSingular?: string;
+  /**
+   * Timestamp when this entitlement was last updated
+   */
+  readonly updatedAt: string;
+  /**
+   * Whether this entitlement is displayed in customer-facing components (e.g. plan and pricing pages). Defaults to false.
+   */
+  userFacing?: boolean;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+  /**
+   * Percentage of the cap at which an early-warning event fires before the cap is reached. 0 disables the warning (default).
+   */
+  warningThresholdPercent?: number;
+};
+
+export type EntitlementException = {
+  createdAt: string;
+  /**
+   * Null: no end
+   */
+  endsAt: string | null;
+  entitlementSlug: string;
+  entitlementType: "NUMBER" | "NUMBER_AI_CREDIT" | "BOOLEAN" | "CONFIG";
+  id: string;
+  instanceSlug: string;
+  kind: "SET" | "ADD" | "UNLIMITED";
+  reason: string;
+  revokedAt: string | null;
+  startsAt: string;
+  /**
+   * At the read: SCHEDULED before startsAt, ACTIVE in its window, EXPIRED after endsAt, REVOKED once revoked
+   */
+  status: "SCHEDULED" | "ACTIVE" | "EXPIRED" | "REVOKED";
+  /**
+   * A number for NUMBER and NUMBER_AI_CREDIT, a boolean for BOOLEAN, the CONFIG document as an object; null for UNLIMITED
+   */
+  value:
+    | number
+    | boolean
+    | {
+        [key: string]: unknown;
+      }
+    | null;
+};
+
 export type EntitlementGroup = {
   /**
    * Description of the entitlement group
@@ -604,6 +2222,37 @@ export type EntitlementGroup = {
    * URL-friendly identifier, unique per organization. Auto-generated if not provided.
    */
   slug?: string;
+};
+
+export type EntitlementGroupDelivered = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  /**
+   * Description of the entitlement group
+   */
+  description: string | null;
+  /**
+   * Unique identifier for the entitlement group
+   */
+  readonly id: string;
+  /**
+   * Name of the entitlement group
+   */
+  name: string;
+  /**
+   * URL-friendly identifier, unique per organization. Auto-generated if not provided.
+   */
+  slug?: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
 export type EntitlementGroupSummary = {
@@ -700,7 +2349,7 @@ export type EntitlementUsage = {
    */
   licenseSlug: string;
   /**
-   * License grant this usage is measured against, discriminated by the 'type' field. Null when the license grants no value; -1 means unlimited for a NUMBER entitlement.
+   * The effective value this usage is measured against (the licence's grant, with the instance's add-ons and boosts applied; source and provenance say which), discriminated by the 'type' field. Absent when nothing grants the entitlement a value; -1 means unlimited for a NUMBER entitlement.
    */
   limit?:
     | ({
@@ -712,6 +2361,18 @@ export type EntitlementUsage = {
     | ({
         type: "object";
       } & ConfigEntitlementValue);
+  /**
+   * How far above limit usage is still accepted, in percent: -1 unlimited, 0 a hard limit. Absent for BOOLEAN and CONFIG.
+   */
+  limitCapExceededOveragePercent?: number;
+  /**
+   * What the licence, the add-ons and the boosts each contribute
+   */
+  provenance?: Provenance;
+  /**
+   * license: the licence grants it (add-ons, boosts and an exception may change it); addon: an add-on attached does; exception: only the instance's exception does
+   */
+  source: "license" | "addon" | "exception";
   /**
    * Resolved entitlement value, discriminated by the 'type' field
    */
@@ -725,6 +2386,83 @@ export type EntitlementUsage = {
     | ({
         type: "object";
       } & ConfigEntitlementValue);
+};
+
+export type EntitlementUsageDelivered = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * End of the current usage window (exclusive). Null for a lifetime entitlement (no configured reset period).
+   */
+  currentPeriodEnd?: string;
+  /**
+   * Start of the current usage window (inclusive). Null for a lifetime entitlement (no configured reset period).
+   */
+  currentPeriodStart?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  /**
+   * Unique identifier for the entitlement
+   */
+  entitlementId: string;
+  /**
+   * URL-friendly identifier of the entitlement
+   */
+  entitlementSlug: string;
+  /**
+   * Unique identifier for the license to which this entitlement usage belongs
+   */
+  licenseId: string;
+  /**
+   * URL-friendly identifier of the license
+   */
+  licenseSlug: string;
+  /**
+   * The effective value this usage is measured against (the licence's grant, with the instance's add-ons and boosts applied; source and provenance say which), discriminated by the 'type' field. Absent when nothing grants the entitlement a value; -1 means unlimited for a NUMBER entitlement.
+   */
+  limit?:
+    | ({
+        type: "number";
+      } & NumberEntitlementValue)
+    | ({
+        type: "boolean";
+      } & BooleanEntitlementValue)
+    | ({
+        type: "object";
+      } & ConfigEntitlementValue);
+  /**
+   * How far above limit usage is still accepted, in percent: -1 unlimited, 0 a hard limit. Absent for BOOLEAN and CONFIG.
+   */
+  limitCapExceededOveragePercent?: number;
+  /**
+   * What the licence, the add-ons and the boosts each contribute
+   */
+  provenance?: Provenance;
+  /**
+   * license: the licence grants it (add-ons, boosts and an exception may change it); addon: an add-on attached does; exception: only the instance's exception does
+   */
+  source: "license" | "addon" | "exception";
+  /**
+   * Resolved entitlement value, discriminated by the 'type' field
+   */
+  value:
+    | ({
+        type: "number";
+      } & NumberEntitlementValue)
+    | ({
+        type: "boolean";
+      } & BooleanEntitlementValue)
+    | ({
+        type: "object";
+      } & ConfigEntitlementValue);
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
 export type ErrorDetail = {
@@ -794,6 +2532,104 @@ export type EvaluationSuccess = {
   variant?: string;
 };
 
+export type EventHeaders = {
+  /**
+   * W3C baggage of that request, when it carried any
+   */
+  baggage?: string;
+  /**
+   * The instance the event concerns, set on the events of one instance. The usage events' payloads do not name it.
+   */
+  instance_id?: string;
+  /**
+   * W3C trace context of the request that produced the event
+   */
+  traceparent?: string;
+  /**
+   * W3C trace state of that request, when it carried one
+   */
+  tracestate?: string;
+  [key: string]: unknown;
+};
+
+export type ExceptionEventDelivered = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  /**
+   * Null: no end
+   */
+  endsAt: string | null;
+  entitlementSlug: string;
+  id: string;
+  instanceSlug: string;
+  kind: "SET" | "ADD" | "UNLIMITED";
+  reason: string;
+  revokedAt: string | null;
+  startsAt: string;
+  /**
+   * A number for NUMBER and NUMBER_AI_CREDIT, a boolean for BOOLEAN, the CONFIG document as an object; null for UNLIMITED
+   */
+  value:
+    | number
+    | boolean
+    | {
+        [key: string]: unknown;
+      }
+    | null;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
+export type ExhaustedEventDelivered = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  id: string;
+  maxRedemptions?: number;
+  name: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
+export type ExpiredEventDelivered = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  expiresAt: string;
+  id: string;
+  name: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
+export type ExtraDiscount = {
+  amount: number;
+  discountId: string;
+  externalLineId: string;
+};
+
 export type FeatureFlag = {
   default_variant: DefaultVariant;
   description: string | null;
@@ -810,7 +2646,43 @@ export type FeatureFlag = {
   variants: Array<Variant> | null;
 };
 
-export type FeatureFlagEvaluated = {
+export type FeatureFlagDelivered = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  default_variant: DefaultVariant;
+  description: string | null;
+  enabled: boolean;
+  event_name: string;
+  readonly id: string;
+  metadata: {
+    [key: string]: unknown;
+  };
+  name: string;
+  slug?: string;
+  targetings: Targetings;
+  type: "boolean" | "string" | "number" | "object";
+  variants: Array<Variant> | null;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
+export type FeatureFlagEvaluatedDelivered = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
   /**
    * Set when the evaluation failed and the default was returned
    */
@@ -839,6 +2711,254 @@ export type FeatureFlagEvaluated = {
    * Name of the resolved variant, when the flag has one
    */
   variant?: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
+export type FlagGrant = {
+  flagSlug: string;
+  /**
+   * The name of one of the flag's variants
+   */
+  variant: string;
+};
+
+export type Grant = {
+  entitlementSlug: string;
+  /**
+   * SET replaces the value, ADD adds to it, MULTIPLY multiplies it, UNLIMITED lifts the limit. A BOOLEAN or CONFIG entitlement takes SET only
+   */
+  modifierType: "SET" | "ADD" | "MULTIPLY" | "UNLIMITED";
+  /**
+   * A NUMBER grant's decimal: >= 0 for SET, > 0 for ADD and MULTIPLY, null for UNLIMITED; null on a BOOLEAN or CONFIG grant. Optional on write.
+   */
+  modifierValue?: string | null;
+  /**
+   * What a BOOLEAN or CONFIG SET grant sets: true or false, or the CONFIG document as an object; null on a NUMBER grant. Optional on write.
+   */
+  value?:
+    | boolean
+    | {
+        [key: string]: unknown;
+      }
+    | null;
+};
+
+export type HandoffAcknowledgementDelivered = {
+  acknowledgedBy: string;
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  /**
+   * The invoice's number in the organization's accounting system
+   */
+  externalReference?: string;
+  invoiceId: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
+export type HandoffBacklog = {
+  oldestPendingIssuedAt: string | null;
+  pending: number;
+  /**
+   * PENDING invoices claimed again after a lease expired, whose latest lease runs or ended in the last 24 hours: a consumer that claims and does not acknowledge
+   */
+  reclaimedLast24h: number;
+};
+
+export type HandoffBooking = {
+  /**
+   * The invoice's number in the accounting system, 1 to 255 characters
+   */
+  externalReference?: string;
+  /**
+   * The claim's lease. When given, an invoice another claim took since is refused (AckHandoff.LeaseMismatch)
+   */
+  leaseId?: string;
+};
+
+export type HandoffClaim = {
+  /**
+   * The leased invoices, oldest issue first, with their billing e-mail: what the accounting system needs to book them
+   */
+  invoices: Array<Invoice>;
+  /**
+   * Pass it back when acknowledging an invoice of this claim
+   */
+  leaseId: string;
+  /**
+   * When the lease expires and the invoices are claimable again
+   */
+  leasedUntil: string;
+};
+
+export type HandoffClaimSize = {
+  /**
+   * Lease length, 60 to 3600 seconds; 900 when omitted
+   */
+  leaseSeconds?: number;
+  /**
+   * Invoices to lease, 1 to 100; 25 when omitted
+   */
+  limit?: number;
+};
+
+export type HeldInvoiceDelivered = {
+  /**
+   * The boundary the invoice bills. With the kind, it identifies the invoice within its subscription
+   */
+  boundaryAt: string;
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  collectionMethod: "SEND_INVOICE" | "CHARGE_AUTOMATICALLY";
+  createdAt: string;
+  currency: string;
+  customerName: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  /**
+   * As it was when the invoice was composed
+   */
+  customerSlug: string;
+  daysUntilDue: number | null;
+  /**
+   * Sum of the discounts, in minor units
+   */
+  discountTotal: number;
+  /**
+   * issuedAt + daysUntilDue
+   */
+  dueAt: string | null;
+  /**
+   * PENDING: waiting in the handoff queue for the organization's accounting system
+   */
+  handoffStatus: "NOT_REQUIRED" | "PENDING" | "ACKNOWLEDGED";
+  holdDetail: HoldDetail;
+  /**
+   * Why a DRAFT is held: the usage journal it was measured from failed a consistency check (LEDGER_*), or its provider cannot take that many lines (PROVIDER_ITEM_LIMIT)
+   */
+  holdReason:
+    | "LEDGER_SEQUENCE_GAP"
+    | "LEDGER_CHAIN_BREAK"
+    | "LEDGER_COUNTER_MISMATCH"
+    | "PROVIDER_ITEM_LIMIT"
+    | null;
+  /**
+   * The invoice's identifier: the key an accounting system deduplicates on
+   */
+  id: string;
+  instanceName: string;
+  instanceSlug: string;
+  issuedAt: string | null;
+  /**
+   * ACTIVATION bills a subscription's first period, RENEWAL the period that ended and the one that starts, FINAL what is left when a subscription ends
+   */
+  kind: "ACTIVATION" | "RENEWAL" | "FINAL";
+  licenseSlug: string;
+  /**
+   * Whether the invoice is overdue when read, the grace period of automatic collection included: the predicate of ?overdue=true. Computed by the invoice list and the invoice read; false in the answers of writes and in event payloads.
+   */
+  overdue: boolean;
+  paidAt: string | null;
+  /**
+   * Who collects it. NOOP: the organization itself, through the handoff queue
+   */
+  providerKind: "NOOP" | "STRIPE";
+  /**
+   * Earliest start of its lines' service periods
+   */
+  serviceFrom: string;
+  /**
+   * Latest end of its lines' service periods
+   */
+  serviceTo: string;
+  /**
+   * MANUAL: issued, for the organization to collect. PAID, UNCOLLECTIBLE and VOID are final. DRAFT: held, waiting for a release or a recompose
+   */
+  status:
+    | "DRAFT"
+    | "PUSHED"
+    | "PUSH_FAILED"
+    | "MANUAL"
+    | "PAID"
+    | "PAYMENT_FAILED"
+    | "UNCOLLECTIBLE"
+    | "VOID";
+  /**
+   * Sum of the lines, in minor units
+   */
+  subtotal: number;
+  /**
+   * subtotal − discountTotal, in minor units
+   */
+  total: number;
+  updatedAt: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
+export type HeldInvoices = {
+  byReason: {
+    [key: string]: number;
+  };
+  count: number;
+};
+
+export type HeldPair = {
+  counterReportSeq: number | null;
+  detail: string;
+  entitlementId: string;
+  expected: string | null;
+  firstSeq: number | null;
+  found: string | null;
+  instanceId: string;
+  invariant: string;
+  lastSeq: number | null;
+  /**
+   * The report the failure is at, when one is
+   */
+  reportSeq: number | null;
+};
+
+export type HoldDetail = {
+  /**
+   * PROVIDER_ITEM_LIMIT only: the provider's line limit and how many items the invoice needs
+   */
+  itemLimit?: ProviderLineLimit;
+  pairs: Array<HeldPair>;
+};
+
+export type HoldRecord = {
+  heldAt: string | null;
+  releaseReason: string | null;
+  releasedAt: string | null;
+  /**
+   * The user who released it; null when it was released by a later check
+   */
+  releasedBy: string | null;
+};
+
+export type HoldRelease = {
+  /**
+   * 1 to 500 characters; .ReasonRequired otherwise
+   */
+  reason: string;
 };
 
 export type Impact = {
@@ -950,6 +3070,147 @@ export type Instance = {
   readonly updatedBy: User;
 };
 
+export type InstanceAddon = {
+  addonId: string;
+  addonSlug: string;
+  attachedAt: string;
+  familySlug: string;
+  readonly id: string;
+  maxQuantity: number | null;
+  /**
+   * The add-on version's name
+   */
+  name: string;
+  /**
+   * A decrease scheduled for the next boundary, 0 for a removal; the current quantity holds until then. Null when nothing is scheduled (V31-67)
+   */
+  pendingQuantity: number | null;
+  /**
+   * What the instance's subscription bills for it: the default FLAT_FEE price of the subscription's period and the ACTIVE metered prices. Empty when the instance is not billed.
+   */
+  prices: Array<Price>;
+  quantity: number;
+  removedAt: string | null;
+};
+
+export type InstanceAddonUpdateDelivered = {
+  addonId: string;
+  addonSlug: string;
+  attachedAt: string;
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  familySlug: string;
+  readonly id: string;
+  instanceSlug: string;
+  maxQuantity: number | null;
+  /**
+   * The add-on version's name
+   */
+  name: string;
+  /**
+   * A decrease scheduled for the next boundary, 0 for a removal; the current quantity holds until then. Null when nothing is scheduled (V31-67)
+   */
+  pendingQuantity: number | null;
+  /**
+   * The quantity before a quantity change
+   */
+  previousQuantity?: number;
+  /**
+   * What the instance's subscription bills for it: the default FLAT_FEE price of the subscription's period and the ACTIVE metered prices. Empty when the instance is not billed.
+   */
+  prices: Array<Price>;
+  quantity: number;
+  removedAt: string | null;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
+export type InstanceBilling = {
+  /**
+   * The instant its periods are counted from
+   */
+  anchorAt: string;
+  /**
+   * The FLAT_FEE price the subscription is pinned to, deprecated or not
+   */
+  basePrice: Price;
+  billingPeriod: "MONTHLY" | "QUARTERLY" | "SEMI_ANNUAL" | "ANNUAL";
+  cancelAtPeriodEnd: boolean;
+  cancelRequestedAt: string | null;
+  canceledAt: string | null;
+  cancellationReason: string | null;
+  /**
+   * Effective: the subscription's own, else the organization's default
+   */
+  collectionMethod: "SEND_INVOICE" | "CHARGE_AUTOMATICALLY";
+  /**
+   * The subscription's own collection method; null when it takes the organization's
+   */
+  collectionMethodOverride: string | null;
+  createdAt: string;
+  currency: string;
+  /**
+   * The next boundary: the period closes, and its invoice is composed, after it
+   */
+  currentPeriodEnd: string;
+  currentPeriodStart: string;
+  customerName: string;
+  customerSlug: string;
+  /**
+   * Effective: the subscription's own, else the organization's default
+   */
+  daysUntilDue: number;
+  /**
+   * The subscription's own payment terms; null when it takes the organization's
+   */
+  daysUntilDueOverride: number | null;
+  id: string;
+  /**
+   * When a checkout waiting for its payment ends unpaid: INCOMPLETE, or a free subscription that carries one
+   */
+  incompleteExpiresAt: string | null;
+  instanceName: string;
+  /**
+   * As it was at the subscription's last write
+   */
+  instanceSlug: string;
+  pastDueSince: string | null;
+  /**
+   * The licence version a checkout waiting for its payment moves the instance to once paid
+   */
+  pendingLicenseSlug: string | null;
+  /**
+   * Who collects its invoices. NOOP: the organization itself, through the handoff queue
+   */
+  providerKind: "NOOP" | "STRIPE";
+  /**
+   * When trial_will_end is (or was) emitted: trialEndsAt minus the family's trialReminderDays as it was when the trial started; set with trialEndsAt
+   */
+  reminderAt: string | null;
+  /**
+   * A plan change waiting for the next boundary
+   */
+  scheduledChange: ScheduledChange | null;
+  /**
+   * When billing started: usage before it is never billed
+   */
+  startedAt: string;
+  status: "INCOMPLETE" | "TRIAL" | "ACTIVE" | "PAST_DUE" | "CANCELED";
+  /**
+   * When the trial ends, or ended: usage before it is never billed
+   */
+  trialEndsAt: string | null;
+  updatedAt: string;
+};
+
 export type InstanceBody = {
   /**
    * External identifier of the related customer in the same adapter
@@ -1005,7 +3266,114 @@ export type InstanceBody = {
   webUrl?: string;
 };
 
-export type InstanceEntitlementCapExceeded = {
+export type InstanceDelivered = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * Timestamp when the instance was created
+   */
+  readonly createdAt: string;
+  /**
+   * User who created this instance
+   */
+  readonly createdBy: User;
+  /**
+   * ID of the customer associated with this instance
+   */
+  customerId: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  /**
+   * Slug of the customer associated with this instance
+   */
+  readonly customerSlug: string;
+  /**
+   * ID of the deployment zone associated with this instance (optional)
+   */
+  deploymentZoneId?: string;
+  /**
+   * Slug of the deployment zone associated with this instance (optional)
+   */
+  readonly deploymentZoneSlug?: string;
+  /**
+   * Brief description of the instance
+   */
+  description: string;
+  /**
+   * End date of the license for this instance
+   */
+  endLicenseDate: string;
+  /**
+   * Unique identifier for the instance
+   */
+  readonly id: string;
+  /**
+   * Integrations grouped by adapter name
+   */
+  integrations?: {
+    [key: string]: InstanceIntegration;
+  };
+  /**
+   * ID of the license version this instance is pinned to. An ARCHIVED version cannot be assigned, on create or by changing the license (CreateInstance.LicenseArchived, UpdateInstance.LicenseArchived); an instance already on a version that is archived later keeps it. A DRAFT version can be assigned, to try it before publishing.
+   */
+  licenseId: string;
+  /**
+   * Slug of the license associated with this instance
+   */
+  readonly licenseSlug: string;
+  /**
+   * Commercial lifecycle stage of the instance (free-form; suggested: TRIAL, ACTIVE, AT_RISK, CHURNED)
+   */
+  readonly lifecycleStage?: string;
+  /**
+   * Metadata for the instance
+   */
+  metadata?: {
+    [key: string]: unknown;
+  };
+  /**
+   * Name of the instance
+   */
+  name: string;
+  /**
+   * Optional URL-friendly identifier, unique per organization. Auto-generated if not provided.
+   */
+  slug?: string;
+  /**
+   * Start date of the license for this instance
+   */
+  startLicenseDate: string;
+  /**
+   * Operational status of the instance
+   */
+  readonly status?: "HEALTHY" | "DEGRADED" | "INCIDENT" | "MAINTENANCE";
+  /**
+   * Timestamp when the instance was last updated
+   */
+  readonly updatedAt: string;
+  /**
+   * User who last updated this instance
+   */
+  readonly updatedBy: User;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
+export type InstanceEntitlementCapExceededDelivered = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
   /**
    * URL-friendly identifier of the entitlement
    */
@@ -1022,25 +3390,50 @@ export type InstanceEntitlementCapExceeded = {
    * Current usage value, including overage
    */
   value: number;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
-export type InstanceEntitlementUsagePeriodRolledOver = {
+export type InstanceEntitlementUsagePeriodRolledOverDelivered = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
   closed_period_end: string | null;
   closed_period_start: string | null;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
   entitlement_id: string;
   entitlement_slug: string;
   event_count: number;
   instance_id: string;
   is_synthetic: boolean;
   new_period_start: string;
+  reason: "PERIOD_ENDED" | "ANCHOR_CHANGED";
   value: number;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
-export type InstanceEntitlementUsageReportAccepted = {
+export type InstanceEntitlementUsageReportAcceptedDelivered = {
   /**
    * Report behavior: append folds the value into the stored total, set overwrites it
    */
   behavior: "append" | "set";
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
   /**
    * URL-friendly identifier of the entitlement the usage was reported against
    */
@@ -1057,13 +3450,25 @@ export type InstanceEntitlementUsageReportAccepted = {
    * Value carried by the report
    */
   value: number;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
-export type InstanceEntitlementUsageWarningThresholdReached = {
+export type InstanceEntitlementUsageWarningThresholdReachedDelivered = {
   /**
    * Usage value at which the warning fires (cap * warningThresholdPercent / 100)
    */
   boundary: number;
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
   /**
    * URL-friendly identifier of the entitlement
    */
@@ -1076,9 +3481,21 @@ export type InstanceEntitlementUsageWarningThresholdReached = {
    * Current usage value
    */
   value: number;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
-export type InstanceEntitlementValueGet = {
+export type InstanceEntitlementValueGetDelivered = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
   /**
    * Unique identifier for the entitlement
    */
@@ -1120,6 +3537,10 @@ export type InstanceEntitlementValueGet = {
     | ({
         type: "object";
       } & ConfigEntitlementValue);
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
 export type InstanceIntegration = {
@@ -1196,18 +3617,810 @@ export type InstanceIntegrationResource = {
   webUrl?: string;
 };
 
-export type InstanceLifecycleStageChanged = {
+export type InstanceLifecycleStageChangedDelivered = {
   changed_by: string;
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
   instance_id: string;
   new_lifecycle_stage: string | null;
   previous_lifecycle_stage: string | null;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
-export type InstanceStatusChanged = {
+export type InstanceStatusChangedDelivered = {
   changed_by: string;
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
   instance_id: string;
   new_status: "HEALTHY" | "DEGRADED" | "INCIDENT" | "MAINTENANCE";
   previous_status: "HEALTHY" | "DEGRADED" | "INCIDENT" | "MAINTENANCE";
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
+export type InstanceUpdateDelivered = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * Timestamp when the instance was created
+   */
+  readonly createdAt: string;
+  /**
+   * User who created this instance
+   */
+  readonly createdBy: User;
+  /**
+   * ID of the customer associated with this instance
+   */
+  customerId: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  /**
+   * Slug of the customer associated with this instance
+   */
+  readonly customerSlug: string;
+  /**
+   * ID of the deployment zone associated with this instance (optional)
+   */
+  deploymentZoneId?: string;
+  /**
+   * Slug of the deployment zone associated with this instance (optional)
+   */
+  readonly deploymentZoneSlug?: string;
+  /**
+   * Brief description of the instance
+   */
+  description: string;
+  /**
+   * End date of the license for this instance
+   */
+  endLicenseDate: string;
+  /**
+   * Unique identifier for the instance
+   */
+  readonly id: string;
+  /**
+   * Integrations grouped by adapter name
+   */
+  integrations?: {
+    [key: string]: InstanceIntegration;
+  };
+  /**
+   * BILLING_FALLBACK: the subscription ended and the instance moved to its family's fallback (V31-66). Null for any other change, the move a paid checkout applies included
+   */
+  licenseChangeReason: "BILLING_FALLBACK";
+  /**
+   * ID of the license version this instance is pinned to. An ARCHIVED version cannot be assigned, on create or by changing the license (CreateInstance.LicenseArchived, UpdateInstance.LicenseArchived); an instance already on a version that is archived later keeps it. A DRAFT version can be assigned, to try it before publishing.
+   */
+  licenseId: string;
+  /**
+   * Slug of the license associated with this instance
+   */
+  readonly licenseSlug: string;
+  /**
+   * Commercial lifecycle stage of the instance (free-form; suggested: TRIAL, ACTIVE, AT_RISK, CHURNED)
+   */
+  readonly lifecycleStage?: string;
+  /**
+   * Metadata for the instance
+   */
+  metadata?: {
+    [key: string]: unknown;
+  };
+  /**
+   * Name of the instance
+   */
+  name: string;
+  /**
+   * Optional URL-friendly identifier, unique per organization. Auto-generated if not provided.
+   */
+  slug?: string;
+  /**
+   * Start date of the license for this instance
+   */
+  startLicenseDate: string;
+  /**
+   * Operational status of the instance
+   */
+  readonly status?: "HEALTHY" | "DEGRADED" | "INCIDENT" | "MAINTENANCE";
+  /**
+   * Timestamp when the instance was last updated
+   */
+  readonly updatedAt: string;
+  /**
+   * User who last updated this instance
+   */
+  readonly updatedBy: User;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
+export type Invoice = {
+  /**
+   * The address the invoice is for, as it was when composed. Personal data: it appears in no event
+   */
+  billingEmail: string | null;
+  /**
+   * The boundary the invoice bills. With the kind, it identifies the invoice within its subscription
+   */
+  boundaryAt: string;
+  collectionMethod: "SEND_INVOICE" | "CHARGE_AUTOMATICALLY";
+  createdAt: string;
+  currency: string;
+  customerName: string;
+  /**
+   * As it was when the invoice was composed
+   */
+  customerSlug: string;
+  daysUntilDue: number | null;
+  /**
+   * Sum of the discounts, in minor units
+   */
+  discountTotal: number;
+  /**
+   * issuedAt + daysUntilDue
+   */
+  dueAt: string | null;
+  handoff: InvoiceHandoff;
+  /**
+   * PENDING: waiting in the handoff queue for the organization's accounting system
+   */
+  handoffStatus: "NOT_REQUIRED" | "PENDING" | "ACKNOWLEDGED";
+  /**
+   * When the invoice was held and released
+   */
+  hold: HoldRecord | null;
+  /**
+   * Every meter whose journal failed a check
+   */
+  holdDetail: HoldDetail | null;
+  /**
+   * Why a DRAFT is held: the usage journal it was measured from failed a consistency check (LEDGER_*), or its provider cannot take that many lines (PROVIDER_ITEM_LIMIT)
+   */
+  holdReason:
+    | "LEDGER_SEQUENCE_GAP"
+    | "LEDGER_CHAIN_BREAK"
+    | "LEDGER_COUNTER_MISMATCH"
+    | "PROVIDER_ITEM_LIMIT"
+    | null;
+  /**
+   * The invoice's identifier: the key an accounting system deduplicates on
+   */
+  id: string;
+  instanceName: string;
+  instanceSlug: string;
+  issuedAt: string | null;
+  /**
+   * ACTIVATION bills a subscription's first period, RENEWAL the period that ended and the one that starts, FINAL what is left when a subscription ends
+   */
+  kind: "ACTIVATION" | "RENEWAL" | "FINAL";
+  licenseId: string;
+  licenseSlug: string;
+  lines: Array<InvoiceLine>;
+  /**
+   * Whether the invoice is overdue when read, the grace period of automatic collection included: the predicate of ?overdue=true. Computed by the invoice list and the invoice read; false in the answers of writes and in event payloads.
+   */
+  overdue: boolean;
+  paidAt: string | null;
+  /**
+   * The invoice in its payment provider; null for NOOP
+   */
+  provider: ProviderRecord | null;
+  /**
+   * Who collects it. NOOP: the organization itself, through the handoff queue
+   */
+  providerKind: "NOOP" | "STRIPE";
+  /**
+   * The invoice recomposed from this VOID one
+   */
+  replacedByInvoiceId: string | null;
+  /**
+   * The VOID invoice this one was recomposed from
+   */
+  replacesInvoiceId: string | null;
+  /**
+   * Earliest start of its lines' service periods
+   */
+  serviceFrom: string;
+  /**
+   * Latest end of its lines' service periods
+   */
+  serviceTo: string;
+  /**
+   * MANUAL: issued, for the organization to collect. PAID, UNCOLLECTIBLE and VOID are final. DRAFT: held, waiting for a release or a recompose
+   */
+  status:
+    | "DRAFT"
+    | "PUSHED"
+    | "PUSH_FAILED"
+    | "MANUAL"
+    | "PAID"
+    | "PAYMENT_FAILED"
+    | "UNCOLLECTIBLE"
+    | "VOID";
+  /**
+   * Sum of the lines, in minor units
+   */
+  subtotal: number;
+  /**
+   * subtotal − discountTotal, in minor units
+   */
+  total: number;
+  uncollectibleAt: string | null;
+  updatedAt: string;
+  voidReason: string | null;
+  voidedAt: string | null;
+};
+
+export type InvoiceHandoff = {
+  acknowledgedAt: string | null;
+  claimCount: number;
+  /**
+   * The invoice's number in the organization's accounting system
+   */
+  externalReference: string | null;
+  /**
+   * The claim currently holding it
+   */
+  leaseId: string | null;
+  leasedUntil: string | null;
+  status: "NOT_REQUIRED" | "PENDING" | "ACKNOWLEDGED";
+};
+
+export type InvoiceHold = {
+  entitlementId: string;
+  /**
+   * The check that failed
+   */
+  invariant: string;
+};
+
+export type InvoiceLine = {
+  /**
+   * The add-on version an ADDON line bills
+   */
+  addonId: string | null;
+  /**
+   * The add-on price an ADDON line bills
+   */
+  addonPriceId: string | null;
+  /**
+   * round_half_up(quantity × unitAmountDecimal), in minor units; negative on a DISCOUNT line
+   */
+  amount: number;
+  /**
+   * The price's billing model; absent on a DISCOUNT line
+   */
+  billingModel: "FLAT_FEE" | "USAGE_BASED" | "OVERAGE" | null;
+  /**
+   * ADVANCE lines bill the period that starts at the boundary, ARREARS lines the one that ends there; absent on a DISCOUNT line
+   */
+  billingTiming: "ADVANCE" | "ARREARS" | null;
+  /**
+   * Set on a preview line whose sample exceeded what the licence accepts: reports above that are rejected, so the excess is not billed
+   */
+  capped?: boolean;
+  /**
+   * The arithmetic of the line
+   */
+  description: string;
+  /**
+   * How a DISCOUNT line was computed
+   */
+  discount: InvoiceLineDiscount | null;
+  /**
+   * The metered entitlement, on USAGE and OVERAGE lines
+   */
+  entitlementId: string | null;
+  /**
+   * Its slug, as it was when the line was composed
+   */
+  entitlementSlug: string | null;
+  /**
+   * The line's identifier, stable for the invoice's life; absent on a preview
+   */
+  id?: string;
+  /**
+   * The instance's attachment an ADDON line bills
+   */
+  instanceAddonId: string | null;
+  /**
+   * The redemption a DISCOUNT line applies
+   */
+  instanceVoucherId: string | null;
+  /**
+   * The price's display label, else a derived one
+   */
+  label: string;
+  /**
+   * The licence price the line bills; null on an ADDON line
+   */
+  licensePriceId: string | null;
+  /**
+   * How a USAGE or OVERAGE line's quantity was measured
+   */
+  metering: InvoiceLineMetering | null;
+  /**
+   * The arithmetic of an OVERAGE line
+   */
+  overage: InvoiceLineOverage | null;
+  /**
+   * The line in the payment provider, once pushed
+   */
+  provider: InvoiceLineProvider | null;
+  /**
+   * In sale units, a decimal string: 1 on a BASE line, the quantity held on an ADDON line
+   */
+  quantity: string;
+  /**
+   * Position on the invoice, from 1
+   */
+  seq: number;
+  /**
+   * Start of the period the line bills (inclusive)
+   */
+  serviceFrom: string;
+  /**
+   * End of the period the line bills (exclusive)
+   */
+  serviceTo: string;
+  /**
+   * On the true-up line of an ADVANCE add-on of a TRUE_UP family: the highest quantity held in the elapsed period and the quantity billed in advance for it (V31-70)
+   */
+  trueUp: InvoiceLineTrueUp | null;
+  /**
+   * BASE: the subscription's FLAT_FEE price. ADDON: an add-on's FLAT_FEE price times the quantity held at the boundary. USAGE: a USAGE_BASED price's metered usage. OVERAGE: an OVERAGE price's usage above the licence's limit. DISCOUNT: a PRICE voucher's discount, negative.
+   */
+  type: "BASE" | "ADDON" | "USAGE" | "OVERAGE" | "DISCOUNT";
+  /**
+   * The price's unit amount in minor units; absent on a DISCOUNT line
+   */
+  unitAmountDecimal: string | null;
+  /**
+   * The voucher a DISCOUNT line applies
+   */
+  voucherId: string | null;
+  [key: string]: unknown;
+};
+
+export type InvoiceLineDiscount = {
+  /**
+   * The part of the line each target bears, by ascending targetSeq: they sum to the line's magnitude, and no target is discounted below 0. A payment provider applies each one to its target line
+   */
+  readonly allocations: Array<DiscountAllocation>;
+  /**
+   * Which invoice of the redemption this is, from 1
+   */
+  application: number;
+  /**
+   * How many invoices the redemption discounts; null for FOREVER
+   */
+  applicationsMax: number | null;
+  appliesTo: "LICENSE_BASE" | "ADDONS" | "BOTH" | "SELECTED_PRICES";
+  /**
+   * What its targets still amounted to before it, exact, in minor units
+   */
+  base: string;
+  currency: string | null;
+  discountType: "PERCENTAGE" | "FIXED_AMOUNT";
+  /**
+   * The percentage, or the amount in minor units
+   */
+  discountValue: string;
+  /**
+   * The lines it discounts
+   */
+  targetSeqs: Array<number> | null;
+};
+
+export type InvoiceLineLedger = {
+  /**
+   * First report of the period, null when it has none
+   */
+  firstSeq: number | null;
+  /**
+   * The instance whose reports these are: with the line's entitlement, the pair the journal is kept by. It outlives the instance
+   */
+  instanceId: string | null;
+  /**
+   * Last report of the period, null when it has none
+   */
+  lastSeq: number | null;
+  /**
+   * Reports in the period
+   */
+  rows: number;
+  /**
+   * Sum of the reports' movements, before any floor
+   */
+  sumDelta: string;
+  /**
+   * Sum of their movements above the limit, before any floor
+   */
+  sumOverage: string | null;
+};
+
+export type InvoiceLineMetering = {
+  /**
+   * The usage journal rows the line was measured from
+   */
+  ledger: InvoiceLineLedger | null;
+  /**
+   * In measured units: the usage for a USAGE line, the overage for an OVERAGE line
+   */
+  measuredQuantity: string;
+  /**
+   * Windows whose net movement was negative and counted as 0
+   */
+  negativeSegmentsFloored: number;
+  /**
+   * Measured units in one sale unit
+   */
+  saleUnitFactor: string;
+  /**
+   * Reset windows the period spans
+   */
+  windows: number;
+};
+
+export type InvoiceLineOverage = {
+  /**
+   * The limits applied, in the order they first applied
+   */
+  limits: Array<OverageLimit>;
+  /**
+   * Usage above the applied limit
+   */
+  overageMeasured: string;
+  /**
+   * Usage in measured units
+   */
+  usageMeasured: string;
+};
+
+export type InvoiceLineProvider = {
+  /**
+   * The provider's amount, read back for reconciliation
+   */
+  amount?: number;
+  /**
+   * On a DISCOUNT line: the provider's discount (a Stripe coupon) of each allocation, in the allocations' order
+   */
+  couponIds?: Array<string> | null;
+  /**
+   * The provider's id of the line; absent on a DISCOUNT line, which the provider holds as discounts on its targets
+   */
+  externalLineId?: string;
+};
+
+export type InvoiceLineTrueUp = {
+  /**
+   * The quantity its ADVANCE line billed at the previous boundary; 0 when it started after it
+   */
+  billedQuantity: number;
+  /**
+   * The highest quantity the attachment held in the elapsed period
+   */
+  maxQuantity: number;
+};
+
+export type InvoicePayment = {
+  /**
+   * The invoice's number in the organization's accounting system, 1 to 255 characters. It also acknowledges an invoice still waiting in the handoff queue
+   */
+  externalReference?: string;
+  /**
+   * A note, such as the transfer's reference, kept only in the paid event
+   */
+  note?: string;
+  /**
+   * When it was paid, now or earlier; now when omitted
+   */
+  paidAt?: string;
+};
+
+export type InvoicePreview = {
+  /**
+   * When the preview was composed
+   */
+  asOf: string;
+  /**
+   * The boundary the invoice bills
+   */
+  boundaryAt: string;
+  /**
+   * ISO 4217 code
+   */
+  currency: string;
+  /**
+   * Sum of the discounts, in minor units
+   */
+  discountTotal: number;
+  /**
+   * The boundary previewed
+   */
+  kind: "ACTIVATION" | "RENEWAL" | "FINAL";
+  /**
+   * The licence version previewed
+   */
+  licenseSlug: string;
+  lines: Array<InvoiceLine>;
+  /**
+   * Earliest start of the lines' service periods; absent without lines
+   */
+  serviceFrom?: string;
+  /**
+   * Latest end of the lines' service periods; absent without lines
+   */
+  serviceTo?: string;
+  /**
+   * Always PREVIEW
+   */
+  status: "PREVIEW";
+  /**
+   * Sum of the lines, in minor units
+   */
+  subtotal: number;
+  /**
+   * subtotal − discountTotal, in minor units
+   */
+  total: number;
+  /**
+   * Meters whose usage journal fails a consistency check, which would hold the invoice. Always empty for a sample.
+   */
+  wouldHold: Array<InvoiceHold>;
+};
+
+export type InvoicePreviewScenario = {
+  /**
+   * Add-on versions priced in: their fees for the base's period and their metered prices, and their grants for the sample (PreviewLicenseInvoice.AddonNotFound; .InvalidAddOns for a repeated one or a quantity below 1).
+   */
+  addOns?: Array<AddonAmount> | null;
+  /**
+   * The FLAT_FEE price billed as the base (PreviewLicenseInvoice.PriceNotFound). Defaults to the version's default FLAT_FEE price (PreviewLicenseInvoice.NoBasePrice when it has none).
+   */
+  basePriceId?: string;
+  /**
+   * Rate this instance's own usage, read from its journal over [P0, now): P0 of its live subscription, else one billing period back (PreviewLicenseInvoice.InstanceNotFound; .OutsideRetention when P0 is before the usage history). Not with sampleUsage.
+   */
+  instanceSlug?: string;
+  /**
+   * Usage of the metered entitlements over the period that ends, one entry per entitlement, rated against the version's grant and the listed add-ons'. An entitlement left out used nothing.
+   */
+  sampleUsage?: Array<SampleUsageAmount> | null;
+  /**
+   * A PRICE voucher's discount, applied as a redemption would, consuming nothing (PreviewLicenseInvoice.VoucherNotFound; .VoucherInvalid when it is not an ACTIVE PRICE voucher, nor an ACTIVE COMPOSITE with a PRICE part).
+   */
+  voucherCode?: string;
+};
+
+export type InvoiceSummary = {
+  /**
+   * The boundary the invoice bills. With the kind, it identifies the invoice within its subscription
+   */
+  boundaryAt: string;
+  collectionMethod: "SEND_INVOICE" | "CHARGE_AUTOMATICALLY";
+  createdAt: string;
+  currency: string;
+  customerName: string;
+  /**
+   * As it was when the invoice was composed
+   */
+  customerSlug: string;
+  daysUntilDue: number | null;
+  /**
+   * Sum of the discounts, in minor units
+   */
+  discountTotal: number;
+  /**
+   * issuedAt + daysUntilDue
+   */
+  dueAt: string | null;
+  /**
+   * PENDING: waiting in the handoff queue for the organization's accounting system
+   */
+  handoffStatus: "NOT_REQUIRED" | "PENDING" | "ACKNOWLEDGED";
+  /**
+   * Why a DRAFT is held: the usage journal it was measured from failed a consistency check (LEDGER_*), or its provider cannot take that many lines (PROVIDER_ITEM_LIMIT)
+   */
+  holdReason:
+    | "LEDGER_SEQUENCE_GAP"
+    | "LEDGER_CHAIN_BREAK"
+    | "LEDGER_COUNTER_MISMATCH"
+    | "PROVIDER_ITEM_LIMIT"
+    | null;
+  /**
+   * The invoice's identifier: the key an accounting system deduplicates on
+   */
+  id: string;
+  instanceName: string;
+  instanceSlug: string;
+  issuedAt: string | null;
+  /**
+   * ACTIVATION bills a subscription's first period, RENEWAL the period that ended and the one that starts, FINAL what is left when a subscription ends
+   */
+  kind: "ACTIVATION" | "RENEWAL" | "FINAL";
+  licenseSlug: string;
+  /**
+   * Whether the invoice is overdue when read, the grace period of automatic collection included: the predicate of ?overdue=true. Computed by the invoice list and the invoice read; false in the answers of writes and in event payloads.
+   */
+  overdue: boolean;
+  paidAt: string | null;
+  /**
+   * Who collects it. NOOP: the organization itself, through the handoff queue
+   */
+  providerKind: "NOOP" | "STRIPE";
+  /**
+   * Earliest start of its lines' service periods
+   */
+  serviceFrom: string;
+  /**
+   * Latest end of its lines' service periods
+   */
+  serviceTo: string;
+  /**
+   * MANUAL: issued, for the organization to collect. PAID, UNCOLLECTIBLE and VOID are final. DRAFT: held, waiting for a release or a recompose
+   */
+  status:
+    | "DRAFT"
+    | "PUSHED"
+    | "PUSH_FAILED"
+    | "MANUAL"
+    | "PAID"
+    | "PAYMENT_FAILED"
+    | "UNCOLLECTIBLE"
+    | "VOID";
+  /**
+   * Sum of the lines, in minor units
+   */
+  subtotal: number;
+  /**
+   * subtotal − discountTotal, in minor units
+   */
+  total: number;
+  updatedAt: string;
+};
+
+export type InvoiceVoid = {
+  /**
+   * 1 to 500 characters; .ReasonRequired otherwise
+   */
+  reason: string;
+};
+
+export type InvoiceWriteOff = {
+  /**
+   * 1 to 500 characters; .ReasonRequired otherwise
+   */
+  reason: string;
+};
+
+export type IssuedInvoiceDelivered = {
+  /**
+   * The boundary the invoice bills. With the kind, it identifies the invoice within its subscription
+   */
+  boundaryAt: string;
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  collectionMethod: "SEND_INVOICE" | "CHARGE_AUTOMATICALLY";
+  createdAt: string;
+  currency: string;
+  customerName: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  /**
+   * As it was when the invoice was composed
+   */
+  customerSlug: string;
+  daysUntilDue: number | null;
+  /**
+   * Sum of the discounts, in minor units
+   */
+  discountTotal: number;
+  /**
+   * issuedAt + daysUntilDue
+   */
+  dueAt: string | null;
+  /**
+   * PENDING: waiting in the handoff queue for the organization's accounting system
+   */
+  handoffStatus: "NOT_REQUIRED" | "PENDING" | "ACKNOWLEDGED";
+  /**
+   * Why a DRAFT is held: the usage journal it was measured from failed a consistency check (LEDGER_*), or its provider cannot take that many lines (PROVIDER_ITEM_LIMIT)
+   */
+  holdReason:
+    | "LEDGER_SEQUENCE_GAP"
+    | "LEDGER_CHAIN_BREAK"
+    | "LEDGER_COUNTER_MISMATCH"
+    | "PROVIDER_ITEM_LIMIT"
+    | null;
+  /**
+   * The invoice's identifier: the key an accounting system deduplicates on
+   */
+  id: string;
+  instanceName: string;
+  instanceSlug: string;
+  issuedAt: string | null;
+  /**
+   * ACTIVATION bills a subscription's first period, RENEWAL the period that ended and the one that starts, FINAL what is left when a subscription ends
+   */
+  kind: "ACTIVATION" | "RENEWAL" | "FINAL";
+  licenseId: string;
+  licenseSlug: string;
+  lines: Array<InvoiceLine>;
+  /**
+   * Set when the lines did not fit the event: read the invoice for all of them
+   */
+  linesTruncated?: boolean;
+  /**
+   * Whether the invoice is overdue when read, the grace period of automatic collection included: the predicate of ?overdue=true. Computed by the invoice list and the invoice read; false in the answers of writes and in event payloads.
+   */
+  overdue: boolean;
+  paidAt: string | null;
+  /**
+   * Who collects it. NOOP: the organization itself, through the handoff queue
+   */
+  providerKind: "NOOP" | "STRIPE";
+  /**
+   * Earliest start of its lines' service periods
+   */
+  serviceFrom: string;
+  /**
+   * Latest end of its lines' service periods
+   */
+  serviceTo: string;
+  /**
+   * MANUAL: issued, for the organization to collect. PAID, UNCOLLECTIBLE and VOID are final. DRAFT: held, waiting for a release or a recompose
+   */
+  status:
+    | "DRAFT"
+    | "PUSHED"
+    | "PUSH_FAILED"
+    | "MANUAL"
+    | "PAID"
+    | "PAYMENT_FAILED"
+    | "UNCOLLECTIBLE"
+    | "VOID";
+  /**
+   * Sum of the lines, in minor units
+   */
+  subtotal: number;
+  /**
+   * subtotal − discountTotal, in minor units
+   */
+  total: number;
+  updatedAt: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
 export type License = {
@@ -1240,9 +4453,25 @@ export type License = {
    */
   name: string;
   /**
+   * How this version is sold. FREE and PAID can be bought self-serve; CUSTOM sends a buyer to selfServeCtaUrl or a conversation. Always present in responses. On create it defaults to CUSTOM; on update, omit it or send null to keep the stored value.
+   */
+  pricingType?: "FREE" | "PAID" | "CUSTOM";
+  /**
+   * Whether self-serve signup captures a payment method before activation. Always present in responses; false when omitted on create. On update, omit it or send null to keep the stored value.
+   */
+  requiresPaymentMethod?: boolean | null;
+  /**
+   * Where a buyer is sent when this version cannot be bought self-serve: an http(s) URL of at most 2048 characters (CreateLicense.InvalidSelfServeCtaUrl). Null when there is none. On update, omit it or send null to keep the stored value, or send an empty string to remove it.
+   */
+  selfServeCtaUrl?: string | null;
+  /**
    * Optional URL-friendly identifier, unique per organization. When omitted, a new version of an existing family takes {familySlug}-v{version}, and any other license gets one generated from its name. A license that opens a new family gives the family its slug.
    */
   slug?: string;
+  /**
+   * Trial length, in days, a subscription to this version starts with by default. Null when there is none. From 1 to 365 (CreateLicense.InvalidTrialDays, UpdateLicense.InvalidTrialDays). On update, omit it or send null to keep the stored value, or send 0 to remove the trial.
+   */
+  trialPeriodDays?: number | null;
   /**
    * Type of the license determining its capabilities and restrictions
    */
@@ -1259,6 +4488,85 @@ export type License = {
    * Optional human-readable name for the license version. Defaults to "Version - <version>".
    */
   versionName?: string;
+};
+
+export type LicenseDelivered = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * Timestamp when this license was created
+   */
+  readonly createdAt: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  /**
+   * Detailed description of the license capabilities and restrictions
+   */
+  description: string;
+  /**
+   * Identifier of the license family this license is a version of. Stable across renames and new versions: two licenses sharing it are the same product. Always present in responses. On create, optional: names the family this license is a new version of, as familySlug does by slug; omit both to create a new family. On update, optional and must be the license's own family: a version cannot move between families (UpdateLicense.FamilyNotReassignable).
+   */
+  familyId?: string;
+  /**
+   * Unique identifier for the license
+   */
+  readonly id: string;
+  /**
+   * Whether this version is the one its family puts forward: at most one version per family, and only a PUBLISHED one (CreateLicense.DefaultMustBePublished, UpdateLicense.DefaultMustBePublished). Resolution hands it out ahead of the highest-numbered published version, so it keeps being served when a newer version is published. Setting it takes the flag from the family's previous default, which gets a LICENSE_UPDATED event of its own. On update, sending false unsets it; the default cannot be archived until another version takes its place or the flag is unset (ArchiveLicense.DefaultMustBePublished).
+   */
+  isDefault: boolean;
+  /**
+   * Whether this version may be served. Always present in responses. Optional on create, where it is DRAFT or PUBLISHED and PUBLISHED when omitted; ARCHIVED is refused (CreateLicense.LifecycleStateNotSettable), since a version is archived by withdrawing it from sale. After that it changes only through publish-license (DRAFT to PUBLISHED), archive-license (PUBLISHED to ARCHIVED) and unarchive-license (ARCHIVED to PUBLISHED); update accepts the stored state and refuses any other (UpdateLicense.LifecycleStateNotSettable). Only a PUBLISHED version can be the family's default. An ARCHIVED version cannot be assigned to an instance (CreateInstance.LicenseArchived, UpdateInstance.LicenseArchived); instances already on it keep it.
+   */
+  lifecycleState?: "DRAFT" | "PUBLISHED" | "ARCHIVED";
+  /**
+   * Display name of the license
+   */
+  name: string;
+  /**
+   * How this version is sold. FREE and PAID can be bought self-serve; CUSTOM sends a buyer to selfServeCtaUrl or a conversation. Always present in responses. On create it defaults to CUSTOM; on update, omit it or send null to keep the stored value.
+   */
+  pricingType?: "FREE" | "PAID" | "CUSTOM";
+  /**
+   * Whether self-serve signup captures a payment method before activation. Always present in responses; false when omitted on create. On update, omit it or send null to keep the stored value.
+   */
+  requiresPaymentMethod?: boolean | null;
+  /**
+   * Where a buyer is sent when this version cannot be bought self-serve: an http(s) URL of at most 2048 characters (CreateLicense.InvalidSelfServeCtaUrl). Null when there is none. On update, omit it or send null to keep the stored value, or send an empty string to remove it.
+   */
+  selfServeCtaUrl?: string | null;
+  /**
+   * Optional URL-friendly identifier, unique per organization. When omitted, a new version of an existing family takes {familySlug}-v{version}, and any other license gets one generated from its name. A license that opens a new family gives the family its slug.
+   */
+  slug?: string;
+  /**
+   * Trial length, in days, a subscription to this version starts with by default. Null when there is none. From 1 to 365 (CreateLicense.InvalidTrialDays, UpdateLicense.InvalidTrialDays). On update, omit it or send null to keep the stored value, or send 0 to remove the trial.
+   */
+  trialPeriodDays?: number | null;
+  /**
+   * Type of the license determining its capabilities and restrictions
+   */
+  type: "DEVELOPMENT" | "TRIAL" | "PAID" | "COMMUNITY";
+  /**
+   * Timestamp when this license was last updated
+   */
+  readonly updatedAt: string;
+  /**
+   * Version of the license within its family, assigned by the server when the version is created and never changed afterwards: the version's derived slug ({familySlug}-v{version}, see slug) is built from it. A number is never reused within a family, even after its version is deleted. Create refuses any value (CreateLicense.VersionNotSettable); update accepts only the stored one, so a representation can be written back as it was read (UpdateLicense.VersionNotSettable).
+   */
+  readonly version: string;
+  /**
+   * Optional human-readable name for the license version. Defaults to "Version - <version>".
+   */
+  versionName?: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
 export type LicenseEntitlement = {
@@ -1321,6 +4629,97 @@ export type LicenseEntitlement = {
       } & ConfigEntitlementValue);
 };
 
+export type LicenseEntitlementDelivered = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * Timestamp when this entitlement was created
+   */
+  readonly createdAt: string;
+  /**
+   * User who created this entitlement
+   */
+  readonly createdBy: User;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  /**
+   * Groups associated with this entitlement
+   */
+  readonly entitlementGroups?: Array<EntitlementGroupSummary> | null;
+  /**
+   * Name of the entitlement feature or service
+   */
+  readonly entitlementName: string;
+  /**
+   * URL-friendly identifier for the entitlement
+   */
+  entitlementSlug?: string;
+  /**
+   * Type of entitlement (BOOLEAN, NUMBER, or CONFIG)
+   */
+  readonly entitlementType?: "BOOLEAN" | "NUMBER" | "CONFIG";
+  /**
+   * Unique identifier for the license this entitlement belongs to
+   */
+  readonly licenseId: string;
+  /**
+   * URL-friendly identifier for the license this entitlement belongs to
+   */
+  readonly licenseSlug: string;
+  /**
+   * Derives this grant's enforcement from its own numeric value: -1 when the value is unlimited (no cap, no overage); otherwise 0 rejects usage above the value (hard limit) and a positive percentage allows usage to exceed it by that much before being rejected (soft limit). Null for non-numeric (BOOLEAN/CONFIG) grants.
+   */
+  limitCapExceededOveragePercent?: number;
+  /**
+   * Timestamp when this entitlement was last updated
+   */
+  readonly updatedAt: string;
+  /**
+   * User who last updated this entitlement
+   */
+  readonly updatedBy: User;
+  /**
+   * Typed entitlement value. Supported shapes: {type:number,value:number}, {type:boolean,value:boolean}, {type:object,value:{...}}
+   */
+  value:
+    | ({
+        type: "number";
+      } & NumberEntitlementValue)
+    | ({
+        type: "boolean";
+      } & BooleanEntitlementValue)
+    | ({
+        type: "object";
+      } & ConfigEntitlementValue);
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
+export type LicenseFamilyUpdate = {
+  /**
+   * Another FREE family of the organization (every version of it priced FREE), whose default PUBLISHED version an instance moves to when its subscription ends. "" removes the fallback. Anything else answers 422 .InvalidFallback, an unknown family included.
+   */
+  fallbackLicenseFamilySlug?: string | null;
+  /**
+   * List the family's default PUBLISHED version, with its ACTIVE prices, in the public catalogue
+   */
+  isPublic?: boolean | null;
+  /**
+   * CANCEL or CONVERT: what a trial charged automatically with a total above 0 becomes at its end when the customer has no ACTIVE payment method. CANCEL cancels it; CONVERT makes it ACTIVE, whose first charge then fails. Any other value answers 422 .InvalidTrialEndBehavior.
+   */
+  trialEndWithoutPaymentMethod?: string | null;
+  /**
+   * How many days before a trial's end trial_will_end fires: an integer from 1 to 30 (else 422 .InvalidTrialReminderDays), for the trials started after the change
+   */
+  trialReminderDays?: number | null;
+};
+
 export type LicenseFamilyView = {
   /**
    * Timestamp when this family was created
@@ -1331,13 +4730,29 @@ export type LicenseFamilyView = {
    */
   currentVersion?: License;
   /**
+   * The FREE family whose default PUBLISHED version an instance of this family moves to when its subscription ends; null without one
+   */
+  fallbackLicenseFamilySlug: string | null;
+  /**
    * Unique identifier for the license family
    */
   readonly id: string;
   /**
+   * Whether the family's default PUBLISHED version is listed in the public catalogue. Private by default.
+   */
+  isPublic: boolean;
+  /**
    * URL-friendly identifier of the family, unique per organization and stable across renames and new versions. Deleting the family's last version deletes the family and frees the slug.
    */
   slug: string;
+  /**
+   * What a trial charged automatically with a total above 0 becomes at its end when the customer has no ACTIVE payment method: CANCEL (the default) or CONVERT
+   */
+  trialEndWithoutPaymentMethod: "CANCEL" | "CONVERT";
+  /**
+   * How many days before a trial's end trial_will_end fires, for the trials started after it was set. 3 by default.
+   */
+  trialReminderDays: number;
   /**
    * Timestamp when a version was last added to this family, or when the family was created. Renames, lifecycle moves and default changes update the versions' own updatedAt, not this one.
    */
@@ -1350,6 +4765,264 @@ export type LicenseFamilyView = {
    * Every version of the family, oldest first. Only returned when explicitly requested with include=versions, and then never null: a family always has at least one version.
    */
   versions?: Array<License>;
+};
+
+export type LicenseFamilyViewDelivered = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * Timestamp when this family was created
+   */
+  readonly createdAt: string;
+  /**
+   * The version this read is about. By default the version the family resolves to: its default version if it has one, otherwise its highest-numbered PUBLISHED version. Under ?version=N it is the version asked for instead, whatever its lifecycle state. Absent when the family has no PUBLISHED version, which only a list or an include=versions read returns.
+   */
+  currentVersion?: License;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  /**
+   * The FREE family whose default PUBLISHED version an instance of this family moves to when its subscription ends; null without one
+   */
+  fallbackLicenseFamilySlug: string | null;
+  /**
+   * Unique identifier for the license family
+   */
+  readonly id: string;
+  /**
+   * Whether the family's default PUBLISHED version is listed in the public catalogue. Private by default.
+   */
+  isPublic: boolean;
+  /**
+   * URL-friendly identifier of the family, unique per organization and stable across renames and new versions. Deleting the family's last version deletes the family and frees the slug.
+   */
+  slug: string;
+  /**
+   * What a trial charged automatically with a total above 0 becomes at its end when the customer has no ACTIVE payment method: CANCEL (the default) or CONVERT
+   */
+  trialEndWithoutPaymentMethod: "CANCEL" | "CONVERT";
+  /**
+   * How many days before a trial's end trial_will_end fires, for the trials started after it was set. 3 by default.
+   */
+  trialReminderDays: number;
+  /**
+   * Timestamp when a version was last added to this family, or when the family was created. Renames, lifecycle moves and default changes update the versions' own updatedAt, not this one.
+   */
+  readonly updatedAt: string;
+  /**
+   * Number of versions in this family, whatever their lifecycle state
+   */
+  versionCount: number;
+  /**
+   * Every version of the family, oldest first. Only returned when explicitly requested with include=versions, and then never null: a family always has at least one version.
+   */
+  versions?: Array<License>;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
+export type LicensePriceChanges = {
+  /**
+   * See createLicensePrice.
+   */
+  billingPeriod?: "MONTHLY" | "QUARTERLY" | "SEMI_ANNUAL" | "ANNUAL";
+  /**
+   * See createLicensePrice.
+   */
+  billingTiming?: "ADVANCE" | "ARREARS";
+  displayLabel?: string;
+  displayOrder?: number;
+  isDefault?: boolean;
+  /**
+   * See createLicensePrice.
+   */
+  meteredEntitlementSlug?: string;
+  /**
+   * See createLicensePrice.
+   */
+  unitAmountDecimal?: string;
+};
+
+export type LicensePriceEventDelivered = {
+  /**
+   * FLAT_FEE: an amount per billing period. USAGE_BASED: an amount per sale unit of the metered entitlement's usage. OVERAGE: an amount per sale unit of the usage above the licence's limit.
+   */
+  billingModel: "FLAT_FEE" | "USAGE_BASED" | "OVERAGE";
+  /**
+   * The period a FLAT_FEE price is charged for. Null on metered prices, which bill on the subscription's period.
+   */
+  billingPeriod: "MONTHLY" | "QUARTERLY" | "SEMI_ANNUAL" | "ANNUAL" | null;
+  /**
+   * ADVANCE bills the period that starts; ARREARS the period that ended. Metered prices are always ARREARS.
+   */
+  billingTiming: "ADVANCE" | "ARREARS";
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  readonly createdAt: string;
+  /**
+   * ISO 4217 code, upper case. One currency per licence version.
+   */
+  currency: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  /**
+   * When the price was deprecated
+   */
+  deprecatedAt: string | null;
+  /**
+   * The invoice line's label; a default is derived when it is null.
+   */
+  displayLabel: string | null;
+  /**
+   * Order among the version's prices
+   */
+  displayOrder: number;
+  /**
+   * The family of that version
+   */
+  familySlug: string;
+  /**
+   * Unique identifier of the price
+   */
+  readonly id: string;
+  /**
+   * The FLAT_FEE price picked for its billing period when none is named. At most one per period; only an ACTIVE FLAT_FEE price.
+   */
+  isDefault: boolean;
+  /**
+   * The licence version the price belongs to
+   */
+  licenseSlug: string;
+  /**
+   * What a metered price measures. Null on FLAT_FEE prices.
+   */
+  metered: PriceMeter | null;
+  /**
+   * A DEPRECATED price keeps billing what is already pinned to it but is no longer offered.
+   */
+  status: "ACTIVE" | "DEPRECATED";
+  /**
+   * unitAmountDecimal as an integer number of minor units, when it is one; null otherwise.
+   */
+  unitAmount: number | null;
+  /**
+   * Amount in the currency's minor units (cents for EUR): per period for FLAT_FEE, per sale unit for metered prices. Up to 12 decimal places.
+   */
+  unitAmountDecimal: string;
+  readonly updatedAt: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
+export type LicensePriceUpdatedEventDelivered = {
+  /**
+   * FLAT_FEE: an amount per billing period. USAGE_BASED: an amount per sale unit of the metered entitlement's usage. OVERAGE: an amount per sale unit of the usage above the licence's limit.
+   */
+  billingModel: "FLAT_FEE" | "USAGE_BASED" | "OVERAGE";
+  /**
+   * The period a FLAT_FEE price is charged for. Null on metered prices, which bill on the subscription's period.
+   */
+  billingPeriod: "MONTHLY" | "QUARTERLY" | "SEMI_ANNUAL" | "ANNUAL" | null;
+  /**
+   * ADVANCE bills the period that starts; ARREARS the period that ended. Metered prices are always ARREARS.
+   */
+  billingTiming: "ADVANCE" | "ARREARS";
+  /**
+   * The members the update changed, as the API names them
+   */
+  changedFields: Array<string> | null;
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  readonly createdAt: string;
+  /**
+   * ISO 4217 code, upper case. One currency per licence version.
+   */
+  currency: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  /**
+   * When the price was deprecated
+   */
+  deprecatedAt: string | null;
+  /**
+   * The invoice line's label; a default is derived when it is null.
+   */
+  displayLabel: string | null;
+  /**
+   * Order among the version's prices
+   */
+  displayOrder: number;
+  /**
+   * The family of that version
+   */
+  familySlug: string;
+  /**
+   * Unique identifier of the price
+   */
+  readonly id: string;
+  /**
+   * The FLAT_FEE price picked for its billing period when none is named. At most one per period; only an ACTIVE FLAT_FEE price.
+   */
+  isDefault: boolean;
+  /**
+   * The licence version the price belongs to
+   */
+  licenseSlug: string;
+  /**
+   * What a metered price measures. Null on FLAT_FEE prices.
+   */
+  metered: PriceMeter | null;
+  /**
+   * A DEPRECATED price keeps billing what is already pinned to it but is no longer offered.
+   */
+  status: "ACTIVE" | "DEPRECATED";
+  /**
+   * unitAmountDecimal as an integer number of minor units, when it is one; null otherwise.
+   */
+  unitAmount: number | null;
+  /**
+   * Amount in the currency's minor units (cents for EUR): per period for FLAT_FEE, per sale unit for metered prices. Up to 12 decimal places.
+   */
+  unitAmountDecimal: string;
+  readonly updatedAt: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
+export type LineDifference = {
+  externalLineId: string;
+  kaitenAmount: number;
+  lineId: string;
+  providerAmount: number;
+  seq: number;
+};
+
+export type LineReportPage = {
+  /**
+   * The reports, in reportSeq order
+   */
+  items: Array<UsageReport>;
+  /**
+   * Pass as afterSeq to read the next page. Absent on the last page.
+   */
+  nextAfterSeq?: number;
 };
 
 export type List = {
@@ -1365,6 +5038,15 @@ export type List = {
    * Unread notifications, capped (see MaxUnreadCount)
    */
   unreadCount: number;
+};
+
+export type ManagedUser = {
+  authorization: UserAuthorization;
+  createdAt: string;
+  email: string | null;
+  externalId: string;
+  id: string;
+  name: string;
 };
 
 export type ManifestEnvelope = {
@@ -1388,6 +5070,14 @@ export type MarkReadResult = {
    * Notifications newly marked read
    */
   updated: number;
+};
+
+export type Me = {
+  availablePermissions: Array<string>;
+  availableRoles: Array<Role>;
+  organizationId: string;
+  scopes: Array<string>;
+  user: ManagedUser;
 };
 
 export type MetadataField = {
@@ -1439,11 +5129,84 @@ export type MetadataField = {
   readonly updatedBy: User;
 };
 
-export type MetadataFieldReordered = {
+export type MetadataFieldDelivered = {
+  /**
+   * Timestamp when the field was archived (soft delete). Absent if active.
+   */
+  readonly archivedAt?: string;
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * Timestamp when the field was created
+   */
+  readonly createdAt: string;
+  /**
+   * User who created this field
+   */
+  readonly createdBy: User;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  /**
+   * Sort order in the admin UI; ties are broken by createdAt ASC. Settable only through POST /metadata-fields/reorder; never echoed back on update.
+   */
+  displayOrder?: number;
+  /**
+   * Unique identifier
+   */
+  readonly id: string;
+  /**
+   * JSON Schema 2020-12 document describing the value space. Example: {"type":"string","enum":["a","b"]}
+   */
+  jsonSchema: {
+    [key: string]: unknown;
+  };
+  /**
+   * Stable identifier, unique per (organization, resource type) on non-archived rows. Immutable after creation; update must echo back the stored value.
+   */
+  key: string;
+  /**
+   * Human-readable label shown in the admin UI
+   */
+  label: string;
+  /**
+   * Resource type this field applies to. Immutable after creation; update must echo back the stored value.
+   */
+  resourceType: "DEPLOYMENT_ZONE" | "INSTANCE";
+  /**
+   * Timestamp when the field was last updated
+   */
+  readonly updatedAt: string;
+  /**
+   * User who last updated this field
+   */
+  readonly updatedBy: User;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
+export type MetadataFieldReorderedDelivered = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
   /**
    * Metadata field ids in their new display order
    */
   ids: Array<string> | null;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
 export type MetadataFieldSchemaProposal = {
@@ -1453,6 +5216,348 @@ export type MetadataFieldSchemaProposal = {
   jsonSchema: {
     [key: string]: unknown;
   };
+};
+
+export type MinimumAmount = {
+  currency: string;
+  /**
+   * In minor units, above 0
+   */
+  unitAmountDecimal: string;
+};
+
+export type MismatchedInvoiceDelivered = {
+  /**
+   * The boundary the invoice bills. With the kind, it identifies the invoice within its subscription
+   */
+  boundaryAt: string;
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  collectionMethod: "SEND_INVOICE" | "CHARGE_AUTOMATICALLY";
+  createdAt: string;
+  currency: string;
+  customerName: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  /**
+   * As it was when the invoice was composed
+   */
+  customerSlug: string;
+  daysUntilDue: number | null;
+  /**
+   * Sum of the discounts, in minor units
+   */
+  discountTotal: number;
+  /**
+   * issuedAt + daysUntilDue
+   */
+  dueAt: string | null;
+  /**
+   * PENDING: waiting in the handoff queue for the organization's accounting system
+   */
+  handoffStatus: "NOT_REQUIRED" | "PENDING" | "ACKNOWLEDGED";
+  /**
+   * Why a DRAFT is held: the usage journal it was measured from failed a consistency check (LEDGER_*), or its provider cannot take that many lines (PROVIDER_ITEM_LIMIT)
+   */
+  holdReason:
+    | "LEDGER_SEQUENCE_GAP"
+    | "LEDGER_CHAIN_BREAK"
+    | "LEDGER_COUNTER_MISMATCH"
+    | "PROVIDER_ITEM_LIMIT"
+    | null;
+  /**
+   * The invoice's identifier: the key an accounting system deduplicates on
+   */
+  id: string;
+  instanceName: string;
+  instanceSlug: string;
+  issuedAt: string | null;
+  /**
+   * ACTIVATION bills a subscription's first period, RENEWAL the period that ended and the one that starts, FINAL what is left when a subscription ends
+   */
+  kind: "ACTIVATION" | "RENEWAL" | "FINAL";
+  licenseSlug: string;
+  /**
+   * Whether the invoice is overdue when read, the grace period of automatic collection included: the predicate of ?overdue=true. Computed by the invoice list and the invoice read; false in the answers of writes and in event payloads.
+   */
+  overdue: boolean;
+  paidAt: string | null;
+  /**
+   * Who collects it. NOOP: the organization itself, through the handoff queue
+   */
+  providerKind: "NOOP" | "STRIPE";
+  reconciliationDetail: Reconciliation;
+  /**
+   * Earliest start of its lines' service periods
+   */
+  serviceFrom: string;
+  /**
+   * Latest end of its lines' service periods
+   */
+  serviceTo: string;
+  /**
+   * MANUAL: issued, for the organization to collect. PAID, UNCOLLECTIBLE and VOID are final. DRAFT: held, waiting for a release or a recompose
+   */
+  status:
+    | "DRAFT"
+    | "PUSHED"
+    | "PUSH_FAILED"
+    | "MANUAL"
+    | "PAID"
+    | "PAYMENT_FAILED"
+    | "UNCOLLECTIBLE"
+    | "VOID";
+  /**
+   * Sum of the lines, in minor units
+   */
+  subtotal: number;
+  /**
+   * subtotal − discountTotal, in minor units
+   */
+  total: number;
+  updatedAt: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
+export type NewAddon = {
+  description: string;
+  /**
+   * Make this a new version of this family
+   */
+  familyId?: string;
+  /**
+   * Make this a new version of this family
+   */
+  familySlug?: string;
+  /**
+   * Read only when the call opens a new family: how a mid-period increase of its ADVANCE add-ons is billed, TRUE_UP (the default) or NEXT_BOUNDARY; another value answers 422 .InvalidIncreaseBilling
+   */
+  increaseBilling?: string;
+  /**
+   * Make this version its family's default; the previous default loses it
+   */
+  isDefault?: boolean;
+  lifecycleState?: "DRAFT" | "PUBLISHED";
+  /**
+   * The largest quantity an instance can hold
+   */
+  maxQuantity?: number;
+  name: string;
+  pricingType: "FREE" | "PAID" | "CUSTOM";
+  /**
+   * The version's slug. Default: {familySlug}-v{n} for a new version of a family, a slug generated from the name for a new family.
+   */
+  slug?: string;
+  /**
+   * Default: Version - {n}
+   */
+  versionName?: string;
+};
+
+export type NewAddonGrant = {
+  entitlementSlug: string;
+  /**
+   * The overage the add-on allows: -1 with an unlimited value, 0 or more otherwise. Absent inherits the licence grant's.
+   */
+  limitCapExceededOveragePercent?: number;
+  /**
+   * How a number grant combines with the licence's
+   */
+  overrideBehavior?: "ADD" | "OVERRIDE" | "MAX";
+  /**
+   * {type, value}, shaped like a licence grant: a number counts once per unit of quantity
+   */
+  value: {
+    [key: string]: unknown;
+  };
+};
+
+export type NewAddonPrice = {
+  billingModel: "FLAT_FEE" | "USAGE_BASED" | "OVERAGE";
+  /**
+   * Required on a FLAT_FEE price: it bills subscriptions of that period. Refused on a metered one.
+   */
+  billingPeriod?: "MONTHLY" | "QUARTERLY" | "SEMI_ANNUAL" | "ANNUAL";
+  /**
+   * Defaults to ADVANCE for a FLAT_FEE price and ARREARS for a metered one, which must be ARREARS.
+   */
+  billingTiming?: "ADVANCE" | "ARREARS";
+  /**
+   * ISO 4217 code, upper case. One currency per add-on version.
+   */
+  currency: string;
+  displayLabel?: string;
+  displayOrder?: number;
+  /**
+   * Makes this FLAT_FEE price the one that bills its period; the previous default of the period loses it.
+   */
+  isDefault?: boolean;
+  /**
+   * The entitlement a metered price measures: granted by the add-on version, with a reset period, SUM or COUNT, NUMBER or NUMBER_AI_CREDIT.
+   */
+  meteredEntitlementSlug?: string;
+  /**
+   * Amount in minor units: per unit and period for FLAT_FEE, per sale unit for metered prices.
+   */
+  unitAmountDecimal: string;
+};
+
+export type NewEntitlementException = {
+  /**
+   * After startsAt and after now; absent or null: no end
+   */
+  endsAt?: string | null;
+  /**
+   * The entitlement it overrides; the instance's licence and add-ons need not grant it
+   */
+  entitlementSlug: string;
+  /**
+   * SET works on every type; ADD and UNLIMITED on NUMBER and NUMBER_AI_CREDIT only
+   */
+  kind: "SET" | "ADD" | "UNLIMITED";
+  /**
+   * Why, 1 to 500 characters, not blank; shown to the vendor only
+   */
+  reason: string;
+  /**
+   * Now when absent; a past instant is taken as given, a future one schedules the exception
+   */
+  startsAt?: string;
+  /**
+   * For SET, a number of 0 or more on the NUMBER types, a boolean on BOOLEAN, an object on CONFIG; for ADD, a number above 0; for UNLIMITED, absent or null
+   */
+  value?:
+    | number
+    | boolean
+    | {
+        [key: string]: unknown;
+      }
+    | null;
+};
+
+export type NewInstanceAddon = {
+  /**
+   * The add-on version to attach
+   */
+  addonSlug: string;
+  quantity?: number;
+};
+
+export type NewLicensePrice = {
+  /**
+   * FLAT_FEE: an amount per billing period. USAGE_BASED: per sale unit of usage. OVERAGE: per sale unit of usage above the licence's limit.
+   */
+  billingModel: "FLAT_FEE" | "USAGE_BASED" | "OVERAGE";
+  /**
+   * Required on a FLAT_FEE price, refused on a metered one (CreateLicensePrice.InvalidPeriod).
+   */
+  billingPeriod?: "MONTHLY" | "QUARTERLY" | "SEMI_ANNUAL" | "ANNUAL";
+  /**
+   * Defaults to ADVANCE for a FLAT_FEE price and ARREARS for a metered one, which must be ARREARS (CreateLicensePrice.InvalidTiming).
+   */
+  billingTiming?: "ADVANCE" | "ARREARS";
+  /**
+   * ISO 4217 code, upper case (CreateLicensePrice.InvalidCurrency). One currency per licence version (CreateLicensePrice.CurrencyMismatch).
+   */
+  currency: string;
+  /**
+   * The invoice line's label.
+   */
+  displayLabel?: string;
+  /**
+   * Order among the version's prices.
+   */
+  displayOrder?: number;
+  /**
+   * Makes this FLAT_FEE price the default of its billing period (CreateLicensePrice.DefaultConflict when another is).
+   */
+  isDefault?: boolean;
+  /**
+   * The entitlement a metered price measures: granted by the version, with a reset period, SUM or COUNT, NUMBER or NUMBER_AI_CREDIT, and metered by no other active price of the version.
+   */
+  meteredEntitlementSlug?: string;
+  /**
+   * Amount in minor units: per period for FLAT_FEE, per sale unit for metered prices. A non-negative decimal of at most 12 integer digits and 12 decimal places (CreateLicensePrice.InvalidAmount).
+   */
+  unitAmountDecimal: string;
+};
+
+export type NewPaymentMethodSession = {
+  /**
+   * The currency the payment method is set up in; required when the customer has no live subscription, whose currency is used otherwise
+   */
+  currency?: string;
+  /**
+   * Where the customer comes back to: https, or http on localhost. The session id is appended as kaiten_setup_session
+   */
+  returnUrl: string;
+};
+
+export type NewPortalSession = {
+  /**
+   * https, or http on localhost
+   */
+  returnUrl: string;
+};
+
+export type NewSessionPaymentMethodSession = {
+  /**
+   * The currency the payment method is set up in; required when the customer has no live subscription, whose currency is used otherwise
+   */
+  currency?: string;
+  /**
+   * Where the setup page sends the customer back, with kaiten_setup_session appended. Its origin must be one the organization's publishable keys allow.
+   */
+  returnUrl: string;
+};
+
+export type NewSessionPortalSession = {
+  /**
+   * Where the portal sends the customer back. Its origin must be one the organization's publishable keys allow.
+   */
+  returnUrl: string;
+};
+
+export type NewSubscription = {
+  /**
+   * Add-ons to attach with the subscription, under the rules of POST /instances/{instanceSlug}/addons; the ACTIVATION invoice bills them. One refused refuses the subscribe: 422 SubscribeInstance.AddonInvalid, the add-on's own code in errors[0].value.code.
+   */
+  addOns?: Array<SubscriptionAddon> | null;
+  /**
+   * An ACTIVE FLAT_FEE price of the instance's licence version, which must be PUBLISHED. The subscription stays pinned to it, even once deprecated.
+   */
+  basePriceId: string;
+  /**
+   * Omitted: the organization's default, read at each invoice. CHARGE_AUTOMATICALLY needs a provider that charges automatically (SubscribeInstance.CollectionMethodUnsupported).
+   */
+  collectionMethod?: "SEND_INVOICE" | "CHARGE_AUTOMATICALLY";
+  /**
+   * Payment terms in days, 0 to 365. Omitted: the organization's default, read at each invoice.
+   */
+  daysUntilDue?: number;
+  /**
+   * Who issues and collects the invoices. NOOP (the default): the organization itself, through the handoff queue. A provider must be connected (SubscribeInstance.ProviderNotConnected); one that pushes invoices needs the customer's billing e-mail for SEND_INVOICE (.BillingEmailMissing) and the price's currency (.UnsupportedCurrency), and registers the customer first.
+   */
+  providerKind?: "NOOP" | "STRIPE";
+  /**
+   * The anchor periods are counted from, truncated to the second: now when omitted, else at most one billing period ago. A period that has already ended closes on the next pass.
+   */
+  startAt?: string;
+  /**
+   * Days of trial from the anchor, 1 to 365: nothing is billed, and no usage counts, until it ends; the period close then issues the first invoice. 0 is no trial; any other value is refused (SubscribeInstance.InvalidTrialDays). Omitted: the licence's trialPeriodDays, else no trial; none either when the customer already had a trial of the licence's family (one per customer and family).
+   */
+  trialDays?: number;
+  /**
+   * A voucher to redeem with the subscription, once its add-ons are attached; a PRICE voucher applies from the ACTIVATION invoice. Refused: 422 SubscribeInstance.VoucherInvalid, the redemption's own code in errors[0].value.code.
+   */
+  voucherCode?: string;
 };
 
 export type Notification = {
@@ -1509,12 +5614,66 @@ export type NumberEntitlementValue = {
   value: number;
 };
 
+export type Outcome = {
+  /**
+   * Invoices read and applied
+   */
+  applied: number;
+  error?: string;
+  /**
+   * Invoices that could not be read or applied
+   */
+  failed: number;
+  providerKind: "NOOP" | "STRIPE";
+  status: "SUCCESS" | "PARTIAL" | "FAILED";
+  syncedAt: string;
+};
+
+export type OverageLimit = {
+  /**
+   * The limit, null when unlimited
+   */
+  limitValue: string | null;
+  /**
+   * Usage accepted above the limit, as a percent of it
+   */
+  overagePercent: number;
+  /**
+   * Usage reports measured against it; 0 for a sample
+   */
+  rows: number;
+};
+
+export type PageAddon = {
+  /**
+   * Whether more rows exist beyond this page.
+   */
+  hasMore: boolean;
+  items: Array<Addon>;
+  /**
+   * Opaque cursor for the next page. Absent when hasMore is false.
+   */
+  nextCursor?: string;
+};
+
 export type PageAuditTrail = {
   /**
    * Whether more rows exist beyond this page.
    */
   hasMore: boolean;
   items: Array<AuditTrail>;
+  /**
+   * Opaque cursor for the next page. Absent when hasMore is false.
+   */
+  nextCursor?: string;
+};
+
+export type PageCheckoutSessionAdmin = {
+  /**
+   * Whether more rows exist beyond this page.
+   */
+  hasMore: boolean;
+  items: Array<CheckoutSessionAdmin>;
   /**
    * Opaque cursor for the next page. Absent when hasMore is false.
    */
@@ -1605,6 +5764,18 @@ export type PageInstance = {
   nextCursor?: string;
 };
 
+export type PageInvoiceSummary = {
+  /**
+   * Whether more rows exist beyond this page.
+   */
+  hasMore: boolean;
+  items: Array<InvoiceSummary>;
+  /**
+   * Opaque cursor for the next page. Absent when hasMore is false.
+   */
+  nextCursor?: string;
+};
+
 export type PageLicense = {
   /**
    * Whether more rows exist beyond this page.
@@ -1641,12 +5812,60 @@ export type PageLicenseFamilyView = {
   nextCursor?: string;
 };
 
+export type PageManagedUser = {
+  /**
+   * Whether more rows exist beyond this page.
+   */
+  hasMore: boolean;
+  items: Array<ManagedUser>;
+  /**
+   * Opaque cursor for the next page. Absent when hasMore is false.
+   */
+  nextCursor?: string;
+};
+
 export type PageMetadataField = {
   /**
    * Whether more rows exist beyond this page.
    */
   hasMore: boolean;
   items: Array<MetadataField>;
+  /**
+   * Opaque cursor for the next page. Absent when hasMore is false.
+   */
+  nextCursor?: string;
+};
+
+export type PagePublishableKey = {
+  /**
+   * Whether more rows exist beyond this page.
+   */
+  hasMore: boolean;
+  items: Array<PublishableKey>;
+  /**
+   * Opaque cursor for the next page. Absent when hasMore is false.
+   */
+  nextCursor?: string;
+};
+
+export type PageQueuedInvoice = {
+  /**
+   * Whether more rows exist beyond this page.
+   */
+  hasMore: boolean;
+  items: Array<QueuedInvoice>;
+  /**
+   * Opaque cursor for the next page. Absent when hasMore is false.
+   */
+  nextCursor?: string;
+};
+
+export type PageRedemption = {
+  /**
+   * Whether more rows exist beyond this page.
+   */
+  hasMore: boolean;
+  items: Array<Redemption>;
   /**
    * Opaque cursor for the next page. Absent when hasMore is false.
    */
@@ -1677,6 +5896,18 @@ export type PageServiceAccount = {
   nextCursor?: string;
 };
 
+export type PageSessionInvoice = {
+  /**
+   * Whether more rows exist beyond this page.
+   */
+  hasMore: boolean;
+  items: Array<SessionInvoice>;
+  /**
+   * Opaque cursor for the next page. Absent when hasMore is false.
+   */
+  nextCursor?: string;
+};
+
 export type PageToken = {
   /**
    * Whether more rows exist beyond this page.
@@ -1689,6 +5920,126 @@ export type PageToken = {
   nextCursor?: string;
 };
 
+export type PageVoucher = {
+  /**
+   * Whether more rows exist beyond this page.
+   */
+  hasMore: boolean;
+  items: Array<Voucher>;
+  /**
+   * Opaque cursor for the next page. Absent when hasMore is false.
+   */
+  nextCursor?: string;
+};
+
+export type PaidInvoiceDelivered = {
+  /**
+   * The boundary the invoice bills. With the kind, it identifies the invoice within its subscription
+   */
+  boundaryAt: string;
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  collectionMethod: "SEND_INVOICE" | "CHARGE_AUTOMATICALLY";
+  createdAt: string;
+  currency: string;
+  customerName: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  /**
+   * As it was when the invoice was composed
+   */
+  customerSlug: string;
+  daysUntilDue: number | null;
+  /**
+   * Sum of the discounts, in minor units
+   */
+  discountTotal: number;
+  /**
+   * issuedAt + daysUntilDue
+   */
+  dueAt: string | null;
+  externalReference?: string;
+  /**
+   * PENDING: waiting in the handoff queue for the organization's accounting system
+   */
+  handoffStatus: "NOT_REQUIRED" | "PENDING" | "ACKNOWLEDGED";
+  /**
+   * Why a DRAFT is held: the usage journal it was measured from failed a consistency check (LEDGER_*), or its provider cannot take that many lines (PROVIDER_ITEM_LIMIT)
+   */
+  holdReason:
+    | "LEDGER_SEQUENCE_GAP"
+    | "LEDGER_CHAIN_BREAK"
+    | "LEDGER_COUNTER_MISMATCH"
+    | "PROVIDER_ITEM_LIMIT"
+    | null;
+  /**
+   * The invoice's identifier: the key an accounting system deduplicates on
+   */
+  id: string;
+  instanceName: string;
+  instanceSlug: string;
+  issuedAt: string | null;
+  /**
+   * ACTIVATION bills a subscription's first period, RENEWAL the period that ended and the one that starts, FINAL what is left when a subscription ends
+   */
+  kind: "ACTIVATION" | "RENEWAL" | "FINAL";
+  licenseSlug: string;
+  /**
+   * The note given when it was marked paid, kept only here
+   */
+  note?: string;
+  /**
+   * Whether the invoice is overdue when read, the grace period of automatic collection included: the predicate of ?overdue=true. Computed by the invoice list and the invoice read; false in the answers of writes and in event payloads.
+   */
+  overdue: boolean;
+  paidAt: string | null;
+  /**
+   * Who collects it. NOOP: the organization itself, through the handoff queue
+   */
+  providerKind: "NOOP" | "STRIPE";
+  /**
+   * Earliest start of its lines' service periods
+   */
+  serviceFrom: string;
+  /**
+   * Latest end of its lines' service periods
+   */
+  serviceTo: string;
+  /**
+   * MARK_PAID: recorded by the organization. ZERO_TOTAL: nothing was owed
+   */
+  source: "MARK_PAID" | "PROVIDER" | "ZERO_TOTAL";
+  /**
+   * MANUAL: issued, for the organization to collect. PAID, UNCOLLECTIBLE and VOID are final. DRAFT: held, waiting for a release or a recompose
+   */
+  status:
+    | "DRAFT"
+    | "PUSHED"
+    | "PUSH_FAILED"
+    | "MANUAL"
+    | "PAID"
+    | "PAYMENT_FAILED"
+    | "UNCOLLECTIBLE"
+    | "VOID";
+  /**
+   * Sum of the lines, in minor units
+   */
+  subtotal: number;
+  /**
+   * subtotal − discountTotal, in minor units
+   */
+  total: number;
+  updatedAt: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
 export type PatchInstanceBody = {
   /**
    * Commercial lifecycle stage (free-form; suggested: TRIAL, ACTIVE, AT_RISK, CHURNED). When omitted, the current stage is preserved; clearing it back to unset is not supported.
@@ -1698,6 +6049,202 @@ export type PatchInstanceBody = {
    * Operational status of the instance
    */
   status?: "HEALTHY" | "DEGRADED" | "INCIDENT" | "MAINTENANCE";
+};
+
+export type Payment = {
+  hostedInvoiceUrl?: string;
+  /**
+   * paid. requires_action: the customer must confirm the payment on hostedInvoiceUrl. failed: the charge was refused; save another payment method, or pay on hostedInvoiceUrl. processing: the outcome is not known yet; poll GET /public/session/invoices. not_required: nothing is due today.
+   */
+  status: "paid" | "requires_action" | "failed" | "processing" | "not_required";
+};
+
+export type PaymentFailedInvoiceDelivered = {
+  /**
+   * The boundary the invoice bills. With the kind, it identifies the invoice within its subscription
+   */
+  boundaryAt: string;
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  collectionMethod: "SEND_INVOICE" | "CHARGE_AUTOMATICALLY";
+  createdAt: string;
+  currency: string;
+  customerName: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  /**
+   * As it was when the invoice was composed
+   */
+  customerSlug: string;
+  daysUntilDue: number | null;
+  /**
+   * Sum of the discounts, in minor units
+   */
+  discountTotal: number;
+  /**
+   * issuedAt + daysUntilDue
+   */
+  dueAt: string | null;
+  /**
+   * The provider's decline or failure code, such as card_declined, expired_card, authentication_required or no_payment_method
+   */
+  failureCode: string;
+  /**
+   * PENDING: waiting in the handoff queue for the organization's accounting system
+   */
+  handoffStatus: "NOT_REQUIRED" | "PENDING" | "ACKNOWLEDGED";
+  /**
+   * Why a DRAFT is held: the usage journal it was measured from failed a consistency check (LEDGER_*), or its provider cannot take that many lines (PROVIDER_ITEM_LIMIT)
+   */
+  holdReason:
+    | "LEDGER_SEQUENCE_GAP"
+    | "LEDGER_CHAIN_BREAK"
+    | "LEDGER_COUNTER_MISMATCH"
+    | "PROVIDER_ITEM_LIMIT"
+    | null;
+  /**
+   * The invoice's identifier: the key an accounting system deduplicates on
+   */
+  id: string;
+  instanceName: string;
+  instanceSlug: string;
+  issuedAt: string | null;
+  /**
+   * ACTIVATION bills a subscription's first period, RENEWAL the period that ended and the one that starts, FINAL what is left when a subscription ends
+   */
+  kind: "ACTIVATION" | "RENEWAL" | "FINAL";
+  licenseSlug: string;
+  /**
+   * Whether the invoice is overdue when read, the grace period of automatic collection included: the predicate of ?overdue=true. Computed by the invoice list and the invoice read; false in the answers of writes and in event payloads.
+   */
+  overdue: boolean;
+  paidAt: string | null;
+  /**
+   * Who collects it. NOOP: the organization itself, through the handoff queue
+   */
+  providerKind: "NOOP" | "STRIPE";
+  /**
+   * The customer must authenticate the payment on the invoice's hosted page
+   */
+  requiresAction: boolean;
+  /**
+   * Earliest start of its lines' service periods
+   */
+  serviceFrom: string;
+  /**
+   * Latest end of its lines' service periods
+   */
+  serviceTo: string;
+  /**
+   * MANUAL: issued, for the organization to collect. PAID, UNCOLLECTIBLE and VOID are final. DRAFT: held, waiting for a release or a recompose
+   */
+  status:
+    | "DRAFT"
+    | "PUSHED"
+    | "PUSH_FAILED"
+    | "MANUAL"
+    | "PAID"
+    | "PAYMENT_FAILED"
+    | "UNCOLLECTIBLE"
+    | "VOID";
+  /**
+   * Sum of the lines, in minor units
+   */
+  subtotal: number;
+  /**
+   * subtotal − discountTotal, in minor units
+   */
+  total: number;
+  updatedAt: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
+export type PaymentMethodAttachedDelivered = {
+  attachedAt: string;
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  customerSlug: string;
+  providerKind: "STRIPE";
+  status: "ACTIVE";
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
+export type PaymentMethodDetachedDelivered = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  customerSlug: string;
+  providerKind: "STRIPE";
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
+export type PaymentMethodExpiringDelivered = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  customerSlug: string;
+  /**
+   * The last instant of the payment method's expiry month
+   */
+  expiresAt: string;
+  providerKind: "STRIPE";
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
+export type PaymentMethodLabels = {
+  attachedAt: string | null;
+  brand: string | null;
+  expMonth: number | null;
+  expYear: number | null;
+  last4: string | null;
+  /**
+   * ACTIVE: charged automatically. EXPIRED, FAILED: a charge said it is no longer usable; save another one
+   */
+  status: "ACTIVE" | "EXPIRED" | "FAILED";
+};
+
+export type PaymentMethodSession = {
+  expiresAt: string;
+  /**
+   * Complete it with POST …/payment-method-session/{sessionId}/complete once the customer is back
+   */
+  sessionId: string;
+  /**
+   * The provider's page; send the customer there
+   */
+  url: string;
 };
 
 export type PlainToken = {
@@ -1715,6 +6262,206 @@ export type PlainToken = {
    */
   slug?: string;
   readonly token?: string;
+};
+
+export type PlanChangeDelivered = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  fromLicenseSlug: string;
+  fromPriceId: string;
+  instanceSlug: string;
+  /**
+   * The RENEWAL that billed the old plan's arrears and the new plan's advance
+   */
+  invoiceId: string;
+  toLicenseSlug: string;
+  toPriceId: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
+export type PlanChangeScheduleDelivered = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  effectiveAt: string;
+  fromPriceId: string;
+  instanceSlug: string;
+  toPriceId: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
+export type PlanChangeTarget = {
+  /**
+   * An ACTIVE FLAT_FEE price of a PUBLISHED licence version, in the subscription's currency
+   */
+  licensePriceId: string;
+};
+
+export type PortalCapabilities = {
+  /**
+   * POST /public/session/checkout: the instance has no live subscription and its plan can be bought alone, or its live subscription is free (a FREE licence family, no add-on price above 0) and the catalogue has a self-serve plan, which the checkout replaces it with
+   */
+  checkout: boolean;
+  /**
+   * Billing is on: GET /public/session/invoices lists the customer's
+   */
+  invoices: boolean;
+  /**
+   * The vendor's provider captures payment methods: the payment-method and portal sessions work
+   */
+  paymentMethods: boolean;
+  /**
+   * The instance's subscription is live and not already ending: POST /public/session/billing/cancel
+   */
+  unsubscribe: boolean;
+};
+
+export type PortalCustomer = {
+  /**
+   * Where its invoices are sent
+   */
+  billingEmail: string | null;
+  name: string;
+  slug: string;
+};
+
+export type PortalEntitlement = {
+  /**
+   * The usage window's end; null for a lifetime quota
+   */
+  currentPeriodEnd: string | null;
+  /**
+   * The usage window's start; null for a lifetime quota
+   */
+  currentPeriodStart: string | null;
+  /**
+   * A number's usage in its current window; null for BOOLEAN and CONFIG
+   */
+  currentValue: number | null;
+  /**
+   * How far above the limit usage is still accepted, in percent: 0 a hard limit; null for BOOLEAN and CONFIG
+   */
+  limitCapExceededOveragePercent: number | null;
+  /**
+   * The effective value: a number's limit (-1 unlimited), a BOOLEAN's flag, a CONFIG's object
+   */
+  limitValue: NumberEntitlementValue | BooleanEntitlementValue | ConfigEntitlementValue | null;
+  /**
+   * The most usage accepted, limit × (1 + percent ÷ 100); null when unlimited, and for BOOLEAN and CONFIG
+   */
+  maximumAllowedUsage: number | null;
+  name: string;
+  /**
+   * currentValue ÷ limit × 100; null when unlimited or the limit is 0, and for BOOLEAN and CONFIG
+   */
+  percentageUsed: number | null;
+  /**
+   * What the licence, the add-ons and the boosts each contribute
+   */
+  provenance: Provenance | null;
+  slug: string;
+  /**
+   * license: the licence grants it; addon: an add-on does; exception: only the vendor's exception for this instance does
+   */
+  source: "license" | "addon" | "exception";
+  type: "NUMBER" | "NUMBER_AI_CREDIT" | "BOOLEAN" | "CONFIG";
+  unlimited: boolean;
+};
+
+export type PortalInstance = {
+  licenseName: string;
+  licenseSlug: string;
+  name: string;
+  slug: string;
+};
+
+export type PortalInstanceSummary = {
+  /**
+   * Its subscription's status; null when it was never subscribed
+   */
+  billingStatus: "INCOMPLETE" | "TRIAL" | "ACTIVE" | "PAST_DUE" | "CANCELED" | null;
+  licenseSlug: string;
+  name: string;
+  slug: string;
+};
+
+export type PortalPaymentMethod = {
+  brand: string | null;
+  expMonth: number | null;
+  expYear: number | null;
+  last4: string | null;
+  /**
+   * EXPIRED, FAILED: save another one
+   */
+  status: "ACTIVE" | "EXPIRED" | "FAILED";
+};
+
+export type PortalSession = {
+  url: string;
+};
+
+export type PortalTrial = {
+  /**
+   * What the conversion would charge, discounts included, before any tax the provider adds; null when nothing would be
+   */
+  charge: PortalTrialCharge | null;
+  endsAt: string;
+  /**
+   * The ACTIVE card the conversion would be charged to; null without one: ask for a card
+   */
+  paymentMethod: PortalTrialPayment | null;
+  /**
+   * When trial_will_end is, or was, due
+   */
+  reminderAt: string | null;
+};
+
+export type PortalTrialCharge = {
+  amount: number;
+  billingPeriod: "MONTHLY" | "QUARTERLY" | "SEMI_ANNUAL" | "ANNUAL";
+  currency: string;
+};
+
+export type PortalTrialPayment = {
+  brand: string | null;
+  last4: string | null;
+};
+
+export type PortalUpcomingInvoice = {
+  /**
+   * When it is issued
+   */
+  boundaryAt: string;
+  currency: string;
+  /**
+   * Minor units
+   */
+  discountTotal: number;
+  /**
+   * Minor units
+   */
+  subtotal: number;
+  /**
+   * Minor units
+   */
+  total: number;
 };
 
 export type PreferenceChoices = {
@@ -1737,7 +6484,7 @@ export type PreferenceEvent = {
    */
   eventType: string;
   /**
-   * Catalogue group the client renders this under
+   * Catalog group the client renders this under
    */
   group: string;
   /**
@@ -1748,7 +6495,7 @@ export type PreferenceEvent = {
 
 export type PreferenceMatrix = {
   /**
-   * Channels this deployment serves, in display order
+   * Channels this installation serves, in display order
    */
   channels: Array<string>;
   /**
@@ -1762,6 +6509,82 @@ export type PreferenceUpdate = {
     [key: string]: boolean;
   };
   eventName: string;
+};
+
+export type Price = {
+  /**
+   * FLAT_FEE: an amount per billing period. USAGE_BASED: an amount per sale unit of the metered entitlement's usage. OVERAGE: an amount per sale unit of the usage above the licence's limit.
+   */
+  billingModel: "FLAT_FEE" | "USAGE_BASED" | "OVERAGE";
+  /**
+   * The period a FLAT_FEE price is charged for. Null on metered prices, which bill on the subscription's period.
+   */
+  billingPeriod: "MONTHLY" | "QUARTERLY" | "SEMI_ANNUAL" | "ANNUAL" | null;
+  /**
+   * ADVANCE bills the period that starts; ARREARS the period that ended. Metered prices are always ARREARS.
+   */
+  billingTiming: "ADVANCE" | "ARREARS";
+  readonly createdAt: string;
+  /**
+   * ISO 4217 code, upper case. One currency per licence version.
+   */
+  currency: string;
+  /**
+   * When the price was deprecated
+   */
+  deprecatedAt: string | null;
+  /**
+   * The invoice line's label; a default is derived when it is null.
+   */
+  displayLabel: string | null;
+  /**
+   * Order among the version's prices
+   */
+  displayOrder: number;
+  /**
+   * Unique identifier of the price
+   */
+  readonly id: string;
+  /**
+   * The FLAT_FEE price picked for its billing period when none is named. At most one per period; only an ACTIVE FLAT_FEE price.
+   */
+  isDefault: boolean;
+  /**
+   * What a metered price measures. Null on FLAT_FEE prices.
+   */
+  metered: PriceMeter | null;
+  /**
+   * A DEPRECATED price keeps billing what is already pinned to it but is no longer offered.
+   */
+  status: "ACTIVE" | "DEPRECATED";
+  /**
+   * unitAmountDecimal as an integer number of minor units, when it is one; null otherwise.
+   */
+  unitAmount: number | null;
+  /**
+   * Amount in the currency's minor units (cents for EUR): per period for FLAT_FEE, per sale unit for metered prices. Up to 12 decimal places.
+   */
+  unitAmountDecimal: string;
+  readonly updatedAt: string;
+};
+
+export type PriceMeter = {
+  /**
+   * The metered entitlement
+   */
+  entitlementSlug: string;
+  /**
+   * Measured units in one sale unit, captured when the price was created (1 when the entitlement has no sale unit): 10000 bills per 10,000 tokens.
+   */
+  saleUnitFactor: string;
+  /**
+   * The sale unit's plural label; null when the entitlement has none
+   */
+  saleUnitPlural: string | null;
+  /**
+   * The sale unit's singular label; null when the entitlement has none
+   */
+  saleUnitSingular: string | null;
 };
 
 export type Problem = {
@@ -1799,6 +6622,887 @@ export type Problem = {
   type?: string;
 };
 
+export type Profile = {
+  email: string;
+  name: string;
+};
+
+export type Provenance = {
+  /**
+   * The active add-on grants, in attachment order
+   */
+  addons: Array<ProvenanceAddon>;
+  /**
+   * The boosts in their window, in redemption order
+   */
+  boosts: Array<ProvenanceBoost>;
+  /**
+   * The instance's exception in force at the read, the last layer; null without one. Never its reason or author
+   */
+  exception: ProvenanceException | null;
+  /**
+   * The licence's grant; null when only add-ons grant the entitlement
+   */
+  license: ProvenanceLicense | null;
+  /**
+   * How a number was composed; null for BOOLEAN and CONFIG, and when no add-on, boost or exception changes it
+   */
+  number: ProvenanceNumber | null;
+};
+
+export type ProvenanceAddon = {
+  addonEntitlementId: string;
+  addonId: string;
+  attachedAt: string;
+  instanceAddonId: string;
+  limitCapExceededOveragePercent: number | null;
+  overrideBehavior: "ADD" | "OVERRIDE" | "MAX";
+  quantity: number;
+  /**
+   * One unit's grant
+   */
+  value:
+    | ({
+        type: "number";
+      } & NumberEntitlementValue)
+    | ({
+        type: "boolean";
+      } & BooleanEntitlementValue)
+    | ({
+        type: "object";
+      } & ConfigEntitlementValue);
+};
+
+export type ProvenanceBoost = {
+  effectiveExpiresAt: string | null;
+  effectiveStartsAt: string;
+  instanceVoucherId: string;
+  modifierType: "SET" | "ADD" | "MULTIPLY" | "UNLIMITED";
+  modifierValue: number | null;
+  redeemedAt: string;
+  /**
+   * The value a BOOLEAN or CONFIG SET boost sets, in the {type, value} shape; null for the NUMBER modifiers
+   */
+  value: NumberEntitlementValue | BooleanEntitlementValue | ConfigEntitlementValue | null;
+  voucherEntitlementGrantId: string;
+  voucherId: string;
+};
+
+export type ProvenanceException = {
+  /**
+   * Null: no end
+   */
+  endsAt: string | null;
+  instanceEntitlementExceptionId: string;
+  kind: "SET" | "ADD" | "UNLIMITED";
+  startsAt: string;
+  /**
+   * The exception's value, in the {type, value} shape; null for UNLIMITED
+   */
+  value: NumberEntitlementValue | BooleanEntitlementValue | ConfigEntitlementValue | null;
+};
+
+export type ProvenanceLicense = {
+  licenseEntitlementId: string;
+  limitCapExceededOveragePercent: number | null;
+  value:
+    | ({
+        type: "number";
+      } & NumberEntitlementValue)
+    | ({
+        type: "boolean";
+      } & BooleanEntitlementValue)
+    | ({
+        type: "object";
+      } & ConfigEntitlementValue);
+};
+
+export type ProvenanceNumber = {
+  afterAddons: number;
+  /**
+   * The value before the exception: -1 when unlimited
+   */
+  afterBoosts: number;
+  boostAdd: number | null;
+  boostMultiply: number | null;
+  boostSet: number | null;
+  /**
+   * -1 when unlimited
+   */
+  effective: number;
+  /**
+   * The licence's value; null when only add-ons or an exception grant it
+   */
+  license: number | null;
+  /**
+   * The licence, an add-on or a boost is unlimited; only an exception's SET makes it finite again
+   */
+  unlimited: boolean;
+};
+
+export type ProviderCapabilities = {
+  automaticCollection: boolean;
+  billingPortal: boolean;
+  paymentMethodCapture: boolean;
+};
+
+export type ProviderChangeDelivered = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  /**
+   * Invoices already composed keep their provider
+   */
+  effectiveFrom: "next_composition";
+  from: "NOOP" | "STRIPE";
+  instanceSlug: string;
+  to: "NOOP" | "STRIPE";
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
+export type ProviderLineLimit = {
+  /**
+   * The provider items the invoice needs
+   */
+  items: number;
+  /**
+   * The most the provider takes on one invoice
+   */
+  limit: number;
+  providerKind: "STRIPE";
+};
+
+export type ProviderRecord = {
+  externalCustomerId: string | null;
+  externalInvoiceId: string | null;
+  hostedInvoiceUrl: string | null;
+  /**
+   * The provider's invoice number
+   */
+  invoiceNumber: string | null;
+  invoicePdfUrl: string | null;
+  /**
+   * Why the last automatic charge failed, as the provider coded it: authentication_required (the customer must confirm the payment on the hosted invoice page), card_declined, expired_card, no_payment_method...
+   */
+  lastPaymentError: string | null;
+  /**
+   * The provider's code and message of the last failed push step
+   */
+  lastPushError: string | null;
+  /**
+   * When the push queue tries it next; null when it waits for a human (finalization in the provider) or is pushed
+   */
+  nextPushAt: string | null;
+  pushAttempts: number;
+  pushedAt: string | null;
+  reconciledAt: string | null;
+  /**
+   * What differs, on a MISMATCH
+   */
+  reconciliationDetail: Reconciliation | null;
+  reconciliationStatus: "MATCHED" | "MISMATCH" | null;
+  /**
+   * The provider's status, mirrored verbatim
+   */
+  status: "draft" | "open" | "paid" | "uncollectible" | "void" | null;
+  syncedAt: string | null;
+  /**
+   * The provider's total excluding tax, read back
+   */
+  totalExcludingTax: number | null;
+};
+
+export type ProviderSync = {
+  consecutiveFailures: number;
+  /**
+   * Seconds since the last pass; null before the first
+   */
+  lagSeconds: number | null;
+  lastFullSweepAt: string | null;
+  /**
+   * The end of the last pass that ended SUCCESS; null before the first (V31-11)
+   */
+  lastSuccessfulSyncAt: string | null;
+  lastSyncError: string | null;
+  lastSyncStatus: "SUCCESS" | "PARTIAL" | "FAILED" | null;
+  /**
+   * The end of the last pass, whatever its status; null before the first
+   */
+  lastSyncedAt: string | null;
+  providerKind: "NOOP" | "STRIPE";
+};
+
+export type PublicAddOn = {
+  addonId: string;
+  addonSlug: string;
+  /**
+   * Public licence families this add-on fits
+   */
+  compatibleLicenseFamilies: Array<string>;
+  description: string;
+  /**
+   * User-facing entitlements one unit grants
+   */
+  entitlements: Array<PublicAddOnEntitlement>;
+  familySlug: string;
+  /**
+   * Most units one instance may attach; null when unbounded
+   */
+  maxQuantity: number | null;
+  name: string;
+  prices: Array<PublicPrice>;
+  pricingType: "FREE" | "PAID" | "CUSTOM";
+};
+
+export type PublicAddOnEntitlement = {
+  limitCapExceededOveragePercent: number | null;
+  name: string;
+  /**
+   * How the grant combines with the plan's: added to it, replacing it, or the larger of the two
+   */
+  overrideBehavior: "ADD" | "OVERRIDE" | "MAX";
+  slug: string;
+  type: "BOOLEAN" | "NUMBER" | "NUMBER_AI_CREDIT" | "CONFIG";
+  value: unknown;
+};
+
+export type PublicBranding = {
+  /**
+   * Whether the vendor's plan lets its storefront and portal hide "Powered by Kaiten" (the remove-powered-by entitlement). False while Kaiten's licensing authority cannot answer; always true self-hosted
+   */
+  poweredByRemovable: boolean;
+};
+
+export type PublicCatalog = {
+  /**
+   * The default version of each public add-on family; empty when include omits addons
+   */
+  addOns: Array<PublicAddOn>;
+  branding: PublicBranding;
+  capabilities: PublicCatalogCapabilities;
+  /**
+   * The default version of each public licence family, by family slug
+   */
+  plans: Array<PublicPlan>;
+};
+
+export type PublicCatalogCapabilities = {
+  /**
+   * Whether this publishable key starts anonymous checkouts (POST /public/checkout-sessions): on, with a Turnstile site key and secret
+   */
+  anonymousCheckout: boolean;
+  /**
+   * Whether a plan of the catalogue can be bought alone, through a customer session's checkout (POST /public/session/checkout)
+   */
+  checkout: boolean;
+  /**
+   * Whether the organization's billing provider captures payment methods
+   */
+  paymentMethods: boolean;
+  /**
+   * The Turnstile site key the page renders its widget with; null unless anonymousCheckout
+   */
+  turnstileSiteKey: string | null;
+};
+
+export type PublicMeter = {
+  entitlementSlug: string;
+  /**
+   * Measured units in one sale unit
+   */
+  saleUnitFactor: string;
+  /**
+   * The sale unit's plural label; null when the entitlement has none
+   */
+  saleUnitPlural: string | null;
+  /**
+   * The sale unit's singular label; null when the entitlement has none
+   */
+  saleUnitSingular: string | null;
+};
+
+export type PublicPlan = {
+  /**
+   * Public add-on families whose listed version fits this plan
+   */
+  compatibleAddonFamilies: Array<string>;
+  /**
+   * ISO 4217 code of the plan's prices; null when it has none
+   */
+  currency: string | null;
+  description: string;
+  /**
+   * User-facing entitlements the plan grants, in display order
+   */
+  entitlements: Array<PublicPlanEntitlement>;
+  familySlug: string;
+  licenseId: string;
+  /**
+   * The version's own slug
+   */
+  licenseSlug: string;
+  /**
+   * Always PUBLISHED: only the default version is listed, and a default version is published
+   */
+  lifecycleState: "PUBLISHED";
+  name: string;
+  /**
+   * ACTIVE prices, in display order
+   */
+  prices: Array<PublicPrice>;
+  /**
+   * CUSTOM: priced on request; render selfServeCtaUrl
+   */
+  pricingType: "FREE" | "PAID" | "CUSTOM";
+  /**
+   * A card is captured before subscribing, even when nothing is due
+   */
+  requiresPaymentMethod: boolean;
+  /**
+   * Whether a customer can subscribe to this plan alone: not CUSTOM, with a default ACTIVE flat-fee price, and either FREE or sold through a provider that captures payment methods. Otherwise render selfServeCtaUrl.
+   */
+  selfServe: boolean;
+  /**
+   * Where to send a customer who cannot subscribe alone ("Contact us")
+   */
+  selfServeCtaUrl: string | null;
+  /**
+   * Length of the free trial; null when the plan has none
+   */
+  trialPeriodDays: number | null;
+};
+
+export type PublicPlanEntitlement = {
+  description: string | null;
+  displayOrder: number;
+  icon: string | null;
+  /**
+   * How far usage may exceed a NUMBER grant before it is refused: 0 is a hard limit, -1 is unlimited; null for other types
+   */
+  limitCapExceededOveragePercent: number | null;
+  name: string;
+  saleUnitFactor: string | null;
+  saleUnitPlural: string | null;
+  saleUnitSingular: string | null;
+  slug: string;
+  type: "BOOLEAN" | "NUMBER" | "NUMBER_AI_CREDIT" | "CONFIG";
+  unitPlural: string | null;
+  unitSingular: string | null;
+  /**
+   * A NUMBER grant with no limit
+   */
+  unlimited: boolean;
+  /**
+   * The granted value: a boolean, a number, or a configuration object
+   */
+  value: unknown;
+};
+
+export type PublicPrice = {
+  /**
+   * FLAT_FEE: per billing period. USAGE_BASED: per sale unit of usage. OVERAGE: per sale unit of usage above the limit. Never sum metered prices into a headline.
+   */
+  billingModel: "FLAT_FEE" | "USAGE_BASED" | "OVERAGE";
+  /**
+   * The period a FLAT_FEE price is charged for; null on metered prices
+   */
+  billingPeriod: "MONTHLY" | "QUARTERLY" | "SEMI_ANNUAL" | "ANNUAL" | null;
+  billingTiming: "ADVANCE" | "ARREARS";
+  currency: string;
+  /**
+   * The price's label; null when it has none
+   */
+  displayLabel: string | null;
+  displayOrder: number;
+  id: string;
+  /**
+   * The FLAT_FEE price shown for its billing period
+   */
+  isDefault: boolean;
+  /**
+   * What a metered price measures; null on FLAT_FEE prices
+   */
+  metered: PublicMeter | null;
+  /**
+   * The amount in minor units, when it is a whole number of them; null otherwise (render unitAmountDecimal)
+   */
+  unitAmount: number | null;
+  /**
+   * The amount in minor units, up to 12 decimal places
+   */
+  unitAmountDecimal: string;
+};
+
+export type PublicSurface = {
+  /**
+   * Whether publishable keys and customer sessions work for the organization: billing is on for it
+   */
+  enabled: boolean;
+};
+
+export type PublishableKey = {
+  /**
+   * Browser origins allowed to send the key. Empty: no browser origin may; requests without an Origin header (server-side rendering) still may.
+   */
+  allowedOrigins: Array<string>;
+  /**
+   * Whether the key may start an anonymous checkout (POST /public/checkout-sessions). Needs a Turnstile site key and secret.
+   */
+  anonymousCheckout: boolean;
+  readonly createdAt: string;
+  /**
+   * Unique identifier of the key
+   */
+  readonly id: string;
+  /**
+   * The last four characters of the key
+   */
+  readonly keyHint: string;
+  /**
+   * What the key is for, to tell keys apart
+   */
+  label: string;
+  /**
+   * When the key last authenticated a request, to the minute; null before its first
+   */
+  readonly lastUsedAt: string | null;
+  /**
+   * When the key was revoked; null while it is live
+   */
+  readonly revokedAt: string | null;
+  /**
+   * Whether a Turnstile secret is stored for the key. The secret itself is write-only.
+   */
+  readonly turnstileSecretConfigured: boolean;
+  /**
+   * The Turnstile site key the page renders its widget with; null without one. Public: the catalogue hands it to the page.
+   */
+  turnstileSiteKey: string | null;
+  readonly updatedAt: string;
+};
+
+export type PublishableKeyCreated = {
+  /**
+   * Browser origins allowed to send the key. Empty: no browser origin may; requests without an Origin header (server-side rendering) still may.
+   */
+  allowedOrigins: Array<string>;
+  /**
+   * Whether the key may start an anonymous checkout (POST /public/checkout-sessions). Needs a Turnstile site key and secret.
+   */
+  anonymousCheckout: boolean;
+  readonly createdAt: string;
+  /**
+   * Unique identifier of the key
+   */
+  readonly id: string;
+  /**
+   * The key itself. Shown once: only its digest is stored.
+   */
+  readonly key: string;
+  /**
+   * The last four characters of the key
+   */
+  readonly keyHint: string;
+  /**
+   * What the key is for, to tell keys apart
+   */
+  label: string;
+  /**
+   * When the key last authenticated a request, to the minute; null before its first
+   */
+  readonly lastUsedAt: string | null;
+  /**
+   * When the key was revoked; null while it is live
+   */
+  readonly revokedAt: string | null;
+  /**
+   * Whether a Turnstile secret is stored for the key. The secret itself is write-only.
+   */
+  readonly turnstileSecretConfigured: boolean;
+  /**
+   * The Turnstile site key the page renders its widget with; null without one. Public: the catalogue hands it to the page.
+   */
+  turnstileSiteKey: string | null;
+  readonly updatedAt: string;
+};
+
+export type PublishableKeyDraft = {
+  /**
+   * Browser origins allowed to send the key, as scheme://host[:port]: https, or http for localhost. Empty: no browser origin may.
+   */
+  allowedOrigins: Array<string>;
+  /**
+   * Open POST /public/checkout-sessions to the key. Needs turnstileSiteKey and turnstileSecret, else 422 .TurnstileNotConfigured. False by default.
+   */
+  anonymousCheckout?: boolean;
+  /**
+   * What the key is for
+   */
+  label: string;
+  /**
+   * The Turnstile secret the server verifies tokens with. Stored in Vault, never returned: reads say turnstileSecretConfigured. 422 .VaultNotConfigured on a deployment without Vault.
+   */
+  turnstileSecret?: string;
+  /**
+   * The Turnstile site key the page renders its widget with
+   */
+  turnstileSiteKey?: string;
+};
+
+export type PublishableKeyEventDelivered = {
+  allowedOrigins: Array<string>;
+  anonymousCheckout: boolean;
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  id: string;
+  /**
+   * The last four characters of the key
+   */
+  keyHint: string;
+  label: string;
+  revokedAt: string | null;
+  turnstileSiteKey: string | null;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
+export type PublishableKeyPatch = {
+  /**
+   * Replaces the allowed browser origins. Takes effect on the next request.
+   */
+  allowedOrigins?: Array<string>;
+  /**
+   * Open or close POST /public/checkout-sessions to the key. On only with a Turnstile site key and secret, else 422 .TurnstileNotConfigured.
+   */
+  anonymousCheckout?: boolean;
+  /**
+   * What the key is for
+   */
+  label?: string;
+  /**
+   * The Turnstile secret, stored in Vault and never returned; "" deletes it. 422 .VaultNotConfigured on a deployment without Vault.
+   */
+  turnstileSecret?: string;
+  /**
+   * The Turnstile site key; "" clears it
+   */
+  turnstileSiteKey?: string;
+};
+
+export type PushFailedInvoiceDelivered = {
+  /**
+   * The boundary the invoice bills. With the kind, it identifies the invoice within its subscription
+   */
+  boundaryAt: string;
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  collectionMethod: "SEND_INVOICE" | "CHARGE_AUTOMATICALLY";
+  createdAt: string;
+  currency: string;
+  customerName: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  /**
+   * As it was when the invoice was composed
+   */
+  customerSlug: string;
+  daysUntilDue: number | null;
+  /**
+   * Sum of the discounts, in minor units
+   */
+  discountTotal: number;
+  /**
+   * issuedAt + daysUntilDue
+   */
+  dueAt: string | null;
+  /**
+   * PENDING: waiting in the handoff queue for the organization's accounting system
+   */
+  handoffStatus: "NOT_REQUIRED" | "PENDING" | "ACKNOWLEDGED";
+  /**
+   * Why a DRAFT is held: the usage journal it was measured from failed a consistency check (LEDGER_*), or its provider cannot take that many lines (PROVIDER_ITEM_LIMIT)
+   */
+  holdReason:
+    | "LEDGER_SEQUENCE_GAP"
+    | "LEDGER_CHAIN_BREAK"
+    | "LEDGER_COUNTER_MISMATCH"
+    | "PROVIDER_ITEM_LIMIT"
+    | null;
+  /**
+   * The invoice's identifier: the key an accounting system deduplicates on
+   */
+  id: string;
+  instanceName: string;
+  instanceSlug: string;
+  issuedAt: string | null;
+  /**
+   * ACTIVATION bills a subscription's first period, RENEWAL the period that ended and the one that starts, FINAL what is left when a subscription ends
+   */
+  kind: "ACTIVATION" | "RENEWAL" | "FINAL";
+  /**
+   * The provider's code and message, never a request body
+   */
+  lastPushError: string;
+  licenseSlug: string;
+  /**
+   * Whether the invoice is overdue when read, the grace period of automatic collection included: the predicate of ?overdue=true. Computed by the invoice list and the invoice read; false in the answers of writes and in event payloads.
+   */
+  overdue: boolean;
+  paidAt: string | null;
+  /**
+   * Who collects it. NOOP: the organization itself, through the handoff queue
+   */
+  providerKind: "NOOP" | "STRIPE";
+  pushAttempts: number;
+  /**
+   * Earliest start of its lines' service periods
+   */
+  serviceFrom: string;
+  /**
+   * Latest end of its lines' service periods
+   */
+  serviceTo: string;
+  /**
+   * MANUAL: issued, for the organization to collect. PAID, UNCOLLECTIBLE and VOID are final. DRAFT: held, waiting for a release or a recompose
+   */
+  status:
+    | "DRAFT"
+    | "PUSHED"
+    | "PUSH_FAILED"
+    | "MANUAL"
+    | "PAID"
+    | "PAYMENT_FAILED"
+    | "UNCOLLECTIBLE"
+    | "VOID";
+  /**
+   * Sum of the lines, in minor units
+   */
+  subtotal: number;
+  /**
+   * subtotal − discountTotal, in minor units
+   */
+  total: number;
+  updatedAt: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
+export type PushFailures = {
+  count: number;
+  oldestFailedAt: string | null;
+};
+
+export type PushedInvoiceDelivered = {
+  /**
+   * The boundary the invoice bills. With the kind, it identifies the invoice within its subscription
+   */
+  boundaryAt: string;
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  collectionMethod: "SEND_INVOICE" | "CHARGE_AUTOMATICALLY";
+  createdAt: string;
+  currency: string;
+  customerName: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  /**
+   * As it was when the invoice was composed
+   */
+  customerSlug: string;
+  daysUntilDue: number | null;
+  /**
+   * Sum of the discounts, in minor units
+   */
+  discountTotal: number;
+  /**
+   * issuedAt + daysUntilDue
+   */
+  dueAt: string | null;
+  externalInvoiceId: string;
+  /**
+   * PENDING: waiting in the handoff queue for the organization's accounting system
+   */
+  handoffStatus: "NOT_REQUIRED" | "PENDING" | "ACKNOWLEDGED";
+  /**
+   * Why a DRAFT is held: the usage journal it was measured from failed a consistency check (LEDGER_*), or its provider cannot take that many lines (PROVIDER_ITEM_LIMIT)
+   */
+  holdReason:
+    | "LEDGER_SEQUENCE_GAP"
+    | "LEDGER_CHAIN_BREAK"
+    | "LEDGER_COUNTER_MISMATCH"
+    | "PROVIDER_ITEM_LIMIT"
+    | null;
+  /**
+   * The invoice's identifier: the key an accounting system deduplicates on
+   */
+  id: string;
+  instanceName: string;
+  instanceSlug: string;
+  issuedAt: string | null;
+  /**
+   * ACTIVATION bills a subscription's first period, RENEWAL the period that ended and the one that starts, FINAL what is left when a subscription ends
+   */
+  kind: "ACTIVATION" | "RENEWAL" | "FINAL";
+  licenseSlug: string;
+  /**
+   * Whether the invoice is overdue when read, the grace period of automatic collection included: the predicate of ?overdue=true. Computed by the invoice list and the invoice read; false in the answers of writes and in event payloads.
+   */
+  overdue: boolean;
+  paidAt: string | null;
+  providerInvoiceNumber?: string;
+  /**
+   * Who collects it. NOOP: the organization itself, through the handoff queue
+   */
+  providerKind: "NOOP" | "STRIPE";
+  /**
+   * Earliest start of its lines' service periods
+   */
+  serviceFrom: string;
+  /**
+   * Latest end of its lines' service periods
+   */
+  serviceTo: string;
+  /**
+   * MANUAL: issued, for the organization to collect. PAID, UNCOLLECTIBLE and VOID are final. DRAFT: held, waiting for a release or a recompose
+   */
+  status:
+    | "DRAFT"
+    | "PUSHED"
+    | "PUSH_FAILED"
+    | "MANUAL"
+    | "PAID"
+    | "PAYMENT_FAILED"
+    | "UNCOLLECTIBLE"
+    | "VOID";
+  /**
+   * Sum of the lines, in minor units
+   */
+  subtotal: number;
+  /**
+   * subtotal − discountTotal, in minor units
+   */
+  total: number;
+  updatedAt: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
+export type QueuedInvoice = {
+  /**
+   * The boundary the invoice bills. With the kind, it identifies the invoice within its subscription
+   */
+  boundaryAt: string;
+  collectionMethod: "SEND_INVOICE" | "CHARGE_AUTOMATICALLY";
+  createdAt: string;
+  currency: string;
+  customerName: string;
+  /**
+   * As it was when the invoice was composed
+   */
+  customerSlug: string;
+  daysUntilDue: number | null;
+  /**
+   * Sum of the discounts, in minor units
+   */
+  discountTotal: number;
+  /**
+   * issuedAt + daysUntilDue
+   */
+  dueAt: string | null;
+  handoff: InvoiceHandoff;
+  /**
+   * PENDING: waiting in the handoff queue for the organization's accounting system
+   */
+  handoffStatus: "NOT_REQUIRED" | "PENDING" | "ACKNOWLEDGED";
+  /**
+   * Why a DRAFT is held: the usage journal it was measured from failed a consistency check (LEDGER_*), or its provider cannot take that many lines (PROVIDER_ITEM_LIMIT)
+   */
+  holdReason:
+    | "LEDGER_SEQUENCE_GAP"
+    | "LEDGER_CHAIN_BREAK"
+    | "LEDGER_COUNTER_MISMATCH"
+    | "PROVIDER_ITEM_LIMIT"
+    | null;
+  /**
+   * The invoice's identifier: the key an accounting system deduplicates on
+   */
+  id: string;
+  instanceName: string;
+  instanceSlug: string;
+  issuedAt: string | null;
+  /**
+   * ACTIVATION bills a subscription's first period, RENEWAL the period that ended and the one that starts, FINAL what is left when a subscription ends
+   */
+  kind: "ACTIVATION" | "RENEWAL" | "FINAL";
+  licenseSlug: string;
+  /**
+   * Whether the invoice is overdue when read, the grace period of automatic collection included: the predicate of ?overdue=true. Computed by the invoice list and the invoice read; false in the answers of writes and in event payloads.
+   */
+  overdue: boolean;
+  paidAt: string | null;
+  /**
+   * Who collects it. NOOP: the organization itself, through the handoff queue
+   */
+  providerKind: "NOOP" | "STRIPE";
+  /**
+   * Earliest start of its lines' service periods
+   */
+  serviceFrom: string;
+  /**
+   * Latest end of its lines' service periods
+   */
+  serviceTo: string;
+  /**
+   * MANUAL: issued, for the organization to collect. PAID, UNCOLLECTIBLE and VOID are final. DRAFT: held, waiting for a release or a recompose
+   */
+  status:
+    | "DRAFT"
+    | "PUSHED"
+    | "PUSH_FAILED"
+    | "MANUAL"
+    | "PAID"
+    | "PAYMENT_FAILED"
+    | "UNCOLLECTIBLE"
+    | "VOID";
+  /**
+   * Sum of the lines, in minor units
+   */
+  subtotal: number;
+  /**
+   * subtotal − discountTotal, in minor units
+   */
+  total: number;
+  updatedAt: string;
+};
+
 export type ReadSelection = {
   /**
    * Mark every notification read, up to now
@@ -1808,6 +7512,124 @@ export type ReadSelection = {
    * Notifications to mark read
    */
   ids?: Array<string> | null;
+};
+
+export type Reconciliation = {
+  /**
+   * Allocations of DISCOUNT lines the provider applied with another amount, or not at all
+   */
+  discounts: Array<DiscountDifference>;
+  /**
+   * A SEND_INVOICE invoice the provider gives another due date than Kaiten's dueAt
+   */
+  dueDate: DueDateDifference | null;
+  /**
+   * Discounts the provider applied that Kaiten did not create, such as a coupon added in its dashboard
+   */
+  extraDiscounts: Array<ExtraDiscount>;
+  /**
+   * Provider lines Kaiten does not have
+   */
+  extraInProvider: Array<string>;
+  /**
+   * Whether the provider's subtotal was compared, its tax being included in the amounts
+   */
+  inclusiveTax: boolean;
+  lines: Array<LineDifference>;
+  /**
+   * Kaiten lines the provider does not have
+   */
+  missingInProvider: Array<string>;
+  totals: TotalsDifference;
+  /**
+   * What the comparison noticed without calling it a mismatch (§12.7, V31-60)
+   */
+  warnings?: Array<string> | null;
+};
+
+export type RedeemableCode = {
+  code: string;
+};
+
+export type Redemption = {
+  /**
+   * Invoices a PRICE voucher discounted
+   */
+  applicationsCount: number;
+  /**
+   * 1 for ONE_TIME, durationInPeriods for REPEATING; null for FOREVER
+   */
+  applicationsMax: number | null;
+  codeHint: string;
+  /**
+   * When a boost stops applying; null for a PRICE voucher, counted in invoices, and for FOREVER
+   */
+  effectiveExpiresAt: string | null;
+  effectiveStartsAt: string;
+  expiredAt: string | null;
+  readonly id: string;
+  instanceSlug: string;
+  redeemedAt: string;
+  revokedAt: string | null;
+  revokedReason: string | null;
+  status: "ACTIVE" | "EXPIRED" | "REVOKED";
+  voucherId: string;
+  voucherName: string;
+  voucherType: "PRICE" | "ENTITLEMENT_BOOST" | "FLAG_GRANT" | "COMPOSITE";
+};
+
+export type RedemptionDelivered = {
+  /**
+   * Invoices a PRICE voucher discounted
+   */
+  applicationsCount: number;
+  /**
+   * 1 for ONE_TIME, durationInPeriods for REPEATING; null for FOREVER
+   */
+  applicationsMax: number | null;
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  codeHint: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  /**
+   * When a boost stops applying; null for a PRICE voucher, counted in invoices, and for FOREVER
+   */
+  effectiveExpiresAt: string | null;
+  effectiveStartsAt: string;
+  expiredAt: string | null;
+  readonly id: string;
+  instanceSlug: string;
+  redeemedAt: string;
+  revokedAt: string | null;
+  revokedReason: string | null;
+  status: "ACTIVE" | "EXPIRED" | "REVOKED";
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+  voucherId: string;
+  voucherName: string;
+  voucherType: "PRICE" | "ENTITLEMENT_BOOST" | "FLAG_GRANT" | "COMPOSITE";
+};
+
+export type RedemptionRules = {
+  /**
+   * Only for an instance with a live ANNUAL subscription
+   */
+  annualOnly?: boolean;
+  /**
+   * Only for a customer none of whose instances has paid an invoice
+   */
+  firstTimeOnly?: boolean;
+  /**
+   * Only for a live subscription whose base price is at least this. Strictly positive; omit it for no minimum (0 is refused with .InvalidRedemptionRules).
+   */
+  minimumSubscriptionAmount?: MinimumAmount;
 };
 
 export type Release = {
@@ -1841,6 +7663,157 @@ export type Release = {
   version: string;
 };
 
+export type ReleaseDelivered = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * List of components included in this release, fixed at creation
+   */
+  readonly components?: Array<Component> | null;
+  /**
+   * Timestamp when the release was created
+   */
+  readonly createdAt: string;
+  /**
+   * User who created this release
+   */
+  readonly createdBy: User;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  /**
+   * Description of the release
+   */
+  description?: string;
+  /**
+   * Unique identifier for the release
+   */
+  readonly id: string;
+  /**
+   * Optional URL-friendly identifier, unique per organization. Auto-generated if not provided.
+   */
+  slug?: string;
+  /**
+   * Version of the release
+   */
+  version: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
+export type ReleasedInvoiceDelivered = {
+  /**
+   * The boundary the invoice bills. With the kind, it identifies the invoice within its subscription
+   */
+  boundaryAt: string;
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  collectionMethod: "SEND_INVOICE" | "CHARGE_AUTOMATICALLY";
+  createdAt: string;
+  currency: string;
+  customerName: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  /**
+   * As it was when the invoice was composed
+   */
+  customerSlug: string;
+  daysUntilDue: number | null;
+  /**
+   * Sum of the discounts, in minor units
+   */
+  discountTotal: number;
+  /**
+   * issuedAt + daysUntilDue
+   */
+  dueAt: string | null;
+  /**
+   * PENDING: waiting in the handoff queue for the organization's accounting system
+   */
+  handoffStatus: "NOT_REQUIRED" | "PENDING" | "ACKNOWLEDGED";
+  /**
+   * The hold it left, which the invoice no longer shows
+   */
+  holdDetail: HoldDetail;
+  /**
+   * Why a DRAFT is held: the usage journal it was measured from failed a consistency check (LEDGER_*), or its provider cannot take that many lines (PROVIDER_ITEM_LIMIT)
+   */
+  holdReason:
+    | "LEDGER_SEQUENCE_GAP"
+    | "LEDGER_CHAIN_BREAK"
+    | "LEDGER_COUNTER_MISMATCH"
+    | "PROVIDER_ITEM_LIMIT"
+    | null;
+  /**
+   * The invoice's identifier: the key an accounting system deduplicates on
+   */
+  id: string;
+  instanceName: string;
+  instanceSlug: string;
+  issuedAt: string | null;
+  /**
+   * ACTIVATION bills a subscription's first period, RENEWAL the period that ended and the one that starts, FINAL what is left when a subscription ends
+   */
+  kind: "ACTIVATION" | "RENEWAL" | "FINAL";
+  licenseSlug: string;
+  /**
+   * Whether the invoice is overdue when read, the grace period of automatic collection included: the predicate of ?overdue=true. Computed by the invoice list and the invoice read; false in the answers of writes and in event payloads.
+   */
+  overdue: boolean;
+  paidAt: string | null;
+  /**
+   * Who collects it. NOOP: the organization itself, through the handoff queue
+   */
+  providerKind: "NOOP" | "STRIPE";
+  releaseReason: string;
+  /**
+   * The user who released it, or system when a later check found the journal sound
+   */
+  releasedBy: string;
+  /**
+   * Earliest start of its lines' service periods
+   */
+  serviceFrom: string;
+  /**
+   * Latest end of its lines' service periods
+   */
+  serviceTo: string;
+  /**
+   * MANUAL: issued, for the organization to collect. PAID, UNCOLLECTIBLE and VOID are final. DRAFT: held, waiting for a release or a recompose
+   */
+  status:
+    | "DRAFT"
+    | "PUSHED"
+    | "PUSH_FAILED"
+    | "MANUAL"
+    | "PAID"
+    | "PAYMENT_FAILED"
+    | "UNCOLLECTIBLE"
+    | "VOID";
+  /**
+   * Sum of the lines, in minor units
+   */
+  subtotal: number;
+  /**
+   * subtotal − discountTotal, in minor units
+   */
+  total: number;
+  updatedAt: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
 export type ReorderMetadataFieldsInput = {
   ids: Array<string> | null;
 };
@@ -1851,7 +7824,7 @@ export type ReportEntitlementUsageBody = {
    */
   behavior?: "append" | "set";
   /**
-   * Optional metadata for the usage report
+   * Optional metadata for the usage report, a JSON object stored with it in the usage history when its compact encoding is at most 4 KiB. Above that it is not stored, the report is still counted, and the response carries Kaiten-Metadata-Dropped: too_large. It must contain no personal data: anyone who can read the organization's instances can read it, for as long as the usage history is kept. Numbers are read as 64-bit floats, so send large identifiers as strings.
    */
   metadata?: {
     [key: string]: unknown;
@@ -1869,6 +7842,97 @@ export type ReportEntitlementUsageBody = {
     | ({
         type: "object";
       } & ConfigEntitlementValue);
+};
+
+export type ReportedEntitlementUsage = {
+  /**
+   * End of the current usage window (exclusive). Null for a lifetime entitlement (no configured reset period).
+   */
+  currentPeriodEnd?: string;
+  /**
+   * Start of the current usage window (inclusive). Null for a lifetime entitlement (no configured reset period).
+   */
+  currentPeriodStart?: string;
+  /**
+   * Unique identifier for the entitlement
+   */
+  entitlementId: string;
+  /**
+   * URL-friendly identifier of the entitlement
+   */
+  entitlementSlug: string;
+  /**
+   * Unique identifier for the license to which this entitlement usage belongs
+   */
+  licenseId: string;
+  /**
+   * URL-friendly identifier of the license
+   */
+  licenseSlug: string;
+  /**
+   * The effective value this usage is measured against (the licence's grant, with the instance's add-ons and boosts applied; source and provenance say which), discriminated by the 'type' field. Absent when nothing grants the entitlement a value; -1 means unlimited for a NUMBER entitlement.
+   */
+  limit?:
+    | ({
+        type: "number";
+      } & NumberEntitlementValue)
+    | ({
+        type: "boolean";
+      } & BooleanEntitlementValue)
+    | ({
+        type: "object";
+      } & ConfigEntitlementValue);
+  /**
+   * How far above limit usage is still accepted, in percent: -1 unlimited, 0 a hard limit. Absent for BOOLEAN and CONFIG.
+   */
+  limitCapExceededOveragePercent?: number;
+  /**
+   * What the licence, the add-ons and the boosts each contribute. Null on a replay (Idempotent-Replayed): the journal does not store it.
+   */
+  provenance: Provenance | null;
+  /**
+   * license: the licence grants it (add-ons, boosts and an exception may change it); addon: an add-on attached does; exception: only the instance's exception does. Null on a replay (Idempotent-Replayed): the journal does not store it.
+   */
+  source: "license" | "addon" | "exception" | null;
+  /**
+   * The Idempotency-Key this report was accepted under, echoed on the first answer and on every replay; null when the request carried none. A client can tell from it that the server honours the key.
+   */
+  transactionId: string | null;
+  /**
+   * Resolved entitlement value, discriminated by the 'type' field
+   */
+  value:
+    | ({
+        type: "number";
+      } & NumberEntitlementValue)
+    | ({
+        type: "boolean";
+      } & BooleanEntitlementValue)
+    | ({
+        type: "object";
+      } & ConfigEntitlementValue);
+};
+
+export type RevocationReason = {
+  /**
+   * 1 to 500 characters; .ReasonRequired otherwise
+   */
+  reason: string;
+};
+
+export type Role = {
+  builtIn: boolean;
+  description: string;
+  isAdministrator: boolean;
+  name: string;
+  permissions: Array<string>;
+  slug: string;
+};
+
+export type RoleDefinition = {
+  description: string;
+  name: string;
+  permissions: Array<string>;
 };
 
 export type RolloutDate = {
@@ -1913,6 +7977,33 @@ export type RolloutStep = {
   variant: string;
 };
 
+export type SampleUsageAmount = {
+  /**
+   * An entitlement an ACTIVE price of the version meters
+   */
+  entitlementSlug: string;
+  /**
+   * Usage in the entitlement's measured units, a non-negative decimal string. Rated as one reset window against the version's grant: usage above limit × (1 + overage percent / 100) would be rejected, so it is capped, and the line says capped.
+   */
+  quantity: string;
+};
+
+export type ScheduledChange = {
+  /**
+   * The boundary it applies at: the current period's end
+   */
+  effectiveAt: string;
+  /**
+   * The licence version of that price
+   */
+  licenseSlug: string;
+  /**
+   * The FLAT_FEE price the subscription moves to
+   */
+  price: Price;
+  scheduledAt: string;
+};
+
 export type ServiceAccount = {
   readonly createdAt?: string;
   readonly createdBy?: User;
@@ -1926,11 +8017,585 @@ export type ServiceAccount = {
   readonly tokens: Array<Token> | null;
 };
 
-export type SystemTokenIssuance = {
+export type SessionAddon = {
+  addonSlug: string;
+  familySlug: string;
+  /**
+   * The most one instance may hold; null when unbounded
+   */
+  maxQuantity: number | null;
+  name: string;
+  /**
+   * A decrease scheduled for the next renewal, 0 for a removal; null when nothing is scheduled
+   */
+  pendingQuantity: number | null;
+  /**
+   * What it is billed: the flat fee of the subscription's period and the metered prices. Quantity changes are billed from the next renewal, with no proration.
+   */
+  prices: Array<PublicPrice>;
+  /**
+   * 0 when the add-on is not held
+   */
+  quantity: number;
+};
+
+export type SessionAddonQuantity = {
+  /**
+   * 0 removes the add-on; otherwise at most its maxQuantity
+   */
+  quantity: number;
+};
+
+export type SessionAddonSelection = {
+  addonSlug: string;
+  quantity: number;
+};
+
+export type SessionBoost = {
+  entitlementSlug: string;
+  modifierType: "SET" | "ADD" | "MULTIPLY" | "UNLIMITED";
+  /**
+   * Absent for UNLIMITED, and on a BOOLEAN or CONFIG boost
+   */
+  modifierValue?: string;
+  /**
+   * A BOOLEAN or CONFIG boost's value: true or false, or the document
+   */
+  value?:
+    | boolean
+    | {
+        [key: string]: unknown;
+      }
+    | null;
+};
+
+export type SessionCancellation = {
+  /**
+   * Why the customer cancels, up to 500 characters; the vendor sees it on the subscription
+   */
+  reason?: string;
+};
+
+export type SessionCheckout = {
+  /**
+   * subscribed: the invoice of the first period; absent during a trial
+   */
+  activationInvoice?: SessionInvoice;
+  /**
+   * preview: what the checkout bills today; zero, with no lines, during a trial
+   */
+  dueToday?: DueToday;
+  /**
+   * requires_payment_method: when the setup page expires
+   */
+  expiresAt?: string;
+  /**
+   * subscribed: how paying the activation invoice went
+   */
+  payment?: Payment;
+  /**
+   * requires_payment_method: send it back as setupSessionId once the customer returns
+   */
+  setupSessionId?: string;
+  /**
+   * requires_payment_method: the provider's page where the customer saves a payment method
+   */
+  setupUrl?: string;
+  status: "preview" | "requires_payment_method" | "subscribed";
+  /**
+   * subscribed: the subscription started
+   */
+  subscription?: SessionSubscription;
+  /**
+   * preview: when the trial would end, if there is one
+   */
+  trialEndsAt?: string;
+};
+
+export type SessionCheckoutOrder = {
+  /**
+   * Public add-ons that fit the plan
+   */
+  addOns?: Array<SubscriptionAddon> | null;
+  /**
+   * Where invoices go. Required when the customer has none, except on a dryRun; stored on the customer when given.
+   */
+  billingEmail?: string;
+  /**
+   * Answer what the checkout would bill today, and change nothing
+   */
+  dryRun?: boolean;
+  /**
+   * An ACTIVE flat-fee price of a plan in the public catalogue. The instance is moved to that price's version when it is on another one.
+   */
+  licensePriceId: string;
+  /**
+   * Where the setup page sends the customer back, with kaiten_setup_session appended. Required when a payment method has to be captured. Its origin must be one the organization's publishable keys allow.
+   */
+  returnUrl?: string;
+  /**
+   * The setupSessionId a requires_payment_method answer gave, once the customer is back from the setup page: the payment method saved there is checked with the provider and used.
+   */
+  setupSessionId?: string;
+  /**
+   * false skips the plan's trial. Omitted: the plan's trial, if it has one.
+   */
+  trial?: boolean;
+  /**
+   * Validated and redeemed in the checkout; any refusal answers .VoucherInvalid
+   */
+  voucherCode?: string;
+};
+
+export type SessionDiscount = {
+  appliesTo: "LICENSE_BASE" | "ADDONS" | "BOTH" | "SELECTED_PRICES";
+  /**
+   * The currency of a FIXED_AMOUNT discount
+   */
+  currency?: string;
+  type: "PERCENTAGE" | "FIXED_AMOUNT";
+  /**
+   * A percentage in (0, 100], or an amount in minor units of currency
+   */
+  value: string;
+};
+
+export type SessionEventDelivered = {
+  billingPeriod: "MONTHLY" | "QUARTERLY" | "SEMI_ANNUAL" | "ANNUAL";
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * The vendor's opaque reference, as given at the start
+   */
+  clientReferenceId: string | null;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  /**
+   * The customer the completion created; null before
+   */
+  customerSlug: string | null;
+  /**
+   * The address the visitor gave at the start
+   */
+  email: string;
+  /**
+   * The instance the completion created; null before
+   */
+  instanceSlug: string | null;
+  licenseSlug: string;
+  sessionId: string;
+  /**
+   * OPEN on started, COMPLETED on completed; on abandoned, ABANDONED (never completed, slugs null) or EXPIRED (its INCOMPLETE subscription expired or was canceled unpaid, slugs set)
+   */
+  status: "OPEN" | "COMPLETED" | "ABANDONED" | "EXPIRED";
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
+export type SessionInvoice = {
+  currency: string;
+  /**
+   * Minor units
+   */
+  discountTotal: number;
+  dueAt: string | null;
+  /**
+   * The vendor's own number for an invoice it collects itself
+   */
+  externalReference: string | null;
+  /**
+   * Where the customer pays the invoice, or confirms a payment that needs authenticating
+   */
+  hostedInvoiceUrl: string | null;
+  id: string;
+  invoicePdfUrl: string | null;
+  issuedAt: string | null;
+  kind: "ACTIVATION" | "RENEWAL" | "FINAL";
+  lines: Array<SessionLine>;
+  paidAt: string | null;
+  providerInvoiceNumber: string | null;
+  serviceFrom: string;
+  serviceTo: string;
+  /**
+   * PUSHED: issued and awaiting payment. PAYMENT_FAILED: a charge failed; pay on hostedInvoiceUrl. MANUAL: issued, the vendor collects it.
+   */
+  status: "MANUAL" | "PUSHED" | "PAID" | "PAYMENT_FAILED" | "UNCOLLECTIBLE" | "VOID";
+  /**
+   * Minor units
+   */
+  subtotal: number;
+  /**
+   * Minor units
+   */
+  total: number;
+};
+
+export type SessionLine = {
+  /**
+   * Minor units; negative on a DISCOUNT line
+   */
+  amount: number;
+  description: string;
+  label: string;
+  /**
+   * In sale units, a decimal string
+   */
+  quantity: string;
+  seq: number;
+  serviceFrom: string;
+  serviceTo: string;
+  type: "BASE" | "ADDON" | "USAGE" | "OVERAGE" | "DISCOUNT";
+  /**
+   * Minor units; null on a DISCOUNT line
+   */
+  unitAmountDecimal: string | null;
+};
+
+export type SessionPortal = {
+  /**
+   * The add-ons the instance holds
+   */
+  addOns: Array<SessionAddon>;
+  branding: PublicBranding;
+  capabilities: PortalCapabilities;
+  customer: PortalCustomer;
+  /**
+   * The instance's effective entitlements: its licence's, raised or added by add-ons and boosts
+   */
+  entitlements: Array<PortalEntitlement>;
+  /**
+   * The session's instance; null for a session bound to the customer only
+   */
+  instance: PortalInstance | null;
+  /**
+   * The customer's instances, for a session bound to the customer only; empty otherwise
+   */
+  instances: Array<PortalInstanceSummary>;
+  /**
+   * The payment method the customer's invoices are charged to; null when none is saved
+   */
+  paymentMethod: PortalPaymentMethod | null;
+  /**
+   * The instance's subscription; null when it has none, or the session is bound to no instance
+   */
+  subscription: SessionSubscription | null;
+  /**
+   * TRIAL only: when the trial ends, when its reminder is due, what the conversion would charge and to which card (V32-09); null otherwise
+   */
+  trial: PortalTrial | null;
+  /**
+   * What the next boundary will bill, on usage so far; null without a live subscription
+   */
+  upcomingInvoice: PortalUpcomingInvoice | null;
+  /**
+   * When this snapshot was read
+   */
+  updatedAt: string;
+  /**
+   * The instance's ACTIVE redemptions. Never a code.
+   */
+  vouchers: Array<SessionRedemption>;
+};
+
+export type SessionRedeem = {
+  /**
+   * The code as the customer typed it; case and separators do not matter
+   */
+  code: string;
+  /**
+   * Check, and answer the redemption the call would make, without making it; counts as one attempt
+   */
+  dryRun?: boolean;
+};
+
+export type SessionRedemption = {
+  /**
+   * Invoices its PRICE part discounted; 0 without one
+   */
+  applicationsCount: number;
+  /**
+   * How many it discounts in all: 1 for ONE_TIME, its periods for REPEATING; null for FOREVER and without a PRICE part
+   */
+  applicationsMax: number | null;
+  /**
+   * next: a PRICE part that has not discounted an invoice yet -- it applies from the next invoice composed, never to one already issued; null otherwise
+   */
+  appliesFromInvoice: "next" | null;
+  /**
+   * When a boost or a flag grant stops applying; null when it does not expire, and for a PRICE voucher, counted in invoices
+   */
+  effectiveExpiresAt: string | null;
+  effectiveStartsAt: string;
+  name: string;
+  status: "ACTIVE" | "EXPIRED" | "REVOKED";
+  voucherType: "PRICE" | "ENTITLEMENT_BOOST" | "FLAG_GRANT" | "COMPOSITE";
+};
+
+export type SessionScheduledChange = {
+  /**
+   * When it applies: the current period's end
+   */
+  effectiveAt: string;
+  /**
+   * The price the subscription moves to
+   */
+  price: PublicPrice;
+};
+
+export type SessionSubscription = {
+  basePrice: PublicPrice;
+  billingPeriod: "MONTHLY" | "QUARTERLY" | "SEMI_ANNUAL" | "ANNUAL";
+  /**
+   * The subscription ends at currentPeriodEnd; reactivate it before then to keep it
+   */
+  cancelAtPeriodEnd: boolean;
+  /**
+   * When the subscription was canceled
+   */
+  canceledAt: string | null;
+  /**
+   * Why the system ended it; null when it did not, a vendor's own reason is never shown
+   */
+  cancellationReason: "TRIAL_ENDED_WITHOUT_PAYMENT_METHOD" | "INCOMPLETE_EXPIRED" | null;
+  collectionMethod: "SEND_INVOICE" | "CHARGE_AUTOMATICALLY";
+  currency: string;
+  /**
+   * When the current period ends: the renewal date, or the trial's end
+   */
+  currentPeriodEnd: string;
+  currentPeriodStart: string;
+  /**
+   * INCOMPLETE only: when the checkout ends unpaid
+   */
+  incompleteExpiresAt: string | null;
+  providerKind: "NOOP" | "STRIPE";
+  /**
+   * A plan change the vendor scheduled for the next boundary
+   */
+  scheduledChange: SessionScheduledChange | null;
+  status: "INCOMPLETE" | "TRIAL" | "ACTIVE" | "PAST_DUE" | "CANCELED";
+  trialEndsAt: string | null;
+};
+
+export type SessionVoucher = {
+  /**
+   * ENTITLEMENT_BOOST: what it raises
+   */
+  boosts?: Array<SessionBoost> | null;
+  /**
+   * PRICE: what it takes off
+   */
+  discount?: SessionDiscount;
+  /**
+   * PRICE: how many invoices it discounts (one, durationInPeriods, or every one). ENTITLEMENT_BOOST and FLAG_GRANT: how long it lasts, in billing periods. COMPOSITE: both, each for its part, which it carries each of.
+   */
+  duration: "ONE_TIME" | "REPEATING" | "FOREVER";
+  durationInPeriods?: number;
+  /**
+   * FLAG_GRANT: the flag variants it grants
+   */
+  flagGrants?: Array<FlagGrant> | null;
+  name: string;
+  voucherType: "PRICE" | "ENTITLEMENT_BOOST" | "FLAG_GRANT" | "COMPOSITE";
+};
+
+export type SessionVoucherCheck = {
+  /**
+   * The code as the customer typed it; case and separators do not matter
+   */
+  code: string;
+  /**
+   * The price the customer is about to check out: the checks that read the subscription read this price
+   */
+  licensePriceId?: string;
+};
+
+export type SessionVoucherValidity = {
+  valid: boolean;
+  /**
+   * What the voucher gives, when valid. Never its code.
+   */
+  voucher?: SessionVoucher;
+};
+
+export type StartedSubscription = {
+  /**
+   * The invoice of the first period, when the base price bills in advance; absent otherwise. Charged automatically, it is pushed and charged before this answer when the provider answers within 20 seconds: its status says how it went.
+   */
+  activationInvoice?: InvoiceSummary;
+  /**
+   * The instant its periods are counted from
+   */
+  anchorAt: string;
+  /**
+   * The FLAT_FEE price the subscription is pinned to, deprecated or not
+   */
+  basePrice: Price;
+  billingPeriod: "MONTHLY" | "QUARTERLY" | "SEMI_ANNUAL" | "ANNUAL";
+  cancelAtPeriodEnd: boolean;
+  cancelRequestedAt: string | null;
+  canceledAt: string | null;
+  cancellationReason: string | null;
+  /**
+   * Effective: the subscription's own, else the organization's default
+   */
+  collectionMethod: "SEND_INVOICE" | "CHARGE_AUTOMATICALLY";
+  /**
+   * The subscription's own collection method; null when it takes the organization's
+   */
+  collectionMethodOverride: string | null;
+  createdAt: string;
+  currency: string;
+  /**
+   * The next boundary: the period closes, and its invoice is composed, after it
+   */
+  currentPeriodEnd: string;
+  currentPeriodStart: string;
+  customerName: string;
+  customerSlug: string;
+  /**
+   * Effective: the subscription's own, else the organization's default
+   */
+  daysUntilDue: number;
+  /**
+   * The subscription's own payment terms; null when it takes the organization's
+   */
+  daysUntilDueOverride: number | null;
+  id: string;
+  /**
+   * When a checkout waiting for its payment ends unpaid: INCOMPLETE, or a free subscription that carries one
+   */
+  incompleteExpiresAt: string | null;
+  instanceName: string;
+  /**
+   * As it was at the subscription's last write
+   */
+  instanceSlug: string;
+  pastDueSince: string | null;
+  /**
+   * The licence version a checkout waiting for its payment moves the instance to once paid
+   */
+  pendingLicenseSlug: string | null;
+  /**
+   * Who collects its invoices. NOOP: the organization itself, through the handoff queue
+   */
+  providerKind: "NOOP" | "STRIPE";
+  /**
+   * When trial_will_end is (or was) emitted: trialEndsAt minus the family's trialReminderDays as it was when the trial started; set with trialEndsAt
+   */
+  reminderAt: string | null;
+  /**
+   * A plan change waiting for the next boundary
+   */
+  scheduledChange: ScheduledChange | null;
+  /**
+   * When billing started: usage before it is never billed
+   */
+  startedAt: string;
+  status: "INCOMPLETE" | "TRIAL" | "ACTIVE" | "PAST_DUE" | "CANCELED";
+  /**
+   * When the trial ends, or ended: usage before it is never billed
+   */
+  trialEndsAt: string | null;
+  updatedAt: string;
+};
+
+export type StatusChangeDelivered = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  from: "INCOMPLETE" | "TRIAL" | "ACTIVE" | "PAST_DUE" | "CANCELED";
+  instanceBillingId: string;
+  instanceSlug: string;
+  reason: "TRIAL_ENDED" | "INVOICE_OVERDUE" | "PAYMENT_FAILED" | "SETTLED";
+  to: "INCOMPLETE" | "TRIAL" | "ACTIVE" | "PAST_DUE" | "CANCELED";
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
+export type SubscriptionAddon = {
+  /**
+   * The add-on version to attach
+   */
+  addonSlug: string;
+  quantity?: number;
+};
+
+export type SubscriptionCancellation = {
+  /**
+   * AT_PERIOD_END (the default): the period paid for runs out, then the FINAL invoice is issued. IMMEDIATE: the FINAL invoice is issued now, flat fees billed in full and nothing refunded.
+   */
+  mode?: "AT_PERIOD_END" | "IMMEDIATE";
+  /**
+   * Up to 500 characters
+   */
+  reason?: string;
+};
+
+export type SubscriptionTerms = {
+  /**
+   * null: the organization's default. CHARGE_AUTOMATICALLY needs a provider that charges automatically (UpdateInstanceBilling.CollectionMethodUnsupported).
+   */
+  collectionMethod?: "SEND_INVOICE" | "CHARGE_AUTOMATICALLY";
+  /**
+   * 0 to 365; null: the organization's default
+   */
+  daysUntilDue?: number | null;
+  /**
+   * Who issues and collects the invoices, from the next one on. NOOP: the organization itself, through the handoff queue. A provider must be connected (UpdateInstanceBilling.ProviderNotConnected); one that pushes invoices needs the customer's billing e-mail for SEND_INVOICE (.BillingEmailMissing) and the subscription's currency (.UnsupportedCurrency).
+   */
+  providerKind?: "NOOP" | "STRIPE";
+};
+
+export type SyncFailureDelivered = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  consecutiveFailures: number;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  lastSyncError: string;
+  lastSyncedAt: string;
+  providerKind: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
+export type SyncReport = {
+  providers: Array<Outcome>;
+};
+
+export type SystemTokenIssuanceDelivered = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
   /**
    * Credential class that performed the mint; "platform" is the system:kaiten identity
    */
   credentialKind: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
   /**
    * Absent when the minted credential does not expire
    */
@@ -1959,6 +8624,10 @@ export type SystemTokenIssuance = {
    * Server-assigned identifier of the minted credential
    */
   slug: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
 export type TargetingContext = {
@@ -1973,6 +8642,10 @@ export type TargetingContextNode = {
    * What this value means, shown by the editor
    */
   description?: string;
+  /**
+   * Shape of each known key, for a map whose entries differ. Named after the key
+   */
+  entries?: Array<TargetingContextNode>;
   /**
    * Named children, for an object
    */
@@ -2105,6 +8778,358 @@ export type Token = {
   slug?: string;
 };
 
+export type TotalsDifference = {
+  kaitenTotal: number;
+  providerSubtotal?: number;
+  /**
+   * With inclusive tax: the provider's discounts, already taken off its subtotal
+   */
+  providerTotalDiscount?: number;
+  providerTotalExcludingTax: number;
+};
+
+export type TrialCharge = {
+  amount: number;
+  billingPeriod: "MONTHLY" | "QUARTERLY" | "SEMI_ANNUAL" | "ANNUAL";
+  currency: string;
+};
+
+export type TrialCustomer = {
+  /**
+   * Personal data: the second payload that carries an e-mail (D-56)
+   */
+  billingEmail: string | null;
+  name: string;
+  slug: string;
+};
+
+export type TrialInstance = {
+  name: string;
+  slug: string;
+};
+
+export type TrialPaymentMethod = {
+  brand: string | null;
+  expMonth: number | null;
+  expYear: number | null;
+  last4: string | null;
+};
+
+export type TrialWillEndDelivered = {
+  /**
+   * The instant its periods are counted from
+   */
+  anchorAt: string;
+  /**
+   * The FLAT_FEE price the subscription is pinned to, deprecated or not
+   */
+  basePrice: Price;
+  billingPeriod: "MONTHLY" | "QUARTERLY" | "SEMI_ANNUAL" | "ANNUAL";
+  cancelAtPeriodEnd: boolean;
+  cancelRequestedAt: string | null;
+  canceledAt: string | null;
+  cancellationReason: string | null;
+  /**
+   * What the conversion would charge, as upcoming-invoice previews it, discounts included and before any tax the provider adds; null when nothing would be
+   */
+  charge: TrialCharge | null;
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * Effective: the subscription's own, else the organization's default
+   */
+  collectionMethod: "SEND_INVOICE" | "CHARGE_AUTOMATICALLY";
+  /**
+   * The subscription's own collection method; null when it takes the organization's
+   */
+  collectionMethodOverride: string | null;
+  createdAt: string;
+  currency: string;
+  /**
+   * The next boundary: the period closes, and its invoice is composed, after it
+   */
+  currentPeriodEnd: string;
+  currentPeriodStart: string;
+  customer: TrialCustomer;
+  customerName: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  customerSlug: string;
+  /**
+   * Whole days from the event to trialEndsAt, rounded up; 0 once it passed
+   */
+  daysLeft: number;
+  /**
+   * Effective: the subscription's own, else the organization's default
+   */
+  daysUntilDue: number;
+  /**
+   * The subscription's own payment terms; null when it takes the organization's
+   */
+  daysUntilDueOverride: number | null;
+  /**
+   * Its family
+   */
+  familySlug: string;
+  id: string;
+  /**
+   * When a checkout waiting for its payment ends unpaid: INCOMPLETE, or a free subscription that carries one
+   */
+  incompleteExpiresAt: string | null;
+  instance: TrialInstance;
+  instanceName: string;
+  /**
+   * As it was at the subscription's last write
+   */
+  instanceSlug: string;
+  /**
+   * The licence version of the base price
+   */
+  licenseName: string;
+  pastDueSince: string | null;
+  /**
+   * The ACTIVE card the conversion would be charged to; null without one, or on NOOP
+   */
+  paymentMethod: TrialPaymentMethod | null;
+  /**
+   * The licence version a checkout waiting for its payment moves the instance to once paid
+   */
+  pendingLicenseSlug: string | null;
+  /**
+   * Who collects its invoices. NOOP: the organization itself, through the handoff queue
+   */
+  providerKind: "NOOP" | "STRIPE";
+  /**
+   * When trial_will_end is (or was) emitted: trialEndsAt minus the family's trialReminderDays as it was when the trial started; set with trialEndsAt
+   */
+  reminderAt: string | null;
+  /**
+   * A plan change waiting for the next boundary
+   */
+  scheduledChange: ScheduledChange | null;
+  /**
+   * When billing started: usage before it is never billed
+   */
+  startedAt: string;
+  status: "INCOMPLETE" | "TRIAL" | "ACTIVE" | "PAST_DUE" | "CANCELED";
+  /**
+   * When the trial ends, or ended: usage before it is never billed
+   */
+  trialEndsAt: string | null;
+  updatedAt: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
+export type UncollectibleInvoiceDelivered = {
+  /**
+   * The boundary the invoice bills. With the kind, it identifies the invoice within its subscription
+   */
+  boundaryAt: string;
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  collectionMethod: "SEND_INVOICE" | "CHARGE_AUTOMATICALLY";
+  createdAt: string;
+  currency: string;
+  customerName: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  /**
+   * As it was when the invoice was composed
+   */
+  customerSlug: string;
+  daysUntilDue: number | null;
+  /**
+   * Sum of the discounts, in minor units
+   */
+  discountTotal: number;
+  /**
+   * issuedAt + daysUntilDue
+   */
+  dueAt: string | null;
+  /**
+   * PENDING: waiting in the handoff queue for the organization's accounting system
+   */
+  handoffStatus: "NOT_REQUIRED" | "PENDING" | "ACKNOWLEDGED";
+  /**
+   * Why a DRAFT is held: the usage journal it was measured from failed a consistency check (LEDGER_*), or its provider cannot take that many lines (PROVIDER_ITEM_LIMIT)
+   */
+  holdReason:
+    | "LEDGER_SEQUENCE_GAP"
+    | "LEDGER_CHAIN_BREAK"
+    | "LEDGER_COUNTER_MISMATCH"
+    | "PROVIDER_ITEM_LIMIT"
+    | null;
+  /**
+   * The invoice's identifier: the key an accounting system deduplicates on
+   */
+  id: string;
+  instanceName: string;
+  instanceSlug: string;
+  issuedAt: string | null;
+  /**
+   * ACTIVATION bills a subscription's first period, RENEWAL the period that ended and the one that starts, FINAL what is left when a subscription ends
+   */
+  kind: "ACTIVATION" | "RENEWAL" | "FINAL";
+  licenseSlug: string;
+  /**
+   * Whether the invoice is overdue when read, the grace period of automatic collection included: the predicate of ?overdue=true. Computed by the invoice list and the invoice read; false in the answers of writes and in event payloads.
+   */
+  overdue: boolean;
+  paidAt: string | null;
+  /**
+   * Who collects it. NOOP: the organization itself, through the handoff queue
+   */
+  providerKind: "NOOP" | "STRIPE";
+  reason: string;
+  /**
+   * Earliest start of its lines' service periods
+   */
+  serviceFrom: string;
+  /**
+   * Latest end of its lines' service periods
+   */
+  serviceTo: string;
+  /**
+   * MANUAL: issued, for the organization to collect. PAID, UNCOLLECTIBLE and VOID are final. DRAFT: held, waiting for a release or a recompose
+   */
+  status:
+    | "DRAFT"
+    | "PUSHED"
+    | "PUSH_FAILED"
+    | "MANUAL"
+    | "PAID"
+    | "PAYMENT_FAILED"
+    | "UNCOLLECTIBLE"
+    | "VOID";
+  /**
+   * Sum of the lines, in minor units
+   */
+  subtotal: number;
+  /**
+   * subtotal − discountTotal, in minor units
+   */
+  total: number;
+  updatedAt: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
+export type UsageLedger = {
+  /**
+   * How long usage reports are kept, in months; null when they are kept forever (ENV) or the retention is unknown (UNKNOWN)
+   */
+  retentionMonths: number | null;
+  /**
+   * KBK: the organization's licence or an add-on; ENV: KAITEN_USAGE_LEDGER_RETENTION_MONTHS, with no licensing authority; UNKNOWN: the licensing authority could not tell
+   */
+  retentionSource: "KBK" | "ENV" | "UNKNOWN";
+};
+
+export type UsageReport = {
+  /**
+   * The entitlement's aggregation method when the report was accepted
+   */
+  aggregationMethod: string;
+  /**
+   * append adds the value through the aggregation method; set overwrites the counter
+   */
+  behavior: "append" | "set";
+  /**
+   * valueAfter minus valueBefore; negative for a set that lowered the counter
+   */
+  delta: string;
+  /**
+   * The entitlement the report was made for. It may since have been deleted.
+   */
+  entitlementId: string;
+  /**
+   * Reports counted in the window after this one
+   */
+  eventCountAfter: number;
+  /**
+   * The instance the report was made for. It may since have been deleted.
+   */
+  instanceId: string;
+  /**
+   * The instance's licence when the report was accepted
+   */
+  licenseId: string;
+  /**
+   * The limit in force when the report was accepted. Null when unlimited.
+   */
+  limitValue: string | null;
+  /**
+   * How much the usage above limitValue moved: max(0, valueAfter - limitValue) - max(0, valueBefore - limitValue). 0 when unlimited.
+   */
+  overageDelta: string;
+  /**
+   * The overage allowed above limitValue, in percent, when the report was accepted. Null when unlimited.
+   */
+  overagePercent: number | null;
+  /**
+   * The report's metadata; null when none was stored
+   */
+  properties: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * Position of the report among the pair's accepted reports, from 1, without gaps
+   */
+  reportSeq: number;
+  /**
+   * When the server accepted the report (UTC, millisecond precision)
+   */
+  reportedAt: string;
+  /**
+   * The value as sent: a delta for append, an absolute value for set
+   */
+  reportedValue: string;
+  /**
+   * The report's idempotency key; null when it was sent without one
+   */
+  transactionId: string | null;
+  /**
+   * The counter after the report
+   */
+  valueAfter: string;
+  /**
+   * The counter before the report, after any window reset
+   */
+  valueBefore: string;
+  /**
+   * End of the usage window the report counted in (exclusive). Null for a lifetime entitlement.
+   */
+  windowEnd: string | null;
+  /**
+   * Start of the usage window the report counted in (inclusive). Null for a lifetime entitlement.
+   */
+  windowStart: string | null;
+};
+
+export type UsageReportPage = {
+  /**
+   * The reports, in reportSeq order
+   */
+  items: Array<UsageReport>;
+  /**
+   * Pass as afterSeq to read the next page. Absent on the last page.
+   */
+  nextAfterSeq?: number;
+};
+
 export type User = {
   /**
    * ID of the user
@@ -2116,10 +9141,979 @@ export type User = {
   name?: string;
 };
 
+export type UserAuthorization = {
+  enabled: boolean;
+  permissions: Array<string>;
+  roles: Array<string>;
+};
+
+export type UserEnablement = {
+  enabled: boolean;
+};
+
+export type UserRoleAssignments = {
+  permissions: Array<string>;
+  roles: Array<string>;
+};
+
+export type Validity = {
+  /**
+   * The first failing check. DISCOUNT_LIMIT_EXCEEDED: a line of the instance's invoices would bear more than 20 discounts
+   */
+  reason?:
+    | "NOT_FOUND"
+    | "NOT_ACTIVE"
+    | "NOT_YET_VALID"
+    | "EXPIRED"
+    | "EXHAUSTED"
+    | "ALREADY_REDEEMED"
+    | "NOT_ELIGIBLE"
+    | "CURRENCY_MISMATCH"
+    | "DISCOUNT_LIMIT_EXCEEDED";
+  /**
+   * With NOT_ELIGIBLE: the eligibility rule
+   */
+  rule?:
+    | "RESTRICTED_CUSTOMER"
+    | "LICENSE_NOT_APPLICABLE"
+    | "ADDON_NOT_APPLICABLE"
+    | "FIRST_TIME_ONLY"
+    | "ANNUAL_ONLY"
+    | "MINIMUM_SUBSCRIPTION_AMOUNT"
+    | "NOTHING_TO_BOOST";
+  valid: boolean;
+  /**
+   * The voucher, without its code, when the code names one
+   */
+  voucher?: Voucher;
+};
+
 export type Variant = {
   description: string;
   name: string;
   value: unknown;
+};
+
+export type VoidedInvoiceDelivered = {
+  /**
+   * The boundary the invoice bills. With the kind, it identifies the invoice within its subscription
+   */
+  boundaryAt: string;
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  collectionMethod: "SEND_INVOICE" | "CHARGE_AUTOMATICALLY";
+  createdAt: string;
+  currency: string;
+  customerName: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  /**
+   * As it was when the invoice was composed
+   */
+  customerSlug: string;
+  daysUntilDue: number | null;
+  /**
+   * Sum of the discounts, in minor units
+   */
+  discountTotal: number;
+  /**
+   * issuedAt + daysUntilDue
+   */
+  dueAt: string | null;
+  /**
+   * PENDING: waiting in the handoff queue for the organization's accounting system
+   */
+  handoffStatus: "NOT_REQUIRED" | "PENDING" | "ACKNOWLEDGED";
+  /**
+   * Why a DRAFT is held: the usage journal it was measured from failed a consistency check (LEDGER_*), or its provider cannot take that many lines (PROVIDER_ITEM_LIMIT)
+   */
+  holdReason:
+    | "LEDGER_SEQUENCE_GAP"
+    | "LEDGER_CHAIN_BREAK"
+    | "LEDGER_COUNTER_MISMATCH"
+    | "PROVIDER_ITEM_LIMIT"
+    | null;
+  /**
+   * The invoice's identifier: the key an accounting system deduplicates on
+   */
+  id: string;
+  instanceName: string;
+  instanceSlug: string;
+  issuedAt: string | null;
+  /**
+   * ACTIVATION bills a subscription's first period, RENEWAL the period that ended and the one that starts, FINAL what is left when a subscription ends
+   */
+  kind: "ACTIVATION" | "RENEWAL" | "FINAL";
+  licenseSlug: string;
+  /**
+   * Whether the invoice is overdue when read, the grace period of automatic collection included: the predicate of ?overdue=true. Computed by the invoice list and the invoice read; false in the answers of writes and in event payloads.
+   */
+  overdue: boolean;
+  paidAt: string | null;
+  /**
+   * Who collects it. NOOP: the organization itself, through the handoff queue
+   */
+  providerKind: "NOOP" | "STRIPE";
+  /**
+   * Earliest start of its lines' service periods
+   */
+  serviceFrom: string;
+  /**
+   * Latest end of its lines' service periods
+   */
+  serviceTo: string;
+  /**
+   * MANUAL: issued, for the organization to collect. PAID, UNCOLLECTIBLE and VOID are final. DRAFT: held, waiting for a release or a recompose
+   */
+  status:
+    | "DRAFT"
+    | "PUSHED"
+    | "PUSH_FAILED"
+    | "MANUAL"
+    | "PAID"
+    | "PAYMENT_FAILED"
+    | "UNCOLLECTIBLE"
+    | "VOID";
+  /**
+   * Sum of the lines, in minor units
+   */
+  subtotal: number;
+  /**
+   * subtotal − discountTotal, in minor units
+   */
+  total: number;
+  updatedAt: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+  voidReason: string;
+};
+
+export type Voucher = {
+  /**
+   * Only instances holding one of these add-on versions can redeem it; any when empty
+   */
+  applicableAddonIds: Array<string>;
+  applicableAddonPriceIds: Array<string>;
+  /**
+   * Only instances on these licence versions can redeem it; any when empty
+   */
+  applicableLicenseIds: Array<string>;
+  applicableLicensePriceIds: Array<string>;
+  /**
+   * The code to redeem. Returned to read:vouchers callers only; never in an event.
+   */
+  code?: string;
+  /**
+   * The last four characters of the normalized code
+   */
+  codeHint: string;
+  readonly createdAt: string;
+  /**
+   * The currency of a FIXED_AMOUNT discount
+   */
+  currency: string | null;
+  description: string | null;
+  /**
+   * PRICE: how many invoices it discounts (one, durationInPeriods, or every one). BOOST and FLAG_GRANT: how long a redemption lasts, in the subscription's billing periods. COMPOSITE: both, each for its part.
+   */
+  duration: "ONE_TIME" | "REPEATING" | "FOREVER";
+  durationInPeriods: number | null;
+  expiresAt: string | null;
+  /**
+   * The flag variants a FLAG_GRANT grants
+   */
+  flagGrants: Array<FlagGrant>;
+  /**
+   * What an ENTITLEMENT_BOOST changes
+   */
+  grants: Array<Grant>;
+  readonly id: string;
+  maxRedemptions: number | null;
+  name: string;
+  priceAppliesTo: "LICENSE_BASE" | "ADDONS" | "BOTH" | "SELECTED_PRICES" | null;
+  priceDiscountType: "PERCENTAGE" | "FIXED_AMOUNT" | null;
+  /**
+   * A percentage in (0, 100], or an integer amount in minor units of currency
+   */
+  priceDiscountValue: string | null;
+  redemptionRules: RedemptionRules;
+  redemptionsCount: number;
+  /**
+   * Only this customer's instances can redeem it
+   */
+  restrictedCustomerSlug: string | null;
+  startsAt: string | null;
+  status: "DRAFT" | "ACTIVE" | "EXPIRED" | "EXHAUSTED" | "ARCHIVED";
+  readonly updatedAt: string;
+  voucherType: "PRICE" | "ENTITLEMENT_BOOST" | "FLAG_GRANT" | "COMPOSITE";
+};
+
+export type VoucherCheck = {
+  code: string;
+  /**
+   * Also run the checks that need the redeeming instance
+   */
+  instanceSlug?: string;
+  /**
+   * The flat-fee price a subscription would start on: the licence, period, amount and currency checks read it instead of the instance's live subscription
+   */
+  licensePriceId?: string;
+};
+
+export type VoucherCode = {
+  code: string;
+};
+
+export type VoucherDelivered = {
+  /**
+   * Only instances holding one of these add-on versions can redeem it; any when empty
+   */
+  applicableAddonIds: Array<string>;
+  applicableAddonPriceIds: Array<string>;
+  /**
+   * Only instances on these licence versions can redeem it; any when empty
+   */
+  applicableLicenseIds: Array<string>;
+  applicableLicensePriceIds: Array<string>;
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * The code to redeem. Returned to read:vouchers callers only; never in an event.
+   */
+  code?: string;
+  /**
+   * The last four characters of the normalized code
+   */
+  codeHint: string;
+  readonly createdAt: string;
+  /**
+   * The currency of a FIXED_AMOUNT discount
+   */
+  currency: string | null;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  description: string | null;
+  /**
+   * PRICE: how many invoices it discounts (one, durationInPeriods, or every one). BOOST and FLAG_GRANT: how long a redemption lasts, in the subscription's billing periods. COMPOSITE: both, each for its part.
+   */
+  duration: "ONE_TIME" | "REPEATING" | "FOREVER";
+  durationInPeriods: number | null;
+  expiresAt: string | null;
+  /**
+   * The flag variants a FLAG_GRANT grants
+   */
+  flagGrants: Array<FlagGrant>;
+  /**
+   * What an ENTITLEMENT_BOOST changes
+   */
+  grants: Array<Grant>;
+  readonly id: string;
+  maxRedemptions: number | null;
+  name: string;
+  priceAppliesTo: "LICENSE_BASE" | "ADDONS" | "BOTH" | "SELECTED_PRICES" | null;
+  priceDiscountType: "PERCENTAGE" | "FIXED_AMOUNT" | null;
+  /**
+   * A percentage in (0, 100], or an integer amount in minor units of currency
+   */
+  priceDiscountValue: string | null;
+  redemptionRules: RedemptionRules;
+  redemptionsCount: number;
+  /**
+   * Only this customer's instances can redeem it
+   */
+  restrictedCustomerSlug: string | null;
+  startsAt: string | null;
+  status: "DRAFT" | "ACTIVE" | "EXPIRED" | "EXHAUSTED" | "ARCHIVED";
+  readonly updatedAt: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+  voucherType: "PRICE" | "ENTITLEMENT_BOOST" | "FLAG_GRANT" | "COMPOSITE";
+};
+
+export type VoucherDraft = {
+  applicableAddonIds?: Array<string> | null;
+  /**
+   * With SELECTED_PRICES: the add-on prices it discounts
+   */
+  applicableAddonPriceIds?: Array<string> | null;
+  applicableLicenseIds?: Array<string> | null;
+  /**
+   * With SELECTED_PRICES: the licence prices it discounts
+   */
+  applicableLicensePriceIds?: Array<string> | null;
+  /**
+   * 8 to 64 of [A-Za-z0-9_-]. Generated when absent: 16 characters, 80 random bits. Matched without case or separators.
+   */
+  code?: string;
+  /**
+   * Required with FIXED_AMOUNT, refused otherwise
+   */
+  currency?: string;
+  description?: string;
+  duration: "ONE_TIME" | "REPEATING" | "FOREVER";
+  /**
+   * Required with REPEATING, refused otherwise
+   */
+  durationInPeriods?: number;
+  expiresAt?: string;
+  /**
+   * Required on a FLAG_GRANT, optional on a COMPOSITE, one per flag, refused otherwise
+   */
+  flagGrants?: Array<FlagGrant> | null;
+  /**
+   * Required on an ENTITLEMENT_BOOST, optional on a COMPOSITE, refused otherwise
+   */
+  grants?: Array<Grant> | null;
+  maxRedemptions?: number;
+  name: string;
+  priceAppliesTo?: "LICENSE_BASE" | "ADDONS" | "BOTH" | "SELECTED_PRICES";
+  priceDiscountType?: "PERCENTAGE" | "FIXED_AMOUNT";
+  /**
+   * A percentage in (0, 100], or an integer amount in minor units
+   */
+  priceDiscountValue?: string;
+  redemptionRules?: RedemptionRules;
+  restrictedCustomerSlug?: string;
+  startsAt?: string;
+  voucherType: "PRICE" | "ENTITLEMENT_BOOST" | "FLAG_GRANT" | "COMPOSITE";
+};
+
+export type AddonWritable = {
+  description: string;
+  /**
+   * The family the version belongs to
+   */
+  familySlug: string;
+  /**
+   * The version the family resolves to. Only a PUBLISHED version.
+   */
+  isDefault: boolean;
+  /**
+   * A DRAFT can be attached to try it; an ARCHIVED version stays on the instances holding it but cannot be attached again.
+   */
+  lifecycleState: "DRAFT" | "PUBLISHED" | "ARCHIVED";
+  /**
+   * The largest quantity an instance can hold; unbounded when null
+   */
+  maxQuantity: number | null;
+  name: string;
+  pricingType: "FREE" | "PAID" | "CUSTOM";
+  /**
+   * The version's slug, unique in the organization
+   */
+  slug: string;
+  versionName: string;
+};
+
+export type AddonDeliveredWritable = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  description: string;
+  /**
+   * The family the version belongs to
+   */
+  familySlug: string;
+  /**
+   * The version the family resolves to. Only a PUBLISHED version.
+   */
+  isDefault: boolean;
+  /**
+   * A DRAFT can be attached to try it; an ARCHIVED version stays on the instances holding it but cannot be attached again.
+   */
+  lifecycleState: "DRAFT" | "PUBLISHED" | "ARCHIVED";
+  /**
+   * The largest quantity an instance can hold; unbounded when null
+   */
+  maxQuantity: number | null;
+  name: string;
+  pricingType: "FREE" | "PAID" | "CUSTOM";
+  /**
+   * The version's slug, unique in the organization
+   */
+  slug: string;
+  versionName: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
+export type AddonEntitlementWritable = {
+  entitlementSlug: string;
+  entitlementType: "BOOLEAN" | "NUMBER" | "CONFIG" | "NUMBER_AI_CREDIT";
+  /**
+   * The overage the add-on allows; null inherits the licence grant's
+   */
+  limitCapExceededOveragePercent: number | null;
+  /**
+   * How a number grant combines with the licence's: ADD sums value × quantity, OVERRIDE replaces it with the latest attached add-on's, MAX keeps the larger. A boolean always ORs, a config always overrides.
+   */
+  overrideBehavior: "ADD" | "OVERRIDE" | "MAX";
+  /**
+   * {type, value}, shaped like a licence grant. A number counts once per unit of quantity.
+   */
+  value: {
+    [key: string]: unknown;
+  };
+};
+
+export type AddonFamilyWritable = {
+  /**
+   * The default version, else the highest PUBLISHED one; null when none is published
+   */
+  currentVersion: AddonWritable | null;
+  /**
+   * How a mid-period increase or attachment of the family's ADVANCE add-ons is billed (V31-70)
+   */
+  increaseBilling: "TRUE_UP" | "NEXT_BOUNDARY";
+  /**
+   * Whether the family is listed in the public catalogue
+   */
+  isPublic: boolean;
+  /**
+   * The highest version number the family has assigned
+   */
+  lastVersion: number;
+  slug: string;
+  /**
+   * Every version, newest first
+   */
+  versions: Array<AddonWritable> | null;
+};
+
+export type AddonGrantUpdateDeliveredWritable = {
+  /**
+   * The add-on version the grant belongs to
+   */
+  addonSlug: string;
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  entitlementSlug: string;
+  entitlementType: "BOOLEAN" | "NUMBER" | "CONFIG" | "NUMBER_AI_CREDIT";
+  /**
+   * The overage the add-on allows; null inherits the licence grant's
+   */
+  limitCapExceededOveragePercent: number | null;
+  /**
+   * How a number grant combines with the licence's: ADD sums value × quantity, OVERRIDE replaces it with the latest attached add-on's, MAX keeps the larger. A boolean always ORs, a config always overrides.
+   */
+  overrideBehavior: "ADD" | "OVERRIDE" | "MAX";
+  /**
+   * {type, value}, shaped like a licence grant. A number counts once per unit of quantity.
+   */
+  value: {
+    [key: string]: unknown;
+  };
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
+export type AddonPriceUpdateDeliveredWritable = {
+  /**
+   * The add-on version the price belongs to
+   */
+  addonSlug: string;
+  /**
+   * FLAT_FEE: an amount per billing period. USAGE_BASED: an amount per sale unit of the metered entitlement's usage. OVERAGE: an amount per sale unit of the usage above the licence's limit.
+   */
+  billingModel: "FLAT_FEE" | "USAGE_BASED" | "OVERAGE";
+  /**
+   * The period a FLAT_FEE price is charged for. Null on metered prices, which bill on the subscription's period.
+   */
+  billingPeriod: "MONTHLY" | "QUARTERLY" | "SEMI_ANNUAL" | "ANNUAL" | null;
+  /**
+   * ADVANCE bills the period that starts; ARREARS the period that ended. Metered prices are always ARREARS.
+   */
+  billingTiming: "ADVANCE" | "ARREARS";
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * ISO 4217 code, upper case. One currency per licence version.
+   */
+  currency: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  /**
+   * When the price was deprecated
+   */
+  deprecatedAt: string | null;
+  /**
+   * The invoice line's label; a default is derived when it is null.
+   */
+  displayLabel: string | null;
+  /**
+   * Order among the version's prices
+   */
+  displayOrder: number;
+  /**
+   * The FLAT_FEE price picked for its billing period when none is named. At most one per period; only an ACTIVE FLAT_FEE price.
+   */
+  isDefault: boolean;
+  /**
+   * What a metered price measures. Null on FLAT_FEE prices.
+   */
+  metered: PriceMeter | null;
+  /**
+   * A DEPRECATED price keeps billing what is already pinned to it but is no longer offered.
+   */
+  status: "ACTIVE" | "DEPRECATED";
+  /**
+   * unitAmountDecimal as an integer number of minor units, when it is one; null otherwise.
+   */
+  unitAmount: number | null;
+  /**
+   * Amount in the currency's minor units (cents for EUR): per period for FLAT_FEE, per sale unit for metered prices. Up to 12 decimal places.
+   */
+  unitAmountDecimal: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
+export type AddonUpdateDeliveredWritable = {
+  /**
+   * The members the change touched, as the API names them
+   */
+  changedFields: Array<string> | null;
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * The licence families the version fits after the change
+   */
+  compatibleLicenseFamilies: Array<string> | null;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  description: string;
+  /**
+   * The family the version belongs to
+   */
+  familySlug: string;
+  /**
+   * The version the family resolves to. Only a PUBLISHED version.
+   */
+  isDefault: boolean;
+  /**
+   * A DRAFT can be attached to try it; an ARCHIVED version stays on the instances holding it but cannot be attached again.
+   */
+  lifecycleState: "DRAFT" | "PUBLISHED" | "ARCHIVED";
+  /**
+   * The largest quantity an instance can hold; unbounded when null
+   */
+  maxQuantity: number | null;
+  name: string;
+  pricingType: "FREE" | "PAID" | "CUSTOM";
+  /**
+   * The version's slug, unique in the organization
+   */
+  slug: string;
+  versionName: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
+export type BillingStartedDeliveredWritable = {
+  /**
+   * The instant its periods are counted from
+   */
+  anchorAt: string;
+  /**
+   * The FLAT_FEE price the subscription is pinned to, deprecated or not
+   */
+  basePrice: PriceWritable;
+  billingPeriod: "MONTHLY" | "QUARTERLY" | "SEMI_ANNUAL" | "ANNUAL";
+  cancelAtPeriodEnd: boolean;
+  cancelRequestedAt: string | null;
+  canceledAt: string | null;
+  cancellationReason: string | null;
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * Effective: the subscription's own, else the organization's default
+   */
+  collectionMethod: "SEND_INVOICE" | "CHARGE_AUTOMATICALLY";
+  /**
+   * The subscription's own collection method; null when it takes the organization's
+   */
+  collectionMethodOverride: string | null;
+  createdAt: string;
+  currency: string;
+  /**
+   * The next boundary: the period closes, and its invoice is composed, after it
+   */
+  currentPeriodEnd: string;
+  currentPeriodStart: string;
+  customerName: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  customerSlug: string;
+  /**
+   * Effective: the subscription's own, else the organization's default
+   */
+  daysUntilDue: number;
+  /**
+   * The subscription's own payment terms; null when it takes the organization's
+   */
+  daysUntilDueOverride: number | null;
+  id: string;
+  /**
+   * When a checkout waiting for its payment ends unpaid: INCOMPLETE, or a free subscription that carries one
+   */
+  incompleteExpiresAt: string | null;
+  instanceName: string;
+  /**
+   * As it was at the subscription's last write
+   */
+  instanceSlug: string;
+  pastDueSince: string | null;
+  /**
+   * The licence version a checkout waiting for its payment moves the instance to once paid
+   */
+  pendingLicenseSlug: string | null;
+  /**
+   * Who collects its invoices. NOOP: the organization itself, through the handoff queue
+   */
+  providerKind: "NOOP" | "STRIPE";
+  /**
+   * When trial_will_end is (or was) emitted: trialEndsAt minus the family's trialReminderDays as it was when the trial started; set with trialEndsAt
+   */
+  reminderAt: string | null;
+  /**
+   * Set when a CANCELED subscription was subscribed again
+   */
+  resubscribed: boolean;
+  /**
+   * A plan change waiting for the next boundary
+   */
+  scheduledChange: ScheduledChangeWritable | null;
+  /**
+   * When billing started: usage before it is never billed
+   */
+  startedAt: string;
+  status: "INCOMPLETE" | "TRIAL" | "ACTIVE" | "PAST_DUE" | "CANCELED";
+  /**
+   * When the trial ends, or ended: usage before it is never billed
+   */
+  trialEndsAt: string | null;
+  updatedAt: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
+export type CanceledSubscriptionWritable = {
+  /**
+   * The instant its periods are counted from
+   */
+  anchorAt: string;
+  /**
+   * The FLAT_FEE price the subscription is pinned to, deprecated or not
+   */
+  basePrice: PriceWritable;
+  billingPeriod: "MONTHLY" | "QUARTERLY" | "SEMI_ANNUAL" | "ANNUAL";
+  cancelAtPeriodEnd: boolean;
+  cancelRequestedAt: string | null;
+  canceledAt: string | null;
+  cancellationReason: string | null;
+  /**
+   * Effective: the subscription's own, else the organization's default
+   */
+  collectionMethod: "SEND_INVOICE" | "CHARGE_AUTOMATICALLY";
+  /**
+   * The subscription's own collection method; null when it takes the organization's
+   */
+  collectionMethodOverride: string | null;
+  createdAt: string;
+  currency: string;
+  /**
+   * The next boundary: the period closes, and its invoice is composed, after it
+   */
+  currentPeriodEnd: string;
+  currentPeriodStart: string;
+  customerName: string;
+  customerSlug: string;
+  /**
+   * Effective: the subscription's own, else the organization's default
+   */
+  daysUntilDue: number;
+  /**
+   * The subscription's own payment terms; null when it takes the organization's
+   */
+  daysUntilDueOverride: number | null;
+  /**
+   * The FINAL invoice of an immediate cancellation
+   */
+  finalInvoice?: InvoiceSummary;
+  id: string;
+  /**
+   * When a checkout waiting for its payment ends unpaid: INCOMPLETE, or a free subscription that carries one
+   */
+  incompleteExpiresAt: string | null;
+  instanceName: string;
+  /**
+   * As it was at the subscription's last write
+   */
+  instanceSlug: string;
+  pastDueSince: string | null;
+  /**
+   * The licence version a checkout waiting for its payment moves the instance to once paid
+   */
+  pendingLicenseSlug: string | null;
+  /**
+   * Who collects its invoices. NOOP: the organization itself, through the handoff queue
+   */
+  providerKind: "NOOP" | "STRIPE";
+  /**
+   * When trial_will_end is (or was) emitted: trialEndsAt minus the family's trialReminderDays as it was when the trial started; set with trialEndsAt
+   */
+  reminderAt: string | null;
+  /**
+   * A plan change waiting for the next boundary
+   */
+  scheduledChange: ScheduledChangeWritable | null;
+  /**
+   * When billing started: usage before it is never billed
+   */
+  startedAt: string;
+  status: "INCOMPLETE" | "TRIAL" | "ACTIVE" | "PAST_DUE" | "CANCELED";
+  /**
+   * When the trial ends, or ended: usage before it is never billed
+   */
+  trialEndsAt: string | null;
+  updatedAt: string;
+};
+
+export type CancellationChangeDeliveredWritable = {
+  /**
+   * The instant its periods are counted from
+   */
+  anchorAt: string;
+  /**
+   * The FLAT_FEE price the subscription is pinned to, deprecated or not
+   */
+  basePrice: PriceWritable;
+  billingPeriod: "MONTHLY" | "QUARTERLY" | "SEMI_ANNUAL" | "ANNUAL";
+  cancelAtPeriodEnd: boolean;
+  cancelRequestedAt: string | null;
+  canceledAt: string | null;
+  cancellationReason: string | null;
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * Effective: the subscription's own, else the organization's default
+   */
+  collectionMethod: "SEND_INVOICE" | "CHARGE_AUTOMATICALLY";
+  /**
+   * The subscription's own collection method; null when it takes the organization's
+   */
+  collectionMethodOverride: string | null;
+  createdAt: string;
+  currency: string;
+  /**
+   * The next boundary: the period closes, and its invoice is composed, after it
+   */
+  currentPeriodEnd: string;
+  currentPeriodStart: string;
+  customerName: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  customerSlug: string;
+  /**
+   * Effective: the subscription's own, else the organization's default
+   */
+  daysUntilDue: number;
+  /**
+   * The subscription's own payment terms; null when it takes the organization's
+   */
+  daysUntilDueOverride: number | null;
+  /**
+   * The boundary the cancellation takes effect at
+   */
+  effectiveAt: string;
+  id: string;
+  /**
+   * When a checkout waiting for its payment ends unpaid: INCOMPLETE, or a free subscription that carries one
+   */
+  incompleteExpiresAt: string | null;
+  instanceName: string;
+  /**
+   * As it was at the subscription's last write
+   */
+  instanceSlug: string;
+  pastDueSince: string | null;
+  /**
+   * The licence version a checkout waiting for its payment moves the instance to once paid
+   */
+  pendingLicenseSlug: string | null;
+  /**
+   * Who collects its invoices. NOOP: the organization itself, through the handoff queue
+   */
+  providerKind: "NOOP" | "STRIPE";
+  /**
+   * When trial_will_end is (or was) emitted: trialEndsAt minus the family's trialReminderDays as it was when the trial started; set with trialEndsAt
+   */
+  reminderAt: string | null;
+  /**
+   * A plan change waiting for the next boundary
+   */
+  scheduledChange: ScheduledChangeWritable | null;
+  /**
+   * When billing started: usage before it is never billed
+   */
+  startedAt: string;
+  status: "INCOMPLETE" | "TRIAL" | "ACTIVE" | "PAST_DUE" | "CANCELED";
+  /**
+   * When the trial ends, or ended: usage before it is never billed
+   */
+  trialEndsAt: string | null;
+  updatedAt: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
+export type CancellationDeliveredWritable = {
+  /**
+   * The instant its periods are counted from
+   */
+  anchorAt: string;
+  /**
+   * The FLAT_FEE price the subscription is pinned to, deprecated or not
+   */
+  basePrice: PriceWritable;
+  billingPeriod: "MONTHLY" | "QUARTERLY" | "SEMI_ANNUAL" | "ANNUAL";
+  cancelAtPeriodEnd: boolean;
+  cancelRequestedAt: string | null;
+  canceledAt: string | null;
+  cancellationReason: string | null;
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * Effective: the subscription's own, else the organization's default
+   */
+  collectionMethod: "SEND_INVOICE" | "CHARGE_AUTOMATICALLY";
+  /**
+   * The subscription's own collection method; null when it takes the organization's
+   */
+  collectionMethodOverride: string | null;
+  createdAt: string;
+  currency: string;
+  /**
+   * The next boundary: the period closes, and its invoice is composed, after it
+   */
+  currentPeriodEnd: string;
+  currentPeriodStart: string;
+  customerName: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  customerSlug: string;
+  /**
+   * Effective: the subscription's own, else the organization's default
+   */
+  daysUntilDue: number;
+  /**
+   * The subscription's own payment terms; null when it takes the organization's
+   */
+  daysUntilDueOverride: number | null;
+  /**
+   * The FINAL invoice; null when the cancellation issued none (a trial)
+   */
+  finalInvoiceId: string | null;
+  id: string;
+  /**
+   * When a checkout waiting for its payment ends unpaid: INCOMPLETE, or a free subscription that carries one
+   */
+  incompleteExpiresAt: string | null;
+  instanceName: string;
+  /**
+   * As it was at the subscription's last write
+   */
+  instanceSlug: string;
+  /**
+   * How it was canceled; a trial is canceled at once in either mode
+   */
+  mode: "AT_PERIOD_END" | "IMMEDIATE";
+  pastDueSince: string | null;
+  /**
+   * The licence version a checkout waiting for its payment moves the instance to once paid
+   */
+  pendingLicenseSlug: string | null;
+  /**
+   * Who collects its invoices. NOOP: the organization itself, through the handoff queue
+   */
+  providerKind: "NOOP" | "STRIPE";
+  /**
+   * When trial_will_end is (or was) emitted: trialEndsAt minus the family's trialReminderDays as it was when the trial started; set with trialEndsAt
+   */
+  reminderAt: string | null;
+  /**
+   * A plan change waiting for the next boundary
+   */
+  scheduledChange: ScheduledChangeWritable | null;
+  /**
+   * When billing started: usage before it is never billed
+   */
+  startedAt: string;
+  status: "INCOMPLETE" | "TRIAL" | "ACTIVE" | "PAST_DUE" | "CANCELED";
+  /**
+   * When the trial ends, or ended: usage before it is never billed
+   */
+  trialEndsAt: string | null;
+  updatedAt: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
 export type ComponentWritable = {
@@ -2145,6 +10139,41 @@ export type ComponentWritable = {
   version: string;
 };
 
+export type ComponentDeliveredWritable = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  /**
+   * Description of the component
+   */
+  description?: string;
+  /**
+   * Name of the component
+   */
+  name: string;
+  /**
+   * Reference to the previous version of this component
+   */
+  previousComponentId?: string;
+  /**
+   * Optional URL-friendly identifier, unique per organization. Auto-generated if not provided.
+   */
+  slug?: string;
+  /**
+   * Version of the component
+   */
+  version: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
 export type ConnectorSettingsWritable = {
   /**
    * Connector settings payload
@@ -2155,6 +10184,10 @@ export type ConnectorSettingsWritable = {
 };
 
 export type CustomerWritable = {
+  /**
+   * Where invoices sent to this customer are delivered, at most 254 characters (CreateCustomer.InvalidBillingEmail). Absent when there is none. On update, omit it or send null to keep the stored value, or send an empty string to remove it. Personal data: never included in event payloads.
+   */
+  billingEmail?: string | null;
   /**
    * Optional customer domain name
    */
@@ -2177,6 +10210,63 @@ export type CustomerWritable = {
    * Optional URL-friendly identifier, unique per organization. Auto-generated if not provided.
    */
   slug?: string;
+};
+
+export type CustomerEventDeliveredWritable = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * Timestamp when the customer was created
+   */
+  createdAt: string;
+  /**
+   * User who created this customer
+   */
+  createdBy: User;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  /**
+   * Customer domain name
+   */
+  domain?: string;
+  /**
+   * Identifier for the customer in an external system, null when there is none
+   */
+  externalCustomerId: string | null;
+  /**
+   * Unique identifier for the customer
+   */
+  id: string;
+  /**
+   * Integrations grouped by adapter name
+   */
+  integrations?: {
+    [key: string]: CustomerIntegrationWritable;
+  };
+  /**
+   * Name of the customer
+   */
+  name: string;
+  /**
+   * URL-friendly identifier, unique per organization
+   */
+  slug?: string;
+  /**
+   * Timestamp when the customer was last updated
+   */
+  updatedAt: string;
+  /**
+   * User who last updated this customer
+   */
+  updatedBy: User;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
 export type CustomerIntegrationWritable = {
@@ -2229,6 +10319,47 @@ export type DeploymentZoneWritable = {
   type: string;
 };
 
+export type DeploymentZoneDeliveredWritable = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  /**
+   * Description of the deployment zone
+   */
+  description: string;
+  /**
+   * Typed metadata for the deployment zone, validated against the org-scoped MetadataField schema
+   */
+  metadata?: {
+    [key: string]: unknown;
+  };
+  /**
+   * Name of the deployment zone
+   */
+  name: string;
+  /**
+   * Currently deployed release ID
+   */
+  releaseId?: string;
+  /**
+   * Optional URL-friendly identifier, unique per organization. Auto-generated if not provided.
+   */
+  slug?: string;
+  /**
+   * Environment class of the deployment zone. Free-form: any value is stored as sent, but production, staging and development are the ones the console labels, and feature-flag targeting rules match on this field as __kaiten.deploymentZone.type.
+   */
+  type: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
 export type EntitlementWritable = {
   /**
    * Method used to fold each reported usage value into the stored total (NUMBER only). Defaults to SUM.
@@ -2255,9 +10386,9 @@ export type EntitlementWritable = {
    */
   name: string;
   /**
-   * Phase of the periodic usage window: CALENDAR (UTC calendar-aligned) or LICENSE_START (phased off the instance's license start date). Required exactly when resetPeriod is set; defaults to CALENDAR when omitted. Immutable once set.
+   * Phase of the periodic usage window: CALENDAR (UTC calendar-aligned), LICENSE_START (phased off the instance's license start date) or BILLING_PERIOD (phased off the instance's live subscription's billing anchor, LICENSE_START without one; with resetPeriod MONTH or YEAR only). Required exactly when resetPeriod is set; defaults to CALENDAR when omitted. Immutable once set.
    */
-  resetAnchor?: "CALENDAR" | "LICENSE_START";
+  resetAnchor?: "CALENDAR" | "LICENSE_START" | "BILLING_PERIOD";
   /**
    * Cadence at which usage automatically resets for this NUMBER entitlement. NULL means a lifetime counter (default). Immutable once set -- a full-replace PUT must echo back the stored value.
    */
@@ -2300,6 +10431,89 @@ export type EntitlementWritable = {
   warningThresholdPercent?: number;
 };
 
+export type EntitlementDeliveredWritable = {
+  /**
+   * Method used to fold each reported usage value into the stored total (NUMBER only). Defaults to SUM.
+   */
+  aggregationMethod?: "COUNT" | "SUM" | "AVERAGE" | "MIN" | "MAX" | "LATEST";
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  /**
+   * Description of the entitlement
+   */
+  description: string | null;
+  /**
+   * Sort order of this entitlement in customer-facing components (ascending). Defaults to 0.
+   */
+  displayOrder?: number;
+  /**
+   * Groups associated with this entitlement, identified by slug
+   */
+  groupSlugs?: Array<string> | null;
+  /**
+   * Optional icon, stored as a provider-namespaced token (provider:name). Decoupled from any specific icon library.
+   */
+  icon?: string;
+  /**
+   * Name of the entitlement
+   */
+  name: string;
+  /**
+   * Phase of the periodic usage window: CALENDAR (UTC calendar-aligned), LICENSE_START (phased off the instance's license start date) or BILLING_PERIOD (phased off the instance's live subscription's billing anchor, LICENSE_START without one; with resetPeriod MONTH or YEAR only). Required exactly when resetPeriod is set; defaults to CALENDAR when omitted. Immutable once set.
+   */
+  resetAnchor?: "CALENDAR" | "LICENSE_START" | "BILLING_PERIOD";
+  /**
+   * Cadence at which usage automatically resets for this NUMBER entitlement. NULL means a lifetime counter (default). Immutable once set -- a full-replace PUT must echo back the stored value.
+   */
+  resetPeriod?: "HOUR" | "DAY" | "WEEK" | "MONTH" | "YEAR";
+  /**
+   * Number of base units one sale unit represents (1 sale unit = N base units).
+   */
+  saleUnitFactor?: number;
+  /**
+   * Plural label of the unit this entitlement is sold in, when it differs from the base unit.
+   */
+  saleUnitPlural?: string;
+  /**
+   * Singular label of the unit this entitlement is sold in, when it differs from the base unit. Requires the base unit labels and the full sale unit trio (saleUnitSingular, saleUnitPlural, saleUnitFactor).
+   */
+  saleUnitSingular?: string;
+  /**
+   * Optional URL-friendly identifier, unique per organization. Auto-generated if not provided.
+   */
+  slug?: string;
+  /**
+   * Type of the entitlement
+   */
+  type?: "BOOLEAN" | "NUMBER" | "CONFIG" | "NUMBER_AI_CREDIT";
+  /**
+   * Plural label of the base unit this entitlement is measured in (NUMBER type only). Must be provided together with unitSingular.
+   */
+  unitPlural?: string;
+  /**
+   * Singular label of the base unit this entitlement is measured in (NUMBER type only). Must be provided together with unitPlural.
+   */
+  unitSingular?: string;
+  /**
+   * Whether this entitlement is displayed in customer-facing components (e.g. plan and pricing pages). Defaults to false.
+   */
+  userFacing?: boolean;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+  /**
+   * Percentage of the cap at which an early-warning event fires before the cap is reached. 0 disables the warning (default).
+   */
+  warningThresholdPercent?: number;
+};
+
 export type EntitlementGroupWritable = {
   /**
    * Description of the entitlement group
@@ -2313,6 +10527,33 @@ export type EntitlementGroupWritable = {
    * URL-friendly identifier, unique per organization. Auto-generated if not provided.
    */
   slug?: string;
+};
+
+export type EntitlementGroupDeliveredWritable = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  /**
+   * Description of the entitlement group
+   */
+  description: string | null;
+  /**
+   * Name of the entitlement group
+   */
+  name: string;
+  /**
+   * URL-friendly identifier, unique per organization. Auto-generated if not provided.
+   */
+  slug?: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
 export type EntitlementGroupUsageWritable = {
@@ -2394,7 +10635,7 @@ export type EntitlementUsageWritable = {
    */
   licenseSlug: string;
   /**
-   * License grant this usage is measured against, discriminated by the 'type' field. Null when the license grants no value; -1 means unlimited for a NUMBER entitlement.
+   * The effective value this usage is measured against (the licence's grant, with the instance's add-ons and boosts applied; source and provenance say which), discriminated by the 'type' field. Absent when nothing grants the entitlement a value; -1 means unlimited for a NUMBER entitlement.
    */
   limit?:
     | ({
@@ -2406,6 +10647,18 @@ export type EntitlementUsageWritable = {
     | ({
         type: "object";
       } & ConfigEntitlementValue);
+  /**
+   * How far above limit usage is still accepted, in percent: -1 unlimited, 0 a hard limit. Absent for BOOLEAN and CONFIG.
+   */
+  limitCapExceededOveragePercent?: number;
+  /**
+   * What the licence, the add-ons and the boosts each contribute
+   */
+  provenance?: ProvenanceWritable;
+  /**
+   * license: the licence grants it (add-ons, boosts and an exception may change it); addon: an add-on attached does; exception: only the instance's exception does
+   */
+  source: "license" | "addon" | "exception";
   /**
    * Resolved entitlement value, discriminated by the 'type' field
    */
@@ -2421,6 +10674,83 @@ export type EntitlementUsageWritable = {
       } & ConfigEntitlementValue);
 };
 
+export type EntitlementUsageDeliveredWritable = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * End of the current usage window (exclusive). Null for a lifetime entitlement (no configured reset period).
+   */
+  currentPeriodEnd?: string;
+  /**
+   * Start of the current usage window (inclusive). Null for a lifetime entitlement (no configured reset period).
+   */
+  currentPeriodStart?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  /**
+   * Unique identifier for the entitlement
+   */
+  entitlementId: string;
+  /**
+   * URL-friendly identifier of the entitlement
+   */
+  entitlementSlug: string;
+  /**
+   * Unique identifier for the license to which this entitlement usage belongs
+   */
+  licenseId: string;
+  /**
+   * URL-friendly identifier of the license
+   */
+  licenseSlug: string;
+  /**
+   * The effective value this usage is measured against (the licence's grant, with the instance's add-ons and boosts applied; source and provenance say which), discriminated by the 'type' field. Absent when nothing grants the entitlement a value; -1 means unlimited for a NUMBER entitlement.
+   */
+  limit?:
+    | ({
+        type: "number";
+      } & NumberEntitlementValueWritable)
+    | ({
+        type: "boolean";
+      } & BooleanEntitlementValue)
+    | ({
+        type: "object";
+      } & ConfigEntitlementValue);
+  /**
+   * How far above limit usage is still accepted, in percent: -1 unlimited, 0 a hard limit. Absent for BOOLEAN and CONFIG.
+   */
+  limitCapExceededOveragePercent?: number;
+  /**
+   * What the licence, the add-ons and the boosts each contribute
+   */
+  provenance?: ProvenanceWritable;
+  /**
+   * license: the licence grants it (add-ons, boosts and an exception may change it); addon: an add-on attached does; exception: only the instance's exception does
+   */
+  source: "license" | "addon" | "exception";
+  /**
+   * Resolved entitlement value, discriminated by the 'type' field
+   */
+  value:
+    | ({
+        type: "number";
+      } & NumberEntitlementValueWritable)
+    | ({
+        type: "boolean";
+      } & BooleanEntitlementValue)
+    | ({
+        type: "object";
+      } & ConfigEntitlementValue);
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
 export type FeatureFlagWritable = {
   default_variant: DefaultVariant;
   description: string | null;
@@ -2434,6 +10764,48 @@ export type FeatureFlagWritable = {
   targetings: Targetings;
   type: "boolean" | "string" | "number" | "object";
   variants: Array<Variant> | null;
+};
+
+export type FeatureFlagDeliveredWritable = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  default_variant: DefaultVariant;
+  description: string | null;
+  enabled: boolean;
+  event_name: string;
+  metadata: {
+    [key: string]: unknown;
+  };
+  name: string;
+  slug?: string;
+  targetings: Targetings;
+  type: "boolean" | "string" | "number" | "object";
+  variants: Array<Variant> | null;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
+export type HandoffClaimWritable = {
+  /**
+   * The leased invoices, oldest issue first, with their billing e-mail: what the accounting system needs to book them
+   */
+  invoices: Array<InvoiceWritable>;
+  /**
+   * Pass it back when acknowledging an invoice of this claim
+   */
+  leaseId: string;
+  /**
+   * When the lease expires and the invoices are claimable again
+   */
+  leasedUntil: string;
 };
 
 export type InstanceWritable = {
@@ -2483,7 +10855,213 @@ export type InstanceWritable = {
   startLicenseDate: string;
 };
 
-export type InstanceEntitlementValueGetWritable = {
+export type InstanceAddonWritable = {
+  addonId: string;
+  addonSlug: string;
+  attachedAt: string;
+  familySlug: string;
+  maxQuantity: number | null;
+  /**
+   * The add-on version's name
+   */
+  name: string;
+  /**
+   * A decrease scheduled for the next boundary, 0 for a removal; the current quantity holds until then. Null when nothing is scheduled (V31-67)
+   */
+  pendingQuantity: number | null;
+  /**
+   * What the instance's subscription bills for it: the default FLAT_FEE price of the subscription's period and the ACTIVE metered prices. Empty when the instance is not billed.
+   */
+  prices: Array<PriceWritable>;
+  quantity: number;
+  removedAt: string | null;
+};
+
+export type InstanceAddonUpdateDeliveredWritable = {
+  addonId: string;
+  addonSlug: string;
+  attachedAt: string;
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  familySlug: string;
+  instanceSlug: string;
+  maxQuantity: number | null;
+  /**
+   * The add-on version's name
+   */
+  name: string;
+  /**
+   * A decrease scheduled for the next boundary, 0 for a removal; the current quantity holds until then. Null when nothing is scheduled (V31-67)
+   */
+  pendingQuantity: number | null;
+  /**
+   * The quantity before a quantity change
+   */
+  previousQuantity?: number;
+  /**
+   * What the instance's subscription bills for it: the default FLAT_FEE price of the subscription's period and the ACTIVE metered prices. Empty when the instance is not billed.
+   */
+  prices: Array<PriceWritable>;
+  quantity: number;
+  removedAt: string | null;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
+export type InstanceBillingWritable = {
+  /**
+   * The instant its periods are counted from
+   */
+  anchorAt: string;
+  /**
+   * The FLAT_FEE price the subscription is pinned to, deprecated or not
+   */
+  basePrice: PriceWritable;
+  billingPeriod: "MONTHLY" | "QUARTERLY" | "SEMI_ANNUAL" | "ANNUAL";
+  cancelAtPeriodEnd: boolean;
+  cancelRequestedAt: string | null;
+  canceledAt: string | null;
+  cancellationReason: string | null;
+  /**
+   * Effective: the subscription's own, else the organization's default
+   */
+  collectionMethod: "SEND_INVOICE" | "CHARGE_AUTOMATICALLY";
+  /**
+   * The subscription's own collection method; null when it takes the organization's
+   */
+  collectionMethodOverride: string | null;
+  createdAt: string;
+  currency: string;
+  /**
+   * The next boundary: the period closes, and its invoice is composed, after it
+   */
+  currentPeriodEnd: string;
+  currentPeriodStart: string;
+  customerName: string;
+  customerSlug: string;
+  /**
+   * Effective: the subscription's own, else the organization's default
+   */
+  daysUntilDue: number;
+  /**
+   * The subscription's own payment terms; null when it takes the organization's
+   */
+  daysUntilDueOverride: number | null;
+  id: string;
+  /**
+   * When a checkout waiting for its payment ends unpaid: INCOMPLETE, or a free subscription that carries one
+   */
+  incompleteExpiresAt: string | null;
+  instanceName: string;
+  /**
+   * As it was at the subscription's last write
+   */
+  instanceSlug: string;
+  pastDueSince: string | null;
+  /**
+   * The licence version a checkout waiting for its payment moves the instance to once paid
+   */
+  pendingLicenseSlug: string | null;
+  /**
+   * Who collects its invoices. NOOP: the organization itself, through the handoff queue
+   */
+  providerKind: "NOOP" | "STRIPE";
+  /**
+   * When trial_will_end is (or was) emitted: trialEndsAt minus the family's trialReminderDays as it was when the trial started; set with trialEndsAt
+   */
+  reminderAt: string | null;
+  /**
+   * A plan change waiting for the next boundary
+   */
+  scheduledChange: ScheduledChangeWritable | null;
+  /**
+   * When billing started: usage before it is never billed
+   */
+  startedAt: string;
+  status: "INCOMPLETE" | "TRIAL" | "ACTIVE" | "PAST_DUE" | "CANCELED";
+  /**
+   * When the trial ends, or ended: usage before it is never billed
+   */
+  trialEndsAt: string | null;
+  updatedAt: string;
+};
+
+export type InstanceDeliveredWritable = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * ID of the customer associated with this instance
+   */
+  customerId: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  /**
+   * ID of the deployment zone associated with this instance (optional)
+   */
+  deploymentZoneId?: string;
+  /**
+   * Brief description of the instance
+   */
+  description: string;
+  /**
+   * End date of the license for this instance
+   */
+  endLicenseDate: string;
+  /**
+   * Integrations grouped by adapter name
+   */
+  integrations?: {
+    [key: string]: InstanceIntegrationWritable;
+  };
+  /**
+   * ID of the license version this instance is pinned to. An ARCHIVED version cannot be assigned, on create or by changing the license (CreateInstance.LicenseArchived, UpdateInstance.LicenseArchived); an instance already on a version that is archived later keeps it. A DRAFT version can be assigned, to try it before publishing.
+   */
+  licenseId: string;
+  /**
+   * Metadata for the instance
+   */
+  metadata?: {
+    [key: string]: unknown;
+  };
+  /**
+   * Name of the instance
+   */
+  name: string;
+  /**
+   * Optional URL-friendly identifier, unique per organization. Auto-generated if not provided.
+   */
+  slug?: string;
+  /**
+   * Start date of the license for this instance
+   */
+  startLicenseDate: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
+export type InstanceEntitlementValueGetDeliveredWritable = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
   /**
    * Unique identifier for the entitlement
    */
@@ -2525,6 +11103,10 @@ export type InstanceEntitlementValueGetWritable = {
     | ({
         type: "object";
       } & ConfigEntitlementValue);
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
 export type InstanceIntegrationWritable = {
@@ -2546,6 +11128,477 @@ export type InstanceIntegrationWritable = {
    * Absolute http(s) link to the record in the third-party system
    */
   web_url?: string;
+};
+
+export type InstanceUpdateDeliveredWritable = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * ID of the customer associated with this instance
+   */
+  customerId: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  /**
+   * ID of the deployment zone associated with this instance (optional)
+   */
+  deploymentZoneId?: string;
+  /**
+   * Brief description of the instance
+   */
+  description: string;
+  /**
+   * End date of the license for this instance
+   */
+  endLicenseDate: string;
+  /**
+   * Integrations grouped by adapter name
+   */
+  integrations?: {
+    [key: string]: InstanceIntegrationWritable;
+  };
+  /**
+   * BILLING_FALLBACK: the subscription ended and the instance moved to its family's fallback (V31-66). Null for any other change, the move a paid checkout applies included
+   */
+  licenseChangeReason: "BILLING_FALLBACK";
+  /**
+   * ID of the license version this instance is pinned to. An ARCHIVED version cannot be assigned, on create or by changing the license (CreateInstance.LicenseArchived, UpdateInstance.LicenseArchived); an instance already on a version that is archived later keeps it. A DRAFT version can be assigned, to try it before publishing.
+   */
+  licenseId: string;
+  /**
+   * Metadata for the instance
+   */
+  metadata?: {
+    [key: string]: unknown;
+  };
+  /**
+   * Name of the instance
+   */
+  name: string;
+  /**
+   * Optional URL-friendly identifier, unique per organization. Auto-generated if not provided.
+   */
+  slug?: string;
+  /**
+   * Start date of the license for this instance
+   */
+  startLicenseDate: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
+export type InvoiceWritable = {
+  /**
+   * The address the invoice is for, as it was when composed. Personal data: it appears in no event
+   */
+  billingEmail: string | null;
+  /**
+   * The boundary the invoice bills. With the kind, it identifies the invoice within its subscription
+   */
+  boundaryAt: string;
+  collectionMethod: "SEND_INVOICE" | "CHARGE_AUTOMATICALLY";
+  createdAt: string;
+  currency: string;
+  customerName: string;
+  /**
+   * As it was when the invoice was composed
+   */
+  customerSlug: string;
+  daysUntilDue: number | null;
+  /**
+   * Sum of the discounts, in minor units
+   */
+  discountTotal: number;
+  /**
+   * issuedAt + daysUntilDue
+   */
+  dueAt: string | null;
+  handoff: InvoiceHandoff;
+  /**
+   * PENDING: waiting in the handoff queue for the organization's accounting system
+   */
+  handoffStatus: "NOT_REQUIRED" | "PENDING" | "ACKNOWLEDGED";
+  /**
+   * When the invoice was held and released
+   */
+  hold: HoldRecord | null;
+  /**
+   * Every meter whose journal failed a check
+   */
+  holdDetail: HoldDetail | null;
+  /**
+   * Why a DRAFT is held: the usage journal it was measured from failed a consistency check (LEDGER_*), or its provider cannot take that many lines (PROVIDER_ITEM_LIMIT)
+   */
+  holdReason:
+    | "LEDGER_SEQUENCE_GAP"
+    | "LEDGER_CHAIN_BREAK"
+    | "LEDGER_COUNTER_MISMATCH"
+    | "PROVIDER_ITEM_LIMIT"
+    | null;
+  /**
+   * The invoice's identifier: the key an accounting system deduplicates on
+   */
+  id: string;
+  instanceName: string;
+  instanceSlug: string;
+  issuedAt: string | null;
+  /**
+   * ACTIVATION bills a subscription's first period, RENEWAL the period that ended and the one that starts, FINAL what is left when a subscription ends
+   */
+  kind: "ACTIVATION" | "RENEWAL" | "FINAL";
+  licenseId: string;
+  licenseSlug: string;
+  lines: Array<InvoiceLineWritable>;
+  /**
+   * Whether the invoice is overdue when read, the grace period of automatic collection included: the predicate of ?overdue=true. Computed by the invoice list and the invoice read; false in the answers of writes and in event payloads.
+   */
+  overdue: boolean;
+  paidAt: string | null;
+  /**
+   * The invoice in its payment provider; null for NOOP
+   */
+  provider: ProviderRecord | null;
+  /**
+   * Who collects it. NOOP: the organization itself, through the handoff queue
+   */
+  providerKind: "NOOP" | "STRIPE";
+  /**
+   * The invoice recomposed from this VOID one
+   */
+  replacedByInvoiceId: string | null;
+  /**
+   * The VOID invoice this one was recomposed from
+   */
+  replacesInvoiceId: string | null;
+  /**
+   * Earliest start of its lines' service periods
+   */
+  serviceFrom: string;
+  /**
+   * Latest end of its lines' service periods
+   */
+  serviceTo: string;
+  /**
+   * MANUAL: issued, for the organization to collect. PAID, UNCOLLECTIBLE and VOID are final. DRAFT: held, waiting for a release or a recompose
+   */
+  status:
+    | "DRAFT"
+    | "PUSHED"
+    | "PUSH_FAILED"
+    | "MANUAL"
+    | "PAID"
+    | "PAYMENT_FAILED"
+    | "UNCOLLECTIBLE"
+    | "VOID";
+  /**
+   * Sum of the lines, in minor units
+   */
+  subtotal: number;
+  /**
+   * subtotal − discountTotal, in minor units
+   */
+  total: number;
+  uncollectibleAt: string | null;
+  updatedAt: string;
+  voidReason: string | null;
+  voidedAt: string | null;
+};
+
+export type InvoiceLineWritable = {
+  /**
+   * The add-on version an ADDON line bills
+   */
+  addonId: string | null;
+  /**
+   * The add-on price an ADDON line bills
+   */
+  addonPriceId: string | null;
+  /**
+   * round_half_up(quantity × unitAmountDecimal), in minor units; negative on a DISCOUNT line
+   */
+  amount: number;
+  /**
+   * The price's billing model; absent on a DISCOUNT line
+   */
+  billingModel: "FLAT_FEE" | "USAGE_BASED" | "OVERAGE" | null;
+  /**
+   * ADVANCE lines bill the period that starts at the boundary, ARREARS lines the one that ends there; absent on a DISCOUNT line
+   */
+  billingTiming: "ADVANCE" | "ARREARS" | null;
+  /**
+   * Set on a preview line whose sample exceeded what the licence accepts: reports above that are rejected, so the excess is not billed
+   */
+  capped?: boolean;
+  /**
+   * The arithmetic of the line
+   */
+  description: string;
+  /**
+   * How a DISCOUNT line was computed
+   */
+  discount: InvoiceLineDiscountWritable | null;
+  /**
+   * The metered entitlement, on USAGE and OVERAGE lines
+   */
+  entitlementId: string | null;
+  /**
+   * Its slug, as it was when the line was composed
+   */
+  entitlementSlug: string | null;
+  /**
+   * The line's identifier, stable for the invoice's life; absent on a preview
+   */
+  id?: string;
+  /**
+   * The instance's attachment an ADDON line bills
+   */
+  instanceAddonId: string | null;
+  /**
+   * The redemption a DISCOUNT line applies
+   */
+  instanceVoucherId: string | null;
+  /**
+   * The price's display label, else a derived one
+   */
+  label: string;
+  /**
+   * The licence price the line bills; null on an ADDON line
+   */
+  licensePriceId: string | null;
+  /**
+   * How a USAGE or OVERAGE line's quantity was measured
+   */
+  metering: InvoiceLineMetering | null;
+  /**
+   * The arithmetic of an OVERAGE line
+   */
+  overage: InvoiceLineOverage | null;
+  /**
+   * The line in the payment provider, once pushed
+   */
+  provider: InvoiceLineProvider | null;
+  /**
+   * In sale units, a decimal string: 1 on a BASE line, the quantity held on an ADDON line
+   */
+  quantity: string;
+  /**
+   * Position on the invoice, from 1
+   */
+  seq: number;
+  /**
+   * Start of the period the line bills (inclusive)
+   */
+  serviceFrom: string;
+  /**
+   * End of the period the line bills (exclusive)
+   */
+  serviceTo: string;
+  /**
+   * On the true-up line of an ADVANCE add-on of a TRUE_UP family: the highest quantity held in the elapsed period and the quantity billed in advance for it (V31-70)
+   */
+  trueUp: InvoiceLineTrueUp | null;
+  /**
+   * BASE: the subscription's FLAT_FEE price. ADDON: an add-on's FLAT_FEE price times the quantity held at the boundary. USAGE: a USAGE_BASED price's metered usage. OVERAGE: an OVERAGE price's usage above the licence's limit. DISCOUNT: a PRICE voucher's discount, negative.
+   */
+  type: "BASE" | "ADDON" | "USAGE" | "OVERAGE" | "DISCOUNT";
+  /**
+   * The price's unit amount in minor units; absent on a DISCOUNT line
+   */
+  unitAmountDecimal: string | null;
+  /**
+   * The voucher a DISCOUNT line applies
+   */
+  voucherId: string | null;
+  [key: string]: unknown;
+};
+
+export type InvoiceLineDiscountWritable = {
+  /**
+   * Which invoice of the redemption this is, from 1
+   */
+  application: number;
+  /**
+   * How many invoices the redemption discounts; null for FOREVER
+   */
+  applicationsMax: number | null;
+  appliesTo: "LICENSE_BASE" | "ADDONS" | "BOTH" | "SELECTED_PRICES";
+  /**
+   * What its targets still amounted to before it, exact, in minor units
+   */
+  base: string;
+  currency: string | null;
+  discountType: "PERCENTAGE" | "FIXED_AMOUNT";
+  /**
+   * The percentage, or the amount in minor units
+   */
+  discountValue: string;
+  /**
+   * The lines it discounts
+   */
+  targetSeqs: Array<number> | null;
+};
+
+export type InvoicePreviewWritable = {
+  /**
+   * When the preview was composed
+   */
+  asOf: string;
+  /**
+   * The boundary the invoice bills
+   */
+  boundaryAt: string;
+  /**
+   * ISO 4217 code
+   */
+  currency: string;
+  /**
+   * Sum of the discounts, in minor units
+   */
+  discountTotal: number;
+  /**
+   * The boundary previewed
+   */
+  kind: "ACTIVATION" | "RENEWAL" | "FINAL";
+  /**
+   * The licence version previewed
+   */
+  licenseSlug: string;
+  lines: Array<InvoiceLineWritable>;
+  /**
+   * Earliest start of the lines' service periods; absent without lines
+   */
+  serviceFrom?: string;
+  /**
+   * Latest end of the lines' service periods; absent without lines
+   */
+  serviceTo?: string;
+  /**
+   * Always PREVIEW
+   */
+  status: "PREVIEW";
+  /**
+   * Sum of the lines, in minor units
+   */
+  subtotal: number;
+  /**
+   * subtotal − discountTotal, in minor units
+   */
+  total: number;
+  /**
+   * Meters whose usage journal fails a consistency check, which would hold the invoice. Always empty for a sample.
+   */
+  wouldHold: Array<InvoiceHold>;
+};
+
+export type IssuedInvoiceDeliveredWritable = {
+  /**
+   * The boundary the invoice bills. With the kind, it identifies the invoice within its subscription
+   */
+  boundaryAt: string;
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  collectionMethod: "SEND_INVOICE" | "CHARGE_AUTOMATICALLY";
+  createdAt: string;
+  currency: string;
+  customerName: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  /**
+   * As it was when the invoice was composed
+   */
+  customerSlug: string;
+  daysUntilDue: number | null;
+  /**
+   * Sum of the discounts, in minor units
+   */
+  discountTotal: number;
+  /**
+   * issuedAt + daysUntilDue
+   */
+  dueAt: string | null;
+  /**
+   * PENDING: waiting in the handoff queue for the organization's accounting system
+   */
+  handoffStatus: "NOT_REQUIRED" | "PENDING" | "ACKNOWLEDGED";
+  /**
+   * Why a DRAFT is held: the usage journal it was measured from failed a consistency check (LEDGER_*), or its provider cannot take that many lines (PROVIDER_ITEM_LIMIT)
+   */
+  holdReason:
+    | "LEDGER_SEQUENCE_GAP"
+    | "LEDGER_CHAIN_BREAK"
+    | "LEDGER_COUNTER_MISMATCH"
+    | "PROVIDER_ITEM_LIMIT"
+    | null;
+  /**
+   * The invoice's identifier: the key an accounting system deduplicates on
+   */
+  id: string;
+  instanceName: string;
+  instanceSlug: string;
+  issuedAt: string | null;
+  /**
+   * ACTIVATION bills a subscription's first period, RENEWAL the period that ended and the one that starts, FINAL what is left when a subscription ends
+   */
+  kind: "ACTIVATION" | "RENEWAL" | "FINAL";
+  licenseId: string;
+  licenseSlug: string;
+  lines: Array<InvoiceLineWritable>;
+  /**
+   * Set when the lines did not fit the event: read the invoice for all of them
+   */
+  linesTruncated?: boolean;
+  /**
+   * Whether the invoice is overdue when read, the grace period of automatic collection included: the predicate of ?overdue=true. Computed by the invoice list and the invoice read; false in the answers of writes and in event payloads.
+   */
+  overdue: boolean;
+  paidAt: string | null;
+  /**
+   * Who collects it. NOOP: the organization itself, through the handoff queue
+   */
+  providerKind: "NOOP" | "STRIPE";
+  /**
+   * Earliest start of its lines' service periods
+   */
+  serviceFrom: string;
+  /**
+   * Latest end of its lines' service periods
+   */
+  serviceTo: string;
+  /**
+   * MANUAL: issued, for the organization to collect. PAID, UNCOLLECTIBLE and VOID are final. DRAFT: held, waiting for a release or a recompose
+   */
+  status:
+    | "DRAFT"
+    | "PUSHED"
+    | "PUSH_FAILED"
+    | "MANUAL"
+    | "PAID"
+    | "PAYMENT_FAILED"
+    | "UNCOLLECTIBLE"
+    | "VOID";
+  /**
+   * Sum of the lines, in minor units
+   */
+  subtotal: number;
+  /**
+   * subtotal − discountTotal, in minor units
+   */
+  total: number;
+  updatedAt: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
 export type LicenseWritable = {
@@ -2574,9 +11627,25 @@ export type LicenseWritable = {
    */
   name: string;
   /**
+   * How this version is sold. FREE and PAID can be bought self-serve; CUSTOM sends a buyer to selfServeCtaUrl or a conversation. Always present in responses. On create it defaults to CUSTOM; on update, omit it or send null to keep the stored value.
+   */
+  pricingType?: "FREE" | "PAID" | "CUSTOM";
+  /**
+   * Whether self-serve signup captures a payment method before activation. Always present in responses; false when omitted on create. On update, omit it or send null to keep the stored value.
+   */
+  requiresPaymentMethod?: boolean | null;
+  /**
+   * Where a buyer is sent when this version cannot be bought self-serve: an http(s) URL of at most 2048 characters (CreateLicense.InvalidSelfServeCtaUrl). Null when there is none. On update, omit it or send null to keep the stored value, or send an empty string to remove it.
+   */
+  selfServeCtaUrl?: string | null;
+  /**
    * Optional URL-friendly identifier, unique per organization. When omitted, a new version of an existing family takes {familySlug}-v{version}, and any other license gets one generated from its name. A license that opens a new family gives the family its slug.
    */
   slug?: string;
+  /**
+   * Trial length, in days, a subscription to this version starts with by default. Null when there is none. From 1 to 365 (CreateLicense.InvalidTrialDays, UpdateLicense.InvalidTrialDays). On update, omit it or send null to keep the stored value, or send 0 to remove the trial.
+   */
+  trialPeriodDays?: number | null;
   /**
    * Type of the license determining its capabilities and restrictions
    */
@@ -2585,6 +11654,73 @@ export type LicenseWritable = {
    * Optional human-readable name for the license version. Defaults to "Version - <version>".
    */
   versionName?: string;
+};
+
+export type LicenseDeliveredWritable = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  /**
+   * Detailed description of the license capabilities and restrictions
+   */
+  description: string;
+  /**
+   * Identifier of the license family this license is a version of. Stable across renames and new versions: two licenses sharing it are the same product. Always present in responses. On create, optional: names the family this license is a new version of, as familySlug does by slug; omit both to create a new family. On update, optional and must be the license's own family: a version cannot move between families (UpdateLicense.FamilyNotReassignable).
+   */
+  familyId?: string;
+  /**
+   * Write-only on create: slug of the family this license is a new version of. familyId names the same family by identifier; sent together they must agree. Omit both to create a new family, of which this license becomes version 1. Never returned -- see familyId. Refused on update: a version cannot move between families.
+   */
+  familySlug?: string;
+  /**
+   * Whether this version is the one its family puts forward: at most one version per family, and only a PUBLISHED one (CreateLicense.DefaultMustBePublished, UpdateLicense.DefaultMustBePublished). Resolution hands it out ahead of the highest-numbered published version, so it keeps being served when a newer version is published. Setting it takes the flag from the family's previous default, which gets a LICENSE_UPDATED event of its own. On update, sending false unsets it; the default cannot be archived until another version takes its place or the flag is unset (ArchiveLicense.DefaultMustBePublished).
+   */
+  isDefault: boolean;
+  /**
+   * Whether this version may be served. Always present in responses. Optional on create, where it is DRAFT or PUBLISHED and PUBLISHED when omitted; ARCHIVED is refused (CreateLicense.LifecycleStateNotSettable), since a version is archived by withdrawing it from sale. After that it changes only through publish-license (DRAFT to PUBLISHED), archive-license (PUBLISHED to ARCHIVED) and unarchive-license (ARCHIVED to PUBLISHED); update accepts the stored state and refuses any other (UpdateLicense.LifecycleStateNotSettable). Only a PUBLISHED version can be the family's default. An ARCHIVED version cannot be assigned to an instance (CreateInstance.LicenseArchived, UpdateInstance.LicenseArchived); instances already on it keep it.
+   */
+  lifecycleState?: "DRAFT" | "PUBLISHED" | "ARCHIVED";
+  /**
+   * Display name of the license
+   */
+  name: string;
+  /**
+   * How this version is sold. FREE and PAID can be bought self-serve; CUSTOM sends a buyer to selfServeCtaUrl or a conversation. Always present in responses. On create it defaults to CUSTOM; on update, omit it or send null to keep the stored value.
+   */
+  pricingType?: "FREE" | "PAID" | "CUSTOM";
+  /**
+   * Whether self-serve signup captures a payment method before activation. Always present in responses; false when omitted on create. On update, omit it or send null to keep the stored value.
+   */
+  requiresPaymentMethod?: boolean | null;
+  /**
+   * Where a buyer is sent when this version cannot be bought self-serve: an http(s) URL of at most 2048 characters (CreateLicense.InvalidSelfServeCtaUrl). Null when there is none. On update, omit it or send null to keep the stored value, or send an empty string to remove it.
+   */
+  selfServeCtaUrl?: string | null;
+  /**
+   * Optional URL-friendly identifier, unique per organization. When omitted, a new version of an existing family takes {familySlug}-v{version}, and any other license gets one generated from its name. A license that opens a new family gives the family its slug.
+   */
+  slug?: string;
+  /**
+   * Trial length, in days, a subscription to this version starts with by default. Null when there is none. From 1 to 365 (CreateLicense.InvalidTrialDays, UpdateLicense.InvalidTrialDays). On update, omit it or send null to keep the stored value, or send 0 to remove the trial.
+   */
+  trialPeriodDays?: number | null;
+  /**
+   * Type of the license determining its capabilities and restrictions
+   */
+  type: "DEVELOPMENT" | "TRIAL" | "PAID" | "COMMUNITY";
+  /**
+   * Optional human-readable name for the license version. Defaults to "Version - <version>".
+   */
+  versionName?: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
 export type LicenseEntitlementWritable = {
@@ -2611,15 +11747,67 @@ export type LicenseEntitlementWritable = {
       } & ConfigEntitlementValue);
 };
 
+export type LicenseEntitlementDeliveredWritable = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  /**
+   * URL-friendly identifier for the entitlement
+   */
+  entitlementSlug?: string;
+  /**
+   * Derives this grant's enforcement from its own numeric value: -1 when the value is unlimited (no cap, no overage); otherwise 0 rejects usage above the value (hard limit) and a positive percentage allows usage to exceed it by that much before being rejected (soft limit). Null for non-numeric (BOOLEAN/CONFIG) grants.
+   */
+  limitCapExceededOveragePercent?: number;
+  /**
+   * Typed entitlement value. Supported shapes: {type:number,value:number}, {type:boolean,value:boolean}, {type:object,value:{...}}
+   */
+  value:
+    | ({
+        type: "number";
+      } & NumberEntitlementValueWritable)
+    | ({
+        type: "boolean";
+      } & BooleanEntitlementValue)
+    | ({
+        type: "object";
+      } & ConfigEntitlementValue);
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
 export type LicenseFamilyViewWritable = {
   /**
    * The version this read is about. By default the version the family resolves to: its default version if it has one, otherwise its highest-numbered PUBLISHED version. Under ?version=N it is the version asked for instead, whatever its lifecycle state. Absent when the family has no PUBLISHED version, which only a list or an include=versions read returns.
    */
   currentVersion?: LicenseWritable;
   /**
+   * The FREE family whose default PUBLISHED version an instance of this family moves to when its subscription ends; null without one
+   */
+  fallbackLicenseFamilySlug: string | null;
+  /**
+   * Whether the family's default PUBLISHED version is listed in the public catalogue. Private by default.
+   */
+  isPublic: boolean;
+  /**
    * URL-friendly identifier of the family, unique per organization and stable across renames and new versions. Deleting the family's last version deletes the family and frees the slug.
    */
   slug: string;
+  /**
+   * What a trial charged automatically with a total above 0 becomes at its end when the customer has no ACTIVE payment method: CANCEL (the default) or CONVERT
+   */
+  trialEndWithoutPaymentMethod: "CANCEL" | "CONVERT";
+  /**
+   * How many days before a trial's end trial_will_end fires, for the trials started after it was set. 3 by default.
+   */
+  trialReminderDays: number;
   /**
    * Number of versions in this family, whatever their lifecycle state
    */
@@ -2628,6 +11816,199 @@ export type LicenseFamilyViewWritable = {
    * Every version of the family, oldest first. Only returned when explicitly requested with include=versions, and then never null: a family always has at least one version.
    */
   versions?: Array<LicenseWritable>;
+};
+
+export type LicenseFamilyViewDeliveredWritable = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * The version this read is about. By default the version the family resolves to: its default version if it has one, otherwise its highest-numbered PUBLISHED version. Under ?version=N it is the version asked for instead, whatever its lifecycle state. Absent when the family has no PUBLISHED version, which only a list or an include=versions read returns.
+   */
+  currentVersion?: LicenseWritable;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  /**
+   * The FREE family whose default PUBLISHED version an instance of this family moves to when its subscription ends; null without one
+   */
+  fallbackLicenseFamilySlug: string | null;
+  /**
+   * Whether the family's default PUBLISHED version is listed in the public catalogue. Private by default.
+   */
+  isPublic: boolean;
+  /**
+   * URL-friendly identifier of the family, unique per organization and stable across renames and new versions. Deleting the family's last version deletes the family and frees the slug.
+   */
+  slug: string;
+  /**
+   * What a trial charged automatically with a total above 0 becomes at its end when the customer has no ACTIVE payment method: CANCEL (the default) or CONVERT
+   */
+  trialEndWithoutPaymentMethod: "CANCEL" | "CONVERT";
+  /**
+   * How many days before a trial's end trial_will_end fires, for the trials started after it was set. 3 by default.
+   */
+  trialReminderDays: number;
+  /**
+   * Number of versions in this family, whatever their lifecycle state
+   */
+  versionCount: number;
+  /**
+   * Every version of the family, oldest first. Only returned when explicitly requested with include=versions, and then never null: a family always has at least one version.
+   */
+  versions?: Array<LicenseWritable>;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
+export type LicensePriceEventDeliveredWritable = {
+  /**
+   * FLAT_FEE: an amount per billing period. USAGE_BASED: an amount per sale unit of the metered entitlement's usage. OVERAGE: an amount per sale unit of the usage above the licence's limit.
+   */
+  billingModel: "FLAT_FEE" | "USAGE_BASED" | "OVERAGE";
+  /**
+   * The period a FLAT_FEE price is charged for. Null on metered prices, which bill on the subscription's period.
+   */
+  billingPeriod: "MONTHLY" | "QUARTERLY" | "SEMI_ANNUAL" | "ANNUAL" | null;
+  /**
+   * ADVANCE bills the period that starts; ARREARS the period that ended. Metered prices are always ARREARS.
+   */
+  billingTiming: "ADVANCE" | "ARREARS";
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * ISO 4217 code, upper case. One currency per licence version.
+   */
+  currency: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  /**
+   * When the price was deprecated
+   */
+  deprecatedAt: string | null;
+  /**
+   * The invoice line's label; a default is derived when it is null.
+   */
+  displayLabel: string | null;
+  /**
+   * Order among the version's prices
+   */
+  displayOrder: number;
+  /**
+   * The family of that version
+   */
+  familySlug: string;
+  /**
+   * The FLAT_FEE price picked for its billing period when none is named. At most one per period; only an ACTIVE FLAT_FEE price.
+   */
+  isDefault: boolean;
+  /**
+   * The licence version the price belongs to
+   */
+  licenseSlug: string;
+  /**
+   * What a metered price measures. Null on FLAT_FEE prices.
+   */
+  metered: PriceMeter | null;
+  /**
+   * A DEPRECATED price keeps billing what is already pinned to it but is no longer offered.
+   */
+  status: "ACTIVE" | "DEPRECATED";
+  /**
+   * unitAmountDecimal as an integer number of minor units, when it is one; null otherwise.
+   */
+  unitAmount: number | null;
+  /**
+   * Amount in the currency's minor units (cents for EUR): per period for FLAT_FEE, per sale unit for metered prices. Up to 12 decimal places.
+   */
+  unitAmountDecimal: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
+export type LicensePriceUpdatedEventDeliveredWritable = {
+  /**
+   * FLAT_FEE: an amount per billing period. USAGE_BASED: an amount per sale unit of the metered entitlement's usage. OVERAGE: an amount per sale unit of the usage above the licence's limit.
+   */
+  billingModel: "FLAT_FEE" | "USAGE_BASED" | "OVERAGE";
+  /**
+   * The period a FLAT_FEE price is charged for. Null on metered prices, which bill on the subscription's period.
+   */
+  billingPeriod: "MONTHLY" | "QUARTERLY" | "SEMI_ANNUAL" | "ANNUAL" | null;
+  /**
+   * ADVANCE bills the period that starts; ARREARS the period that ended. Metered prices are always ARREARS.
+   */
+  billingTiming: "ADVANCE" | "ARREARS";
+  /**
+   * The members the update changed, as the API names them
+   */
+  changedFields: Array<string> | null;
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * ISO 4217 code, upper case. One currency per licence version.
+   */
+  currency: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  /**
+   * When the price was deprecated
+   */
+  deprecatedAt: string | null;
+  /**
+   * The invoice line's label; a default is derived when it is null.
+   */
+  displayLabel: string | null;
+  /**
+   * Order among the version's prices
+   */
+  displayOrder: number;
+  /**
+   * The family of that version
+   */
+  familySlug: string;
+  /**
+   * The FLAT_FEE price picked for its billing period when none is named. At most one per period; only an ACTIVE FLAT_FEE price.
+   */
+  isDefault: boolean;
+  /**
+   * The licence version the price belongs to
+   */
+  licenseSlug: string;
+  /**
+   * What a metered price measures. Null on FLAT_FEE prices.
+   */
+  metered: PriceMeter | null;
+  /**
+   * A DEPRECATED price keeps billing what is already pinned to it but is no longer offered.
+   */
+  status: "ACTIVE" | "DEPRECATED";
+  /**
+   * unitAmountDecimal as an integer number of minor units, when it is one; null otherwise.
+   */
+  unitAmount: number | null;
+  /**
+   * Amount in the currency's minor units (cents for EUR): per period for FLAT_FEE, per sale unit for metered prices. Up to 12 decimal places.
+   */
+  unitAmountDecimal: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
 export type MetadataFieldWritable = {
@@ -2655,6 +12036,43 @@ export type MetadataFieldWritable = {
   resourceType: "DEPLOYMENT_ZONE" | "INSTANCE";
 };
 
+export type MetadataFieldDeliveredWritable = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  /**
+   * Sort order in the admin UI; ties are broken by createdAt ASC. Settable only through POST /metadata-fields/reorder; never echoed back on update.
+   */
+  displayOrder?: number;
+  /**
+   * JSON Schema 2020-12 document describing the value space. Example: {"type":"string","enum":["a","b"]}
+   */
+  jsonSchema: {
+    [key: string]: unknown;
+  };
+  /**
+   * Stable identifier, unique per (organization, resource type) on non-archived rows. Immutable after creation; update must echo back the stored value.
+   */
+  key: string;
+  /**
+   * Human-readable label shown in the admin UI
+   */
+  label: string;
+  /**
+   * Resource type this field applies to. Immutable after creation; update must echo back the stored value.
+   */
+  resourceType: "DEPLOYMENT_ZONE" | "INSTANCE";
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
 export type NumberEntitlementValueWritable = {
   /**
    * Value type discriminator
@@ -2664,6 +12082,18 @@ export type NumberEntitlementValueWritable = {
    * Numeric value
    */
   value: number;
+};
+
+export type PageAddonWritable = {
+  /**
+   * Whether more rows exist beyond this page.
+   */
+  hasMore: boolean;
+  items: Array<AddonWritable>;
+  /**
+   * Opaque cursor for the next page. Absent when hasMore is false.
+   */
+  nextCursor?: string;
 };
 
 export type PageComponentWritable = {
@@ -2798,6 +12228,30 @@ export type PageMetadataFieldWritable = {
   nextCursor?: string;
 };
 
+export type PagePublishableKeyWritable = {
+  /**
+   * Whether more rows exist beyond this page.
+   */
+  hasMore: boolean;
+  items: Array<PublishableKeyWritable>;
+  /**
+   * Opaque cursor for the next page. Absent when hasMore is false.
+   */
+  nextCursor?: string;
+};
+
+export type PageRedemptionWritable = {
+  /**
+   * Whether more rows exist beyond this page.
+   */
+  hasMore: boolean;
+  items: Array<RedemptionWritable>;
+  /**
+   * Opaque cursor for the next page. Absent when hasMore is false.
+   */
+  nextCursor?: string;
+};
+
 export type PageReleaseWritable = {
   /**
    * Whether more rows exist beyond this page.
@@ -2834,6 +12288,18 @@ export type PageTokenWritable = {
   nextCursor?: string;
 };
 
+export type PageVoucherWritable = {
+  /**
+   * Whether more rows exist beyond this page.
+   */
+  hasMore: boolean;
+  items: Array<VoucherWritable>;
+  /**
+   * Opaque cursor for the next page. Absent when hasMore is false.
+   */
+  nextCursor?: string;
+};
+
 export type PlainTokenWritable = {
   expiresAt?: string;
   name: string;
@@ -2842,6 +12308,296 @@ export type PlainTokenWritable = {
    * Optional URL-friendly identifier, unique per service account. Auto-generated if not provided.
    */
   slug?: string;
+};
+
+export type PortalEntitlementWritable = {
+  /**
+   * The usage window's end; null for a lifetime quota
+   */
+  currentPeriodEnd: string | null;
+  /**
+   * The usage window's start; null for a lifetime quota
+   */
+  currentPeriodStart: string | null;
+  /**
+   * A number's usage in its current window; null for BOOLEAN and CONFIG
+   */
+  currentValue: number | null;
+  /**
+   * How far above the limit usage is still accepted, in percent: 0 a hard limit; null for BOOLEAN and CONFIG
+   */
+  limitCapExceededOveragePercent: number | null;
+  /**
+   * The effective value: a number's limit (-1 unlimited), a BOOLEAN's flag, a CONFIG's object
+   */
+  limitValue:
+    | NumberEntitlementValueWritable
+    | BooleanEntitlementValue
+    | ConfigEntitlementValue
+    | null;
+  /**
+   * The most usage accepted, limit × (1 + percent ÷ 100); null when unlimited, and for BOOLEAN and CONFIG
+   */
+  maximumAllowedUsage: number | null;
+  name: string;
+  /**
+   * currentValue ÷ limit × 100; null when unlimited or the limit is 0, and for BOOLEAN and CONFIG
+   */
+  percentageUsed: number | null;
+  /**
+   * What the licence, the add-ons and the boosts each contribute
+   */
+  provenance: ProvenanceWritable | null;
+  slug: string;
+  /**
+   * license: the licence grants it; addon: an add-on does; exception: only the vendor's exception for this instance does
+   */
+  source: "license" | "addon" | "exception";
+  type: "NUMBER" | "NUMBER_AI_CREDIT" | "BOOLEAN" | "CONFIG";
+  unlimited: boolean;
+};
+
+export type PriceWritable = {
+  /**
+   * FLAT_FEE: an amount per billing period. USAGE_BASED: an amount per sale unit of the metered entitlement's usage. OVERAGE: an amount per sale unit of the usage above the licence's limit.
+   */
+  billingModel: "FLAT_FEE" | "USAGE_BASED" | "OVERAGE";
+  /**
+   * The period a FLAT_FEE price is charged for. Null on metered prices, which bill on the subscription's period.
+   */
+  billingPeriod: "MONTHLY" | "QUARTERLY" | "SEMI_ANNUAL" | "ANNUAL" | null;
+  /**
+   * ADVANCE bills the period that starts; ARREARS the period that ended. Metered prices are always ARREARS.
+   */
+  billingTiming: "ADVANCE" | "ARREARS";
+  /**
+   * ISO 4217 code, upper case. One currency per licence version.
+   */
+  currency: string;
+  /**
+   * When the price was deprecated
+   */
+  deprecatedAt: string | null;
+  /**
+   * The invoice line's label; a default is derived when it is null.
+   */
+  displayLabel: string | null;
+  /**
+   * Order among the version's prices
+   */
+  displayOrder: number;
+  /**
+   * The FLAT_FEE price picked for its billing period when none is named. At most one per period; only an ACTIVE FLAT_FEE price.
+   */
+  isDefault: boolean;
+  /**
+   * What a metered price measures. Null on FLAT_FEE prices.
+   */
+  metered: PriceMeter | null;
+  /**
+   * A DEPRECATED price keeps billing what is already pinned to it but is no longer offered.
+   */
+  status: "ACTIVE" | "DEPRECATED";
+  /**
+   * unitAmountDecimal as an integer number of minor units, when it is one; null otherwise.
+   */
+  unitAmount: number | null;
+  /**
+   * Amount in the currency's minor units (cents for EUR): per period for FLAT_FEE, per sale unit for metered prices. Up to 12 decimal places.
+   */
+  unitAmountDecimal: string;
+};
+
+export type ProvenanceWritable = {
+  /**
+   * The active add-on grants, in attachment order
+   */
+  addons: Array<ProvenanceAddonWritable>;
+  /**
+   * The boosts in their window, in redemption order
+   */
+  boosts: Array<ProvenanceBoostWritable>;
+  /**
+   * The instance's exception in force at the read, the last layer; null without one. Never its reason or author
+   */
+  exception: ProvenanceExceptionWritable | null;
+  /**
+   * The licence's grant; null when only add-ons grant the entitlement
+   */
+  license: ProvenanceLicenseWritable | null;
+  /**
+   * How a number was composed; null for BOOLEAN and CONFIG, and when no add-on, boost or exception changes it
+   */
+  number: ProvenanceNumber | null;
+};
+
+export type ProvenanceAddonWritable = {
+  addonEntitlementId: string;
+  addonId: string;
+  attachedAt: string;
+  instanceAddonId: string;
+  limitCapExceededOveragePercent: number | null;
+  overrideBehavior: "ADD" | "OVERRIDE" | "MAX";
+  quantity: number;
+  /**
+   * One unit's grant
+   */
+  value:
+    | ({
+        type: "number";
+      } & NumberEntitlementValueWritable)
+    | ({
+        type: "boolean";
+      } & BooleanEntitlementValue)
+    | ({
+        type: "object";
+      } & ConfigEntitlementValue);
+};
+
+export type ProvenanceBoostWritable = {
+  effectiveExpiresAt: string | null;
+  effectiveStartsAt: string;
+  instanceVoucherId: string;
+  modifierType: "SET" | "ADD" | "MULTIPLY" | "UNLIMITED";
+  modifierValue: number | null;
+  redeemedAt: string;
+  /**
+   * The value a BOOLEAN or CONFIG SET boost sets, in the {type, value} shape; null for the NUMBER modifiers
+   */
+  value: NumberEntitlementValueWritable | BooleanEntitlementValue | ConfigEntitlementValue | null;
+  voucherEntitlementGrantId: string;
+  voucherId: string;
+};
+
+export type ProvenanceExceptionWritable = {
+  /**
+   * Null: no end
+   */
+  endsAt: string | null;
+  instanceEntitlementExceptionId: string;
+  kind: "SET" | "ADD" | "UNLIMITED";
+  startsAt: string;
+  /**
+   * The exception's value, in the {type, value} shape; null for UNLIMITED
+   */
+  value: NumberEntitlementValueWritable | BooleanEntitlementValue | ConfigEntitlementValue | null;
+};
+
+export type ProvenanceLicenseWritable = {
+  licenseEntitlementId: string;
+  limitCapExceededOveragePercent: number | null;
+  value:
+    | ({
+        type: "number";
+      } & NumberEntitlementValueWritable)
+    | ({
+        type: "boolean";
+      } & BooleanEntitlementValue)
+    | ({
+        type: "object";
+      } & ConfigEntitlementValue);
+};
+
+export type PublishableKeyWritable = {
+  /**
+   * Browser origins allowed to send the key. Empty: no browser origin may; requests without an Origin header (server-side rendering) still may.
+   */
+  allowedOrigins: Array<string>;
+  /**
+   * Whether the key may start an anonymous checkout (POST /public/checkout-sessions). Needs a Turnstile site key and secret.
+   */
+  anonymousCheckout: boolean;
+  /**
+   * What the key is for, to tell keys apart
+   */
+  label: string;
+  /**
+   * The Turnstile site key the page renders its widget with; null without one. Public: the catalogue hands it to the page.
+   */
+  turnstileSiteKey: string | null;
+};
+
+export type PublishableKeyCreatedWritable = {
+  /**
+   * Browser origins allowed to send the key. Empty: no browser origin may; requests without an Origin header (server-side rendering) still may.
+   */
+  allowedOrigins: Array<string>;
+  /**
+   * Whether the key may start an anonymous checkout (POST /public/checkout-sessions). Needs a Turnstile site key and secret.
+   */
+  anonymousCheckout: boolean;
+  /**
+   * What the key is for, to tell keys apart
+   */
+  label: string;
+  /**
+   * The Turnstile site key the page renders its widget with; null without one. Public: the catalogue hands it to the page.
+   */
+  turnstileSiteKey: string | null;
+};
+
+export type RedemptionWritable = {
+  /**
+   * Invoices a PRICE voucher discounted
+   */
+  applicationsCount: number;
+  /**
+   * 1 for ONE_TIME, durationInPeriods for REPEATING; null for FOREVER
+   */
+  applicationsMax: number | null;
+  codeHint: string;
+  /**
+   * When a boost stops applying; null for a PRICE voucher, counted in invoices, and for FOREVER
+   */
+  effectiveExpiresAt: string | null;
+  effectiveStartsAt: string;
+  expiredAt: string | null;
+  instanceSlug: string;
+  redeemedAt: string;
+  revokedAt: string | null;
+  revokedReason: string | null;
+  status: "ACTIVE" | "EXPIRED" | "REVOKED";
+  voucherId: string;
+  voucherName: string;
+  voucherType: "PRICE" | "ENTITLEMENT_BOOST" | "FLAG_GRANT" | "COMPOSITE";
+};
+
+export type RedemptionDeliveredWritable = {
+  /**
+   * Invoices a PRICE voucher discounted
+   */
+  applicationsCount: number;
+  /**
+   * 1 for ONE_TIME, durationInPeriods for REPEATING; null for FOREVER
+   */
+  applicationsMax: number | null;
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  codeHint: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  /**
+   * When a boost stops applying; null for a PRICE voucher, counted in invoices, and for FOREVER
+   */
+  effectiveExpiresAt: string | null;
+  effectiveStartsAt: string;
+  expiredAt: string | null;
+  instanceSlug: string;
+  redeemedAt: string;
+  revokedAt: string | null;
+  revokedReason: string | null;
+  status: "ACTIVE" | "EXPIRED" | "REVOKED";
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+  voucherId: string;
+  voucherName: string;
+  voucherType: "PRICE" | "ENTITLEMENT_BOOST" | "FLAG_GRANT" | "COMPOSITE";
 };
 
 export type ReleaseWritable = {
@@ -2863,13 +12619,44 @@ export type ReleaseWritable = {
   version: string;
 };
 
+export type ReleaseDeliveredWritable = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * List of component IDs to link to this release
+   */
+  componentIds?: Array<string> | null;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  /**
+   * Description of the release
+   */
+  description?: string;
+  /**
+   * Optional URL-friendly identifier, unique per organization. Auto-generated if not provided.
+   */
+  slug?: string;
+  /**
+   * Version of the release
+   */
+  version: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
 export type ReportEntitlementUsageBodyWritable = {
   /**
    * Report behavior: append folds the value into the stored total through the aggregation method; set overwrites it
    */
   behavior?: "append" | "set";
   /**
-   * Optional metadata for the usage report
+   * Optional metadata for the usage report, a JSON object stored with it in the usage history when its compact encoding is at most 4 KiB. Above that it is not stored, the report is still counted, and the response carries Kaiten-Metadata-Dropped: too_large. It must contain no personal data: anyone who can read the organization's instances can read it, for as long as the usage history is kept. Numbers are read as 64-bit floats, so send large identifiers as strings.
    */
   metadata?: {
     [key: string]: unknown;
@@ -2889,12 +12676,225 @@ export type ReportEntitlementUsageBodyWritable = {
       } & ConfigEntitlementValue);
 };
 
+export type ReportedEntitlementUsageWritable = {
+  /**
+   * End of the current usage window (exclusive). Null for a lifetime entitlement (no configured reset period).
+   */
+  currentPeriodEnd?: string;
+  /**
+   * Start of the current usage window (inclusive). Null for a lifetime entitlement (no configured reset period).
+   */
+  currentPeriodStart?: string;
+  /**
+   * Unique identifier for the entitlement
+   */
+  entitlementId: string;
+  /**
+   * URL-friendly identifier of the entitlement
+   */
+  entitlementSlug: string;
+  /**
+   * Unique identifier for the license to which this entitlement usage belongs
+   */
+  licenseId: string;
+  /**
+   * URL-friendly identifier of the license
+   */
+  licenseSlug: string;
+  /**
+   * The effective value this usage is measured against (the licence's grant, with the instance's add-ons and boosts applied; source and provenance say which), discriminated by the 'type' field. Absent when nothing grants the entitlement a value; -1 means unlimited for a NUMBER entitlement.
+   */
+  limit?:
+    | ({
+        type: "number";
+      } & NumberEntitlementValueWritable)
+    | ({
+        type: "boolean";
+      } & BooleanEntitlementValue)
+    | ({
+        type: "object";
+      } & ConfigEntitlementValue);
+  /**
+   * How far above limit usage is still accepted, in percent: -1 unlimited, 0 a hard limit. Absent for BOOLEAN and CONFIG.
+   */
+  limitCapExceededOveragePercent?: number;
+  /**
+   * What the licence, the add-ons and the boosts each contribute. Null on a replay (Idempotent-Replayed): the journal does not store it.
+   */
+  provenance: ProvenanceWritable | null;
+  /**
+   * license: the licence grants it (add-ons, boosts and an exception may change it); addon: an add-on attached does; exception: only the instance's exception does. Null on a replay (Idempotent-Replayed): the journal does not store it.
+   */
+  source: "license" | "addon" | "exception" | null;
+  /**
+   * The Idempotency-Key this report was accepted under, echoed on the first answer and on every replay; null when the request carried none. A client can tell from it that the server honours the key.
+   */
+  transactionId: string | null;
+  /**
+   * Resolved entitlement value, discriminated by the 'type' field
+   */
+  value:
+    | ({
+        type: "number";
+      } & NumberEntitlementValueWritable)
+    | ({
+        type: "boolean";
+      } & BooleanEntitlementValue)
+    | ({
+        type: "object";
+      } & ConfigEntitlementValue);
+};
+
+export type ScheduledChangeWritable = {
+  /**
+   * The boundary it applies at: the current period's end
+   */
+  effectiveAt: string;
+  /**
+   * The licence version of that price
+   */
+  licenseSlug: string;
+  /**
+   * The FLAT_FEE price the subscription moves to
+   */
+  price: PriceWritable;
+  scheduledAt: string;
+};
+
 export type ServiceAccountWritable = {
   name: string;
   /**
    * Optional URL-friendly identifier, unique per organization. Auto-generated if not provided.
    */
   slug?: string;
+};
+
+export type SessionPortalWritable = {
+  /**
+   * The add-ons the instance holds
+   */
+  addOns: Array<SessionAddon>;
+  branding: PublicBranding;
+  capabilities: PortalCapabilities;
+  customer: PortalCustomer;
+  /**
+   * The instance's effective entitlements: its licence's, raised or added by add-ons and boosts
+   */
+  entitlements: Array<PortalEntitlementWritable>;
+  /**
+   * The session's instance; null for a session bound to the customer only
+   */
+  instance: PortalInstance | null;
+  /**
+   * The customer's instances, for a session bound to the customer only; empty otherwise
+   */
+  instances: Array<PortalInstanceSummary>;
+  /**
+   * The payment method the customer's invoices are charged to; null when none is saved
+   */
+  paymentMethod: PortalPaymentMethod | null;
+  /**
+   * The instance's subscription; null when it has none, or the session is bound to no instance
+   */
+  subscription: SessionSubscription | null;
+  /**
+   * TRIAL only: when the trial ends, when its reminder is due, what the conversion would charge and to which card (V32-09); null otherwise
+   */
+  trial: PortalTrial | null;
+  /**
+   * What the next boundary will bill, on usage so far; null without a live subscription
+   */
+  upcomingInvoice: PortalUpcomingInvoice | null;
+  /**
+   * When this snapshot was read
+   */
+  updatedAt: string;
+  /**
+   * The instance's ACTIVE redemptions. Never a code.
+   */
+  vouchers: Array<SessionRedemption>;
+};
+
+export type StartedSubscriptionWritable = {
+  /**
+   * The invoice of the first period, when the base price bills in advance; absent otherwise. Charged automatically, it is pushed and charged before this answer when the provider answers within 20 seconds: its status says how it went.
+   */
+  activationInvoice?: InvoiceSummary;
+  /**
+   * The instant its periods are counted from
+   */
+  anchorAt: string;
+  /**
+   * The FLAT_FEE price the subscription is pinned to, deprecated or not
+   */
+  basePrice: PriceWritable;
+  billingPeriod: "MONTHLY" | "QUARTERLY" | "SEMI_ANNUAL" | "ANNUAL";
+  cancelAtPeriodEnd: boolean;
+  cancelRequestedAt: string | null;
+  canceledAt: string | null;
+  cancellationReason: string | null;
+  /**
+   * Effective: the subscription's own, else the organization's default
+   */
+  collectionMethod: "SEND_INVOICE" | "CHARGE_AUTOMATICALLY";
+  /**
+   * The subscription's own collection method; null when it takes the organization's
+   */
+  collectionMethodOverride: string | null;
+  createdAt: string;
+  currency: string;
+  /**
+   * The next boundary: the period closes, and its invoice is composed, after it
+   */
+  currentPeriodEnd: string;
+  currentPeriodStart: string;
+  customerName: string;
+  customerSlug: string;
+  /**
+   * Effective: the subscription's own, else the organization's default
+   */
+  daysUntilDue: number;
+  /**
+   * The subscription's own payment terms; null when it takes the organization's
+   */
+  daysUntilDueOverride: number | null;
+  id: string;
+  /**
+   * When a checkout waiting for its payment ends unpaid: INCOMPLETE, or a free subscription that carries one
+   */
+  incompleteExpiresAt: string | null;
+  instanceName: string;
+  /**
+   * As it was at the subscription's last write
+   */
+  instanceSlug: string;
+  pastDueSince: string | null;
+  /**
+   * The licence version a checkout waiting for its payment moves the instance to once paid
+   */
+  pendingLicenseSlug: string | null;
+  /**
+   * Who collects its invoices. NOOP: the organization itself, through the handoff queue
+   */
+  providerKind: "NOOP" | "STRIPE";
+  /**
+   * When trial_will_end is (or was) emitted: trialEndsAt minus the family's trialReminderDays as it was when the trial started; set with trialEndsAt
+   */
+  reminderAt: string | null;
+  /**
+   * A plan change waiting for the next boundary
+   */
+  scheduledChange: ScheduledChangeWritable | null;
+  /**
+   * When billing started: usage before it is never billed
+   */
+  startedAt: string;
+  status: "INCOMPLETE" | "TRIAL" | "ACTIVE" | "PAST_DUE" | "CANCELED";
+  /**
+   * When the trial ends, or ended: usage before it is never billed
+   */
+  trialEndsAt: string | null;
+  updatedAt: string;
 };
 
 export type TokenWritable = {
@@ -2906,6 +12906,2133 @@ export type TokenWritable = {
    */
   slug?: string;
 };
+
+export type TrialWillEndDeliveredWritable = {
+  /**
+   * The instant its periods are counted from
+   */
+  anchorAt: string;
+  /**
+   * The FLAT_FEE price the subscription is pinned to, deprecated or not
+   */
+  basePrice: PriceWritable;
+  billingPeriod: "MONTHLY" | "QUARTERLY" | "SEMI_ANNUAL" | "ANNUAL";
+  cancelAtPeriodEnd: boolean;
+  cancelRequestedAt: string | null;
+  canceledAt: string | null;
+  cancellationReason: string | null;
+  /**
+   * What the conversion would charge, as upcoming-invoice previews it, discounts included and before any tax the provider adds; null when nothing would be
+   */
+  charge: TrialCharge | null;
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * Effective: the subscription's own, else the organization's default
+   */
+  collectionMethod: "SEND_INVOICE" | "CHARGE_AUTOMATICALLY";
+  /**
+   * The subscription's own collection method; null when it takes the organization's
+   */
+  collectionMethodOverride: string | null;
+  createdAt: string;
+  currency: string;
+  /**
+   * The next boundary: the period closes, and its invoice is composed, after it
+   */
+  currentPeriodEnd: string;
+  currentPeriodStart: string;
+  customer: TrialCustomer;
+  customerName: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  customerSlug: string;
+  /**
+   * Whole days from the event to trialEndsAt, rounded up; 0 once it passed
+   */
+  daysLeft: number;
+  /**
+   * Effective: the subscription's own, else the organization's default
+   */
+  daysUntilDue: number;
+  /**
+   * The subscription's own payment terms; null when it takes the organization's
+   */
+  daysUntilDueOverride: number | null;
+  /**
+   * Its family
+   */
+  familySlug: string;
+  id: string;
+  /**
+   * When a checkout waiting for its payment ends unpaid: INCOMPLETE, or a free subscription that carries one
+   */
+  incompleteExpiresAt: string | null;
+  instance: TrialInstance;
+  instanceName: string;
+  /**
+   * As it was at the subscription's last write
+   */
+  instanceSlug: string;
+  /**
+   * The licence version of the base price
+   */
+  licenseName: string;
+  pastDueSince: string | null;
+  /**
+   * The ACTIVE card the conversion would be charged to; null without one, or on NOOP
+   */
+  paymentMethod: TrialPaymentMethod | null;
+  /**
+   * The licence version a checkout waiting for its payment moves the instance to once paid
+   */
+  pendingLicenseSlug: string | null;
+  /**
+   * Who collects its invoices. NOOP: the organization itself, through the handoff queue
+   */
+  providerKind: "NOOP" | "STRIPE";
+  /**
+   * When trial_will_end is (or was) emitted: trialEndsAt minus the family's trialReminderDays as it was when the trial started; set with trialEndsAt
+   */
+  reminderAt: string | null;
+  /**
+   * A plan change waiting for the next boundary
+   */
+  scheduledChange: ScheduledChangeWritable | null;
+  /**
+   * When billing started: usage before it is never billed
+   */
+  startedAt: string;
+  status: "INCOMPLETE" | "TRIAL" | "ACTIVE" | "PAST_DUE" | "CANCELED";
+  /**
+   * When the trial ends, or ended: usage before it is never billed
+   */
+  trialEndsAt: string | null;
+  updatedAt: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
+export type ValidityWritable = {
+  /**
+   * The first failing check. DISCOUNT_LIMIT_EXCEEDED: a line of the instance's invoices would bear more than 20 discounts
+   */
+  reason?:
+    | "NOT_FOUND"
+    | "NOT_ACTIVE"
+    | "NOT_YET_VALID"
+    | "EXPIRED"
+    | "EXHAUSTED"
+    | "ALREADY_REDEEMED"
+    | "NOT_ELIGIBLE"
+    | "CURRENCY_MISMATCH"
+    | "DISCOUNT_LIMIT_EXCEEDED";
+  /**
+   * With NOT_ELIGIBLE: the eligibility rule
+   */
+  rule?:
+    | "RESTRICTED_CUSTOMER"
+    | "LICENSE_NOT_APPLICABLE"
+    | "ADDON_NOT_APPLICABLE"
+    | "FIRST_TIME_ONLY"
+    | "ANNUAL_ONLY"
+    | "MINIMUM_SUBSCRIPTION_AMOUNT"
+    | "NOTHING_TO_BOOST";
+  valid: boolean;
+  /**
+   * The voucher, without its code, when the code names one
+   */
+  voucher?: VoucherWritable;
+};
+
+export type VoucherWritable = {
+  /**
+   * Only instances holding one of these add-on versions can redeem it; any when empty
+   */
+  applicableAddonIds: Array<string>;
+  applicableAddonPriceIds: Array<string>;
+  /**
+   * Only instances on these licence versions can redeem it; any when empty
+   */
+  applicableLicenseIds: Array<string>;
+  applicableLicensePriceIds: Array<string>;
+  /**
+   * The code to redeem. Returned to read:vouchers callers only; never in an event.
+   */
+  code?: string;
+  /**
+   * The last four characters of the normalized code
+   */
+  codeHint: string;
+  /**
+   * The currency of a FIXED_AMOUNT discount
+   */
+  currency: string | null;
+  description: string | null;
+  /**
+   * PRICE: how many invoices it discounts (one, durationInPeriods, or every one). BOOST and FLAG_GRANT: how long a redemption lasts, in the subscription's billing periods. COMPOSITE: both, each for its part.
+   */
+  duration: "ONE_TIME" | "REPEATING" | "FOREVER";
+  durationInPeriods: number | null;
+  expiresAt: string | null;
+  /**
+   * The flag variants a FLAG_GRANT grants
+   */
+  flagGrants: Array<FlagGrant>;
+  /**
+   * What an ENTITLEMENT_BOOST changes
+   */
+  grants: Array<Grant>;
+  maxRedemptions: number | null;
+  name: string;
+  priceAppliesTo: "LICENSE_BASE" | "ADDONS" | "BOTH" | "SELECTED_PRICES" | null;
+  priceDiscountType: "PERCENTAGE" | "FIXED_AMOUNT" | null;
+  /**
+   * A percentage in (0, 100], or an integer amount in minor units of currency
+   */
+  priceDiscountValue: string | null;
+  redemptionRules: RedemptionRules;
+  redemptionsCount: number;
+  /**
+   * Only this customer's instances can redeem it
+   */
+  restrictedCustomerSlug: string | null;
+  startsAt: string | null;
+  status: "DRAFT" | "ACTIVE" | "EXPIRED" | "EXHAUSTED" | "ARCHIVED";
+  voucherType: "PRICE" | "ENTITLEMENT_BOOST" | "FLAG_GRANT" | "COMPOSITE";
+};
+
+export type VoucherDeliveredWritable = {
+  /**
+   * Only instances holding one of these add-on versions can redeem it; any when empty
+   */
+  applicableAddonIds: Array<string>;
+  applicableAddonPriceIds: Array<string>;
+  /**
+   * Only instances on these licence versions can redeem it; any when empty
+   */
+  applicableLicenseIds: Array<string>;
+  applicableLicensePriceIds: Array<string>;
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * The code to redeem. Returned to read:vouchers callers only; never in an event.
+   */
+  code?: string;
+  /**
+   * The last four characters of the normalized code
+   */
+  codeHint: string;
+  /**
+   * The currency of a FIXED_AMOUNT discount
+   */
+  currency: string | null;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  description: string | null;
+  /**
+   * PRICE: how many invoices it discounts (one, durationInPeriods, or every one). BOOST and FLAG_GRANT: how long a redemption lasts, in the subscription's billing periods. COMPOSITE: both, each for its part.
+   */
+  duration: "ONE_TIME" | "REPEATING" | "FOREVER";
+  durationInPeriods: number | null;
+  expiresAt: string | null;
+  /**
+   * The flag variants a FLAG_GRANT grants
+   */
+  flagGrants: Array<FlagGrant>;
+  /**
+   * What an ENTITLEMENT_BOOST changes
+   */
+  grants: Array<Grant>;
+  maxRedemptions: number | null;
+  name: string;
+  priceAppliesTo: "LICENSE_BASE" | "ADDONS" | "BOTH" | "SELECTED_PRICES" | null;
+  priceDiscountType: "PERCENTAGE" | "FIXED_AMOUNT" | null;
+  /**
+   * A percentage in (0, 100], or an integer amount in minor units of currency
+   */
+  priceDiscountValue: string | null;
+  redemptionRules: RedemptionRules;
+  redemptionsCount: number;
+  /**
+   * Only this customer's instances can redeem it
+   */
+  restrictedCustomerSlug: string | null;
+  startsAt: string | null;
+  status: "DRAFT" | "ACTIVE" | "EXPIRED" | "EXHAUSTED" | "ARCHIVED";
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+  voucherType: "PRICE" | "ENTITLEMENT_BOOST" | "FLAG_GRANT" | "COMPOSITE";
+};
+
+export type ListAddonFamiliesData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/addon-families";
+};
+
+export type ListAddonFamiliesErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type ListAddonFamiliesError = ListAddonFamiliesErrors[keyof ListAddonFamiliesErrors];
+
+export type ListAddonFamiliesResponses = {
+  /**
+   * OK
+   */
+  200: Array<AddonFamily>;
+};
+
+export type ListAddonFamiliesResponse =
+  ListAddonFamiliesResponses[keyof ListAddonFamiliesResponses];
+
+export type GetAddonFamilyData = {
+  body?: never;
+  path: {
+    /**
+     * Add-on family slug
+     */
+    familySlug: string;
+  };
+  query?: never;
+  url: "/addon-families/{familySlug}";
+};
+
+export type GetAddonFamilyErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type GetAddonFamilyError = GetAddonFamilyErrors[keyof GetAddonFamilyErrors];
+
+export type GetAddonFamilyResponses = {
+  /**
+   * OK
+   */
+  200: AddonFamily;
+};
+
+export type GetAddonFamilyResponse = GetAddonFamilyResponses[keyof GetAddonFamilyResponses];
+
+export type UpdateAddonFamilyData = {
+  body: AddonFamilyVisibility;
+  path: {
+    /**
+     * Add-on family slug
+     */
+    familySlug: string;
+  };
+  query?: never;
+  url: "/addon-families/{familySlug}";
+};
+
+export type UpdateAddonFamilyErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type UpdateAddonFamilyError = UpdateAddonFamilyErrors[keyof UpdateAddonFamilyErrors];
+
+export type UpdateAddonFamilyResponses = {
+  /**
+   * OK
+   */
+  200: AddonFamily;
+};
+
+export type UpdateAddonFamilyResponse =
+  UpdateAddonFamilyResponses[keyof UpdateAddonFamilyResponses];
+
+export type ListAddonsData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Only versions in this state
+     */
+    lifecycleState?: "DRAFT" | "PUBLISHED" | "ARCHIVED";
+    /**
+     * Only versions of this family
+     */
+    familySlug?: string;
+    /**
+     * Opaque pagination cursor from a previous response's nextCursor
+     */
+    cursor?: string;
+    /**
+     * Maximum number of entries to return (default 50, max 200)
+     */
+    limit?: number;
+  };
+  url: "/addons";
+};
+
+export type ListAddonsErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type ListAddonsError = ListAddonsErrors[keyof ListAddonsErrors];
+
+export type ListAddonsResponses = {
+  /**
+   * OK
+   */
+  200: PageAddon;
+};
+
+export type ListAddonsResponse = ListAddonsResponses[keyof ListAddonsResponses];
+
+export type CreateAddonData = {
+  body: NewAddon;
+  path?: never;
+  query?: never;
+  url: "/addons";
+};
+
+export type CreateAddonErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type CreateAddonError = CreateAddonErrors[keyof CreateAddonErrors];
+
+export type CreateAddonResponses = {
+  /**
+   * Created
+   */
+  201: Addon;
+};
+
+export type CreateAddonResponse = CreateAddonResponses[keyof CreateAddonResponses];
+
+export type DeleteAddonData = {
+  body?: never;
+  path: {
+    /**
+     * Add-on version slug
+     */
+    addonSlug: string;
+  };
+  query?: never;
+  url: "/addons/{addonSlug}";
+};
+
+export type DeleteAddonErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type DeleteAddonError = DeleteAddonErrors[keyof DeleteAddonErrors];
+
+export type DeleteAddonResponses = {
+  /**
+   * No Content
+   */
+  204: void;
+};
+
+export type DeleteAddonResponse = DeleteAddonResponses[keyof DeleteAddonResponses];
+
+export type GetAddonData = {
+  body?: never;
+  path: {
+    /**
+     * Add-on version slug
+     */
+    addonSlug: string;
+  };
+  query?: never;
+  url: "/addons/{addonSlug}";
+};
+
+export type GetAddonErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type GetAddonError = GetAddonErrors[keyof GetAddonErrors];
+
+export type GetAddonResponses = {
+  /**
+   * OK
+   */
+  200: Addon;
+};
+
+export type GetAddonResponse = GetAddonResponses[keyof GetAddonResponses];
+
+export type UpdateAddonData = {
+  body: AddonChanges;
+  path: {
+    /**
+     * Add-on version slug
+     */
+    addonSlug: string;
+  };
+  query?: never;
+  url: "/addons/{addonSlug}";
+};
+
+export type UpdateAddonErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type UpdateAddonError = UpdateAddonErrors[keyof UpdateAddonErrors];
+
+export type UpdateAddonResponses = {
+  /**
+   * OK
+   */
+  200: Addon;
+};
+
+export type UpdateAddonResponse = UpdateAddonResponses[keyof UpdateAddonResponses];
+
+export type ArchiveAddonData = {
+  body?: never;
+  path: {
+    /**
+     * Add-on version slug
+     */
+    addonSlug: string;
+  };
+  query?: never;
+  url: "/addons/{addonSlug}/archive";
+};
+
+export type ArchiveAddonErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type ArchiveAddonError = ArchiveAddonErrors[keyof ArchiveAddonErrors];
+
+export type ArchiveAddonResponses = {
+  /**
+   * OK
+   */
+  200: Addon;
+};
+
+export type ArchiveAddonResponse = ArchiveAddonResponses[keyof ArchiveAddonResponses];
+
+export type ListAddonCompatibilityData = {
+  body?: never;
+  path: {
+    /**
+     * Add-on version slug
+     */
+    addonSlug: string;
+  };
+  query?: never;
+  url: "/addons/{addonSlug}/compatible-license-families";
+};
+
+export type ListAddonCompatibilityErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type ListAddonCompatibilityError =
+  ListAddonCompatibilityErrors[keyof ListAddonCompatibilityErrors];
+
+export type ListAddonCompatibilityResponses = {
+  /**
+   * OK
+   */
+  200: CompatibleLicenseFamilies;
+};
+
+export type ListAddonCompatibilityResponse =
+  ListAddonCompatibilityResponses[keyof ListAddonCompatibilityResponses];
+
+export type RemoveAddonCompatibilityData = {
+  body?: never;
+  path: {
+    /**
+     * Add-on version slug
+     */
+    addonSlug: string;
+    /**
+     * License family slug
+     */
+    familySlug: string;
+  };
+  query?: never;
+  url: "/addons/{addonSlug}/compatible-license-families/{familySlug}";
+};
+
+export type RemoveAddonCompatibilityErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type RemoveAddonCompatibilityError =
+  RemoveAddonCompatibilityErrors[keyof RemoveAddonCompatibilityErrors];
+
+export type RemoveAddonCompatibilityResponses = {
+  /**
+   * No Content
+   */
+  204: void;
+};
+
+export type RemoveAddonCompatibilityResponse =
+  RemoveAddonCompatibilityResponses[keyof RemoveAddonCompatibilityResponses];
+
+export type SetAddonCompatibilityData = {
+  body?: never;
+  path: {
+    /**
+     * Add-on version slug
+     */
+    addonSlug: string;
+    /**
+     * License family slug
+     */
+    familySlug: string;
+  };
+  query?: never;
+  url: "/addons/{addonSlug}/compatible-license-families/{familySlug}";
+};
+
+export type SetAddonCompatibilityErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type SetAddonCompatibilityError =
+  SetAddonCompatibilityErrors[keyof SetAddonCompatibilityErrors];
+
+export type SetAddonCompatibilityResponses = {
+  /**
+   * No Content
+   */
+  204: void;
+};
+
+export type SetAddonCompatibilityResponse =
+  SetAddonCompatibilityResponses[keyof SetAddonCompatibilityResponses];
+
+export type ListAddonEntitlementsData = {
+  body?: never;
+  path: {
+    /**
+     * Add-on version slug
+     */
+    addonSlug: string;
+  };
+  query?: never;
+  url: "/addons/{addonSlug}/entitlements";
+};
+
+export type ListAddonEntitlementsErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type ListAddonEntitlementsError =
+  ListAddonEntitlementsErrors[keyof ListAddonEntitlementsErrors];
+
+export type ListAddonEntitlementsResponses = {
+  /**
+   * OK
+   */
+  200: Array<AddonEntitlement>;
+};
+
+export type ListAddonEntitlementsResponse =
+  ListAddonEntitlementsResponses[keyof ListAddonEntitlementsResponses];
+
+export type AssignAddonEntitlementData = {
+  body: NewAddonGrant;
+  path: {
+    /**
+     * Add-on version slug
+     */
+    addonSlug: string;
+  };
+  query?: never;
+  url: "/addons/{addonSlug}/entitlements";
+};
+
+export type AssignAddonEntitlementErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type AssignAddonEntitlementError =
+  AssignAddonEntitlementErrors[keyof AssignAddonEntitlementErrors];
+
+export type AssignAddonEntitlementResponses = {
+  /**
+   * Created
+   */
+  201: AddonEntitlement;
+};
+
+export type AssignAddonEntitlementResponse =
+  AssignAddonEntitlementResponses[keyof AssignAddonEntitlementResponses];
+
+export type UnassignAddonEntitlementData = {
+  body?: never;
+  path: {
+    /**
+     * Add-on version slug
+     */
+    addonSlug: string;
+    /**
+     * Entitlement slug
+     */
+    entitlementSlug: string;
+  };
+  query?: never;
+  url: "/addons/{addonSlug}/entitlements/{entitlementSlug}";
+};
+
+export type UnassignAddonEntitlementErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type UnassignAddonEntitlementError =
+  UnassignAddonEntitlementErrors[keyof UnassignAddonEntitlementErrors];
+
+export type UnassignAddonEntitlementResponses = {
+  /**
+   * No Content
+   */
+  204: void;
+};
+
+export type UnassignAddonEntitlementResponse =
+  UnassignAddonEntitlementResponses[keyof UnassignAddonEntitlementResponses];
+
+export type GetAddonEntitlementData = {
+  body?: never;
+  path: {
+    /**
+     * Add-on version slug
+     */
+    addonSlug: string;
+    /**
+     * Entitlement slug
+     */
+    entitlementSlug: string;
+  };
+  query?: never;
+  url: "/addons/{addonSlug}/entitlements/{entitlementSlug}";
+};
+
+export type GetAddonEntitlementErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type GetAddonEntitlementError = GetAddonEntitlementErrors[keyof GetAddonEntitlementErrors];
+
+export type GetAddonEntitlementResponses = {
+  /**
+   * OK
+   */
+  200: AddonEntitlement;
+};
+
+export type GetAddonEntitlementResponse =
+  GetAddonEntitlementResponses[keyof GetAddonEntitlementResponses];
+
+export type UpdateAddonEntitlementData = {
+  body: AddonGrant;
+  path: {
+    /**
+     * Add-on version slug
+     */
+    addonSlug: string;
+    /**
+     * Entitlement slug
+     */
+    entitlementSlug: string;
+  };
+  query?: never;
+  url: "/addons/{addonSlug}/entitlements/{entitlementSlug}";
+};
+
+export type UpdateAddonEntitlementErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type UpdateAddonEntitlementError =
+  UpdateAddonEntitlementErrors[keyof UpdateAddonEntitlementErrors];
+
+export type UpdateAddonEntitlementResponses = {
+  /**
+   * OK
+   */
+  200: AddonEntitlement;
+};
+
+export type UpdateAddonEntitlementResponse =
+  UpdateAddonEntitlementResponses[keyof UpdateAddonEntitlementResponses];
+
+export type ListAddonPricesData = {
+  body?: never;
+  path: {
+    /**
+     * Add-on version slug
+     */
+    addonSlug: string;
+  };
+  query?: {
+    /**
+     * Only prices in this status; both when omitted
+     */
+    status?: "ACTIVE" | "DEPRECATED";
+  };
+  url: "/addons/{addonSlug}/prices";
+};
+
+export type ListAddonPricesErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type ListAddonPricesError = ListAddonPricesErrors[keyof ListAddonPricesErrors];
+
+export type ListAddonPricesResponses = {
+  /**
+   * OK
+   */
+  200: Array<Price>;
+};
+
+export type ListAddonPricesResponse = ListAddonPricesResponses[keyof ListAddonPricesResponses];
+
+export type CreateAddonPriceData = {
+  body: NewAddonPrice;
+  path: {
+    /**
+     * Add-on version slug
+     */
+    addonSlug: string;
+  };
+  query?: never;
+  url: "/addons/{addonSlug}/prices";
+};
+
+export type CreateAddonPriceErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type CreateAddonPriceError = CreateAddonPriceErrors[keyof CreateAddonPriceErrors];
+
+export type CreateAddonPriceResponses = {
+  /**
+   * Created
+   */
+  201: Price;
+};
+
+export type CreateAddonPriceResponse = CreateAddonPriceResponses[keyof CreateAddonPriceResponses];
+
+export type DeprecateAddonPriceData = {
+  body?: never;
+  path: {
+    /**
+     * Add-on version slug
+     */
+    addonSlug: string;
+    /**
+     * Price id
+     */
+    priceId: string;
+  };
+  query?: never;
+  url: "/addons/{addonSlug}/prices/{priceId}/deprecate";
+};
+
+export type DeprecateAddonPriceErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type DeprecateAddonPriceError = DeprecateAddonPriceErrors[keyof DeprecateAddonPriceErrors];
+
+export type DeprecateAddonPriceResponses = {
+  /**
+   * OK
+   */
+  200: Price;
+};
+
+export type DeprecateAddonPriceResponse =
+  DeprecateAddonPriceResponses[keyof DeprecateAddonPriceResponses];
+
+export type PublishAddonData = {
+  body?: never;
+  path: {
+    /**
+     * Add-on version slug
+     */
+    addonSlug: string;
+  };
+  query?: never;
+  url: "/addons/{addonSlug}/publish";
+};
+
+export type PublishAddonErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type PublishAddonError = PublishAddonErrors[keyof PublishAddonErrors];
+
+export type PublishAddonResponses = {
+  /**
+   * OK
+   */
+  200: Addon;
+};
+
+export type PublishAddonResponse = PublishAddonResponses[keyof PublishAddonResponses];
+
+export type UnarchiveAddonData = {
+  body?: never;
+  path: {
+    /**
+     * Add-on version slug
+     */
+    addonSlug: string;
+  };
+  query?: never;
+  url: "/addons/{addonSlug}/unarchive";
+};
+
+export type UnarchiveAddonErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type UnarchiveAddonError = UnarchiveAddonErrors[keyof UnarchiveAddonErrors];
+
+export type UnarchiveAddonResponses = {
+  /**
+   * OK
+   */
+  200: Addon;
+};
+
+export type UnarchiveAddonResponse = UnarchiveAddonResponses[keyof UnarchiveAddonResponses];
+
+export type GetAuthorizationData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/authorization";
+};
+
+export type GetAuthorizationErrors = {
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+};
+
+export type GetAuthorizationError = GetAuthorizationErrors[keyof GetAuthorizationErrors];
+
+export type GetAuthorizationResponses = {
+  /**
+   * OK
+   */
+  200: Authorization;
+};
+
+export type GetAuthorizationResponse = GetAuthorizationResponses[keyof GetAuthorizationResponses];
+
+export type GetBillingCapabilitiesData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/billing/capabilities";
+};
+
+export type GetBillingCapabilitiesErrors = {
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type GetBillingCapabilitiesError =
+  GetBillingCapabilitiesErrors[keyof GetBillingCapabilitiesErrors];
+
+export type GetBillingCapabilitiesResponses = {
+  /**
+   * OK
+   */
+  200: BillingCapabilities;
+};
+
+export type GetBillingCapabilitiesResponse =
+  GetBillingCapabilitiesResponses[keyof GetBillingCapabilitiesResponses];
+
+export type CloseBillingPeriodsData = {
+  body: ClosePeriodsScope;
+  path?: never;
+  query?: never;
+  url: "/billing/close-periods";
+};
+
+export type CloseBillingPeriodsErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type CloseBillingPeriodsError = CloseBillingPeriodsErrors[keyof CloseBillingPeriodsErrors];
+
+export type CloseBillingPeriodsResponses = {
+  /**
+   * OK
+   */
+  200: ClosePeriodsReport;
+};
+
+export type CloseBillingPeriodsResponse =
+  CloseBillingPeriodsResponses[keyof CloseBillingPeriodsResponses];
+
+export type ListHandoffData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * PENDING (the default) or ACKNOWLEDGED; .InvalidStatus otherwise
+     */
+    status?: "PENDING" | "ACKNOWLEDGED";
+    /**
+     * Opaque cursor from the previous page's nextCursor
+     */
+    cursor?: string;
+    /**
+     * Page size, 50 by default, 200 at most
+     */
+    limit?: number;
+  };
+  url: "/billing/handoff";
+};
+
+export type ListHandoffErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type ListHandoffError = ListHandoffErrors[keyof ListHandoffErrors];
+
+export type ListHandoffResponses = {
+  /**
+   * OK
+   */
+  200: PageQueuedInvoice;
+};
+
+export type ListHandoffResponse = ListHandoffResponses[keyof ListHandoffResponses];
+
+export type ClaimHandoffData = {
+  body: HandoffClaimSize;
+  path?: never;
+  query?: never;
+  url: "/billing/handoff/claim";
+};
+
+export type ClaimHandoffErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type ClaimHandoffError = ClaimHandoffErrors[keyof ClaimHandoffErrors];
+
+export type ClaimHandoffResponses = {
+  /**
+   * OK
+   */
+  200: HandoffClaim;
+};
+
+export type ClaimHandoffResponse = ClaimHandoffResponses[keyof ClaimHandoffResponses];
+
+export type AckHandoffData = {
+  body: HandoffBooking;
+  path: {
+    /**
+     * Invoice identifier
+     */
+    invoiceId: string;
+  };
+  query?: never;
+  url: "/billing/handoff/{invoiceId}/ack";
+};
+
+export type AckHandoffErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type AckHandoffError = AckHandoffErrors[keyof AckHandoffErrors];
+
+export type AckHandoffResponses = {
+  /**
+   * OK
+   */
+  200: Invoice;
+};
+
+export type AckHandoffResponse = AckHandoffResponses[keyof AckHandoffResponses];
+
+export type GetBillingHealthData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/billing/health";
+};
+
+export type GetBillingHealthErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type GetBillingHealthError = GetBillingHealthErrors[keyof GetBillingHealthErrors];
+
+export type GetBillingHealthResponses = {
+  /**
+   * OK
+   */
+  200: BillingHealth;
+};
+
+export type GetBillingHealthResponse = GetBillingHealthResponses[keyof GetBillingHealthResponses];
+
+export type GetBillingSettingsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/billing/settings";
+};
+
+export type GetBillingSettingsErrors = {
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type GetBillingSettingsError = GetBillingSettingsErrors[keyof GetBillingSettingsErrors];
+
+export type GetBillingSettingsResponses = {
+  /**
+   * OK
+   */
+  200: BillingSettings;
+};
+
+export type GetBillingSettingsResponse =
+  GetBillingSettingsResponses[keyof GetBillingSettingsResponses];
+
+export type UpdateBillingSettingsData = {
+  body: BillingSettings;
+  path?: never;
+  query?: never;
+  url: "/billing/settings";
+};
+
+export type UpdateBillingSettingsErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type UpdateBillingSettingsError =
+  UpdateBillingSettingsErrors[keyof UpdateBillingSettingsErrors];
+
+export type UpdateBillingSettingsResponses = {
+  /**
+   * OK
+   */
+  200: BillingSettings;
+};
+
+export type UpdateBillingSettingsResponse =
+  UpdateBillingSettingsResponses[keyof UpdateBillingSettingsResponses];
+
+export type SyncBillingProviderData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/billing/sync";
+};
+
+export type SyncBillingProviderErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type SyncBillingProviderError = SyncBillingProviderErrors[keyof SyncBillingProviderErrors];
+
+export type SyncBillingProviderResponses = {
+  /**
+   * Accepted
+   */
+  202: SyncReport;
+};
+
+export type SyncBillingProviderResponse =
+  SyncBillingProviderResponses[keyof SyncBillingProviderResponses];
+
+export type ListCheckoutSessionsData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Repeatable; a session OPEN past expiresAt is ABANDONED
+     */
+    status?: Array<"OPEN" | "AWAITING_PAYMENT" | "COMPLETED" | "ABANDONED" | "EXPIRED"> | null;
+    /**
+     * The visitor's e-mail, in any letter case
+     */
+    email?: string;
+    /**
+     * The vendor's own reference, exactly
+     */
+    clientReferenceId?: string;
+    /**
+     * Opaque pagination cursor from a previous response's nextCursor
+     */
+    cursor?: string;
+    /**
+     * Maximum number of entries to return (default 50, max 200)
+     */
+    limit?: number;
+  };
+  url: "/checkout-sessions";
+};
+
+export type ListCheckoutSessionsErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type ListCheckoutSessionsError =
+  ListCheckoutSessionsErrors[keyof ListCheckoutSessionsErrors];
+
+export type ListCheckoutSessionsResponses = {
+  /**
+   * OK
+   */
+  200: PageCheckoutSessionAdmin;
+};
+
+export type ListCheckoutSessionsResponse =
+  ListCheckoutSessionsResponses[keyof ListCheckoutSessionsResponses];
+
+export type GetCheckoutSessionAdminData = {
+  body?: never;
+  path: {
+    sessionId: string;
+  };
+  query?: never;
+  url: "/checkout-sessions/{sessionId}";
+};
+
+export type GetCheckoutSessionAdminErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type GetCheckoutSessionAdminError =
+  GetCheckoutSessionAdminErrors[keyof GetCheckoutSessionAdminErrors];
+
+export type GetCheckoutSessionAdminResponses = {
+  /**
+   * OK
+   */
+  200: CheckoutSessionAdmin;
+};
+
+export type GetCheckoutSessionAdminResponse =
+  GetCheckoutSessionAdminResponses[keyof GetCheckoutSessionAdminResponses];
 
 export type ListComponentsData = {
   body?: never;
@@ -3607,6 +15734,117 @@ export type GetConnectorStateResponses = {
 export type GetConnectorStateResponse =
   GetConnectorStateResponses[keyof GetConnectorStateResponses];
 
+export type CreateCustomerSessionData = {
+  body: CustomerSessionDraft;
+  path?: never;
+  query?: never;
+  url: "/customer-sessions";
+};
+
+export type CreateCustomerSessionErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Too Many Requests
+   */
+  429: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type CreateCustomerSessionError =
+  CreateCustomerSessionErrors[keyof CreateCustomerSessionErrors];
+
+export type CreateCustomerSessionResponses = {
+  /**
+   * Created
+   */
+  201: CreatedCustomerSession;
+};
+
+export type CreateCustomerSessionResponse =
+  CreateCustomerSessionResponses[keyof CreateCustomerSessionResponses];
+
+export type RevokeCustomerSessionData = {
+  body?: never;
+  path: {
+    /**
+     * Customer session id
+     */
+    sessionId: string;
+  };
+  query?: never;
+  url: "/customer-sessions/{sessionId}/revoke";
+};
+
+export type RevokeCustomerSessionErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type RevokeCustomerSessionError =
+  RevokeCustomerSessionErrors[keyof RevokeCustomerSessionErrors];
+
+export type RevokeCustomerSessionResponses = {
+  /**
+   * No Content
+   */
+  204: void;
+};
+
+export type RevokeCustomerSessionResponse =
+  RevokeCustomerSessionResponses[keyof RevokeCustomerSessionResponses];
+
 export type ListCustomersData = {
   body?: never;
   path?: never;
@@ -3737,6 +15975,10 @@ export type DeleteCustomerErrors = {
    */
   404: Problem;
   /**
+   * Conflict
+   */
+  409: Problem;
+  /**
    * Unprocessable Entity
    */
   422: Problem;
@@ -3846,6 +16088,307 @@ export type UpdateCustomerResponses = {
 };
 
 export type UpdateCustomerResponse = UpdateCustomerResponses[keyof UpdateCustomerResponses];
+
+export type GetCustomerBillingData = {
+  body?: never;
+  path: {
+    /**
+     * Customer slug
+     */
+    customerSlug: string;
+  };
+  query?: never;
+  url: "/customers/{customerSlug}/billing";
+};
+
+export type GetCustomerBillingErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type GetCustomerBillingError = GetCustomerBillingErrors[keyof GetCustomerBillingErrors];
+
+export type GetCustomerBillingResponses = {
+  /**
+   * OK
+   */
+  200: CustomerBilling;
+};
+
+export type GetCustomerBillingResponse =
+  GetCustomerBillingResponses[keyof GetCustomerBillingResponses];
+
+export type DetachPaymentMethodData = {
+  body?: never;
+  path: {
+    /**
+     * Customer slug
+     */
+    customerSlug: string;
+  };
+  query?: never;
+  url: "/customers/{customerSlug}/billing/payment-method";
+};
+
+export type DetachPaymentMethodErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type DetachPaymentMethodError = DetachPaymentMethodErrors[keyof DetachPaymentMethodErrors];
+
+export type DetachPaymentMethodResponses = {
+  /**
+   * No Content
+   */
+  204: void;
+};
+
+export type DetachPaymentMethodResponse =
+  DetachPaymentMethodResponses[keyof DetachPaymentMethodResponses];
+
+export type CreatePaymentMethodSessionData = {
+  body: NewPaymentMethodSession;
+  path: {
+    /**
+     * Customer slug
+     */
+    customerSlug: string;
+  };
+  query?: never;
+  url: "/customers/{customerSlug}/billing/payment-method-session";
+};
+
+export type CreatePaymentMethodSessionErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type CreatePaymentMethodSessionError =
+  CreatePaymentMethodSessionErrors[keyof CreatePaymentMethodSessionErrors];
+
+export type CreatePaymentMethodSessionResponses = {
+  /**
+   * OK
+   */
+  200: PaymentMethodSession;
+};
+
+export type CreatePaymentMethodSessionResponse =
+  CreatePaymentMethodSessionResponses[keyof CreatePaymentMethodSessionResponses];
+
+export type CompletePaymentMethodSessionData = {
+  body?: never;
+  path: {
+    /**
+     * Customer slug
+     */
+    customerSlug: string;
+    /**
+     * The setup session id the customer came back with
+     */
+    sessionId: string;
+  };
+  query?: never;
+  url: "/customers/{customerSlug}/billing/payment-method-session/{sessionId}/complete";
+};
+
+export type CompletePaymentMethodSessionErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type CompletePaymentMethodSessionError =
+  CompletePaymentMethodSessionErrors[keyof CompletePaymentMethodSessionErrors];
+
+export type CompletePaymentMethodSessionResponses = {
+  /**
+   * OK
+   */
+  200: CompletedPaymentMethodSession;
+};
+
+export type CompletePaymentMethodSessionResponse =
+  CompletePaymentMethodSessionResponses[keyof CompletePaymentMethodSessionResponses];
+
+export type CreatePortalSessionData = {
+  body: NewPortalSession;
+  path: {
+    /**
+     * Customer slug
+     */
+    customerSlug: string;
+  };
+  query?: never;
+  url: "/customers/{customerSlug}/billing/portal-session";
+};
+
+export type CreatePortalSessionErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type CreatePortalSessionError = CreatePortalSessionErrors[keyof CreatePortalSessionErrors];
+
+export type CreatePortalSessionResponses = {
+  /**
+   * OK
+   */
+  200: PortalSession;
+};
+
+export type CreatePortalSessionResponse =
+  CreatePortalSessionResponses[keyof CreatePortalSessionResponses];
 
 export type DeleteCustomerIntegrationData = {
   body?: never;
@@ -4856,6 +17399,10 @@ export type DeleteEntitlementErrors = {
    */
   404: Problem;
   /**
+   * Conflict
+   */
+  409: Problem;
+  /**
    * Unprocessable Entity
    */
   422: Problem;
@@ -5220,6 +17767,10 @@ export type DeleteFeatureFlagErrors = {
    */
   404: Problem;
   /**
+   * Conflict
+   */
+  409: Problem;
+  /**
    * Unprocessable Entity
    */
   422: Problem;
@@ -5468,6 +18019,10 @@ export type DeleteInstanceErrors = {
    */
   404: Problem;
   /**
+   * Conflict
+   */
+  409: Problem;
+  /**
    * Unprocessable Entity
    */
   422: Problem;
@@ -5638,6 +18193,252 @@ export type UpdateInstanceResponses = {
 
 export type UpdateInstanceResponse = UpdateInstanceResponses[keyof UpdateInstanceResponses];
 
+export type ListInstanceAddonsData = {
+  body?: never;
+  path: {
+    /**
+     * Instance slug
+     */
+    instanceSlug: string;
+  };
+  query?: {
+    /**
+     * Also list the add-ons removed from the instance
+     */
+    includeRemoved?: boolean;
+  };
+  url: "/instances/{instanceSlug}/addons";
+};
+
+export type ListInstanceAddonsErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type ListInstanceAddonsError = ListInstanceAddonsErrors[keyof ListInstanceAddonsErrors];
+
+export type ListInstanceAddonsResponses = {
+  /**
+   * OK
+   */
+  200: Array<InstanceAddon>;
+};
+
+export type ListInstanceAddonsResponse =
+  ListInstanceAddonsResponses[keyof ListInstanceAddonsResponses];
+
+export type AttachInstanceAddonData = {
+  body: NewInstanceAddon;
+  path: {
+    /**
+     * Instance slug
+     */
+    instanceSlug: string;
+  };
+  query?: never;
+  url: "/instances/{instanceSlug}/addons";
+};
+
+export type AttachInstanceAddonErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type AttachInstanceAddonError = AttachInstanceAddonErrors[keyof AttachInstanceAddonErrors];
+
+export type AttachInstanceAddonResponses = {
+  /**
+   * Created
+   */
+  201: InstanceAddon;
+};
+
+export type AttachInstanceAddonResponse =
+  AttachInstanceAddonResponses[keyof AttachInstanceAddonResponses];
+
+export type DetachInstanceAddonData = {
+  body?: never;
+  path: {
+    /**
+     * Instance slug
+     */
+    instanceSlug: string;
+    /**
+     * Add-on version slug
+     */
+    addonSlug: string;
+  };
+  query?: never;
+  url: "/instances/{instanceSlug}/addons/{addonSlug}";
+};
+
+export type DetachInstanceAddonErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type DetachInstanceAddonError = DetachInstanceAddonErrors[keyof DetachInstanceAddonErrors];
+
+export type DetachInstanceAddonResponses = {
+  /**
+   * No Content
+   */
+  204: void;
+};
+
+export type DetachInstanceAddonResponse =
+  DetachInstanceAddonResponses[keyof DetachInstanceAddonResponses];
+
+export type SetInstanceAddonQuantityData = {
+  body: AddonQuantity;
+  path: {
+    /**
+     * Instance slug
+     */
+    instanceSlug: string;
+    /**
+     * Add-on version slug
+     */
+    addonSlug: string;
+  };
+  query?: never;
+  url: "/instances/{instanceSlug}/addons/{addonSlug}";
+};
+
+export type SetInstanceAddonQuantityErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type SetInstanceAddonQuantityError =
+  SetInstanceAddonQuantityErrors[keyof SetInstanceAddonQuantityErrors];
+
+export type SetInstanceAddonQuantityResponses = {
+  /**
+   * OK
+   */
+  200: InstanceAddon;
+};
+
+export type SetInstanceAddonQuantityResponse =
+  SetInstanceAddonQuantityResponses[keyof SetInstanceAddonQuantityResponses];
+
 export type GetAuditTrailsData = {
   body?: never;
   path: {
@@ -5708,6 +18509,648 @@ export type GetAuditTrailsResponses = {
 };
 
 export type GetAuditTrailsResponse = GetAuditTrailsResponses[keyof GetAuditTrailsResponses];
+
+export type GetInstanceBillingData = {
+  body?: never;
+  path: {
+    /**
+     * Instance slug
+     */
+    instanceSlug: string;
+  };
+  query?: never;
+  url: "/instances/{instanceSlug}/billing";
+};
+
+export type GetInstanceBillingErrors = {
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type GetInstanceBillingError = GetInstanceBillingErrors[keyof GetInstanceBillingErrors];
+
+export type GetInstanceBillingResponses = {
+  /**
+   * OK
+   */
+  200: InstanceBilling;
+};
+
+export type GetInstanceBillingResponse =
+  GetInstanceBillingResponses[keyof GetInstanceBillingResponses];
+
+export type UpdateInstanceBillingData = {
+  body: SubscriptionTerms;
+  path: {
+    /**
+     * Instance slug
+     */
+    instanceSlug: string;
+  };
+  query?: never;
+  url: "/instances/{instanceSlug}/billing";
+};
+
+export type UpdateInstanceBillingErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type UpdateInstanceBillingError =
+  UpdateInstanceBillingErrors[keyof UpdateInstanceBillingErrors];
+
+export type UpdateInstanceBillingResponses = {
+  /**
+   * OK
+   */
+  200: InstanceBilling;
+};
+
+export type UpdateInstanceBillingResponse =
+  UpdateInstanceBillingResponses[keyof UpdateInstanceBillingResponses];
+
+export type SubscribeInstanceData = {
+  body: NewSubscription;
+  path: {
+    /**
+     * Instance slug
+     */
+    instanceSlug: string;
+  };
+  query?: never;
+  url: "/instances/{instanceSlug}/billing";
+};
+
+export type SubscribeInstanceErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type SubscribeInstanceError = SubscribeInstanceErrors[keyof SubscribeInstanceErrors];
+
+export type SubscribeInstanceResponses = {
+  /**
+   * Created
+   */
+  201: StartedSubscription;
+};
+
+export type SubscribeInstanceResponse =
+  SubscribeInstanceResponses[keyof SubscribeInstanceResponses];
+
+export type CancelSubscriptionData = {
+  body: SubscriptionCancellation;
+  path: {
+    /**
+     * Instance slug
+     */
+    instanceSlug: string;
+  };
+  query?: never;
+  url: "/instances/{instanceSlug}/billing/cancel";
+};
+
+export type CancelSubscriptionErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type CancelSubscriptionError = CancelSubscriptionErrors[keyof CancelSubscriptionErrors];
+
+export type CancelSubscriptionResponses = {
+  /**
+   * OK
+   */
+  200: CanceledSubscription;
+};
+
+export type CancelSubscriptionResponse =
+  CancelSubscriptionResponses[keyof CancelSubscriptionResponses];
+
+export type ReactivateSubscriptionData = {
+  body?: never;
+  path: {
+    /**
+     * Instance slug
+     */
+    instanceSlug: string;
+  };
+  query?: never;
+  url: "/instances/{instanceSlug}/billing/reactivate";
+};
+
+export type ReactivateSubscriptionErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type ReactivateSubscriptionError =
+  ReactivateSubscriptionErrors[keyof ReactivateSubscriptionErrors];
+
+export type ReactivateSubscriptionResponses = {
+  /**
+   * OK
+   */
+  200: InstanceBilling;
+};
+
+export type ReactivateSubscriptionResponse =
+  ReactivateSubscriptionResponses[keyof ReactivateSubscriptionResponses];
+
+export type CancelPlanChangeData = {
+  body?: never;
+  path: {
+    /**
+     * Instance slug
+     */
+    instanceSlug: string;
+  };
+  query?: never;
+  url: "/instances/{instanceSlug}/billing/scheduled-change";
+};
+
+export type CancelPlanChangeErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type CancelPlanChangeError = CancelPlanChangeErrors[keyof CancelPlanChangeErrors];
+
+export type CancelPlanChangeResponses = {
+  /**
+   * OK
+   */
+  200: InstanceBilling;
+};
+
+export type CancelPlanChangeResponse = CancelPlanChangeResponses[keyof CancelPlanChangeResponses];
+
+export type SchedulePlanChangeData = {
+  body: PlanChangeTarget;
+  path: {
+    /**
+     * Instance slug
+     */
+    instanceSlug: string;
+  };
+  query?: never;
+  url: "/instances/{instanceSlug}/billing/scheduled-change";
+};
+
+export type SchedulePlanChangeErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type SchedulePlanChangeError = SchedulePlanChangeErrors[keyof SchedulePlanChangeErrors];
+
+export type SchedulePlanChangeResponses = {
+  /**
+   * OK
+   */
+  200: InstanceBilling;
+};
+
+export type SchedulePlanChangeResponse =
+  SchedulePlanChangeResponses[keyof SchedulePlanChangeResponses];
+
+export type GetUpcomingInvoiceData = {
+  body?: never;
+  path: {
+    /**
+     * Instance slug
+     */
+    instanceSlug: string;
+  };
+  query?: never;
+  url: "/instances/{instanceSlug}/billing/upcoming-invoice";
+};
+
+export type GetUpcomingInvoiceErrors = {
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type GetUpcomingInvoiceError = GetUpcomingInvoiceErrors[keyof GetUpcomingInvoiceErrors];
+
+export type GetUpcomingInvoiceResponses = {
+  /**
+   * OK
+   */
+  200: InvoicePreview;
+};
+
+export type GetUpcomingInvoiceResponse =
+  GetUpcomingInvoiceResponses[keyof GetUpcomingInvoiceResponses];
+
+export type ListEntitlementExceptionsData = {
+  body?: never;
+  path: {
+    /**
+     * Instance slug
+     */
+    instanceSlug: string;
+  };
+  query?: {
+    /**
+     * active: neither revoked nor ended, scheduled ones included; all: every exception of the instance
+     */
+    filter?: "active" | "all";
+  };
+  url: "/instances/{instanceSlug}/entitlement-exceptions";
+};
+
+export type ListEntitlementExceptionsErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type ListEntitlementExceptionsError =
+  ListEntitlementExceptionsErrors[keyof ListEntitlementExceptionsErrors];
+
+export type ListEntitlementExceptionsResponses = {
+  /**
+   * OK
+   */
+  200: Array<EntitlementException>;
+};
+
+export type ListEntitlementExceptionsResponse =
+  ListEntitlementExceptionsResponses[keyof ListEntitlementExceptionsResponses];
+
+export type CreateEntitlementExceptionData = {
+  body: NewEntitlementException;
+  path: {
+    /**
+     * Instance slug
+     */
+    instanceSlug: string;
+  };
+  query?: never;
+  url: "/instances/{instanceSlug}/entitlement-exceptions";
+};
+
+export type CreateEntitlementExceptionErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type CreateEntitlementExceptionError =
+  CreateEntitlementExceptionErrors[keyof CreateEntitlementExceptionErrors];
+
+export type CreateEntitlementExceptionResponses = {
+  /**
+   * Created
+   */
+  201: EntitlementException;
+};
+
+export type CreateEntitlementExceptionResponse =
+  CreateEntitlementExceptionResponses[keyof CreateEntitlementExceptionResponses];
+
+export type RevokeEntitlementExceptionData = {
+  body?: never;
+  path: {
+    /**
+     * Instance slug
+     */
+    instanceSlug: string;
+    /**
+     * Exception id
+     */
+    exceptionId: string;
+  };
+  query?: never;
+  url: "/instances/{instanceSlug}/entitlement-exceptions/{exceptionId}";
+};
+
+export type RevokeEntitlementExceptionErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type RevokeEntitlementExceptionError =
+  RevokeEntitlementExceptionErrors[keyof RevokeEntitlementExceptionErrors];
+
+export type RevokeEntitlementExceptionResponses = {
+  /**
+   * No Content
+   */
+  204: void;
+};
+
+export type RevokeEntitlementExceptionResponse =
+  RevokeEntitlementExceptionResponses[keyof RevokeEntitlementExceptionResponses];
 
 export type GetEntitlementsUsageMetricsData = {
   body?: never;
@@ -5819,6 +19262,12 @@ export type GetEntitlementUsageMetricsResponse =
 
 export type ReportEntitlementUsageMetricData = {
   body: ReportEntitlementUsageBodyWritable;
+  headers?: {
+    /**
+     * Optional idempotency key: the id of the business event this report counts, 1 to 128 characters of [A-Za-z0-9._:-], matched exactly and case-sensitively. A report sent again with the same key and the same behavior and value within KAITEN_USAGE_IDEMPOTENCY_WINDOW (35 days by default) is applied once: the retry answers 200 with the original response and the Idempotent-Replayed header, and changes nothing. The same key with another behavior or value answers 409 ReportEntitlementUsageMetric.TransactionIdReused. A rejected report does not consume its key. Scoped to the instance and entitlement: one business event may feed two meters under one key. Stored and read back as transactionId.
+     */
+    "Idempotency-Key"?: string;
+  };
   path: {
     /**
      * Instance slug
@@ -5862,6 +19311,10 @@ export type ReportEntitlementUsageMetricErrors = {
    * Internal Server Error
    */
   500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
 };
 
 export type ReportEntitlementUsageMetricError =
@@ -5871,11 +19324,154 @@ export type ReportEntitlementUsageMetricResponses = {
   /**
    * OK
    */
-  200: EntitlementUsage;
+  200: ReportedEntitlementUsage;
 };
 
 export type ReportEntitlementUsageMetricResponse =
   ReportEntitlementUsageMetricResponses[keyof ReportEntitlementUsageMetricResponses];
+
+export type ListUsageReportsData = {
+  body?: never;
+  path: {
+    /**
+     * Instance slug
+     */
+    instanceSlug: string;
+    /**
+     * Entitlement slug
+     */
+    entitlementSlug: string;
+  };
+  query?: {
+    /**
+     * Start of the range, inclusive (RFC 3339). Defaults to 30 days before to, moved up to the start of the organization's usage history when that is later. An explicit from before it answers 422 ListUsageReports.OutsideRetention.
+     */
+    from?: string;
+    /**
+     * End of the range, exclusive (RFC 3339). Defaults to now.
+     */
+    to?: string;
+    /**
+     * Return the reports after this reportSeq: the nextAfterSeq of the previous page
+     */
+    afterSeq?: number;
+    /**
+     * Maximum number of reports to return (default 100, max 500)
+     */
+    limit?: number;
+    /**
+     * Only the report sent with this idempotency key
+     */
+    transactionId?: string;
+  };
+  url: "/instances/{instanceSlug}/entitlements/{entitlementSlug}/usage/reports";
+};
+
+export type ListUsageReportsErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+};
+
+export type ListUsageReportsError = ListUsageReportsErrors[keyof ListUsageReportsErrors];
+
+export type ListUsageReportsResponses = {
+  /**
+   * OK
+   */
+  200: UsageReportPage;
+};
+
+export type ListUsageReportsResponse = ListUsageReportsResponses[keyof ListUsageReportsResponses];
+
+export type ExportUsageReportsData = {
+  body?: never;
+  path: {
+    /**
+     * Instance slug
+     */
+    instanceSlug: string;
+    /**
+     * Entitlement slug
+     */
+    entitlementSlug: string;
+  };
+  query?: {
+    /**
+     * Start of the range, inclusive (RFC 3339). Defaults to 30 days before to, moved up to the start of the organization's usage history when that is later. An explicit from before it answers 422 ExportUsageReports.OutsideRetention.
+     */
+    from?: string;
+    /**
+     * End of the range, exclusive (RFC 3339). Defaults to now. At most 366 days after from.
+     */
+    to?: string;
+    /**
+     * csv (the default): RFC 4180 with a header row. json: NDJSON, one report per line, in the shape listUsageReports returns. Anything else answers 422 ExportUsageReports.InvalidFormat.
+     */
+    format?: string;
+  };
+  url: "/instances/{instanceSlug}/entitlements/{entitlementSlug}/usage/reports/export";
+};
+
+export type ExportUsageReportsErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+};
+
+export type ExportUsageReportsError = ExportUsageReportsErrors[keyof ExportUsageReportsErrors];
+
+export type ExportUsageReportsResponses = {
+  /**
+   * The reports, as an attachment: CSV with a header row for format=csv, one JSON object per line for format=json
+   */
+  200: string;
+};
+
+export type ExportUsageReportsResponse =
+  ExportUsageReportsResponses[keyof ExportUsageReportsResponses];
 
 export type DeleteInstanceIntegrationData = {
   body?: never;
@@ -6111,6 +19707,299 @@ export type UpdateInstanceIntegrationResponses = {
 export type UpdateInstanceIntegrationResponse =
   UpdateInstanceIntegrationResponses[keyof UpdateInstanceIntegrationResponses];
 
+export type ListInstanceInvoicesData = {
+  body?: never;
+  path: {
+    /**
+     * Instance slug
+     */
+    instanceSlug: string;
+  };
+  query?: {
+    /**
+     * Only invoices in these statuses; repeat the parameter for several
+     */
+    status?: Array<
+      | "DRAFT"
+      | "PUSHED"
+      | "PUSH_FAILED"
+      | "MANUAL"
+      | "PAID"
+      | "PAYMENT_FAILED"
+      | "UNCOLLECTIBLE"
+      | "VOID"
+    > | null;
+    kind?: "ACTIVATION" | "RENEWAL" | "FINAL";
+    providerKind?: "NOOP" | "STRIPE";
+    /**
+     * Only this customer's invoices: composed under this slug, or of the customer that has it now
+     */
+    customerSlug?: string;
+    /**
+     * Only issued invoices still unpaid past their due date
+     */
+    overdue?: boolean;
+    /**
+     * Only DRAFTs held for their usage journal
+     */
+    held?: boolean;
+    handoffStatus?: "NOT_REQUIRED" | "PENDING" | "ACKNOWLEDGED";
+    /**
+     * Issued at or after this instant (RFC 3339)
+     */
+    issuedFrom?: string;
+    /**
+     * Issued before this instant (RFC 3339)
+     */
+    issuedTo?: string;
+    /**
+     * Billing a boundary at or after this instant
+     */
+    boundaryFrom?: string;
+    /**
+     * Billing a boundary before this instant
+     */
+    boundaryTo?: string;
+    /**
+     * Only invoices changed at or after this instant, oldest change first instead of newest invoice first: store the last updatedAt read and pass it next time to miss no change
+     */
+    updatedSince?: string;
+    /**
+     * Opaque cursor from the previous page's nextCursor
+     */
+    cursor?: string;
+    /**
+     * Page size, 50 by default, 200 at most
+     */
+    limit?: number;
+  };
+  url: "/instances/{instanceSlug}/invoices";
+};
+
+export type ListInstanceInvoicesErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type ListInstanceInvoicesError =
+  ListInstanceInvoicesErrors[keyof ListInstanceInvoicesErrors];
+
+export type ListInstanceInvoicesResponses = {
+  /**
+   * OK
+   */
+  200: PageInvoiceSummary;
+};
+
+export type ListInstanceInvoicesResponse =
+  ListInstanceInvoicesResponses[keyof ListInstanceInvoicesResponses];
+
+export type ListInstanceVouchersData = {
+  body?: never;
+  path: {
+    /**
+     * Instance slug
+     */
+    instanceSlug: string;
+  };
+  query?: {
+    status?: "ACTIVE" | "EXPIRED" | "REVOKED";
+  };
+  url: "/instances/{instanceSlug}/vouchers";
+};
+
+export type ListInstanceVouchersErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type ListInstanceVouchersError =
+  ListInstanceVouchersErrors[keyof ListInstanceVouchersErrors];
+
+export type ListInstanceVouchersResponses = {
+  /**
+   * OK
+   */
+  200: Array<Redemption>;
+};
+
+export type ListInstanceVouchersResponse =
+  ListInstanceVouchersResponses[keyof ListInstanceVouchersResponses];
+
+export type RedeemVoucherData = {
+  body: RedeemableCode;
+  path: {
+    /**
+     * Instance slug
+     */
+    instanceSlug: string;
+  };
+  query?: never;
+  url: "/instances/{instanceSlug}/vouchers/redeem";
+};
+
+export type RedeemVoucherErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type RedeemVoucherError = RedeemVoucherErrors[keyof RedeemVoucherErrors];
+
+export type RedeemVoucherResponses = {
+  /**
+   * Created
+   */
+  201: Redemption;
+};
+
+export type RedeemVoucherResponse = RedeemVoucherResponses[keyof RedeemVoucherResponses];
+
+export type RevokeInstanceVoucherData = {
+  body: RevocationReason;
+  path: {
+    /**
+     * Instance slug
+     */
+    instanceSlug: string;
+    /**
+     * Redemption id
+     */
+    instanceVoucherId: string;
+  };
+  query?: never;
+  url: "/instances/{instanceSlug}/vouchers/{instanceVoucherId}/revoke";
+};
+
+export type RevokeInstanceVoucherErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type RevokeInstanceVoucherError =
+  RevokeInstanceVoucherErrors[keyof RevokeInstanceVoucherErrors];
+
+export type RevokeInstanceVoucherResponses = {
+  /**
+   * OK
+   */
+  200: Redemption;
+};
+
+export type RevokeInstanceVoucherResponse =
+  RevokeInstanceVoucherResponses[keyof RevokeInstanceVoucherResponses];
+
 export type GetCustomerIntegrationByExternalIdData = {
   body?: never;
   path: {
@@ -6343,6 +20232,756 @@ export type UpsertInstanceIntegrationByExternalIdResponses = {
 export type UpsertInstanceIntegrationByExternalIdResponse =
   UpsertInstanceIntegrationByExternalIdResponses[keyof UpsertInstanceIntegrationByExternalIdResponses];
 
+export type ListInvoicesData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Only invoices in these statuses; repeat the parameter for several
+     */
+    status?: Array<
+      | "DRAFT"
+      | "PUSHED"
+      | "PUSH_FAILED"
+      | "MANUAL"
+      | "PAID"
+      | "PAYMENT_FAILED"
+      | "UNCOLLECTIBLE"
+      | "VOID"
+    > | null;
+    kind?: "ACTIVATION" | "RENEWAL" | "FINAL";
+    providerKind?: "NOOP" | "STRIPE";
+    /**
+     * Only this customer's invoices: composed under this slug, or of the customer that has it now
+     */
+    customerSlug?: string;
+    /**
+     * Only issued invoices still unpaid past their due date
+     */
+    overdue?: boolean;
+    /**
+     * Only DRAFTs held for their usage journal
+     */
+    held?: boolean;
+    handoffStatus?: "NOT_REQUIRED" | "PENDING" | "ACKNOWLEDGED";
+    /**
+     * Issued at or after this instant (RFC 3339)
+     */
+    issuedFrom?: string;
+    /**
+     * Issued before this instant (RFC 3339)
+     */
+    issuedTo?: string;
+    /**
+     * Billing a boundary at or after this instant
+     */
+    boundaryFrom?: string;
+    /**
+     * Billing a boundary before this instant
+     */
+    boundaryTo?: string;
+    /**
+     * Only invoices changed at or after this instant, oldest change first instead of newest invoice first: store the last updatedAt read and pass it next time to miss no change
+     */
+    updatedSince?: string;
+    /**
+     * Opaque cursor from the previous page's nextCursor
+     */
+    cursor?: string;
+    /**
+     * Page size, 50 by default, 200 at most
+     */
+    limit?: number;
+    /**
+     * Only this instance's invoices: composed under this slug, or of the instance that has it now
+     */
+    instanceSlug?: string;
+  };
+  url: "/invoices";
+};
+
+export type ListInvoicesErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type ListInvoicesError = ListInvoicesErrors[keyof ListInvoicesErrors];
+
+export type ListInvoicesResponses = {
+  /**
+   * OK
+   */
+  200: PageInvoiceSummary;
+};
+
+export type ListInvoicesResponse = ListInvoicesResponses[keyof ListInvoicesResponses];
+
+export type ExportInvoicesData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Only invoices in these statuses; repeat the parameter for several
+     */
+    status?: Array<
+      | "DRAFT"
+      | "PUSHED"
+      | "PUSH_FAILED"
+      | "MANUAL"
+      | "PAID"
+      | "PAYMENT_FAILED"
+      | "UNCOLLECTIBLE"
+      | "VOID"
+    > | null;
+    kind?: "ACTIVATION" | "RENEWAL" | "FINAL";
+    providerKind?: "NOOP" | "STRIPE";
+    /**
+     * Only this customer's invoices: composed under this slug, or of the customer that has it now
+     */
+    customerSlug?: string;
+    /**
+     * Only issued invoices still unpaid past their due date
+     */
+    overdue?: boolean;
+    /**
+     * Only DRAFTs held for their usage journal
+     */
+    held?: boolean;
+    handoffStatus?: "NOT_REQUIRED" | "PENDING" | "ACKNOWLEDGED";
+    /**
+     * Issued at or after this instant (RFC 3339)
+     */
+    issuedFrom?: string;
+    /**
+     * Issued before this instant (RFC 3339)
+     */
+    issuedTo?: string;
+    /**
+     * Billing a boundary at or after this instant
+     */
+    boundaryFrom?: string;
+    /**
+     * Billing a boundary before this instant
+     */
+    boundaryTo?: string;
+    /**
+     * Only invoices changed at or after this instant, oldest change first instead of newest invoice first: store the last updatedAt read and pass it next time to miss no change
+     */
+    updatedSince?: string;
+    /**
+     * Opaque cursor from the previous page's nextCursor
+     */
+    cursor?: string;
+    /**
+     * Page size, 50 by default, 200 at most
+     */
+    limit?: number;
+    /**
+     * Only this instance's invoices
+     */
+    instanceSlug?: string;
+    /**
+     * csv (the default): RFC 4180 with a header row. json: NDJSON, one invoice with its lines per line. Anything else answers 422 ExportInvoices.InvalidFormat.
+     */
+    format?: string;
+    /**
+     * For csv: line (the default), one row per invoice line with the invoice's columns repeated; invoice, one row per invoice. Anything else answers 422 ExportInvoices.InvalidGranularity.
+     */
+    granularity?: string;
+  };
+  url: "/invoices/export";
+};
+
+export type ExportInvoicesErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type ExportInvoicesError = ExportInvoicesErrors[keyof ExportInvoicesErrors];
+
+export type ExportInvoicesResponses = {
+  /**
+   * The invoices, as an attachment
+   */
+  200: string;
+};
+
+export type ExportInvoicesResponse = ExportInvoicesResponses[keyof ExportInvoicesResponses];
+
+export type GetInvoiceData = {
+  body?: never;
+  path: {
+    /**
+     * Invoice identifier
+     */
+    invoiceId: string;
+  };
+  query?: never;
+  url: "/invoices/{invoiceId}";
+};
+
+export type GetInvoiceErrors = {
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type GetInvoiceError = GetInvoiceErrors[keyof GetInvoiceErrors];
+
+export type GetInvoiceResponses = {
+  /**
+   * OK
+   */
+  200: Invoice;
+};
+
+export type GetInvoiceResponse = GetInvoiceResponses[keyof GetInvoiceResponses];
+
+export type ListInvoiceLineReportsData = {
+  body?: never;
+  path: {
+    /**
+     * Invoice identifier
+     */
+    invoiceId: string;
+    /**
+     * Line identifier, as the invoice's lines carry it
+     */
+    lineId: string;
+  };
+  query?: {
+    /**
+     * Reports after this reportSeq; 0 starts at the first
+     */
+    afterSeq?: number;
+    /**
+     * Page size, 100 by default, 500 at most
+     */
+    limit?: number;
+    /**
+     * json (the default): one page. csv: every report, streamed as RFC 4180 with a header row. Anything else answers 422 ListInvoiceLineReports.InvalidFormat.
+     */
+    format?: string;
+  };
+  url: "/invoices/{invoiceId}/lines/{lineId}/reports";
+};
+
+export type ListInvoiceLineReportsErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type ListInvoiceLineReportsError =
+  ListInvoiceLineReportsErrors[keyof ListInvoiceLineReportsErrors];
+
+export type ListInvoiceLineReportsResponses = {
+  /**
+   * One page of reports (json), or every report as a CSV attachment (csv)
+   */
+  200: LineReportPage;
+};
+
+export type ListInvoiceLineReportsResponse =
+  ListInvoiceLineReportsResponses[keyof ListInvoiceLineReportsResponses];
+
+export type MarkInvoicePaidData = {
+  body: InvoicePayment;
+  path: {
+    /**
+     * Invoice identifier
+     */
+    invoiceId: string;
+  };
+  query?: never;
+  url: "/invoices/{invoiceId}/mark-paid";
+};
+
+export type MarkInvoicePaidErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type MarkInvoicePaidError = MarkInvoicePaidErrors[keyof MarkInvoicePaidErrors];
+
+export type MarkInvoicePaidResponses = {
+  /**
+   * OK
+   */
+  200: Invoice;
+};
+
+export type MarkInvoicePaidResponse = MarkInvoicePaidResponses[keyof MarkInvoicePaidResponses];
+
+export type RecomposeInvoiceData = {
+  body?: never;
+  path: {
+    /**
+     * Invoice identifier
+     */
+    invoiceId: string;
+  };
+  query?: never;
+  url: "/invoices/{invoiceId}/recompose";
+};
+
+export type RecomposeInvoiceErrors = {
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type RecomposeInvoiceError = RecomposeInvoiceErrors[keyof RecomposeInvoiceErrors];
+
+export type RecomposeInvoiceResponses = {
+  /**
+   * OK
+   */
+  200: Invoice;
+  /**
+   * The replacement of a VOID invoice, for the same boundary
+   */
+  201: Invoice;
+};
+
+export type RecomposeInvoiceResponse = RecomposeInvoiceResponses[keyof RecomposeInvoiceResponses];
+
+export type ReleaseInvoiceHoldData = {
+  body: HoldRelease;
+  path: {
+    /**
+     * Invoice identifier
+     */
+    invoiceId: string;
+  };
+  query?: never;
+  url: "/invoices/{invoiceId}/release-hold";
+};
+
+export type ReleaseInvoiceHoldErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type ReleaseInvoiceHoldError = ReleaseInvoiceHoldErrors[keyof ReleaseInvoiceHoldErrors];
+
+export type ReleaseInvoiceHoldResponses = {
+  /**
+   * OK
+   */
+  200: Invoice;
+};
+
+export type ReleaseInvoiceHoldResponse =
+  ReleaseInvoiceHoldResponses[keyof ReleaseInvoiceHoldResponses];
+
+export type RetryInvoicePushData = {
+  body?: never;
+  path: {
+    /**
+     * Invoice identifier
+     */
+    invoiceId: string;
+  };
+  query?: never;
+  url: "/invoices/{invoiceId}/retry-push";
+};
+
+export type RetryInvoicePushErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type RetryInvoicePushError = RetryInvoicePushErrors[keyof RetryInvoicePushErrors];
+
+export type RetryInvoicePushResponses = {
+  /**
+   * Accepted
+   */
+  202: Invoice;
+};
+
+export type RetryInvoicePushResponse = RetryInvoicePushResponses[keyof RetryInvoicePushResponses];
+
+export type SyncInvoiceData = {
+  body?: never;
+  path: {
+    /**
+     * Invoice identifier
+     */
+    invoiceId: string;
+  };
+  query?: never;
+  url: "/invoices/{invoiceId}/sync";
+};
+
+export type SyncInvoiceErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type SyncInvoiceError = SyncInvoiceErrors[keyof SyncInvoiceErrors];
+
+export type SyncInvoiceResponses = {
+  /**
+   * OK
+   */
+  200: Invoice;
+};
+
+export type SyncInvoiceResponse = SyncInvoiceResponses[keyof SyncInvoiceResponses];
+
+export type VoidInvoiceData = {
+  body: InvoiceVoid;
+  path: {
+    /**
+     * Invoice identifier
+     */
+    invoiceId: string;
+  };
+  query?: never;
+  url: "/invoices/{invoiceId}/void";
+};
+
+export type VoidInvoiceErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type VoidInvoiceError = VoidInvoiceErrors[keyof VoidInvoiceErrors];
+
+export type VoidInvoiceResponses = {
+  /**
+   * OK
+   */
+  200: Invoice;
+};
+
+export type VoidInvoiceResponse = VoidInvoiceResponses[keyof VoidInvoiceResponses];
+
+export type WriteOffInvoiceData = {
+  body: InvoiceWriteOff;
+  path: {
+    /**
+     * Invoice identifier
+     */
+    invoiceId: string;
+  };
+  query?: never;
+  url: "/invoices/{invoiceId}/write-off";
+};
+
+export type WriteOffInvoiceErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type WriteOffInvoiceError = WriteOffInvoiceErrors[keyof WriteOffInvoiceErrors];
+
+export type WriteOffInvoiceResponses = {
+  /**
+   * OK
+   */
+  200: Invoice;
+};
+
+export type WriteOffInvoiceResponse = WriteOffInvoiceResponses[keyof WriteOffInvoiceResponses];
+
 export type ListLicenseFamiliesData = {
   body?: never;
   path?: never;
@@ -6452,6 +21091,61 @@ export type GetLicenseFamilyResponses = {
 };
 
 export type GetLicenseFamilyResponse = GetLicenseFamilyResponses[keyof GetLicenseFamilyResponses];
+
+export type UpdateLicenseFamilyData = {
+  body: LicenseFamilyUpdate;
+  path: {
+    /**
+     * License family slug
+     */
+    familySlug: string;
+  };
+  query?: never;
+  url: "/license-families/{familySlug}";
+};
+
+export type UpdateLicenseFamilyErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type UpdateLicenseFamilyError = UpdateLicenseFamilyErrors[keyof UpdateLicenseFamilyErrors];
+
+export type UpdateLicenseFamilyResponses = {
+  /**
+   * OK
+   */
+  200: LicenseFamilyView;
+};
+
+export type UpdateLicenseFamilyResponse =
+  UpdateLicenseFamilyResponses[keyof UpdateLicenseFamilyResponses];
 
 export type GetLicensesData = {
   body?: never;
@@ -6913,6 +21607,10 @@ export type DeleteLicenseEntitlementErrors = {
    */
   404: Problem;
   /**
+   * Conflict
+   */
+  409: Problem;
+  /**
    * Unprocessable Entity
    */
   422: Problem;
@@ -7009,6 +21707,10 @@ export type UpdateLicenseEntitlementErrors = {
    */
   404: Problem;
   /**
+   * Conflict
+   */
+  409: Problem;
+  /**
    * Unprocessable Entity
    */
   422: Problem;
@@ -7030,6 +21732,366 @@ export type UpdateLicenseEntitlementResponses = {
 
 export type UpdateLicenseEntitlementResponse =
   UpdateLicenseEntitlementResponses[keyof UpdateLicenseEntitlementResponses];
+
+export type PreviewLicenseInvoiceData = {
+  body: InvoicePreviewScenario;
+  path: {
+    /**
+     * License version slug
+     */
+    licenseSlug: string;
+  };
+  query?: never;
+  url: "/licenses/{licenseSlug}/invoice-preview";
+};
+
+export type PreviewLicenseInvoiceErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type PreviewLicenseInvoiceError =
+  PreviewLicenseInvoiceErrors[keyof PreviewLicenseInvoiceErrors];
+
+export type PreviewLicenseInvoiceResponses = {
+  /**
+   * OK
+   */
+  200: InvoicePreview;
+};
+
+export type PreviewLicenseInvoiceResponse =
+  PreviewLicenseInvoiceResponses[keyof PreviewLicenseInvoiceResponses];
+
+export type ListLicensePricesData = {
+  body?: never;
+  path: {
+    /**
+     * License version slug
+     */
+    licenseSlug: string;
+  };
+  query?: {
+    /**
+     * Only prices in this status; both when omitted
+     */
+    status?: "ACTIVE" | "DEPRECATED";
+    /**
+     * Only prices of this billing model
+     */
+    billingModel?: "FLAT_FEE" | "USAGE_BASED" | "OVERAGE";
+  };
+  url: "/licenses/{licenseSlug}/prices";
+};
+
+export type ListLicensePricesErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type ListLicensePricesError = ListLicensePricesErrors[keyof ListLicensePricesErrors];
+
+export type ListLicensePricesResponses = {
+  /**
+   * OK
+   */
+  200: Array<Price>;
+};
+
+export type ListLicensePricesResponse =
+  ListLicensePricesResponses[keyof ListLicensePricesResponses];
+
+export type CreateLicensePriceData = {
+  body: NewLicensePrice;
+  path: {
+    /**
+     * License version slug
+     */
+    licenseSlug: string;
+  };
+  query?: never;
+  url: "/licenses/{licenseSlug}/prices";
+};
+
+export type CreateLicensePriceErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type CreateLicensePriceError = CreateLicensePriceErrors[keyof CreateLicensePriceErrors];
+
+export type CreateLicensePriceResponses = {
+  /**
+   * Created
+   */
+  201: Price;
+};
+
+export type CreateLicensePriceResponse =
+  CreateLicensePriceResponses[keyof CreateLicensePriceResponses];
+
+export type GetLicensePriceData = {
+  body?: never;
+  path: {
+    /**
+     * License version slug
+     */
+    licenseSlug: string;
+    /**
+     * Price identifier
+     */
+    priceId: string;
+  };
+  query?: never;
+  url: "/licenses/{licenseSlug}/prices/{priceId}";
+};
+
+export type GetLicensePriceErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type GetLicensePriceError = GetLicensePriceErrors[keyof GetLicensePriceErrors];
+
+export type GetLicensePriceResponses = {
+  /**
+   * OK
+   */
+  200: Price;
+};
+
+export type GetLicensePriceResponse = GetLicensePriceResponses[keyof GetLicensePriceResponses];
+
+export type UpdateLicensePriceData = {
+  body: LicensePriceChanges;
+  path: {
+    /**
+     * License version slug
+     */
+    licenseSlug: string;
+    /**
+     * Price identifier
+     */
+    priceId: string;
+  };
+  query?: never;
+  url: "/licenses/{licenseSlug}/prices/{priceId}";
+};
+
+export type UpdateLicensePriceErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type UpdateLicensePriceError = UpdateLicensePriceErrors[keyof UpdateLicensePriceErrors];
+
+export type UpdateLicensePriceResponses = {
+  /**
+   * OK
+   */
+  200: Price;
+};
+
+export type UpdateLicensePriceResponse =
+  UpdateLicensePriceResponses[keyof UpdateLicensePriceResponses];
+
+export type DeprecateLicensePriceData = {
+  body?: never;
+  path: {
+    /**
+     * License version slug
+     */
+    licenseSlug: string;
+    /**
+     * Price identifier
+     */
+    priceId: string;
+  };
+  query?: never;
+  url: "/licenses/{licenseSlug}/prices/{priceId}/deprecate";
+};
+
+export type DeprecateLicensePriceErrors = {
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type DeprecateLicensePriceError =
+  DeprecateLicensePriceErrors[keyof DeprecateLicensePriceErrors];
+
+export type DeprecateLicensePriceResponses = {
+  /**
+   * OK
+   */
+  200: Price;
+};
+
+export type DeprecateLicensePriceResponse =
+  DeprecateLicensePriceResponses[keyof DeprecateLicensePriceResponses];
 
 export type PublishLicenseData = {
   body?: never;
@@ -7139,11 +22201,64 @@ export type UnarchiveLicenseResponses = {
 
 export type UnarchiveLicenseResponse = UnarchiveLicenseResponses[keyof UnarchiveLicenseResponses];
 
+export type GetMeData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/me";
+};
+
+export type GetMeErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+};
+
+export type GetMeError = GetMeErrors[keyof GetMeErrors];
+
+export type GetMeResponses = {
+  /**
+   * OK
+   */
+  200: Me;
+};
+
+export type GetMeResponse = GetMeResponses[keyof GetMeResponses];
+
 export type ListMetadataFieldsData = {
   body?: never;
   path?: never;
   query: {
     resourceType: "DEPLOYMENT_ZONE" | "INSTANCE";
+    /**
+     * Include archived fields too, each with its archivedAt
+     */
+    includeArchived?: boolean;
     /**
      * Opaque pagination cursor from a previous response's nextCursor
      */
@@ -7617,6 +22732,1057 @@ export type GetOpenfeatureManifestResponses = {
 export type GetOpenfeatureManifestResponse =
   GetOpenfeatureManifestResponses[keyof GetOpenfeatureManifestResponses];
 
+export type GetPublicCatalogData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Only this licence family
+     */
+    familySlug?: string;
+    /**
+     * addons (the default) lists the public add-ons too; none leaves them out
+     */
+    include?: Array<"addons" | "none"> | null;
+  };
+  url: "/public/catalog";
+};
+
+export type GetPublicCatalogErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Too Many Requests
+   */
+  429: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type GetPublicCatalogError = GetPublicCatalogErrors[keyof GetPublicCatalogErrors];
+
+export type GetPublicCatalogResponses = {
+  /**
+   * OK
+   */
+  200: PublicCatalog;
+};
+
+export type GetPublicCatalogResponse = GetPublicCatalogResponses[keyof GetPublicCatalogResponses];
+
+export type CreateCheckoutSessionData = {
+  body: CheckoutSessionDraft;
+  path?: never;
+  query?: never;
+  url: "/public/checkout-sessions";
+};
+
+export type CreateCheckoutSessionErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Too Many Requests
+   */
+  429: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type CreateCheckoutSessionError =
+  CreateCheckoutSessionErrors[keyof CreateCheckoutSessionErrors];
+
+export type CreateCheckoutSessionResponses = {
+  /**
+   * A preview (dryRun): nothing was written
+   */
+  200: CheckoutSessionStart;
+  /**
+   * Created
+   */
+  201: CheckoutSessionStart;
+};
+
+export type CreateCheckoutSessionResponse =
+  CreateCheckoutSessionResponses[keyof CreateCheckoutSessionResponses];
+
+export type GetCheckoutSessionData = {
+  body?: never;
+  path: {
+    /**
+     * The session the ksc_ was minted for; another one answers 401
+     */
+    sessionId: string;
+  };
+  query?: never;
+  url: "/public/checkout-sessions/{sessionId}";
+};
+
+export type GetCheckoutSessionErrors = {
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Too Many Requests
+   */
+  429: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+};
+
+export type GetCheckoutSessionError = GetCheckoutSessionErrors[keyof GetCheckoutSessionErrors];
+
+export type GetCheckoutSessionResponses = {
+  /**
+   * OK
+   */
+  200: CheckoutSession;
+};
+
+export type GetCheckoutSessionResponse =
+  GetCheckoutSessionResponses[keyof GetCheckoutSessionResponses];
+
+export type ConfirmCheckoutSessionData = {
+  body?: never;
+  path: {
+    /**
+     * The session the ksc_ was minted for; another one answers 401
+     */
+    sessionId: string;
+  };
+  query?: never;
+  url: "/public/checkout-sessions/{sessionId}/confirm";
+};
+
+export type ConfirmCheckoutSessionErrors = {
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Too Many Requests
+   */
+  429: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type ConfirmCheckoutSessionError =
+  ConfirmCheckoutSessionErrors[keyof ConfirmCheckoutSessionErrors];
+
+export type ConfirmCheckoutSessionResponses = {
+  /**
+   * OK
+   */
+  200: CheckoutConfirmation;
+};
+
+export type ConfirmCheckoutSessionResponse =
+  ConfirmCheckoutSessionResponses[keyof ConfirmCheckoutSessionResponses];
+
+export type SetSessionAddonQuantityData = {
+  body: SessionAddonQuantity;
+  path: {
+    /**
+     * An add-on version: the public one, or the one the instance holds
+     */
+    addonSlug: string;
+  };
+  query?: never;
+  url: "/public/session/addons/{addonSlug}";
+};
+
+export type SetSessionAddonQuantityErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Too Many Requests
+   */
+  429: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type SetSessionAddonQuantityError =
+  SetSessionAddonQuantityErrors[keyof SetSessionAddonQuantityErrors];
+
+export type SetSessionAddonQuantityResponses = {
+  /**
+   * OK
+   */
+  200: SessionAddon;
+};
+
+export type SetSessionAddonQuantityResponse =
+  SetSessionAddonQuantityResponses[keyof SetSessionAddonQuantityResponses];
+
+export type CancelSessionSubscriptionData = {
+  body: SessionCancellation;
+  path?: never;
+  query?: never;
+  url: "/public/session/billing/cancel";
+};
+
+export type CancelSessionSubscriptionErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Too Many Requests
+   */
+  429: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type CancelSessionSubscriptionError =
+  CancelSessionSubscriptionErrors[keyof CancelSessionSubscriptionErrors];
+
+export type CancelSessionSubscriptionResponses = {
+  /**
+   * OK
+   */
+  200: SessionSubscription;
+};
+
+export type CancelSessionSubscriptionResponse =
+  CancelSessionSubscriptionResponses[keyof CancelSessionSubscriptionResponses];
+
+export type CreateSessionPaymentMethodSessionData = {
+  body: NewSessionPaymentMethodSession;
+  path?: never;
+  query?: never;
+  url: "/public/session/billing/payment-method-session";
+};
+
+export type CreateSessionPaymentMethodSessionErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Too Many Requests
+   */
+  429: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type CreateSessionPaymentMethodSessionError =
+  CreateSessionPaymentMethodSessionErrors[keyof CreateSessionPaymentMethodSessionErrors];
+
+export type CreateSessionPaymentMethodSessionResponses = {
+  /**
+   * OK
+   */
+  200: PaymentMethodSession;
+};
+
+export type CreateSessionPaymentMethodSessionResponse =
+  CreateSessionPaymentMethodSessionResponses[keyof CreateSessionPaymentMethodSessionResponses];
+
+export type CompleteSessionPaymentMethodSessionData = {
+  body?: never;
+  path: {
+    /**
+     * The setup session's id: the kaiten_setup_session the customer came back with
+     */
+    sessionId: string;
+  };
+  query?: never;
+  url: "/public/session/billing/payment-method-session/{sessionId}/complete";
+};
+
+export type CompleteSessionPaymentMethodSessionErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Too Many Requests
+   */
+  429: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type CompleteSessionPaymentMethodSessionError =
+  CompleteSessionPaymentMethodSessionErrors[keyof CompleteSessionPaymentMethodSessionErrors];
+
+export type CompleteSessionPaymentMethodSessionResponses = {
+  /**
+   * OK
+   */
+  200: CompletedPaymentMethodSession;
+};
+
+export type CompleteSessionPaymentMethodSessionResponse =
+  CompleteSessionPaymentMethodSessionResponses[keyof CompleteSessionPaymentMethodSessionResponses];
+
+export type CreateSessionPortalSessionData = {
+  body: NewSessionPortalSession;
+  path?: never;
+  query?: never;
+  url: "/public/session/billing/portal-session";
+};
+
+export type CreateSessionPortalSessionErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Too Many Requests
+   */
+  429: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type CreateSessionPortalSessionError =
+  CreateSessionPortalSessionErrors[keyof CreateSessionPortalSessionErrors];
+
+export type CreateSessionPortalSessionResponses = {
+  /**
+   * OK
+   */
+  200: PortalSession;
+};
+
+export type CreateSessionPortalSessionResponse =
+  CreateSessionPortalSessionResponses[keyof CreateSessionPortalSessionResponses];
+
+export type ReactivateSessionSubscriptionData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/public/session/billing/reactivate";
+};
+
+export type ReactivateSessionSubscriptionErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Too Many Requests
+   */
+  429: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type ReactivateSessionSubscriptionError =
+  ReactivateSessionSubscriptionErrors[keyof ReactivateSessionSubscriptionErrors];
+
+export type ReactivateSessionSubscriptionResponses = {
+  /**
+   * OK
+   */
+  200: SessionSubscription;
+};
+
+export type ReactivateSessionSubscriptionResponse =
+  ReactivateSessionSubscriptionResponses[keyof ReactivateSessionSubscriptionResponses];
+
+export type CreateSessionCheckoutData = {
+  body: SessionCheckoutOrder;
+  path?: never;
+  query?: never;
+  url: "/public/session/checkout";
+};
+
+export type CreateSessionCheckoutErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Too Many Requests
+   */
+  429: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type CreateSessionCheckoutError =
+  CreateSessionCheckoutErrors[keyof CreateSessionCheckoutErrors];
+
+export type CreateSessionCheckoutResponses = {
+  /**
+   * A preview (dryRun), or requires_payment_method with the hosted setup page: nothing was subscribed
+   */
+  200: SessionCheckout;
+  /**
+   * Created
+   */
+  201: SessionCheckout;
+};
+
+export type CreateSessionCheckoutResponse =
+  CreateSessionCheckoutResponses[keyof CreateSessionCheckoutResponses];
+
+export type ListSessionInvoicesData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Opaque cursor from the previous page's nextCursor
+     */
+    cursor?: string;
+    /**
+     * Page size, 50 by default, 200 at most
+     */
+    limit?: number;
+  };
+  url: "/public/session/invoices";
+};
+
+export type ListSessionInvoicesErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Too Many Requests
+   */
+  429: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+};
+
+export type ListSessionInvoicesError = ListSessionInvoicesErrors[keyof ListSessionInvoicesErrors];
+
+export type ListSessionInvoicesResponses = {
+  /**
+   * OK
+   */
+  200: PageSessionInvoice;
+};
+
+export type ListSessionInvoicesResponse =
+  ListSessionInvoicesResponses[keyof ListSessionInvoicesResponses];
+
+export type GetSessionPortalData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/public/session/portal";
+};
+
+export type GetSessionPortalErrors = {
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Too Many Requests
+   */
+  429: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type GetSessionPortalError = GetSessionPortalErrors[keyof GetSessionPortalErrors];
+
+export type GetSessionPortalResponses = {
+  /**
+   * OK
+   */
+  200: SessionPortal;
+};
+
+export type GetSessionPortalResponse = GetSessionPortalResponses[keyof GetSessionPortalResponses];
+
+export type RedeemSessionVoucherData = {
+  body: SessionRedeem;
+  path?: never;
+  query?: never;
+  url: "/public/session/vouchers/redeem";
+};
+
+export type RedeemSessionVoucherErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Too Many Requests
+   */
+  429: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type RedeemSessionVoucherError =
+  RedeemSessionVoucherErrors[keyof RedeemSessionVoucherErrors];
+
+export type RedeemSessionVoucherResponses = {
+  /**
+   * Created
+   */
+  201: SessionRedemption;
+};
+
+export type RedeemSessionVoucherResponse =
+  RedeemSessionVoucherResponses[keyof RedeemSessionVoucherResponses];
+
+export type ValidateSessionVoucherData = {
+  body: SessionVoucherCheck;
+  path?: never;
+  query?: never;
+  url: "/public/session/vouchers/validate";
+};
+
+export type ValidateSessionVoucherErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Too Many Requests
+   */
+  429: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type ValidateSessionVoucherError =
+  ValidateSessionVoucherErrors[keyof ValidateSessionVoucherErrors];
+
+export type ValidateSessionVoucherResponses = {
+  /**
+   * OK
+   */
+  200: SessionVoucherValidity;
+};
+
+export type ValidateSessionVoucherResponse =
+  ValidateSessionVoucherResponses[keyof ValidateSessionVoucherResponses];
+
+export type ListPublishableKeysData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Also list revoked keys
+     */
+    includeRevoked?: boolean;
+    /**
+     * Opaque pagination cursor from a previous response's nextCursor
+     */
+    cursor?: string;
+    /**
+     * Maximum number of entries to return (default 50, max 200)
+     */
+    limit?: number;
+  };
+  url: "/publishable-keys";
+};
+
+export type ListPublishableKeysErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type ListPublishableKeysError = ListPublishableKeysErrors[keyof ListPublishableKeysErrors];
+
+export type ListPublishableKeysResponses = {
+  /**
+   * OK
+   */
+  200: PagePublishableKey;
+};
+
+export type ListPublishableKeysResponse =
+  ListPublishableKeysResponses[keyof ListPublishableKeysResponses];
+
+export type CreatePublishableKeyData = {
+  body: PublishableKeyDraft;
+  path?: never;
+  query?: never;
+  url: "/publishable-keys";
+};
+
+export type CreatePublishableKeyErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type CreatePublishableKeyError =
+  CreatePublishableKeyErrors[keyof CreatePublishableKeyErrors];
+
+export type CreatePublishableKeyResponses = {
+  /**
+   * Created
+   */
+  201: PublishableKeyCreated;
+};
+
+export type CreatePublishableKeyResponse =
+  CreatePublishableKeyResponses[keyof CreatePublishableKeyResponses];
+
+export type UpdatePublishableKeyData = {
+  body: PublishableKeyPatch;
+  path: {
+    /**
+     * Publishable key id
+     */
+    keyId: string;
+  };
+  query?: never;
+  url: "/publishable-keys/{keyId}";
+};
+
+export type UpdatePublishableKeyErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type UpdatePublishableKeyError =
+  UpdatePublishableKeyErrors[keyof UpdatePublishableKeyErrors];
+
+export type UpdatePublishableKeyResponses = {
+  /**
+   * OK
+   */
+  200: PublishableKey;
+};
+
+export type UpdatePublishableKeyResponse =
+  UpdatePublishableKeyResponses[keyof UpdatePublishableKeyResponses];
+
+export type RevokePublishableKeyData = {
+  body?: never;
+  path: {
+    /**
+     * Publishable key id
+     */
+    keyId: string;
+  };
+  query?: never;
+  url: "/publishable-keys/{keyId}/revoke";
+};
+
+export type RevokePublishableKeyErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type RevokePublishableKeyError =
+  RevokePublishableKeyErrors[keyof RevokePublishableKeyErrors];
+
+export type RevokePublishableKeyResponses = {
+  /**
+   * OK
+   */
+  200: PublishableKey;
+};
+
+export type RevokePublishableKeyResponse =
+  RevokePublishableKeyResponses[keyof RevokePublishableKeyResponses];
+
 export type ListReleasesData = {
   body?: never;
   path?: never;
@@ -7819,6 +23985,206 @@ export type GetReleaseBySlugResponses = {
 };
 
 export type GetReleaseBySlugResponse = GetReleaseBySlugResponses[keyof GetReleaseBySlugResponses];
+
+export type ListRolesData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/roles";
+};
+
+export type ListRolesErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+};
+
+export type ListRolesError = ListRolesErrors[keyof ListRolesErrors];
+
+export type ListRolesResponses = {
+  /**
+   * OK
+   */
+  200: Array<Role> | null;
+};
+
+export type ListRolesResponse = ListRolesResponses[keyof ListRolesResponses];
+
+export type CreateRoleData = {
+  body: CreateRole;
+  path?: never;
+  query?: never;
+  url: "/roles";
+};
+
+export type CreateRoleErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+};
+
+export type CreateRoleError = CreateRoleErrors[keyof CreateRoleErrors];
+
+export type CreateRoleResponses = {
+  /**
+   * Created
+   */
+  201: Role;
+};
+
+export type CreateRoleResponse = CreateRoleResponses[keyof CreateRoleResponses];
+
+export type DeleteRoleData = {
+  body?: never;
+  path: {
+    slug: string;
+  };
+  query?: never;
+  url: "/roles/{slug}";
+};
+
+export type DeleteRoleErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+};
+
+export type DeleteRoleError = DeleteRoleErrors[keyof DeleteRoleErrors];
+
+export type DeleteRoleResponses = {
+  /**
+   * No Content
+   */
+  204: void;
+};
+
+export type DeleteRoleResponse = DeleteRoleResponses[keyof DeleteRoleResponses];
+
+export type UpdateRoleData = {
+  body: RoleDefinition;
+  path: {
+    slug: string;
+  };
+  query?: never;
+  url: "/roles/{slug}";
+};
+
+export type UpdateRoleErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+};
+
+export type UpdateRoleError = UpdateRoleErrors[keyof UpdateRoleErrors];
+
+export type UpdateRoleResponses = {
+  /**
+   * OK
+   */
+  200: Role;
+};
+
+export type UpdateRoleResponse = UpdateRoleResponses[keyof UpdateRoleResponses];
 
 export type GetServiceAccountsData = {
   body?: never;
@@ -8219,6 +24585,392 @@ export type DeleteServiceAccountTokenResponses = {
 export type DeleteServiceAccountTokenResponse =
   DeleteServiceAccountTokenResponses[keyof DeleteServiceAccountTokenResponses];
 
+export type ExportOrganizationUsageReportsData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Start of the range, inclusive (RFC 3339). Defaults to 30 days before to, moved up to the start of the organization's usage history when that is later. An explicit from before it answers 422 ExportUsageReports.OutsideRetention.
+     */
+    from?: string;
+    /**
+     * End of the range, exclusive (RFC 3339). Defaults to now. At most 31 days after from.
+     */
+    to?: string;
+    /**
+     * csv (the default): RFC 4180 with a header row. json: NDJSON, one report per line. Anything else answers 422 ExportUsageReports.InvalidFormat.
+     */
+    format?: string;
+    /**
+     * Only this instance's reports
+     */
+    instanceSlug?: string;
+    /**
+     * Only this instance's reports. Reaches a deleted instance, whose reports are kept.
+     */
+    instanceId?: string;
+    /**
+     * Only this entitlement's reports
+     */
+    entitlementSlug?: string;
+    /**
+     * Only this entitlement's reports. Reaches a deleted entitlement, whose reports are kept.
+     */
+    entitlementId?: string;
+  };
+  url: "/usage/reports/export";
+};
+
+export type ExportOrganizationUsageReportsErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+};
+
+export type ExportOrganizationUsageReportsError =
+  ExportOrganizationUsageReportsErrors[keyof ExportOrganizationUsageReportsErrors];
+
+export type ExportOrganizationUsageReportsResponses = {
+  /**
+   * The reports, as an attachment: CSV with a header row for format=csv, one JSON object per line for format=json
+   */
+  200: string;
+};
+
+export type ExportOrganizationUsageReportsResponse =
+  ExportOrganizationUsageReportsResponses[keyof ExportOrganizationUsageReportsResponses];
+
+export type ListUsersData = {
+  body?: never;
+  path?: never;
+  query?: {
+    limit?: number;
+    cursor?: string;
+  };
+  url: "/users";
+};
+
+export type ListUsersErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+};
+
+export type ListUsersError = ListUsersErrors[keyof ListUsersErrors];
+
+export type ListUsersResponses = {
+  /**
+   * OK
+   */
+  200: PageManagedUser;
+};
+
+export type ListUsersResponse = ListUsersResponses[keyof ListUsersResponses];
+
+export type GetUserData = {
+  body?: never;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: "/users/{id}";
+};
+
+export type GetUserErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+};
+
+export type GetUserError = GetUserErrors[keyof GetUserErrors];
+
+export type GetUserResponses = {
+  /**
+   * OK
+   */
+  200: ManagedUser;
+};
+
+export type GetUserResponse = GetUserResponses[keyof GetUserResponses];
+
+export type UpdateUserData = {
+  body: Profile;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: "/users/{id}";
+};
+
+export type UpdateUserErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+};
+
+export type UpdateUserError = UpdateUserErrors[keyof UpdateUserErrors];
+
+export type UpdateUserResponses = {
+  /**
+   * No Content
+   */
+  204: void;
+};
+
+export type UpdateUserResponse = UpdateUserResponses[keyof UpdateUserResponses];
+
+export type SetUserAssignmentsData = {
+  body: UserRoleAssignments;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: "/users/{id}/assignments";
+};
+
+export type SetUserAssignmentsErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+};
+
+export type SetUserAssignmentsError = SetUserAssignmentsErrors[keyof SetUserAssignmentsErrors];
+
+export type SetUserAssignmentsResponses = {
+  /**
+   * OK
+   */
+  200: UserAuthorization;
+};
+
+export type SetUserAssignmentsResponse =
+  SetUserAssignmentsResponses[keyof SetUserAssignmentsResponses];
+
+export type PutUserAuthorizationData = {
+  body: UserAuthorization;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: "/users/{id}/authorization";
+};
+
+export type PutUserAuthorizationErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+};
+
+export type PutUserAuthorizationError =
+  PutUserAuthorizationErrors[keyof PutUserAuthorizationErrors];
+
+export type PutUserAuthorizationResponses = {
+  /**
+   * OK
+   */
+  200: UserAuthorization;
+};
+
+export type PutUserAuthorizationResponse =
+  PutUserAuthorizationResponses[keyof PutUserAuthorizationResponses];
+
+export type SetUserEnabledData = {
+  body: UserEnablement;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: "/users/{id}/enabled";
+};
+
+export type SetUserEnabledErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+};
+
+export type SetUserEnabledError = SetUserEnabledErrors[keyof SetUserEnabledErrors];
+
+export type SetUserEnabledResponses = {
+  /**
+   * OK
+   */
+  200: UserAuthorization;
+};
+
+export type SetUserEnabledResponse = SetUserEnabledResponses[keyof SetUserEnabledResponses];
+
 export type GetNotificationPreferencesData = {
   body?: never;
   path?: never;
@@ -8401,8 +25153,858 @@ export type MarkNotificationsReadResponses = {
 export type MarkNotificationsReadResponse =
   MarkNotificationsReadResponses[keyof MarkNotificationsReadResponses];
 
+export type ListVouchersData = {
+  body?: never;
+  path?: never;
+  query?: {
+    status?: "DRAFT" | "ACTIVE" | "EXPIRED" | "EXHAUSTED" | "ARCHIVED";
+    voucherType?: "PRICE" | "ENTITLEMENT_BOOST";
+    restrictedCustomerSlug?: string;
+    /**
+     * Opaque pagination cursor from a previous response's nextCursor
+     */
+    cursor?: string;
+    /**
+     * Maximum number of entries to return (default 50, max 200)
+     */
+    limit?: number;
+  };
+  url: "/vouchers";
+};
+
+export type ListVouchersErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type ListVouchersError = ListVouchersErrors[keyof ListVouchersErrors];
+
+export type ListVouchersResponses = {
+  /**
+   * OK
+   */
+  200: PageVoucher;
+};
+
+export type ListVouchersResponse = ListVouchersResponses[keyof ListVouchersResponses];
+
+export type CreateVoucherData = {
+  body: VoucherDraft;
+  path?: never;
+  query?: never;
+  url: "/vouchers";
+};
+
+export type CreateVoucherErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type CreateVoucherError = CreateVoucherErrors[keyof CreateVoucherErrors];
+
+export type CreateVoucherResponses = {
+  /**
+   * Created
+   */
+  201: Voucher;
+};
+
+export type CreateVoucherResponse = CreateVoucherResponses[keyof CreateVoucherResponses];
+
+export type LookupVoucherData = {
+  body: VoucherCode;
+  path?: never;
+  query?: never;
+  url: "/vouchers/lookup";
+};
+
+export type LookupVoucherErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type LookupVoucherError = LookupVoucherErrors[keyof LookupVoucherErrors];
+
+export type LookupVoucherResponses = {
+  /**
+   * OK
+   */
+  200: Voucher;
+};
+
+export type LookupVoucherResponse = LookupVoucherResponses[keyof LookupVoucherResponses];
+
+export type ValidateVoucherData = {
+  body: VoucherCheck;
+  path?: never;
+  query?: never;
+  url: "/vouchers/validate";
+};
+
+export type ValidateVoucherErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Too Many Requests
+   */
+  429: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type ValidateVoucherError = ValidateVoucherErrors[keyof ValidateVoucherErrors];
+
+export type ValidateVoucherResponses = {
+  /**
+   * OK
+   */
+  200: Validity;
+};
+
+export type ValidateVoucherResponse = ValidateVoucherResponses[keyof ValidateVoucherResponses];
+
+export type GetVoucherData = {
+  body?: never;
+  path: {
+    /**
+     * Voucher id
+     */
+    voucherId: string;
+  };
+  query?: never;
+  url: "/vouchers/{voucherId}";
+};
+
+export type GetVoucherErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type GetVoucherError = GetVoucherErrors[keyof GetVoucherErrors];
+
+export type GetVoucherResponses = {
+  /**
+   * OK
+   */
+  200: Voucher;
+};
+
+export type GetVoucherResponse = GetVoucherResponses[keyof GetVoucherResponses];
+
+export type UpdateVoucherData = {
+  body: VoucherDraft;
+  path: {
+    /**
+     * Voucher id
+     */
+    voucherId: string;
+  };
+  query?: never;
+  url: "/vouchers/{voucherId}";
+};
+
+export type UpdateVoucherErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type UpdateVoucherError = UpdateVoucherErrors[keyof UpdateVoucherErrors];
+
+export type UpdateVoucherResponses = {
+  /**
+   * OK
+   */
+  200: Voucher;
+};
+
+export type UpdateVoucherResponse = UpdateVoucherResponses[keyof UpdateVoucherResponses];
+
+export type ArchiveVoucherData = {
+  body?: never;
+  path: {
+    /**
+     * Voucher id
+     */
+    voucherId: string;
+  };
+  query?: never;
+  url: "/vouchers/{voucherId}/archive";
+};
+
+export type ArchiveVoucherErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type ArchiveVoucherError = ArchiveVoucherErrors[keyof ArchiveVoucherErrors];
+
+export type ArchiveVoucherResponses = {
+  /**
+   * OK
+   */
+  200: Voucher;
+};
+
+export type ArchiveVoucherResponse = ArchiveVoucherResponses[keyof ArchiveVoucherResponses];
+
+export type PublishVoucherData = {
+  body?: never;
+  path: {
+    /**
+     * Voucher id
+     */
+    voucherId: string;
+  };
+  query?: never;
+  url: "/vouchers/{voucherId}/publish";
+};
+
+export type PublishVoucherErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type PublishVoucherError = PublishVoucherErrors[keyof PublishVoucherErrors];
+
+export type PublishVoucherResponses = {
+  /**
+   * OK
+   */
+  200: Voucher;
+};
+
+export type PublishVoucherResponse = PublishVoucherResponses[keyof PublishVoucherResponses];
+
+export type ListVoucherRedemptionsData = {
+  body?: never;
+  path: {
+    /**
+     * Voucher id
+     */
+    voucherId: string;
+  };
+  query?: {
+    /**
+     * Opaque pagination cursor from a previous response's nextCursor
+     */
+    cursor?: string;
+    /**
+     * Maximum number of entries to return (default 50, max 200)
+     */
+    limit?: number;
+  };
+  url: "/vouchers/{voucherId}/redemptions";
+};
+
+export type ListVoucherRedemptionsErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type ListVoucherRedemptionsError =
+  ListVoucherRedemptionsErrors[keyof ListVoucherRedemptionsErrors];
+
+export type ListVoucherRedemptionsResponses = {
+  /**
+   * OK
+   */
+  200: PageRedemption;
+};
+
+export type ListVoucherRedemptionsResponse =
+  ListVoucherRedemptionsResponses[keyof ListVoucherRedemptionsResponses];
+
+export type OnAddonEntitlementAssignedWebhookPayload = {
+  data: AddonGrantUpdateDeliveredWritable;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "ADDON_ENTITLEMENT_ASSIGNED";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.addon.entitlement.v1.assigned";
+};
+
+export type OnAddonEntitlementAssignedWebhookRequest = {
+  body: OnAddonEntitlementAssignedWebhookPayload;
+  key: "com.kaiten.addon.entitlement.v1.assigned";
+  path?: never;
+  query?: never;
+};
+
+export type OnAddonEntitlementUnassignedWebhookPayload = {
+  data: AddonGrantUpdateDeliveredWritable;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "ADDON_ENTITLEMENT_UNASSIGNED";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.addon.entitlement.v1.unassigned";
+};
+
+export type OnAddonEntitlementUnassignedWebhookRequest = {
+  body: OnAddonEntitlementUnassignedWebhookPayload;
+  key: "com.kaiten.addon.entitlement.v1.unassigned";
+  path?: never;
+  query?: never;
+};
+
+export type OnAddonEntitlementUpdatedWebhookPayload = {
+  data: AddonGrantUpdateDeliveredWritable;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "ADDON_ENTITLEMENT_UPDATED";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.addon.entitlement.v1.updated";
+};
+
+export type OnAddonEntitlementUpdatedWebhookRequest = {
+  body: OnAddonEntitlementUpdatedWebhookPayload;
+  key: "com.kaiten.addon.entitlement.v1.updated";
+  path?: never;
+  query?: never;
+};
+
+export type OnAddonPriceCreatedWebhookPayload = {
+  data: AddonPriceUpdateDeliveredWritable;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "ADDON_PRICE_CREATED";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.addon.price.v1.created";
+};
+
+export type OnAddonPriceCreatedWebhookRequest = {
+  body: OnAddonPriceCreatedWebhookPayload;
+  key: "com.kaiten.addon.price.v1.created";
+  path?: never;
+  query?: never;
+};
+
+export type OnAddonPriceDeprecatedWebhookPayload = {
+  data: AddonPriceUpdateDeliveredWritable;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "ADDON_PRICE_DEPRECATED";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.addon.price.v1.deprecated";
+};
+
+export type OnAddonPriceDeprecatedWebhookRequest = {
+  body: OnAddonPriceDeprecatedWebhookPayload;
+  key: "com.kaiten.addon.price.v1.deprecated";
+  path?: never;
+  query?: never;
+};
+
+export type OnAddonArchivedWebhookPayload = {
+  data: AddonDeliveredWritable;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "ADDON_ARCHIVED";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.addon.v1.archived";
+};
+
+export type OnAddonArchivedWebhookRequest = {
+  body: OnAddonArchivedWebhookPayload;
+  key: "com.kaiten.addon.v1.archived";
+  path?: never;
+  query?: never;
+};
+
+export type OnAddonCreatedWebhookPayload = {
+  data: AddonDeliveredWritable;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "ADDON_CREATED";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.addon.v1.created";
+};
+
+export type OnAddonCreatedWebhookRequest = {
+  body: OnAddonCreatedWebhookPayload;
+  key: "com.kaiten.addon.v1.created";
+  path?: never;
+  query?: never;
+};
+
+export type OnAddonDeletedWebhookPayload = {
+  data: DeletedAddonDelivered;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "ADDON_DELETED";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.addon.v1.deleted";
+};
+
+export type OnAddonDeletedWebhookRequest = {
+  body: OnAddonDeletedWebhookPayload;
+  key: "com.kaiten.addon.v1.deleted";
+  path?: never;
+  query?: never;
+};
+
+export type OnAddonPublishedWebhookPayload = {
+  data: AddonDeliveredWritable;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "ADDON_PUBLISHED";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.addon.v1.published";
+};
+
+export type OnAddonPublishedWebhookRequest = {
+  body: OnAddonPublishedWebhookPayload;
+  key: "com.kaiten.addon.v1.published";
+  path?: never;
+  query?: never;
+};
+
+export type OnAddonUnarchivedWebhookPayload = {
+  data: AddonDeliveredWritable;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "ADDON_UNARCHIVED";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.addon.v1.unarchived";
+};
+
+export type OnAddonUnarchivedWebhookRequest = {
+  body: OnAddonUnarchivedWebhookPayload;
+  key: "com.kaiten.addon.v1.unarchived";
+  path?: never;
+  query?: never;
+};
+
+export type OnAddonUpdatedWebhookPayload = {
+  data: AddonUpdateDeliveredWritable;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "ADDON_UPDATED";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.addon.v1.updated";
+};
+
+export type OnAddonUpdatedWebhookRequest = {
+  body: OnAddonUpdatedWebhookPayload;
+  key: "com.kaiten.addon.v1.updated";
+  path?: never;
+  query?: never;
+};
+
+export type OnBillingProviderConnectedWebhookPayload = {
+  data: ConnectionDelivered;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "BILLING_PROVIDER_CONNECTED";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.billing_provider.v1.connected";
+};
+
+export type OnBillingProviderConnectedWebhookRequest = {
+  body: OnBillingProviderConnectedWebhookPayload;
+  key: "com.kaiten.billing_provider.v1.connected";
+  path?: never;
+  query?: never;
+};
+
+export type OnBillingProviderDisconnectedWebhookPayload = {
+  data: ConnectionDelivered;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "BILLING_PROVIDER_DISCONNECTED";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.billing_provider.v1.disconnected";
+};
+
+export type OnBillingProviderDisconnectedWebhookRequest = {
+  body: OnBillingProviderDisconnectedWebhookPayload;
+  key: "com.kaiten.billing_provider.v1.disconnected";
+  path?: never;
+  query?: never;
+};
+
+export type OnBillingProviderSyncFailedWebhookPayload = {
+  data: SyncFailureDelivered;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "BILLING_PROVIDER_SYNC_FAILED";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.billing_provider.v1.sync_failed";
+};
+
+export type OnBillingProviderSyncFailedWebhookRequest = {
+  body: OnBillingProviderSyncFailedWebhookPayload;
+  key: "com.kaiten.billing_provider.v1.sync_failed";
+  path?: never;
+  query?: never;
+};
+
+export type OnCheckoutSessionAbandonedWebhookPayload = {
+  data: SessionEventDelivered;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "CHECKOUT_SESSION_ABANDONED";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.checkout_session.v1.abandoned";
+};
+
+export type OnCheckoutSessionAbandonedWebhookRequest = {
+  body: OnCheckoutSessionAbandonedWebhookPayload;
+  key: "com.kaiten.checkout_session.v1.abandoned";
+  path?: never;
+  query?: never;
+};
+
+export type OnCheckoutSessionCompletedWebhookPayload = {
+  data: SessionEventDelivered;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "CHECKOUT_SESSION_COMPLETED";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.checkout_session.v1.completed";
+};
+
+export type OnCheckoutSessionCompletedWebhookRequest = {
+  body: OnCheckoutSessionCompletedWebhookPayload;
+  key: "com.kaiten.checkout_session.v1.completed";
+  path?: never;
+  query?: never;
+};
+
+export type OnCheckoutSessionStartedWebhookPayload = {
+  data: SessionEventDelivered;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "CHECKOUT_SESSION_STARTED";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.checkout_session.v1.started";
+};
+
+export type OnCheckoutSessionStartedWebhookRequest = {
+  body: OnCheckoutSessionStartedWebhookPayload;
+  key: "com.kaiten.checkout_session.v1.started";
+  path?: never;
+  query?: never;
+};
+
 export type OnComponentCreatedWebhookPayload = {
-  data: ComponentWritable;
+  data: ComponentDeliveredWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -8421,7 +26023,8 @@ export type OnComponentCreatedWebhookRequest = {
 };
 
 export type OnComponentDeletedWebhookPayload = {
-  data: ComponentWritable;
+  data: ComponentDeliveredWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -8440,7 +26043,8 @@ export type OnComponentDeletedWebhookRequest = {
 };
 
 export type OnComponentUpdatedWebhookPayload = {
-  data: ComponentWritable;
+  data: ComponentDeliveredWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -8458,8 +26062,69 @@ export type OnComponentUpdatedWebhookRequest = {
   query?: never;
 };
 
+export type OnCustomerPaymentMethodAttachedWebhookPayload = {
+  data: PaymentMethodAttachedDelivered;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "CUSTOMER_PAYMENT_METHOD_ATTACHED";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.customer.payment_method.v1.attached";
+};
+
+export type OnCustomerPaymentMethodAttachedWebhookRequest = {
+  body: OnCustomerPaymentMethodAttachedWebhookPayload;
+  key: "com.kaiten.customer.payment_method.v1.attached";
+  path?: never;
+  query?: never;
+};
+
+export type OnCustomerPaymentMethodDetachedWebhookPayload = {
+  data: PaymentMethodDetachedDelivered;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "CUSTOMER_PAYMENT_METHOD_DETACHED";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.customer.payment_method.v1.detached";
+};
+
+export type OnCustomerPaymentMethodDetachedWebhookRequest = {
+  body: OnCustomerPaymentMethodDetachedWebhookPayload;
+  key: "com.kaiten.customer.payment_method.v1.detached";
+  path?: never;
+  query?: never;
+};
+
+export type OnCustomerPaymentMethodExpiringWebhookPayload = {
+  data: PaymentMethodExpiringDelivered;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "CUSTOMER_PAYMENT_METHOD_EXPIRING";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.customer.payment_method.v1.expiring";
+};
+
+export type OnCustomerPaymentMethodExpiringWebhookRequest = {
+  body: OnCustomerPaymentMethodExpiringWebhookPayload;
+  key: "com.kaiten.customer.payment_method.v1.expiring";
+  path?: never;
+  query?: never;
+};
+
 export type OnCustomerCreatedWebhookPayload = {
-  data: CustomerWritable;
+  data: CustomerEventDeliveredWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -8478,7 +26143,8 @@ export type OnCustomerCreatedWebhookRequest = {
 };
 
 export type OnCustomerCreationRejectedWebhookPayload = {
-  data: CustomerCreationRejected;
+  data: CustomerCreationRejectedDelivered;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -8497,7 +26163,8 @@ export type OnCustomerCreationRejectedWebhookRequest = {
 };
 
 export type OnCustomerDeletedWebhookPayload = {
-  data: CustomerWritable;
+  data: CustomerEventDeliveredWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -8516,7 +26183,8 @@ export type OnCustomerDeletedWebhookRequest = {
 };
 
 export type OnCustomerUpdatedWebhookPayload = {
-  data: CustomerWritable;
+  data: CustomerEventDeliveredWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -8535,7 +26203,8 @@ export type OnCustomerUpdatedWebhookRequest = {
 };
 
 export type OnDeploymentZoneCreatedWebhookPayload = {
-  data: DeploymentZoneWritable;
+  data: DeploymentZoneDeliveredWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -8554,7 +26223,8 @@ export type OnDeploymentZoneCreatedWebhookRequest = {
 };
 
 export type OnDeploymentZoneDeletedWebhookPayload = {
-  data: DeploymentZoneWritable;
+  data: DeploymentZoneDeliveredWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -8573,7 +26243,8 @@ export type OnDeploymentZoneDeletedWebhookRequest = {
 };
 
 export type OnReleaseDeployedWebhookPayload = {
-  data: Deployment;
+  data: DeploymentDelivered;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -8592,7 +26263,8 @@ export type OnReleaseDeployedWebhookRequest = {
 };
 
 export type OnDeploymentZoneUpdatedWebhookPayload = {
-  data: DeploymentZoneWritable;
+  data: DeploymentZoneDeliveredWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -8611,7 +26283,8 @@ export type OnDeploymentZoneUpdatedWebhookRequest = {
 };
 
 export type OnEntitlementCreatedWebhookPayload = {
-  data: EntitlementWritable;
+  data: EntitlementDeliveredWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -8630,7 +26303,8 @@ export type OnEntitlementCreatedWebhookRequest = {
 };
 
 export type OnEntitlementDeletedWebhookPayload = {
-  data: EntitlementWritable;
+  data: EntitlementDeliveredWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -8649,7 +26323,8 @@ export type OnEntitlementDeletedWebhookRequest = {
 };
 
 export type OnEntitlementUpdatedWebhookPayload = {
-  data: EntitlementWritable;
+  data: EntitlementDeliveredWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -8668,7 +26343,8 @@ export type OnEntitlementUpdatedWebhookRequest = {
 };
 
 export type OnEntitlementGroupCreatedWebhookPayload = {
-  data: EntitlementGroupWritable;
+  data: EntitlementGroupDeliveredWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -8687,7 +26363,8 @@ export type OnEntitlementGroupCreatedWebhookRequest = {
 };
 
 export type OnEntitlementGroupDeletedWebhookPayload = {
-  data: EntitlementGroupWritable;
+  data: EntitlementGroupDeliveredWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -8706,7 +26383,8 @@ export type OnEntitlementGroupDeletedWebhookRequest = {
 };
 
 export type OnEntitlementGroupUpdatedWebhookPayload = {
-  data: EntitlementGroupWritable;
+  data: EntitlementGroupDeliveredWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -8725,7 +26403,8 @@ export type OnEntitlementGroupUpdatedWebhookRequest = {
 };
 
 export type OnFeatureFlagCreatedWebhookPayload = {
-  data: FeatureFlagWritable;
+  data: FeatureFlagDeliveredWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -8744,7 +26423,8 @@ export type OnFeatureFlagCreatedWebhookRequest = {
 };
 
 export type OnFeatureFlagDeletedWebhookPayload = {
-  data: FeatureFlagWritable;
+  data: FeatureFlagDeliveredWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -8763,7 +26443,8 @@ export type OnFeatureFlagDeletedWebhookRequest = {
 };
 
 export type OnFeatureFlagEvaluatedWebhookPayload = {
-  data: FeatureFlagEvaluated;
+  data: FeatureFlagEvaluatedDelivered;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -8782,7 +26463,8 @@ export type OnFeatureFlagEvaluatedWebhookRequest = {
 };
 
 export type OnFeatureFlagUpdatedWebhookPayload = {
-  data: FeatureFlagWritable;
+  data: FeatureFlagDeliveredWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -8801,7 +26483,8 @@ export type OnFeatureFlagUpdatedWebhookRequest = {
 };
 
 export type OnSystemOrganizationTokenIssuedWebhookPayload = {
-  data: SystemTokenIssuance;
+  data: SystemTokenIssuanceDelivered;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -8819,8 +26502,269 @@ export type OnSystemOrganizationTokenIssuedWebhookRequest = {
   query?: never;
 };
 
+export type OnInstanceAddonAddedWebhookPayload = {
+  data: InstanceAddonUpdateDeliveredWritable;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "INSTANCE_ADDON_ADDED";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.instance.addon.v1.added";
+};
+
+export type OnInstanceAddonAddedWebhookRequest = {
+  body: OnInstanceAddonAddedWebhookPayload;
+  key: "com.kaiten.instance.addon.v1.added";
+  path?: never;
+  query?: never;
+};
+
+export type OnInstanceAddonQuantityChangedWebhookPayload = {
+  data: InstanceAddonUpdateDeliveredWritable;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "INSTANCE_ADDON_QUANTITY_CHANGED";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.instance.addon.v1.quantity_changed";
+};
+
+export type OnInstanceAddonQuantityChangedWebhookRequest = {
+  body: OnInstanceAddonQuantityChangedWebhookPayload;
+  key: "com.kaiten.instance.addon.v1.quantity_changed";
+  path?: never;
+  query?: never;
+};
+
+export type OnInstanceAddonRemovedWebhookPayload = {
+  data: InstanceAddonUpdateDeliveredWritable;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "INSTANCE_ADDON_REMOVED";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.instance.addon.v1.removed";
+};
+
+export type OnInstanceAddonRemovedWebhookRequest = {
+  body: OnInstanceAddonRemovedWebhookPayload;
+  key: "com.kaiten.instance.addon.v1.removed";
+  path?: never;
+  query?: never;
+};
+
+export type OnInstanceBillingCanceledWebhookPayload = {
+  data: CancellationDeliveredWritable;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "INSTANCE_BILLING_CANCELED";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.instance.billing.v1.canceled";
+};
+
+export type OnInstanceBillingCanceledWebhookRequest = {
+  body: OnInstanceBillingCanceledWebhookPayload;
+  key: "com.kaiten.instance.billing.v1.canceled";
+  path?: never;
+  query?: never;
+};
+
+export type OnInstanceBillingCancellationRevertedWebhookPayload = {
+  data: CancellationChangeDeliveredWritable;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "INSTANCE_BILLING_CANCELLATION_REVERTED";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.instance.billing.v1.cancellation_reverted";
+};
+
+export type OnInstanceBillingCancellationRevertedWebhookRequest = {
+  body: OnInstanceBillingCancellationRevertedWebhookPayload;
+  key: "com.kaiten.instance.billing.v1.cancellation_reverted";
+  path?: never;
+  query?: never;
+};
+
+export type OnInstanceBillingCancellationScheduledWebhookPayload = {
+  data: CancellationChangeDeliveredWritable;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "INSTANCE_BILLING_CANCELLATION_SCHEDULED";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.instance.billing.v1.cancellation_scheduled";
+};
+
+export type OnInstanceBillingCancellationScheduledWebhookRequest = {
+  body: OnInstanceBillingCancellationScheduledWebhookPayload;
+  key: "com.kaiten.instance.billing.v1.cancellation_scheduled";
+  path?: never;
+  query?: never;
+};
+
+export type OnInstanceBillingPlanChangeCanceledWebhookPayload = {
+  data: PlanChangeScheduleDelivered;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "INSTANCE_BILLING_PLAN_CHANGE_CANCELED";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.instance.billing.v1.plan_change_canceled";
+};
+
+export type OnInstanceBillingPlanChangeCanceledWebhookRequest = {
+  body: OnInstanceBillingPlanChangeCanceledWebhookPayload;
+  key: "com.kaiten.instance.billing.v1.plan_change_canceled";
+  path?: never;
+  query?: never;
+};
+
+export type OnInstanceBillingPlanChangeScheduledWebhookPayload = {
+  data: PlanChangeScheduleDelivered;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "INSTANCE_BILLING_PLAN_CHANGE_SCHEDULED";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.instance.billing.v1.plan_change_scheduled";
+};
+
+export type OnInstanceBillingPlanChangeScheduledWebhookRequest = {
+  body: OnInstanceBillingPlanChangeScheduledWebhookPayload;
+  key: "com.kaiten.instance.billing.v1.plan_change_scheduled";
+  path?: never;
+  query?: never;
+};
+
+export type OnInstanceBillingPlanChangedWebhookPayload = {
+  data: PlanChangeDelivered;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "INSTANCE_BILLING_PLAN_CHANGED";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.instance.billing.v1.plan_changed";
+};
+
+export type OnInstanceBillingPlanChangedWebhookRequest = {
+  body: OnInstanceBillingPlanChangedWebhookPayload;
+  key: "com.kaiten.instance.billing.v1.plan_changed";
+  path?: never;
+  query?: never;
+};
+
+export type OnInstanceBillingProviderChangedWebhookPayload = {
+  data: ProviderChangeDelivered;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "INSTANCE_BILLING_PROVIDER_CHANGED";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.instance.billing.v1.provider_changed";
+};
+
+export type OnInstanceBillingProviderChangedWebhookRequest = {
+  body: OnInstanceBillingProviderChangedWebhookPayload;
+  key: "com.kaiten.instance.billing.v1.provider_changed";
+  path?: never;
+  query?: never;
+};
+
+export type OnInstanceBillingStartedWebhookPayload = {
+  data: BillingStartedDeliveredWritable;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "INSTANCE_BILLING_STARTED";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.instance.billing.v1.started";
+};
+
+export type OnInstanceBillingStartedWebhookRequest = {
+  body: OnInstanceBillingStartedWebhookPayload;
+  key: "com.kaiten.instance.billing.v1.started";
+  path?: never;
+  query?: never;
+};
+
+export type OnInstanceBillingStatusChangedWebhookPayload = {
+  data: StatusChangeDelivered;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "INSTANCE_BILLING_STATUS_CHANGED";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.instance.billing.v1.status_changed";
+};
+
+export type OnInstanceBillingStatusChangedWebhookRequest = {
+  body: OnInstanceBillingStatusChangedWebhookPayload;
+  key: "com.kaiten.instance.billing.v1.status_changed";
+  path?: never;
+  query?: never;
+};
+
+export type OnInstanceBillingTrialWillEndWebhookPayload = {
+  data: TrialWillEndDeliveredWritable;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "INSTANCE_BILLING_TRIAL_WILL_END";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.instance.billing.v1.trial_will_end";
+};
+
+export type OnInstanceBillingTrialWillEndWebhookRequest = {
+  body: OnInstanceBillingTrialWillEndWebhookPayload;
+  key: "com.kaiten.instance.billing.v1.trial_will_end";
+  path?: never;
+  query?: never;
+};
+
 export type OnInstanceEntitlementCapExceededWebhookPayload = {
-  data: InstanceEntitlementCapExceeded;
+  data: InstanceEntitlementCapExceededDelivered;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -8839,7 +26783,8 @@ export type OnInstanceEntitlementCapExceededWebhookRequest = {
 };
 
 export type OnInstanceEntitlementUsagePeriodRolledOverWebhookPayload = {
-  data: InstanceEntitlementUsagePeriodRolledOver;
+  data: InstanceEntitlementUsagePeriodRolledOverDelivered;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -8858,7 +26803,8 @@ export type OnInstanceEntitlementUsagePeriodRolledOverWebhookRequest = {
 };
 
 export type OnInstanceEntitlementUsageReachedWebhookPayload = {
-  data: EntitlementUsageWritable;
+  data: EntitlementUsageDeliveredWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -8877,7 +26823,8 @@ export type OnInstanceEntitlementUsageReachedWebhookRequest = {
 };
 
 export type OnInstanceEntitlementUsageReportAcceptedWebhookPayload = {
-  data: InstanceEntitlementUsageReportAccepted;
+  data: InstanceEntitlementUsageReportAcceptedDelivered;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -8896,7 +26843,8 @@ export type OnInstanceEntitlementUsageReportAcceptedWebhookRequest = {
 };
 
 export type OnInstanceEntitlementUsageReportRejectedWebhookPayload = {
-  data: InstanceEntitlementUsageReportAccepted;
+  data: InstanceEntitlementUsageReportAcceptedDelivered;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -8915,7 +26863,8 @@ export type OnInstanceEntitlementUsageReportRejectedWebhookRequest = {
 };
 
 export type OnInstanceEntitlementUsageWarningThresholdReachedWebhookPayload = {
-  data: InstanceEntitlementUsageWarningThresholdReached;
+  data: InstanceEntitlementUsageWarningThresholdReachedDelivered;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -8934,7 +26883,8 @@ export type OnInstanceEntitlementUsageWarningThresholdReachedWebhookRequest = {
 };
 
 export type OnInstanceEntitlementValueGetWebhookPayload = {
-  data: InstanceEntitlementValueGetWritable;
+  data: InstanceEntitlementValueGetDeliveredWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -8952,8 +26902,289 @@ export type OnInstanceEntitlementValueGetWebhookRequest = {
   query?: never;
 };
 
+export type OnInstanceEntitlementExceptionCreatedWebhookPayload = {
+  data: ExceptionEventDelivered;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "INSTANCE_ENTITLEMENT_EXCEPTION_CREATED";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.instance.entitlement_exception.v1.created";
+};
+
+export type OnInstanceEntitlementExceptionCreatedWebhookRequest = {
+  body: OnInstanceEntitlementExceptionCreatedWebhookPayload;
+  key: "com.kaiten.instance.entitlement_exception.v1.created";
+  path?: never;
+  query?: never;
+};
+
+export type OnInstanceEntitlementExceptionExpiredWebhookPayload = {
+  data: ExceptionEventDelivered;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "INSTANCE_ENTITLEMENT_EXCEPTION_EXPIRED";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.instance.entitlement_exception.v1.expired";
+};
+
+export type OnInstanceEntitlementExceptionExpiredWebhookRequest = {
+  body: OnInstanceEntitlementExceptionExpiredWebhookPayload;
+  key: "com.kaiten.instance.entitlement_exception.v1.expired";
+  path?: never;
+  query?: never;
+};
+
+export type OnInstanceEntitlementExceptionRevokedWebhookPayload = {
+  data: ExceptionEventDelivered;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "INSTANCE_ENTITLEMENT_EXCEPTION_REVOKED";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.instance.entitlement_exception.v1.revoked";
+};
+
+export type OnInstanceEntitlementExceptionRevokedWebhookRequest = {
+  body: OnInstanceEntitlementExceptionRevokedWebhookPayload;
+  key: "com.kaiten.instance.entitlement_exception.v1.revoked";
+  path?: never;
+  query?: never;
+};
+
+export type OnInstanceInvoiceHandoffAcknowledgedWebhookPayload = {
+  data: HandoffAcknowledgementDelivered;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "INSTANCE_INVOICE_HANDOFF_ACKNOWLEDGED";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.instance.invoice.v1.handoff_acknowledged";
+};
+
+export type OnInstanceInvoiceHandoffAcknowledgedWebhookRequest = {
+  body: OnInstanceInvoiceHandoffAcknowledgedWebhookPayload;
+  key: "com.kaiten.instance.invoice.v1.handoff_acknowledged";
+  path?: never;
+  query?: never;
+};
+
+export type OnInstanceInvoiceHeldWebhookPayload = {
+  data: HeldInvoiceDelivered;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "INSTANCE_INVOICE_HELD";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.instance.invoice.v1.held";
+};
+
+export type OnInstanceInvoiceHeldWebhookRequest = {
+  body: OnInstanceInvoiceHeldWebhookPayload;
+  key: "com.kaiten.instance.invoice.v1.held";
+  path?: never;
+  query?: never;
+};
+
+export type OnInstanceInvoiceIssuedWebhookPayload = {
+  data: IssuedInvoiceDeliveredWritable;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "INSTANCE_INVOICE_ISSUED";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.instance.invoice.v1.issued";
+};
+
+export type OnInstanceInvoiceIssuedWebhookRequest = {
+  body: OnInstanceInvoiceIssuedWebhookPayload;
+  key: "com.kaiten.instance.invoice.v1.issued";
+  path?: never;
+  query?: never;
+};
+
+export type OnInstanceInvoiceMarkedUncollectibleWebhookPayload = {
+  data: UncollectibleInvoiceDelivered;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "INSTANCE_INVOICE_MARKED_UNCOLLECTIBLE";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.instance.invoice.v1.marked_uncollectible";
+};
+
+export type OnInstanceInvoiceMarkedUncollectibleWebhookRequest = {
+  body: OnInstanceInvoiceMarkedUncollectibleWebhookPayload;
+  key: "com.kaiten.instance.invoice.v1.marked_uncollectible";
+  path?: never;
+  query?: never;
+};
+
+export type OnInstanceInvoicePaidWebhookPayload = {
+  data: PaidInvoiceDelivered;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "INSTANCE_INVOICE_PAID";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.instance.invoice.v1.paid";
+};
+
+export type OnInstanceInvoicePaidWebhookRequest = {
+  body: OnInstanceInvoicePaidWebhookPayload;
+  key: "com.kaiten.instance.invoice.v1.paid";
+  path?: never;
+  query?: never;
+};
+
+export type OnInstanceInvoicePaymentFailedWebhookPayload = {
+  data: PaymentFailedInvoiceDelivered;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "INSTANCE_INVOICE_PAYMENT_FAILED";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.instance.invoice.v1.payment_failed";
+};
+
+export type OnInstanceInvoicePaymentFailedWebhookRequest = {
+  body: OnInstanceInvoicePaymentFailedWebhookPayload;
+  key: "com.kaiten.instance.invoice.v1.payment_failed";
+  path?: never;
+  query?: never;
+};
+
+export type OnInstanceInvoicePushFailedWebhookPayload = {
+  data: PushFailedInvoiceDelivered;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "INSTANCE_INVOICE_PUSH_FAILED";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.instance.invoice.v1.push_failed";
+};
+
+export type OnInstanceInvoicePushFailedWebhookRequest = {
+  body: OnInstanceInvoicePushFailedWebhookPayload;
+  key: "com.kaiten.instance.invoice.v1.push_failed";
+  path?: never;
+  query?: never;
+};
+
+export type OnInstanceInvoicePushedWebhookPayload = {
+  data: PushedInvoiceDelivered;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "INSTANCE_INVOICE_PUSHED";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.instance.invoice.v1.pushed";
+};
+
+export type OnInstanceInvoicePushedWebhookRequest = {
+  body: OnInstanceInvoicePushedWebhookPayload;
+  key: "com.kaiten.instance.invoice.v1.pushed";
+  path?: never;
+  query?: never;
+};
+
+export type OnInstanceInvoiceReconciliationMismatchWebhookPayload = {
+  data: MismatchedInvoiceDelivered;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "INSTANCE_INVOICE_RECONCILIATION_MISMATCH";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.instance.invoice.v1.reconciliation_mismatch";
+};
+
+export type OnInstanceInvoiceReconciliationMismatchWebhookRequest = {
+  body: OnInstanceInvoiceReconciliationMismatchWebhookPayload;
+  key: "com.kaiten.instance.invoice.v1.reconciliation_mismatch";
+  path?: never;
+  query?: never;
+};
+
+export type OnInstanceInvoiceReleasedWebhookPayload = {
+  data: ReleasedInvoiceDelivered;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "INSTANCE_INVOICE_RELEASED";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.instance.invoice.v1.released";
+};
+
+export type OnInstanceInvoiceReleasedWebhookRequest = {
+  body: OnInstanceInvoiceReleasedWebhookPayload;
+  key: "com.kaiten.instance.invoice.v1.released";
+  path?: never;
+  query?: never;
+};
+
+export type OnInstanceInvoiceVoidedWebhookPayload = {
+  data: VoidedInvoiceDelivered;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "INSTANCE_INVOICE_VOIDED";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.instance.invoice.v1.voided";
+};
+
+export type OnInstanceInvoiceVoidedWebhookRequest = {
+  body: OnInstanceInvoiceVoidedWebhookPayload;
+  key: "com.kaiten.instance.invoice.v1.voided";
+  path?: never;
+  query?: never;
+};
+
 export type OnInstanceCreatedWebhookPayload = {
-  data: InstanceWritable;
+  data: InstanceDeliveredWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -8972,7 +27203,8 @@ export type OnInstanceCreatedWebhookRequest = {
 };
 
 export type OnInstanceDeletedWebhookPayload = {
-  data: InstanceWritable;
+  data: InstanceDeliveredWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -8991,7 +27223,8 @@ export type OnInstanceDeletedWebhookRequest = {
 };
 
 export type OnInstanceDeployedWebhookPayload = {
-  data: InstanceWritable;
+  data: InstanceDeliveredWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -9010,7 +27243,8 @@ export type OnInstanceDeployedWebhookRequest = {
 };
 
 export type OnInstanceLifecycleStageChangedWebhookPayload = {
-  data: InstanceLifecycleStageChanged;
+  data: InstanceLifecycleStageChangedDelivered;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -9029,7 +27263,8 @@ export type OnInstanceLifecycleStageChangedWebhookRequest = {
 };
 
 export type OnInstanceMigratedWebhookPayload = {
-  data: InstanceWritable;
+  data: InstanceDeliveredWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -9048,7 +27283,8 @@ export type OnInstanceMigratedWebhookRequest = {
 };
 
 export type OnInstanceStatusChangedWebhookPayload = {
-  data: InstanceStatusChanged;
+  data: InstanceStatusChangedDelivered;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -9067,7 +27303,8 @@ export type OnInstanceStatusChangedWebhookRequest = {
 };
 
 export type OnInstanceUpdatedWebhookPayload = {
-  data: InstanceWritable;
+  data: InstanceUpdateDeliveredWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -9085,8 +27322,69 @@ export type OnInstanceUpdatedWebhookRequest = {
   query?: never;
 };
 
+export type OnInstanceVoucherExpiredWebhookPayload = {
+  data: RedemptionDeliveredWritable;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "INSTANCE_VOUCHER_EXPIRED";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.instance.voucher.v1.expired";
+};
+
+export type OnInstanceVoucherExpiredWebhookRequest = {
+  body: OnInstanceVoucherExpiredWebhookPayload;
+  key: "com.kaiten.instance.voucher.v1.expired";
+  path?: never;
+  query?: never;
+};
+
+export type OnInstanceVoucherRedeemedWebhookPayload = {
+  data: RedemptionDeliveredWritable;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "INSTANCE_VOUCHER_REDEEMED";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.instance.voucher.v1.redeemed";
+};
+
+export type OnInstanceVoucherRedeemedWebhookRequest = {
+  body: OnInstanceVoucherRedeemedWebhookPayload;
+  key: "com.kaiten.instance.voucher.v1.redeemed";
+  path?: never;
+  query?: never;
+};
+
+export type OnInstanceVoucherRevokedWebhookPayload = {
+  data: RedemptionDeliveredWritable;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "INSTANCE_VOUCHER_REVOKED";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.instance.voucher.v1.revoked";
+};
+
+export type OnInstanceVoucherRevokedWebhookRequest = {
+  body: OnInstanceVoucherRevokedWebhookPayload;
+  key: "com.kaiten.instance.voucher.v1.revoked";
+  path?: never;
+  query?: never;
+};
+
 export type OnLicenseEntitlementAssignedWebhookPayload = {
-  data: LicenseEntitlementWritable;
+  data: LicenseEntitlementDeliveredWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -9105,7 +27403,8 @@ export type OnLicenseEntitlementAssignedWebhookRequest = {
 };
 
 export type OnLicenseEntitlementUnassignedWebhookPayload = {
-  data: LicenseEntitlementWritable;
+  data: LicenseEntitlementDeliveredWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -9124,7 +27423,8 @@ export type OnLicenseEntitlementUnassignedWebhookRequest = {
 };
 
 export type OnLicenseEntitlementUpdatedWebhookPayload = {
-  data: LicenseEntitlementWritable;
+  data: LicenseEntitlementDeliveredWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -9142,8 +27442,69 @@ export type OnLicenseEntitlementUpdatedWebhookRequest = {
   query?: never;
 };
 
+export type OnLicensePriceCreatedWebhookPayload = {
+  data: LicensePriceEventDeliveredWritable;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "LICENSE_PRICE_CREATED";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.license.price.v1.created";
+};
+
+export type OnLicensePriceCreatedWebhookRequest = {
+  body: OnLicensePriceCreatedWebhookPayload;
+  key: "com.kaiten.license.price.v1.created";
+  path?: never;
+  query?: never;
+};
+
+export type OnLicensePriceDeprecatedWebhookPayload = {
+  data: LicensePriceEventDeliveredWritable;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "LICENSE_PRICE_DEPRECATED";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.license.price.v1.deprecated";
+};
+
+export type OnLicensePriceDeprecatedWebhookRequest = {
+  body: OnLicensePriceDeprecatedWebhookPayload;
+  key: "com.kaiten.license.price.v1.deprecated";
+  path?: never;
+  query?: never;
+};
+
+export type OnLicensePriceUpdatedWebhookPayload = {
+  data: LicensePriceUpdatedEventDeliveredWritable;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "LICENSE_PRICE_UPDATED";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.license.price.v1.updated";
+};
+
+export type OnLicensePriceUpdatedWebhookRequest = {
+  body: OnLicensePriceUpdatedWebhookPayload;
+  key: "com.kaiten.license.price.v1.updated";
+  path?: never;
+  query?: never;
+};
+
 export type OnLicenseArchivedWebhookPayload = {
-  data: LicenseWritable;
+  data: LicenseDeliveredWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -9162,7 +27523,8 @@ export type OnLicenseArchivedWebhookRequest = {
 };
 
 export type OnLicenseCreatedWebhookPayload = {
-  data: LicenseWritable;
+  data: LicenseDeliveredWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -9181,7 +27543,8 @@ export type OnLicenseCreatedWebhookRequest = {
 };
 
 export type OnLicenseDeletedWebhookPayload = {
-  data: LicenseWritable;
+  data: LicenseDeliveredWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -9200,7 +27563,8 @@ export type OnLicenseDeletedWebhookRequest = {
 };
 
 export type OnLicensePublishedWebhookPayload = {
-  data: LicenseWritable;
+  data: LicenseDeliveredWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -9219,7 +27583,8 @@ export type OnLicensePublishedWebhookRequest = {
 };
 
 export type OnLicenseUnarchivedWebhookPayload = {
-  data: LicenseWritable;
+  data: LicenseDeliveredWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -9238,7 +27603,8 @@ export type OnLicenseUnarchivedWebhookRequest = {
 };
 
 export type OnLicenseUpdatedWebhookPayload = {
-  data: LicenseWritable;
+  data: LicenseDeliveredWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -9257,7 +27623,8 @@ export type OnLicenseUpdatedWebhookRequest = {
 };
 
 export type OnLicenseFamilyCreatedWebhookPayload = {
-  data: LicenseFamilyViewWritable;
+  data: LicenseFamilyViewDeliveredWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -9276,7 +27643,8 @@ export type OnLicenseFamilyCreatedWebhookRequest = {
 };
 
 export type OnLicenseFamilyDeletedWebhookPayload = {
-  data: LicenseFamilyViewWritable;
+  data: LicenseFamilyViewDeliveredWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -9295,7 +27663,8 @@ export type OnLicenseFamilyDeletedWebhookRequest = {
 };
 
 export type OnLicenseFamilyUpdatedWebhookPayload = {
-  data: LicenseFamilyViewWritable;
+  data: LicenseFamilyViewDeliveredWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -9314,7 +27683,8 @@ export type OnLicenseFamilyUpdatedWebhookRequest = {
 };
 
 export type OnMetadataFieldArchivedWebhookPayload = {
-  data: MetadataFieldWritable;
+  data: MetadataFieldDeliveredWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -9333,7 +27703,8 @@ export type OnMetadataFieldArchivedWebhookRequest = {
 };
 
 export type OnMetadataFieldCreatedWebhookPayload = {
-  data: MetadataFieldWritable;
+  data: MetadataFieldDeliveredWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -9352,7 +27723,8 @@ export type OnMetadataFieldCreatedWebhookRequest = {
 };
 
 export type OnMetadataFieldReorderedWebhookPayload = {
-  data: MetadataFieldReordered;
+  data: MetadataFieldReorderedDelivered;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -9371,7 +27743,8 @@ export type OnMetadataFieldReorderedWebhookRequest = {
 };
 
 export type OnMetadataFieldUnarchivedWebhookPayload = {
-  data: MetadataFieldWritable;
+  data: MetadataFieldDeliveredWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -9390,7 +27763,8 @@ export type OnMetadataFieldUnarchivedWebhookRequest = {
 };
 
 export type OnMetadataFieldUpdatedWebhookPayload = {
-  data: MetadataFieldWritable;
+  data: MetadataFieldDeliveredWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -9408,8 +27782,49 @@ export type OnMetadataFieldUpdatedWebhookRequest = {
   query?: never;
 };
 
+export type OnPublishableKeyCreatedWebhookPayload = {
+  data: PublishableKeyEventDelivered;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "PUBLISHABLE_KEY_CREATED";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.publishable_key.v1.created";
+};
+
+export type OnPublishableKeyCreatedWebhookRequest = {
+  body: OnPublishableKeyCreatedWebhookPayload;
+  key: "com.kaiten.publishable_key.v1.created";
+  path?: never;
+  query?: never;
+};
+
+export type OnPublishableKeyRevokedWebhookPayload = {
+  data: PublishableKeyEventDelivered;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "PUBLISHABLE_KEY_REVOKED";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.publishable_key.v1.revoked";
+};
+
+export type OnPublishableKeyRevokedWebhookRequest = {
+  body: OnPublishableKeyRevokedWebhookPayload;
+  key: "com.kaiten.publishable_key.v1.revoked";
+  path?: never;
+  query?: never;
+};
+
 export type OnReleaseCreatedWebhookPayload = {
-  data: ReleaseWritable;
+  data: ReleaseDeliveredWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -9428,7 +27843,8 @@ export type OnReleaseCreatedWebhookRequest = {
 };
 
 export type OnReleaseDeletedWebhookPayload = {
-  data: ReleaseWritable;
+  data: ReleaseDeliveredWritable;
+  headers?: EventHeaders;
   /**
    * Event name
    */
@@ -9442,6 +27858,126 @@ export type OnReleaseDeletedWebhookPayload = {
 export type OnReleaseDeletedWebhookRequest = {
   body: OnReleaseDeletedWebhookPayload;
   key: "com.kaiten.release.v1.deleted";
+  path?: never;
+  query?: never;
+};
+
+export type OnVoucherArchivedWebhookPayload = {
+  data: VoucherDeliveredWritable;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "VOUCHER_ARCHIVED";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.voucher.v1.archived";
+};
+
+export type OnVoucherArchivedWebhookRequest = {
+  body: OnVoucherArchivedWebhookPayload;
+  key: "com.kaiten.voucher.v1.archived";
+  path?: never;
+  query?: never;
+};
+
+export type OnVoucherCreatedWebhookPayload = {
+  data: VoucherDeliveredWritable;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "VOUCHER_CREATED";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.voucher.v1.created";
+};
+
+export type OnVoucherCreatedWebhookRequest = {
+  body: OnVoucherCreatedWebhookPayload;
+  key: "com.kaiten.voucher.v1.created";
+  path?: never;
+  query?: never;
+};
+
+export type OnVoucherExhaustedWebhookPayload = {
+  data: ExhaustedEventDelivered;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "VOUCHER_EXHAUSTED";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.voucher.v1.exhausted";
+};
+
+export type OnVoucherExhaustedWebhookRequest = {
+  body: OnVoucherExhaustedWebhookPayload;
+  key: "com.kaiten.voucher.v1.exhausted";
+  path?: never;
+  query?: never;
+};
+
+export type OnVoucherExpiredWebhookPayload = {
+  data: ExpiredEventDelivered;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "VOUCHER_EXPIRED";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.voucher.v1.expired";
+};
+
+export type OnVoucherExpiredWebhookRequest = {
+  body: OnVoucherExpiredWebhookPayload;
+  key: "com.kaiten.voucher.v1.expired";
+  path?: never;
+  query?: never;
+};
+
+export type OnVoucherPublishedWebhookPayload = {
+  data: VoucherDeliveredWritable;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "VOUCHER_PUBLISHED";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.voucher.v1.published";
+};
+
+export type OnVoucherPublishedWebhookRequest = {
+  body: OnVoucherPublishedWebhookPayload;
+  key: "com.kaiten.voucher.v1.published";
+  path?: never;
+  query?: never;
+};
+
+export type OnVoucherUpdatedWebhookPayload = {
+  data: VoucherDeliveredWritable;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "VOUCHER_UPDATED";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.voucher.v1.updated";
+};
+
+export type OnVoucherUpdatedWebhookRequest = {
+  body: OnVoucherUpdatedWebhookPayload;
+  key: "com.kaiten.voucher.v1.updated";
   path?: never;
   query?: never;
 };

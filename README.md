@@ -5,10 +5,19 @@ entitlements, report usage, show pricing and paywalls, and evaluate feature flag
 
 ## Packages
 
-| Package                                  | Use it for                                                                                                                                                    |
-| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [`@kaitencloud/server`](packages/server) | Node backends: the full API contract behind a `ksh_` token, and webhook verification.                                                                         |
-| [`@kaitencloud/client`](packages/client) | The catalogue, a customer's licensing snapshot, usage reports and flag evaluation. Built for browsers, where it never holds a secret; it runs on servers too. |
+| Package                                      | Use it for                                                                                                                                                    |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`@kaitencloud/server`](packages/server)     | Node backends: the full API contract behind a `ksh_` token, and webhook verification.                                                                         |
+| [`@kaitencloud/client`](packages/client)     | The catalogue, a customer's licensing snapshot, usage reports and flag evaluation. Built for browsers, where it never holds a secret; it runs on servers too. |
+| [`@kaitencloud/react`](packages/react)       | React, headless: the provider, the hooks and `Gate` / `Show`, for apps that draw their own UI.                                                                |
+| [`@kaitencloud/react-ui`](packages/react-ui) | React components: `PricingTable`, `Paywall`, `CustomerPortal` and more, themed through `appearance`. It re-exports `@kaitencloud/react`.                      |
+
+`@kaitencloud/client` and `@kaitencloud/server` are on npm. The two React packages
+are not yet: they are published with Kaiten billing, whose public catalogue and
+customer sessions they read, and until then they can be built from this repository.
+
+The design tokens the components use ship separately, as
+[`@kaitencloud/theme`](https://www.npmjs.com/package/@kaitencloud/theme).
 
 To evaluate feature flags through OpenFeature, use its generic OFREP providers:
 [`@openfeature/ofrep-web-provider`](https://www.npmjs.com/package/@openfeature/ofrep-web-provider)
@@ -16,26 +25,50 @@ in a browser, [`@openfeature/ofrep-provider`](https://www.npmjs.com/package/@ope
 in Node. Kaiten implements the protocol, so no Kaiten provider is needed, and
 [`examples/node`](examples/node) shows the Node one.
 
-A secret key never goes in a browser bundle. This release has no credential for your end
-users' browsers yet, so call Kaiten from your backend: `@kaitencloud/server` covers the
-whole API, and `@kaitencloud/client` runs there too, as [`examples/node`](examples/node)
-shows.
+A secret key never goes in a browser bundle. A browser holds one of two credentials of
+its own: a publishable key (`pk_`), which reads the catalogue, and a customer session
+(`kst_`), which your backend mints for a signed-in customer and which reads that
+customer's licensing snapshot and billing. `@kaitencloud/server` issues both, as
+[its README](packages/server#publishable-keys) explains, and `@kaitencloud/client` is
+the one that uses them. Everything else goes through your backend: `@kaitencloud/server`
+covers the whole API, and `@kaitencloud/client` runs there too, as
+[`examples/node`](examples/node) shows. A React page can render what a backend read:
+`<KaitenProvider mode="static">` takes a catalogue as plain data, with no credential and
+no request.
 
 ## Install
 
 ```bash
-npm install @kaitencloud/client    # catalogue, snapshot, usage and flags
-npm install @kaitencloud/server    # a Node backend
+npm install @kaitencloud/client      # catalogue, snapshot, usage and flags
+npm install @kaitencloud/server      # a Node backend
+```
+
+With Kaiten billing, the React packages join them:
+
+```bash
+npm install @kaitencloud/react-ui    # the React components, with the headless core
+npm install @kaitencloud/react       # the headless React core only
 ```
 
 Each package's README has its quick start, and [`examples/`](examples) holds a
-Node backend that runs without an account.
+React app and a Node backend that run without an account.
+
+## Kaiten version
+
+Minimum Kaiten version for the billing features: **the first Kaiten release with billing.** No Kaiten release carries billing yet.
+
+What needs it is the billing surface: the public catalogue read with a publishable key, a
+customer session and the portal and checkout it opens, and the `Idempotency-Key` header of a
+usage report (its `transactionId`). Everything `@kaitencloud/client` and `@kaitencloud/server` 1.0.0 did works against
+the Kaiten releases it worked against, and `mode="static"` of the React packages makes no
+request. Each package's README says what it asks of the server.
 
 ## Credentials
 
 | Prefix   | What it is                                                                                            | Where it may live           | Consumed by                                              |
 | -------- | ----------------------------------------------------------------------------------------------------- | --------------------------- | -------------------------------------------------------- |
-| `pk_`    | Publishable key, not accepted by the API yet                                                          | Browser                     | `@kaitencloud/client`                                    |
+| `pk_`    | Publishable key: reads the catalogue and nothing that belongs to a customer                           | Browser                     | `@kaitencloud/client`, `@kaitencloud/react`              |
+| `kst_`   | Customer session: minted by your backend for one customer, valid for 5 to 60 minutes                  | Browser                     | `@kaitencloud/client`, `@kaitencloud/react`              |
 | `ksh_`   | Access token, scoped to one organization                                                              | Server only                 | `@kaitencloud/server`, `@kaitencloud/client` on a server |
 | `ksm_`   | Platform credential: authenticates `system:kaiten`, carries **no** organization, and reaches them all | Kaiten's control plane only | no package here                                          |
 | `sk_`    | Secret key of a future in-app mode, reserved and not issued yet                                       | Server only                 | —                                                        |

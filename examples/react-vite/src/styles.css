@@ -1,0 +1,65 @@
+/* This app's own styles. The headless page uses only these; the components bring
+   their own, scoped under `.kaiten`. */
+:root {
+  font-family: system-ui, sans-serif;
+  color: #1c1c1e;
+  background: #f7f7f8;
+}
+
+.shell {
+  max-width: 64rem;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+.tabs {
+  display: flex;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.tabs a[aria-current="page"] {
+  font-weight: 600;
+}
+
+section {
+  margin-bottom: 3rem;
+}
+
+.plans {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: 1rem;
+  padding: 0;
+  list-style: none;
+}
+
+.plan {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1.25rem;
+  border: 1px solid #d9d9de;
+  border-radius: 0.75rem;
+  background: #fff;
+}
+
+.plan-highlighted {
+  border-color: #1c1c1e;
+}
+
+.button {
+  padding: 0.6rem 1.2rem;
+  border: 0;
+  border-radius: 0.5rem;
+  background: #1c1c1e;
+  color: #fff;
+  font: inherit;
+  cursor: pointer;
+}
+
+.notice {
+  padding: 1rem;
+  border-radius: 0.5rem;
+  background: #fff4e5;
+}

@@ -144,6 +144,26 @@ describe("createMockKaitenClient", () => {
     expect(usage.currentPeriodEnd).toBe("2026-04-01T00:00:00Z");
   });
 
+  // A current server answers a keyed report with the key it accepted it under,
+  // and null for a report that had none; a component that reads the echo must
+  // see the same against the fake.
+  test("reportUsage echoes the key it was given, and null without one", async () => {
+    const client = createMockKaitenClient();
+
+    const keyed = await client.reportUsage("acme-production", "seats", {
+      value: { type: "number", value: 1 },
+      behavior: "append",
+      transactionId: "evt-1",
+    });
+    const unkeyed = await client.reportUsage("acme-production", "seats", {
+      value: { type: "number", value: 1 },
+      behavior: "append",
+    });
+
+    expect(keyed.transactionId).toBe("evt-1");
+    expect(unkeyed.transactionId).toBeNull();
+  });
+
   test("a lifetime counter reports no window rather than a fabricated one", async () => {
     const client = createMockKaitenClient();
 

@@ -17,11 +17,12 @@ export default defineConfig({
     // hand-authored source. `DCO.md` is the Developer Certificate of Origin,
     // whose own terms allow verbatim copies only; the formatter would re-indent
     // its clauses.
-    ignorePatterns: ["**/dist/**", "contracts/**", "DCO.md"],
+    ignorePatterns: ["**/dist/**", "**/storybook-static/**", "contracts/**", "DCO.md"],
   },
   lint: {
     ignorePatterns: [
       "**/dist/**",
+      "**/storybook-static/**",
       "packages/client/src/core/generated/**",
       "packages/server/src/generated/**",
       "src/generated/**",
@@ -32,6 +33,14 @@ export default defineConfig({
     cache: true,
   },
   test: {
+    // `tests/visual/` and `tests/layout/` are owned by the Playwright runner
+    // (visual regression and layout invariants), and so is `e2e/` (the storefront's
+    // end-to-end tests): their *.spec.ts files import `@playwright/test`, not Vitest.
+    // The per-package unit project (packages/react-ui/vitest.unit.config.ts) and the
+    // storefront's own config already leave them out, but a bare `vp test` at the
+    // workspace root falls back to the default glob and would otherwise sweep them
+    // in. Keep them out here too.
+    //
     // `.claude/worktrees/` holds full checkouts of this repo made by agent
     // sessions. The root glob swept them in and collected a second copy of every
     // suite, against a different revision and without that checkout's installed
@@ -40,6 +49,13 @@ export default defineConfig({
     // reported ~19 failed files that no source change could ever fix. They were
     // read as harness flakiness for weeks. A worktree is a checkout, not part of
     // this one.
-    exclude: ["**/node_modules/**", "**/dist/**", "**/.claude/worktrees/**"],
+    exclude: [
+      "**/node_modules/**",
+      "**/dist/**",
+      "**/tests/visual/**",
+      "**/tests/layout/**",
+      "**/e2e/**",
+      "**/.claude/worktrees/**",
+    ],
   },
 });

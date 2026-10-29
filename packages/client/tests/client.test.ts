@@ -61,8 +61,8 @@ describe("KaitenClient transport", () => {
     expect(request.headers.get("Authorization")).toBe("Bearer secret-token");
   });
 
-  test("sends publishable key header", async () => {
-    const fetchMock = vi.fn(async () => json({ id: "cust-1", slug: "acme", name: "Acme" }));
+  test("sends the publishable key header to the public catalogue, and only there", async () => {
+    const fetchMock = vi.fn(async () => json({ plans: [], addOns: [], capabilities: {} }));
     vi.stubGlobal("fetch", fetchMock);
 
     const client = new KaitenClient({
@@ -72,9 +72,12 @@ describe("KaitenClient transport", () => {
       fetch: fetchMock,
     });
 
-    await client.getCustomer("acme");
+    await client.getCatalog();
+    await expect(client.getCustomer("acme")).rejects.toMatchObject({ status: 0 });
 
+    expect(fetchMock).toHaveBeenCalledTimes(1);
     const request = getFetchRequest(fetchMock);
+    expect(new URL(request.url).pathname).toBe("/public/catalog");
     expect(request.headers.get("X-Kaiten-Publishable-Key")).toBe("pk_test");
   });
 
@@ -85,7 +88,7 @@ describe("KaitenClient transport", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const client = new KaitenClient({
-      authScheme: "publishable",
+      authScheme: "none",
       apiUrl: "https://api.test",
       fetch: fetchMock,
     });
@@ -104,7 +107,7 @@ describe("KaitenClient transport", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const client = new KaitenClient({
-      authScheme: "publishable",
+      authScheme: "none",
       apiUrl: "https://api.test",
       fetch: fetchMock,
     });
@@ -124,7 +127,7 @@ describe("KaitenClient transport", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const client = new KaitenClient({
-      authScheme: "publishable",
+      authScheme: "none",
       apiUrl: "https://api.test",
       fetch: fetchMock,
     });
@@ -168,7 +171,7 @@ describe("KaitenClient transport", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const client = new KaitenClient({
-      authScheme: "publishable",
+      authScheme: "none",
       apiUrl: "https://api.test",
       fetch: fetchMock,
     });
@@ -250,7 +253,7 @@ describe("KaitenClient transport", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const client = new KaitenClient({
-      authScheme: "publishable",
+      authScheme: "none",
       apiUrl: "https://api.test",
       fetch: fetchMock,
     });
@@ -302,7 +305,7 @@ describe("KaitenClient transport", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const client = new KaitenClient({
-      authScheme: "publishable",
+      authScheme: "none",
       apiUrl: "https://api.test",
       fetch: fetchMock,
     });
@@ -331,7 +334,7 @@ describe("KaitenClient transport", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const client = new KaitenClient({
-      authScheme: "publishable",
+      authScheme: "none",
       apiUrl: "/api",
       fetch: fetchMock,
     });
@@ -350,7 +353,7 @@ describe("KaitenClient transport", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const client = new KaitenClient({
-      authScheme: "publishable",
+      authScheme: "none",
       apiUrl: "https://api.test",
       fetch: fetchMock,
     });
@@ -481,7 +484,7 @@ describe("snapshot instance selection", () => {
 
     installSnapshotApi({ graphqlOrder: [beta, alpha] });
     const viaGraphql = await new KaitenClient({
-      authScheme: "publishable",
+      authScheme: "none",
       apiUrl: "https://api.test",
     }).getLicensingSnapshot("acme");
 
@@ -493,7 +496,7 @@ describe("snapshot instance selection", () => {
       graphqlAvailable: false,
     });
     const viaRest = await new KaitenClient({
-      authScheme: "publishable",
+      authScheme: "none",
       apiUrl: "https://api.test",
     }).getLicensingSnapshot("acme");
 
@@ -514,7 +517,7 @@ describe("snapshot instance selection", () => {
     installSnapshotApi({ graphqlOrder: [instanceRow("alpha"), instanceRow("beta")] });
 
     const snapshot = await new KaitenClient({
-      authScheme: "publishable",
+      authScheme: "none",
       apiUrl: "https://api.test",
     }).getLicensingSnapshot("acme", "beta");
 
@@ -526,7 +529,7 @@ describe("snapshot instance selection", () => {
     installSnapshotApi({ graphqlOrder: [instanceRow("alpha"), instanceRow("beta")] });
 
     await new KaitenClient({
-      authScheme: "publishable",
+      authScheme: "none",
       apiUrl: "https://api.test",
     }).getLicensingSnapshot("warn-many");
 
@@ -543,7 +546,7 @@ describe("snapshot instance selection", () => {
     installSnapshotApi({ graphqlOrder: [instanceRow("only")] });
 
     await new KaitenClient({
-      authScheme: "publishable",
+      authScheme: "none",
       apiUrl: "https://api.test",
     }).getLicensingSnapshot("warn-one");
 
@@ -553,6 +556,43 @@ describe("snapshot instance selection", () => {
 });
 
 describe("onDegraded", () => {
+  test.each(["Billing.Disabled", "Billing.NotEntitled", "Billing.EntitlementCheckUnavailable"])(
+    "%s still falls back to REST for both licensing reads",
+    async (code) => {
+      for (const operation of ["catalog", "snapshot"] as const) {
+        const rest = installSnapshotApi({
+          graphqlOrder: [instanceRow("alpha")],
+          graphqlAvailable: false,
+        });
+        const onDegraded = vi.fn();
+        const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+          const path = new URL(input instanceof Request ? input.url : String(input)).pathname;
+          if (path.endsWith("/graphql"))
+            return json({
+              data: { licenses: { items: [], hasMore: false } },
+              errors: [{ message: "Billing field unavailable", extensions: { code } }],
+            });
+          return rest(input, init);
+        });
+        vi.stubGlobal("fetch", fetch);
+        const client = new KaitenClient({
+          authScheme: "none",
+          apiUrl: "https://api.test",
+          onDegraded,
+        });
+        if (operation === "catalog")
+          expect((await client.getCatalog()).plans.length).toBeGreaterThan(0);
+        else expect((await client.getLicensingSnapshot("acme")).instance?.slug).toBe("alpha");
+        expect(onDegraded).toHaveBeenCalledOnce();
+        expect(
+          fetch.mock.calls.filter(([input]) =>
+            String(input instanceof Request ? input.url : input).includes("/graphql"),
+          ),
+        ).toHaveLength(1);
+      }
+    },
+  );
+
   // The fallback works, so nothing looks wrong — while every license costs its
   // own request and the presentation metadata silently disappears. Whether that
   // is a permanent schema mismatch or a passing outage was unknowable, because
@@ -562,7 +602,7 @@ describe("onDegraded", () => {
     installSnapshotApi({ graphqlOrder: [instanceRow("alpha")], graphqlAvailable: false });
 
     await new KaitenClient({
-      authScheme: "publishable",
+      authScheme: "none",
       apiUrl: "https://api.test",
       onDegraded,
     }).getLicensingSnapshot("acme");
@@ -572,12 +612,14 @@ describe("onDegraded", () => {
     expect(String(onDegraded.mock.calls[0]?.[0]?.error)).toContain("unknown field");
   });
 
-  test("fires for the public catalog read too", async () => {
+  // A publishable client reads `/public/catalog` and has no fallback to report:
+  // see public-catalog.test.ts.
+  test("fires for the composed catalog read too", async () => {
     const onDegraded = vi.fn();
     installSnapshotApi({ graphqlOrder: [], graphqlAvailable: false });
 
     await new KaitenClient({
-      authScheme: "publishable",
+      authScheme: "none",
       apiUrl: "https://api.test",
       onDegraded,
     }).getCatalog();
@@ -591,7 +633,7 @@ describe("onDegraded", () => {
     installSnapshotApi({ graphqlOrder: [instanceRow("alpha")] });
 
     await new KaitenClient({
-      authScheme: "publishable",
+      authScheme: "none",
       apiUrl: "https://api.test",
       onDegraded,
     }).getLicensingSnapshot("acme");
@@ -617,7 +659,7 @@ describe("onDegraded", () => {
 
     await expect(
       new KaitenClient({
-        authScheme: "publishable",
+        authScheme: "none",
         apiUrl: "https://api.test",
         onDegraded,
       }).getLicensingSnapshot("ghost"),
@@ -637,7 +679,7 @@ describe("onDegraded", () => {
     });
 
     await new KaitenClient({
-      authScheme: "publishable",
+      authScheme: "none",
       apiUrl: "https://api.test",
       onDegraded,
     }).getLicensingSnapshot("acme");
@@ -655,7 +697,7 @@ describe("onDegraded", () => {
     installSnapshotApi({ graphqlOrder: [instanceRow("alpha")], graphqlAvailable: false });
 
     const snapshot = await new KaitenClient({
-      authScheme: "publishable",
+      authScheme: "none",
       apiUrl: "https://api.test",
       onDegraded: () => {
         throw new Error("host logger exploded");
@@ -678,7 +720,7 @@ describe("snapshot customer identity", () => {
     });
 
     const snapshot = await new KaitenClient({
-      authScheme: "publishable",
+      authScheme: "none",
       apiUrl: "https://api.test",
     }).getLicensingSnapshot(CUSTOMER_ID);
 
@@ -699,7 +741,7 @@ describe("snapshot customer identity", () => {
 
     await expect(
       new KaitenClient({
-        authScheme: "publishable",
+        authScheme: "none",
         apiUrl: "https://api.test",
       }).getLicensingSnapshot(CUSTOMER_ID),
     ).rejects.toMatchObject({ status: 404 });
@@ -715,7 +757,7 @@ describe("snapshot customer identity", () => {
 
     await expect(
       new KaitenClient({
-        authScheme: "publishable",
+        authScheme: "none",
         apiUrl: "https://api.test",
       }).getLicensingSnapshot(CUSTOMER_ID),
     ).rejects.toMatchObject({ status: 404 });
@@ -745,7 +787,7 @@ describe("cursor pagination", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const instances = await new KaitenClient({
-      authScheme: "publishable",
+      authScheme: "none",
       apiUrl: "https://api.test",
     }).listInstances();
 
@@ -785,7 +827,7 @@ describe("cursor pagination", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const catalog = await new KaitenClient({
-      authScheme: "publishable",
+      authScheme: "none",
       apiUrl: "https://api.test",
     }).getCatalog();
 
@@ -837,7 +879,7 @@ describe("cursor pagination", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const snapshot = await new KaitenClient({
-      authScheme: "publishable",
+      authScheme: "none",
       apiUrl: "https://api.test",
     }).getLicensingSnapshot(CUSTOMER_ID);
 
@@ -868,7 +910,7 @@ describe("cursor pagination", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const catalog = await new KaitenClient({
-      authScheme: "publishable",
+      authScheme: "none",
       apiUrl: "https://api.test",
       onDegraded: (info) => degraded.push(info),
     }).getCatalog();
@@ -892,7 +934,7 @@ describe("cursor pagination", () => {
     // complete list, and `resolveSnapshotInstance` filters this listing to find
     // the customer's instance — a missing one opens every gate.
     await expect(
-      new KaitenClient({ authScheme: "publishable", apiUrl: "https://api.test" }).listInstances(),
+      new KaitenClient({ authScheme: "none", apiUrl: "https://api.test" }).listInstances(),
     ).rejects.toThrow(/stopped after 100 pages/);
     expect(pages).toBe(100);
   });
@@ -906,7 +948,7 @@ describe("cursor pagination", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(
-      new KaitenClient({ authScheme: "publishable", apiUrl: "https://api.test" }).listInstances(),
+      new KaitenClient({ authScheme: "none", apiUrl: "https://api.test" }).listInstances(),
     ).rejects.toThrow(/same cursor twice/);
     // Caught on the second page, not after a hundred round-trips.
     expect(fetchMock).toHaveBeenCalledTimes(2);
@@ -924,7 +966,7 @@ describe("cursor pagination", () => {
     // those predate the envelope. Requiring it would drop the compatibility the
     // fallback is there to provide.
     const instances = await new KaitenClient({
-      authScheme: "publishable",
+      authScheme: "none",
       apiUrl: "https://api.test",
     }).listInstances();
 
@@ -968,7 +1010,7 @@ describe("secret credentials never leave a browser", () => {
 
   test("a publishable key is untouched in a browser", async () => {
     browser();
-    const fetchMock = vi.fn(async () => json({ id: "cust-1", slug: "acme", name: "Acme" }));
+    const fetchMock = vi.fn(async () => json({ plans: [], addOns: [], capabilities: {} }));
     vi.stubGlobal("fetch", fetchMock);
 
     const client = new KaitenClient({
@@ -978,7 +1020,8 @@ describe("secret credentials never leave a browser", () => {
       fetch: fetchMock,
     });
 
-    await expect(client.getCustomer("acme")).resolves.toMatchObject({ slug: "acme" });
+    await expect(client.getCatalog()).resolves.toMatchObject({ plans: [] });
+    expect(getFetchRequest(fetchMock).headers.get("X-Kaiten-Publishable-Key")).toBe("pk_live_abc");
   });
 
   test("a secret key is fine on a server, which is where it belongs", async () => {
@@ -1072,8 +1115,35 @@ describe("the usage window travels only where it was actually read", () => {
     currentPeriodEnd: null,
   };
 
-  function installUsageApi(options: { graphqlAvailable: boolean; periodic?: boolean }): FetchMock {
-    const row = options.periodic === false ? lifetimeUsageRow : usageRow;
+  function installUsageApi(options: {
+    graphqlAvailable: boolean;
+    periodic?: boolean;
+    /** The instance's effective limit, as a server with add-ons answers it. */
+    limit?: number;
+    /** The allowance that goes with it, which the REST read of a current server carries. */
+    overagePercent?: number;
+    /** What the instance has consumed. */
+    used?: number;
+    /** The allowance of the licence grant itself. */
+    grantOveragePercent?: number;
+  }): FetchMock {
+    const base = options.periodic === false ? lifetimeUsageRow : usageRow;
+    const row = {
+      ...base,
+      ...(options.limit === undefined ? {} : { limit: { type: "number", value: options.limit } }),
+      ...(options.used === undefined ? {} : { value: { type: "number", value: options.used } }),
+      ...(options.overagePercent === undefined
+        ? {}
+        : { limitCapExceededOveragePercent: options.overagePercent }),
+    };
+    // The GraphQL document does not select the allowance, so its rows never carry it.
+    const { limitCapExceededOveragePercent: _unselected, ...graphqlRow } = row as typeof row & {
+      limitCapExceededOveragePercent?: number;
+    };
+    const grant = <T extends object>(grantRow: T): T =>
+      options.grantOveragePercent === undefined
+        ? grantRow
+        : { ...grantRow, limitCapExceededOveragePercent: options.grantOveragePercent };
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = new URL(input instanceof Request ? input.url : String(input)).pathname;
 
@@ -1082,7 +1152,7 @@ describe("the usage window travels only where it was actually read", () => {
         return graphqlJson({
           data: {
             licenses: {
-              items: [{ ...licenseRow, entitlements: [gqlEntitlementRow] }],
+              items: [{ ...licenseRow, entitlements: [grant(gqlEntitlementRow)] }],
               hasMore: false,
             },
             customer: {
@@ -1094,14 +1164,14 @@ describe("the usage window travels only where it was actually read", () => {
               createdAt: "2026-01-01T00:00:00Z",
               updatedBy: { id: "u1", name: "u" },
               updatedAt: "2026-01-01T00:00:00Z",
-              instances: [instanceRow("alpha", { entitlementUsage: [{ ...row }] })],
+              instances: [instanceRow("alpha", { entitlementUsage: [{ ...graphqlRow }] })],
             },
           },
         });
       }
       if (url.includes("/ofrep/")) return json({ flags: [] });
       if (url.includes("/entitlements/usage")) return json([row]);
-      if (url.includes("/licenses/pro/entitlements")) return json([entitlementRow]);
+      if (url.includes("/licenses/pro/entitlements")) return json([grant(entitlementRow)]);
       if (url.endsWith("/licenses")) return json([licenseRow]);
       if (url.endsWith("/instances")) return json([instanceRow("alpha")]);
       if (url.endsWith("/customers"))
@@ -1118,7 +1188,7 @@ describe("the usage window travels only where it was actually read", () => {
     installUsageApi({ graphqlAvailable: false });
 
     const snapshot = await new KaitenClient({
-      authScheme: "publishable",
+      authScheme: "none",
       apiUrl: "https://api.test",
     }).getLicensingSnapshot("acme");
     const tokens = snapshot.entitlements.find((entitlement) => entitlement.slug === "tokens");
@@ -1139,7 +1209,7 @@ describe("the usage window travels only where it was actually read", () => {
     installUsageApi({ graphqlAvailable: true });
 
     const snapshot = await new KaitenClient({
-      authScheme: "publishable",
+      authScheme: "none",
       apiUrl: "https://api.test",
     }).getLicensingSnapshot("acme");
     const tokens = snapshot.entitlements.find((entitlement) => entitlement.slug === "tokens");
@@ -1148,6 +1218,98 @@ describe("the usage window travels only where it was actually read", () => {
     expect(tokens?.currentPeriodStart).toBe("2026-03-01T00:00:00Z");
     expect(tokens?.currentPeriodEnd).toBe("2026-04-01T00:00:00Z");
     expect(resolveUsageScope(tokens ?? {})).toBe("PERIODIC");
+  });
+
+  // The licence grants 100 tokens; an add-on raised the instance to 300. The
+  // server gates reports on 300, so both read paths must measure against it.
+  test.each([false, true])(
+    "the usage row's effective limit wins over the licence grant (GraphQL: %s)",
+    async (graphqlAvailable) => {
+      installUsageApi({ graphqlAvailable, limit: 300 });
+
+      const snapshot = await new KaitenClient({
+        authScheme: "none",
+        apiUrl: "https://api.test",
+      }).getLicensingSnapshot("acme");
+      const tokens = snapshot.entitlements.find((entitlement) => entitlement.slug === "tokens");
+
+      expect(tokens).toMatchObject({
+        limitValue: { type: "number", value: 300 },
+        currentValue: { type: "number", value: 40 },
+        remaining: 260,
+      });
+    },
+  );
+
+  // The licence grants 100 tokens with no allowance; an add-on raised the
+  // instance to 300 and brought 50%. The server accepts reports up to 450, and the
+  // snapshot measures against that: at 350 the customer is inside their allowance.
+  test("the REST path measures against the effective allowance, not the grant's", async () => {
+    installUsageApi({
+      graphqlAvailable: false,
+      limit: 300,
+      used: 350,
+      overagePercent: 50,
+      grantOveragePercent: 0,
+    });
+
+    const snapshot = await new KaitenClient({
+      authScheme: "none",
+      apiUrl: "https://api.test",
+    }).getLicensingSnapshot("acme");
+    const tokens = snapshot.entitlements.find((entitlement) => entitlement.slug === "tokens");
+
+    expect(tokens).toMatchObject({
+      limitValue: { type: "number", value: 300 },
+      limitCapExceededOveragePercent: 50,
+      maximumAllowedUsage: 450,
+      remaining: 100,
+      status: "near_limit",
+    });
+  });
+
+  // An older server answers with the grant, and so keeps the allowance it has
+  // always had.
+  test("a REST read without the allowance leaves the grant's", async () => {
+    installUsageApi({ graphqlAvailable: false, limit: 300, used: 350, grantOveragePercent: 10 });
+
+    const snapshot = await new KaitenClient({
+      authScheme: "none",
+      apiUrl: "https://api.test",
+    }).getLicensingSnapshot("acme");
+    const tokens = snapshot.entitlements.find((entitlement) => entitlement.slug === "tokens");
+
+    expect(tokens).toMatchObject({
+      limitCapExceededOveragePercent: 10,
+      maximumAllowedUsage: 330,
+      remaining: 0,
+      status: "over_limit",
+    });
+  });
+
+  // The GraphQL document does not select the allowance yet, so this path keeps
+  // the grant's, as it always has. It moves with the document, once the schema
+  // that carries the field is published.
+  test("the GraphQL path, whose document does not select the allowance, leaves the grant's", async () => {
+    installUsageApi({
+      graphqlAvailable: true,
+      limit: 300,
+      used: 350,
+      overagePercent: 50,
+      grantOveragePercent: 10,
+    });
+
+    const snapshot = await new KaitenClient({
+      authScheme: "none",
+      apiUrl: "https://api.test",
+    }).getLicensingSnapshot("acme");
+    const tokens = snapshot.entitlements.find((entitlement) => entitlement.slug === "tokens");
+
+    expect(tokens).toMatchObject({
+      limitValue: { type: "number", value: 300 },
+      limitCapExceededOveragePercent: 10,
+      maximumAllowedUsage: 330,
+    });
   });
 
   // The other half of the same rule: bounds genuinely absent on a successful
@@ -1159,7 +1321,7 @@ describe("the usage window travels only where it was actually read", () => {
     installUsageApi({ graphqlAvailable: true, periodic: false });
 
     const snapshot = await new KaitenClient({
-      authScheme: "publishable",
+      authScheme: "none",
       apiUrl: "https://api.test",
     }).getLicensingSnapshot("acme");
     const tokens = snapshot.entitlements.find((entitlement) => entitlement.slug === "tokens");

@@ -5,7 +5,9 @@
  * `@kaitencloud/client/testing` — a fake client and licensing fixtures.
  *
  * Build and test a Kaiten integration with no Kaiten account and no reachable
- * API. Anything that takes a `KaitenClientLike` accepts the fake.
+ * API. Anything that takes a `KaitenClientLike` accepts the fake, and anything
+ * that takes a `KaitenSessionClientLike` accepts the session fake, and anything that
+ * takes a `KaitenAnonymousCheckoutClientLike` the anonymous checkout fake.
  *
  * ```ts
  * import { createMockKaitenClient, demoSnapshot } from "@kaitencloud/client/testing";
@@ -20,6 +22,37 @@
 
 export { createMockKaitenClient } from "./mock-client.ts";
 export type { MockKaitenClient, MockKaitenClientOptions } from "./mock-client.ts";
+
+export { createMockKaitenSessionClient } from "./mock-session-client.ts";
+export type {
+  MockKaitenSessionClient,
+  MockKaitenSessionClientOptions,
+  MockSessionCall,
+} from "./mock-session-client.ts";
+
+export {
+  createMockKaitenAnonymousCheckoutClient,
+  demoAnonymousCheckoutPlans,
+} from "./mock-anonymous-checkout-client.ts";
+export type {
+  MockAnonymousCheckoutCall,
+  MockCheckoutPlan,
+  MockCheckoutScript,
+  MockKaitenAnonymousCheckoutClient,
+  MockKaitenAnonymousCheckoutClientOptions,
+} from "./mock-anonymous-checkout-client.ts";
+
+export {
+  DEMO_SESSION_NOW,
+  DEMO_TRIAL_ENDS_AT,
+  demoCheckoutPrices,
+  demoPortal,
+  demoSessionAddOns,
+  demoSessionInvoices,
+  demoTrialPortal,
+  demoUnsubscribedPortal,
+  demoVouchers,
+} from "./session-fixtures.ts";
 
 export {
   demoAddOns,

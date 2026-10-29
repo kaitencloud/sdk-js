@@ -9,6 +9,8 @@ body:
       options:
         - "@kaitencloud/client"
         - "@kaitencloud/server"
+        - "@kaitencloud/react"
+        - "@kaitencloud/react-ui"
     validations:
       required: true
   - type: input
@@ -33,4 +35,4 @@ body:
     id: environment
     attributes:
       label: Environment
-      placeholder: Node 24, Chrome 140, Vite 7
+      placeholder: Node 24, Chrome 140, React 19, Vite 7

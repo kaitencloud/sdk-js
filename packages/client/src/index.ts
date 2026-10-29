@@ -16,29 +16,63 @@ export * as KaitenApi from "./core/index.ts";
 
 // Curated runtime + config surface, promoted back to the top level:
 export {
+  BoundaryPendingError,
+  CHECKOUT_SESSION_TOKEN_PREFIX,
+  CheckoutSessionClosedError,
+  CheckoutTokenMissingError,
   client,
+  DueTodayChangedError,
+  InvalidTransactionIdError,
   KaitenError,
   KaitenNetworkError,
   KaitenTransport,
+  ProviderUnavailableError,
+  QuotaExceededError,
+  RateLimitedError,
+  TransactionIdReusedError,
+  TurnstileFailedError,
+  TurnstileUnavailableError,
   assertPublishableKey,
+  assertPublishableKeyShape,
+  isCheckoutSessionToken,
   isPublishableKey,
+  isPublishableKeyShape,
   retry,
 } from "./core/index.ts";
 export type {
   AuthenticatedKaitenProviderConfig,
   CreateClientConfig,
+  KaitenAnonymousCheckoutClientConfig,
   KaitenApiError,
   KaitenAuthScheme,
+  KaitenCheckoutTokenStorage,
   KaitenClientConfig,
+  KaitenCustomerSession,
+  KaitenCustomerSessionProvider,
   KaitenFetch,
   KaitenPollingConfig,
   KaitenProviderConfig,
   KaitenThrownError,
+  KaitenSessionClientConfig,
   PublicKaitenProviderConfig,
   RetryOptions,
+  TransactionIdReusedOriginal,
 } from "./core/index.ts";
 
+export { majorUnitAmount } from "./client/money.ts";
+export type { MinorUnitPrice } from "./client/money.ts";
+
 export { KaitenClient } from "./client/client.ts";
+export { KaitenSessionClient } from "./client/session-client.ts";
+export {
+  CHECKOUT_RETURN_PARAM,
+  KaitenAnonymousCheckoutClient,
+  clearCheckoutReturn,
+  readCheckoutReturn,
+} from "./client/anonymous-checkout-client.ts";
+export type { KaitenAnonymousCheckoutClientLike } from "./client/anonymous-checkout-client.ts";
+export { checkStartCheckoutInput } from "./client/anonymous-checkout-input.ts";
+export type { KaitenSessionClientLike } from "./client/session-client.ts";
 export type {
   KaitenClientLike,
   KaitenComponentsModule,
@@ -87,3 +121,5 @@ export type {
 // are the curated subset that stays top-level; the rest of the generated surface
 // is under `KaitenApi`. Some names intentionally override the generated ones.
 export type * from "./client/types.ts";
+export type * from "./client/session-types.ts";
+export type * from "./client/anonymous-checkout-types.ts";

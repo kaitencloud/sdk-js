@@ -29,6 +29,8 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { workspaceCatalog } from "./lib/workspace-catalog.mjs";
+
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const read = (relativePath) => readFileSync(resolve(repoRoot, relativePath), "utf8");
 
@@ -39,39 +41,7 @@ const passed = [];
 const fail = (rule, detail) => failures.push({ rule, detail });
 const pass = (rule, detail) => passed.push({ rule, detail });
 
-/** A `  key: value` entry from the workspace catalog. */
-const catalogEntry = (key) => {
-  const pattern = new RegExp(`^\\s{2}"?${key.replace(/[/@.]/g, "\\$&")}"?:\\s*(.+?)\\s*$`, "m");
-  return pattern.exec(workspace)?.[1]?.replace(/^["']|["']$/g, "");
-};
-
-/** The lines under a top-level `name:` key of the workspace, up to the next one. */
-const topLevelBlock = (name) => {
-  const lines = workspace.split("\n");
-  const start = lines.indexOf(`${name}:`);
-  if (start < 0) return [];
-  const block = [];
-  for (const line of lines.slice(start + 1)) {
-    if (line && !/^\s/.test(line)) break;
-    block.push(line);
-  }
-  return block;
-};
-
-/** A `    key: value` entry from a named catalog under `catalogs:`. */
-const namedCatalogEntry = (catalog, key) => {
-  const lines = topLevelBlock("catalogs");
-  const start = lines.indexOf(`  ${catalog}:`);
-  if (start < 0) return undefined;
-  for (const line of lines.slice(start + 1)) {
-    if (!/^\s{4}/.test(line)) break;
-    const match = new RegExp(`^\\s{4}"?${key.replace(/[/@.]/g, "\\$&")}"?:\\s*(.+?)\\s*$`).exec(
-      line,
-    );
-    if (match) return match[1].replace(/^["']|["']$/g, "");
-  }
-  return undefined;
-};
+const { catalogEntry, namedCatalogEntry, topLevelBlock } = workspaceCatalog(workspace);
 
 /** The TypeScript version a package installs, through the catalog it names. */
 const typescriptOf = (manifest) => {
@@ -403,6 +373,55 @@ const majorOf = (version) => Number(/(\d+)/.exec(version ?? "")?.[1]) || 0;
       steps
         ? `${steps} setup-vp step(s) install vite-plus ${vitePlus} from the catalog`
         : "no setup-vp steps",
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 7. A package npm publishes never depends on one it does not.
+//    @kaitencloud/react and @kaitencloud/react-ui stay `"private": true` until
+//    Kaiten billing ships, and Changesets publishes no private package. Flipping
+//    react-ui public while react stays private would publish a manifest whose
+//    `@kaitencloud/react` range nobody can install. A private package may depend
+//    on anything; the check is about what reaches npm. Unlike the rules above,
+//    this one guards a change still to come, the day the two are made public.
+// ---------------------------------------------------------------------------
+{
+  const manifests = new Map(
+    readdirSync(resolve(repoRoot, "packages"))
+      .filter((dir) => existsSync(resolve(repoRoot, "packages", dir, "package.json")))
+      .map((dir) => {
+        const manifest = JSON.parse(read(`packages/${dir}/package.json`));
+        return [manifest.name, manifest];
+      }),
+  );
+  const problems = [];
+  const held = [...manifests.values()].filter((m) => m.private === true).map((m) => m.name);
+
+  for (const manifest of manifests.values()) {
+    if (manifest.private === true) continue;
+    for (const field of ["dependencies", "peerDependencies", "optionalDependencies"]) {
+      for (const name of Object.keys(manifest[field] ?? {})) {
+        if (manifests.get(name)?.private === true) {
+          problems.push(
+            `${manifest.name} is published but its ${field} name ${name}, which is private`,
+          );
+        }
+      }
+    }
+  }
+
+  if (problems.length > 0) {
+    fail(
+      "private dependencies",
+      `${problems.join("; ")}. Make both public together, or keep the dependent private`,
+    );
+  } else {
+    pass(
+      "private dependencies",
+      held.length
+        ? `no published package depends on ${held.join(", ")}, which npm does not get`
+        : "every package is published",
     );
   }
 }

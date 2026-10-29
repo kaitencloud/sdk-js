@@ -3,7 +3,7 @@
 
 // Webhook signature verification.
 //
-// The contract declares 55 `com.kaiten.*` events and this package already ships
+// The contract declares the `com.kaiten.*` events and this package already ships
 // a typed payload for each one — but nothing to establish that a request
 // carrying such a payload actually came from Kaiten. Every handler written
 // against these types was therefore an unauthenticated endpoint driving licences
@@ -16,23 +16,28 @@
 // the test file).
 //
 // Note the contract itself documents none of this — `openapi.yaml` declares the
-// 55 webhooks and not one signature header — so the header names and algorithm
+// webhooks and not one signature header — so the header names and algorithm
 // below are a convention this package pins rather than one the spec carries.
 
 import { KaitenError } from "./errors.ts";
 import type { Webhooks } from "./generated/types.gen.ts";
 
 /**
- * A verified webhook payload: the union of the 55 `On*WebhookPayload` types.
+ * A verified webhook payload: the union of the `On*WebhookPayload` types, one
+ * for each event the contract declares.
  *
  * Derived from the generated `Webhooks` union rather than listed, so
- * regenerating from the contract propagates on its own. `Webhooks` itself is the
- * union of request *envelopes* (`{ body, key, … }`); the runtime value handlers
- * receive is the body.
+ * regenerating from the contract propagates on its own, and an event the API
+ * starts to send is a new member: handle the types you know and let the rest
+ * through. `Webhooks` itself is the union of request *envelopes* (`{ body, key,
+ * … }`); the runtime value handlers receive is the body.
  */
 export type KaitenWebhookEvent = Webhooks["body"];
 
-/** Every `com.kaiten.*` event name, as a union of string literals. */
+/**
+ * Every `com.kaiten.*` event name the contract declares, as a union of string
+ * literals. Each names exactly one member of {@link KaitenWebhookEvent}.
+ */
 export type KaitenWebhookType = KaitenWebhookEvent["type"];
 
 export interface VerifyWebhookInput {

@@ -82,7 +82,10 @@ export interface KaitenServerConfig {
  * `Instances.reportEntitlementUsageMetric` answers with when an entitlement
  * threshold is reached reads as success. Errors are normalized to
  * {@link KaitenError} / {@link KaitenNetworkError}; use {@link isThresholdExceeded}
- * to detect the threshold case.
+ * to detect the threshold case, and {@link isQuotaExceeded}, {@link isRateLimited},
+ * {@link isBoundaryPending} and {@link isProviderUnavailable} for the refusals of
+ * a billing flow that call for a reaction of their own. A refusal that carries a
+ * `Retry-After` has it in `error.retryAfterSeconds`.
  */
 export function createKaitenClient(config: KaitenServerConfig): Client {
   if (typeof config.baseUrl !== "string" || config.baseUrl.trim() === "") {
@@ -106,19 +109,36 @@ export function createKaitenClient(config: KaitenServerConfig): Client {
 
   // The generated transport rejects with the *parsed response body*, which has
   // no stack and is not an Error. Normalize before it reaches the caller.
-  client.interceptors.error.use((error, response) => toKaitenError(error, response));
+  // The request options come along so that a refused usage report can name the
+  // key it was sent with, which travels in its `Idempotency-Key` header.
+  client.interceptors.error.use((error, response, _request, options) =>
+    toKaitenError(error, response, options),
+  );
 
   return client;
 }
 
 export type { Client } from "./generated/client/index.ts";
 export {
+  KaitenBilling,
+  KaitenHandoffQueue,
+  KaitenInvoices,
+  type KaitenInvoiceFilters,
+} from "./billing.ts";
+export {
   KaitenError,
   KaitenNetworkError,
+  isBoundaryPending,
+  isProviderUnavailable,
+  isQuotaExceeded,
+  isRateLimited,
   isThresholdExceeded,
+  isTransactionIdReused,
   toKaitenError,
+  TransactionIdReusedError,
   type KaitenApiError,
   type KaitenThrownError,
+  type TransactionIdReusedOriginal,
 } from "./errors.ts";
 export {
   verifyKaitenWebhook,
@@ -129,4 +149,5 @@ export {
   type KaitenWebhookType,
   type VerifyWebhookInput,
 } from "./webhooks.ts";
+export type * from "./payload-names.ts";
 export * from "./generated/index.ts";

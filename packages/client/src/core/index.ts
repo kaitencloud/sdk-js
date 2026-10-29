@@ -6,24 +6,56 @@
 // surface under the `KaitenApi` namespace.
 
 export * from "./generated/index.ts";
+export type * from "./payload-names.ts";
 export { client } from "./generated/client.gen.ts";
 export type { CreateClientConfig } from "./generated/client.gen.ts";
 
-export { KaitenError, KaitenNetworkError } from "./runtime/errors.ts";
-export type { KaitenApiError, KaitenThrownError } from "./runtime/errors.ts";
-export { assertPublishableKey, isPublishableKey } from "./runtime/keys.ts";
+export {
+  BoundaryPendingError,
+  CheckoutSessionClosedError,
+  CheckoutTokenMissingError,
+  DueTodayChangedError,
+  InvalidTransactionIdError,
+  KaitenError,
+  KaitenNetworkError,
+  ProviderUnavailableError,
+  QuotaExceededError,
+  RateLimitedError,
+  TransactionIdReusedError,
+  TurnstileFailedError,
+  TurnstileUnavailableError,
+} from "./runtime/errors.ts";
+export type {
+  KaitenApiError,
+  KaitenThrownError,
+  TransactionIdReusedOriginal,
+} from "./runtime/errors.ts";
+export {
+  assertPublishableKey,
+  assertPublishableKeyShape,
+  CHECKOUT_SESSION_TOKEN_PREFIX,
+  isCheckoutSessionToken,
+  isPublishableKey,
+  isPublishableKeyShape,
+} from "./runtime/keys.ts";
 export { retry } from "./runtime/retry.ts";
 export type { RetryOptions } from "./runtime/retry.ts";
 
 export type {
   AuthenticatedKaitenProviderConfig,
+  KaitenAnonymousCheckoutClientConfig,
   KaitenAuthErrorInfo,
   KaitenAuthScheme,
+  KaitenCheckoutCredential,
+  KaitenCheckoutTokenStorage,
   KaitenClientConfig,
+  KaitenCustomerSession,
+  KaitenCustomerSessionProvider,
   KaitenFetch,
   KaitenPollingConfig,
   KaitenProviderConfig,
   KaitenTokenProvider,
+  KaitenSessionClientConfig,
   PublicKaitenProviderConfig,
 } from "./config.ts";
 

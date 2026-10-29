@@ -1,0 +1,505 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
+import { formatKaitenDate, formatKaitenUsageWindowBound } from "../date.ts";
+import { formatKaitenMoney } from "../money.ts";
+import { pluralize } from "../pluralize.ts";
+import type { KaitenLocalization } from "../types.ts";
+
+// Spanish locale pack. Strings AND the money/date formatters are localized to
+// es-ES so a Spanish host renders a fully Spanish SDK (the default English
+// pack used to leak into a Spanish app). Pass via `locale={es}` (from `@kaitencloud/react/locales`) on
+// KaitenProvider.
+export const es: KaitenLocalization = {
+  formatMoney: (amount, currencyCode) =>
+    formatKaitenMoney(amount, currencyCode, { locale: "es-ES" }),
+  branding: {
+    poweredBy: "Con la tecnología de Kaiten",
+  },
+  states: {
+    loading: "Cargando",
+    failed: "Error al cargar",
+    retry: "Reintentar",
+  },
+  pricingTable: {
+    monthly: "Mensual",
+    annual: "Anual",
+    billingInterval: "Periodo de facturación",
+    choosePlan: "Elegir este plan",
+    selectPlan: "Seleccionar",
+    popular: "Popular",
+    recommended: "Recomendado",
+    features: "Funcionalidades",
+    limits: "Límites",
+    addOns: "Complementos",
+    customPrice: "Precio personalizado",
+    contactUs: "Contactar",
+  },
+  featureComparison: {
+    title: "Comparativa de funcionalidades",
+    feature: "Funcionalidad",
+    general: "General",
+    included: "Incluido",
+    config: "Configuración",
+    unavailable: "—",
+  },
+  featureCatalog: {
+    title: "Funcionalidades del producto",
+    description: "Explora las capacidades incluidas en cada plan.",
+    search: "Buscar en el catálogo...",
+    allCategories: "Todas",
+    availableOn: "Disponible en:",
+    empty: "Ninguna funcionalidad coincide con este filtro.",
+  },
+  billingSummary: {
+    title: "Facturación y uso",
+    description: "Gestiona tu suscripción y tus cuotas.",
+    subscription: "Suscripción",
+    currentCycleUsage: "Uso del ciclo actual",
+    statusActive: "Activa",
+    statusExpired: "Caducada",
+    statusNotStarted: "Sin iniciar",
+    renewsOn: (isoDate) => `Se renueva el ${formatKaitenDate(isoDate, { locale: "es-ES" })}`,
+    expiredOn: (isoDate) => `Caducó el ${formatKaitenDate(isoDate, { locale: "es-ES" })}`,
+    startsOn: (isoDate) => `Comienza el ${formatKaitenDate(isoDate, { locale: "es-ES" })}`,
+    manageBilling: "Gestionar facturación",
+    viewInvoices: "Ver facturas",
+    upgrade: "Mejorar suscripción",
+    quotaWarning: (name, percentage) => `${name} está al ${percentage} % de su límite.`,
+    quotaInAllowance: (name) => `${name} supera la cantidad incluida, dentro del margen tolerado.`,
+    quotaAtLimit: (name) => `${name} ha alcanzado su límite.`,
+    quotaOverLimit: (name) => `${name} supera su límite.`,
+    usageUnavailable: "Uso no disponible",
+    noUsage: "Ningún cupo medido en este plan.",
+  },
+  customerPortal: {
+    currentPlan: "Plan actual",
+    includedFeatures: "Funcionalidades incluidas",
+    usageMeters: "Medidores de uso",
+    addOns: "Complementos",
+    featureFlags: "Feature flags",
+  },
+  currentPlan: {
+    title: "Plan actual",
+    renewsOn: (date) => `Renovación el ${formatKaitenDate(date, { locale: "es-ES" })}`,
+    credits: "Créditos",
+    upgradeVersion: "Cambiar de plan",
+    addQuota: "Añadir cuota",
+    addAddOns: "Añadir un complemento",
+  },
+  includedFeatures: {
+    title: "Funcionalidades incluidas",
+    feature: "Funcionalidad",
+    usage: "Uso",
+    limit: "Límite",
+    status: "Estado",
+    enabled: "Activado",
+    disabled: "Desactivado",
+    nearLimit: "Cerca del límite",
+    inAllowance: "Dentro del margen",
+    atLimit: "Límite alcanzado",
+    overLimit: "Límite superado",
+    config: "Configuración",
+    unavailable: "—",
+    unlimited: "Ilimitado",
+    unlimitedGroup: (count) =>
+      pluralize(count, {
+        one: "1 funcionalidad ilimitada",
+        other: "{n} funcionalidades ilimitadas",
+      }),
+    rowSummary: (name, usage, limit, status) => `${name}: ${usage} de ${limit}, ${status}.`,
+  },
+  usageMeters: {
+    title: "Medidores de uso",
+    currentWindow: (start, end) =>
+      `En este periodo: ${formatKaitenUsageWindowBound(start, { locale: "es-ES" })} → ${formatKaitenUsageWindowBound(end, { locale: "es-ES" })}`,
+    lifetime: "Desde siempre",
+  },
+  addOns: {
+    title: "Complementos",
+    active: "Activo",
+    available: "Disponible",
+    remove: "Quitar",
+    add: "Añadir",
+    quotaAndCredits: "Cuota y créditos",
+  },
+  flagsSummary: {
+    title: "Feature flags",
+    runtimeEvaluation: "Evaluación en tiempo de ejecución",
+    rollout: (percentage) =>
+      pluralize(percentage, { one: "despliegue al 1 %", other: "despliegue al {n} %" }),
+    enabled: "Activado",
+    disabled: "Desactivado",
+  },
+  paywall: {
+    limitReached: "Límite alcanzado",
+    approachingLimit: "Límite casi alcanzado",
+    featureUnavailable: "Funcionalidad no disponible",
+    notAvailable: "No disponible",
+    addQuota: "Añadir cuota",
+    addAddOn: "Añadir un complemento",
+    contactSales: "Contactar con ventas",
+    upgrade: "Mejorar plan",
+    dismiss: "Descartar",
+    flagDisabledDescription:
+      "Esta funcionalidad está actualmente bloqueada para este cliente. Desbloquéela cambiando de plan o activando el complemento asociado.",
+    errorDescription:
+      "No se pudo verificar su acceso en este momento. Vuelva a intentarlo en un instante.",
+    usageDescription: (current, limit) => `Ha utilizado ${current} de ${limit} permitidos.`,
+  },
+  price: {
+    perMonth: "/mes",
+    perYear: "/año",
+    everyMonths: "cada {n} meses",
+    everyYears: "cada {n} años",
+    perUnit: "por {unit}",
+    unit: "unidad",
+  },
+  checkoutFlow: {
+    title: "Pago",
+    summary: "Resumen",
+    quantity: (name) => `Cantidad de ${name}`,
+    decrease: (name) => `Quitar uno de ${name}`,
+    increase: (name) => `Añadir uno de ${name}`,
+    voucherLabel: "Código promocional",
+    voucherApply: "Aplicar",
+    voucherApplied: "Código aplicado",
+    voucherRemove: "Quitar el código",
+    voucherInvalid: "Este código no se puede usar.",
+    rateLimited: "Demasiados intentos. Inténtelo de nuevo en un momento.",
+    voucherPending: "Aplique el código, o vacíe el campo, para continuar.",
+    billingEmail: "Correo de facturación",
+    billingEmailHint: "Las facturas se envían a esta dirección.",
+    billingEmailToSubscribe: "Introduzca su correo de facturación para suscribirse.",
+    billingEmailFirst: "Introduzca su correo de facturación para ver lo que se paga hoy.",
+    dueToday: "A pagar hoy",
+    todayAmount: (amount) => `${amount} hoy`,
+    trialEndsOn: (isoDate) =>
+      `La prueba termina el ${formatKaitenDate(isoDate, { locale: "es-ES" })}`,
+    choosePrice: "Elija un plan para ver lo que se paga hoy.",
+    quotaExceeded: (names) =>
+      `Su uso supera lo que incluye este plan: ${names}. Elija un plan mayor o complementos.`,
+    unavailable:
+      "No se puede contactar con el proveedor de pagos ahora mismo. Inténtelo de nuevo en un momento.",
+    error: "No se pudo finalizar. Vuelva a intentarlo.",
+    notSold: "Este plan no se puede comprar en línea.",
+    subscribe: "Suscribirse",
+    processing: "Procesando…",
+    cancel: "Cancelar",
+    paymentNote:
+      "Los datos de su tarjeta los gestiona el proveedor de pagos. Nunca llegan a este sitio.",
+    awaitingPaymentMethod:
+      "Guarde su método de pago en la ventana que abrimos. Continuaremos en cuanto vuelva.",
+    reopenSetup: "Abrir la página de nuevo",
+    opensInNewTab: "se abre en una pestaña nueva",
+    setupDone: "Ya guardé mi método de pago",
+    setupIncomplete:
+      "Todavía no hemos recibido un método de pago. Abra la página de nuevo o compruebe otra vez.",
+    subscribed: "Está suscrito",
+    nothingDue: "Hoy no hay nada que pagar.",
+    paymentReceived: "Pago recibido.",
+    receipt: "Ver el recibo",
+    confirmPayment: "Confirme su pago para terminar.",
+    completePayment: "Completar el pago",
+    waitingForPayment: "Esperando su pago…",
+    paymentStillOpen:
+      "Todavía no hemos visto su pago. Lo comprobaremos de nuevo cuando vuelva a esta ventana.",
+    paymentFailed: "Está suscrito, pero su pago no se ha completado.",
+    startsOncePaid: "Su plan empieza en cuanto se confirme su pago.",
+    incompleteUntil: (date) =>
+      `Confirme su pago antes del ${formatKaitenDate(date, { locale: "es-ES", timeStyle: "short" })}.`,
+    cardDeclined: "Su pago no se ha completado.",
+    updatePaymentMethod: "Actualizar el método de pago",
+    paymentMethodUpdated: "Método de pago actualizado.",
+    payInvoice: "Pagar la factura",
+    alreadySubscribed: "Ya tiene una suscripción.",
+    managePlan: "Gestionar su suscripción",
+    addOnHeld: (quantity) => `Ya tiene ${quantity}`,
+    periodsLimitedBy: (names) =>
+      `Algunos periodos de facturación no están disponibles, porque no pueden facturar los complementos que ya tiene: ${names}.`,
+    addOnNotForPeriod: (names) =>
+      `Este periodo de facturación no puede facturar los complementos que ya tiene: ${names}. Elija otro.`,
+    addOnAlreadyHeld: (names) =>
+      `Ya tiene ${names}. Podrá cambiar la cantidad cuando haya empezado su suscripción.`,
+    addOnRefused: (names) => `Este plan no puede facturar ${names}.`,
+  },
+  anonymousCheckout: {
+    companyLabel: "Empresa",
+    companyHint: "El nombre de su empresa u organización.",
+    companyRequired: "Escriba el nombre de su empresa.",
+    nameLabel: "Nombre",
+    nameHint: "La persona de contacto de su cuenta.",
+    optional: "opcional",
+    emailLabel: "Correo electrónico",
+    emailHint: "Esta dirección se usa para su cuenta y su facturación.",
+    nameRequired: "Escriba su nombre.",
+    humanCheck: "Control de seguridad",
+    checking: "Control de seguridad en curso…",
+    checked: "Control de seguridad superado.",
+    checkFailed:
+      "No se pudo cargar el control de seguridad. Si un bloqueador de contenido o un cortafuegos lo impide, permita challenges.cloudflare.com y vuelva a intentarlo.",
+    checkError: "El control de seguridad ha fallado. Vuelva a intentarlo.",
+    checkRetry: "Repetir el control",
+    checkFirst: "El botón estará disponible cuando se supere el control de seguridad.",
+    continue: "Continuar",
+    startFree: "Empezar gratis",
+    startTrial: "Empezar la prueba gratuita",
+    continueToPayment: "Continuar al pago",
+    change: "Cambiar mis elecciones",
+    reviewFor: (email) => `Para ${email}`,
+    noCardNeeded: "No se pide ningún medio de pago.",
+    noCardTrial: "No se pide ningún medio de pago. No se cobra nada mientras no añada uno.",
+    trialAlreadyUsed:
+      "Este correo ya disfrutó de la prueba de este plan, así que el primer periodo se paga hoy.",
+    amountChanged: (was, now) =>
+      `El importe a pagar ha pasado de ${was} a ${now}. Compruébelo antes de continuar.`,
+    detailsChanged: "Las condiciones de su pedido han cambiado. Compruébelas antes de continuar.",
+    thenPrice: (price, isoDate) =>
+      `Después, ${price} a partir del ${formatKaitenDate(isoDate, { locale: "es-ES" })}, salvo que cancele antes.`,
+    renewsAt: (price, isoDate) =>
+      `Se renueva a ${price} el ${formatKaitenDate(isoDate, { locale: "es-ES" })}.`,
+    completedFor: (email) => `Su pedido está registrado para ${email}.`,
+    continueLink: "Continuar",
+    closedAbandoned: "Este pedido estuvo abierto demasiado tiempo y se cerró. No se cobró nada.",
+    closedExpired: "El pago no llegó a tiempo, así que este pedido se cerró.",
+    startAgain: "Empezar de nuevo",
+    lost: "No encontramos este pedido en este navegador.",
+    lostAdvice: "Si ya pagó, no vuelva a pagar: contáctenos y comprobaremos su pedido.",
+    startNew: "Empezar un nuevo pedido",
+    tryAgainIn: (seconds) =>
+      seconds < 2
+        ? "Inténtelo de nuevo en un momento."
+        : `Inténtelo de nuevo en ${seconds < 90 ? `${seconds} segundos` : `${Math.ceil(seconds / 60)} minutos`}.`,
+    turnstileFailed: "No pudimos validar el control de seguridad. Vuelva a superarlo.",
+    turnstileUnavailable: "El control de seguridad no está disponible en este momento.",
+    rateLimited: "Demasiados intentos.",
+    notSelfServe: "Este plan no se vende en línea. Contáctenos para obtenerlo.",
+    planUnavailable: "Este plan no se puede comprar en este momento.",
+    addonRefused: "Una de las opciones elegidas no se puede comprar con este plan.",
+    invalidEmail: "Esta dirección de correo no es válida.",
+    quotaReached: "No podemos aceptar nuevas altas por ahora. Contáctenos.",
+    notAvailable: "La compra en línea no está disponible en este momento.",
+    providerUnavailable: "No se puede contactar con el proveedor de pagos ahora mismo.",
+    emailFirst: "Introduzca su correo electrónico para continuar.",
+    sessionClosed: "Este pedido ya está cerrado.",
+    dueTodayChanged:
+      "El importe a pagar cambió después de guardar su medio de pago. No se cobró nada. Empiece de nuevo para ver el nuevo importe.",
+    network: "No pudimos contactar con el servidor. Compruebe su conexión e inténtelo de nuevo.",
+  },
+  subscription: {
+    trial: "Prueba",
+    active: "Activa",
+    pastDue: "Pago fallido",
+    canceled: "Cancelada",
+    incomplete: "Pago pendiente",
+    trialEndsOn: (isoDate) =>
+      `La prueba termina el ${formatKaitenDate(isoDate, { locale: "es-ES" })}`,
+    endsOn: (isoDate) => `Termina el ${formatKaitenDate(isoDate, { locale: "es-ES" })}`,
+    changesOn: (price, isoDate) =>
+      `Pasa a ${price} el ${formatKaitenDate(isoDate, { locale: "es-ES" })}`,
+    pastDueNotice: "Su último pago no se pudo completar.",
+    canceledNotice: "Su suscripción ha terminado.",
+    canceledPlanNotice: (name) => `Su suscripción ha terminado. Su plan actual es ${name}.`,
+    incompleteNotice: "Su plan empieza en cuanto se confirme su pago.",
+    incompleteUntil: (date) =>
+      `Confirme su pago antes del ${formatKaitenDate(date, { locale: "es-ES", timeStyle: "short" })}.`,
+    canceledOn: (date) =>
+      `Terminó el ${formatKaitenDate(date, { locale: "es-ES", timeStyle: "short" })}.`,
+    trialEndedWithoutPaymentMethod: "Su prueba ha terminado sin un método de pago.",
+    incompleteExpired: "Ha vencido el plazo para confirmar su pago.",
+    none: "No hay ninguna suscripción que mostrar.",
+    subscribe: "Suscribirse",
+  },
+  portalBilling: {
+    invoices: "Facturas",
+    noInvoices: "Todavía no hay facturas.",
+    invoicePeriod: (from, to) =>
+      `${formatKaitenDate(from, { locale: "es-ES" })} – ${formatKaitenDate(to, { locale: "es-ES" })}`,
+    kindActivation: "Activación",
+    kindRenewal: "Renovación",
+    kindFinal: "Factura final",
+    statusManual: "Facturada manualmente",
+    statusPushed: "Pendiente de pago",
+    statusPaid: "Pagada",
+    statusFailed: "Pago fallido",
+    statusUncollectible: "Incobrable",
+    statusVoid: "Anulada",
+    pay: "Pagar",
+    pdf: "PDF",
+    loadMore: "Mostrar facturas anteriores",
+    cancel: "Cancelar la suscripción",
+    cancelPrompt: (isoDate) =>
+      `Su suscripción terminará el ${formatKaitenDate(isoDate, { locale: "es-ES" })}. Mantiene todo hasta entonces y puede deshacerlo antes.`,
+    cancelTrialPrompt: "Su prueba terminará de inmediato y no se le cobrará nada.",
+    cancelIncompletePrompt: "Su plan no empezará y no se le cobrará nada.",
+    cancelConfirm: "Cancelar al final del periodo",
+    cancelNowConfirm: "Cancelar ahora",
+    cancelKeep: "Mantener mi suscripción",
+    reactivate: "Reactivar la suscripción",
+    closingPeriod:
+      "Estamos cerrando su periodo de facturación. Su cambio se aplicará en un momento.",
+    stillClosing:
+      "Su periodo de facturación todavía se está cerrando. Inténtelo de nuevo en un minuto.",
+    unavailable:
+      "No se puede contactar con el proveedor de pagos ahora mismo. Inténtelo de nuevo en un momento.",
+    actionFailed: "No ha funcionado. Vuelva a intentarlo.",
+    addonQuantity: (name) => `Cantidad de ${name}`,
+    addonLess: (name) => `Quitar uno de ${name}`,
+    addonMore: (name) => `Añadir uno de ${name}`,
+    addonUpTo: (max) => `Hasta ${max}`,
+    addonsManage: "Gestionar complementos",
+    addonsManageNote:
+      "Elija cuántas unidades quiere de cada complemento. Nada cambia hasta que confirme.",
+    addonsNone: "Todavía no tiene complementos.",
+    addonsSummary: "Sus cambios",
+    addonsNoChange: "Todavía no hay cambios.",
+    addonsConfirm: "Confirmar cambios",
+    addonsCancel: "Cancelar",
+    addonsUpdated: "Sus complementos se han actualizado.",
+    addonPendingQuantity: (quantity, date) =>
+      `Cantidad de ${quantity} a partir del ${formatKaitenDate(date, { locale: "es-ES" })}. Conserva la cantidad actual hasta entonces.`,
+    addonPendingRemoval: (date) =>
+      `Retirada prevista para el ${formatKaitenDate(date, { locale: "es-ES" })}. Conserva este complemento hasta entonces.`,
+    addonKeepQuantity: "Conservar la cantidad actual y cancelar el cambio previsto.",
+    billingAdvance: "Se factura por el periodo siguiente.",
+    billingArrears: "Se factura por el periodo que ha terminado.",
+    addonOverage: (percent) =>
+      `Se permite un ${percent} % de uso adicional sobre la cantidad incluida.`,
+    addonBilledFrom: (isoDate) =>
+      `Se aplica ahora y se factura desde su renovación del ${formatKaitenDate(isoDate, { locale: "es-ES" })}.`,
+    addonLowerFrom: (isoDate) =>
+      `La cantidad reducida se aplica el ${formatKaitenDate(isoDate, { locale: "es-ES" })}. Conserva la cantidad actual hasta entonces.`,
+    addonRemovedFrom: (isoDate) =>
+      `Retirada prevista para el ${formatKaitenDate(isoDate, { locale: "es-ES" })}. Conserva este complemento hasta entonces.`,
+    addonEnding: (isoDate) =>
+      `Se aplica ahora. Su suscripción termina el ${formatKaitenDate(isoDate, { locale: "es-ES" })} y no se renueva.`,
+    addonBilledFromTrialEnd: (isoDate) =>
+      `Se aplica ahora y se factura desde el final de su prueba el ${formatKaitenDate(isoDate, { locale: "es-ES" })}.`,
+    addonRemovedInTrial: (isoDate) =>
+      `Retirada prevista para el final de su prueba, el ${formatKaitenDate(isoDate, { locale: "es-ES" })}. Conserva este complemento hasta entonces.`,
+    addonUnbilled: "Se aplica ahora. No se factura nada sin suscripción.",
+    addonTrueUpNote:
+      "Una cantidad mayor también puede facturarse por el periodo en curso, por la cantidad más alta que tenga en él, en su próxima factura.",
+    addonRefusedFor: (name, reason) => `${name}: ${reason}`,
+    addonNotPublic: "Este complemento ya no está disponible.",
+    addonCurrencyMismatch: "Este complemento no se vende en la moneda de su suscripción.",
+    addonIncompatible:
+      "Este complemento no está disponible con su plan o su periodo de facturación.",
+    addonQuantityExceedsMax: "Es más de lo que permite este complemento.",
+    addonOtherVersionAttached: "Su plan ya incluye otra versión de este complemento.",
+    addonSubscriptionIncomplete:
+      "Su plan empieza en cuanto se confirme su pago. Podrá cambiar los complementos después.",
+    addonInstanceRequired: "Los complementos no se pueden cambiar desde esta página.",
+    vouchers: "Código promocional",
+    voucherLabel: "Código promocional",
+    voucherCheck: "Comprobar",
+    voucherInvalid: "Este código no se puede usar.",
+    voucherAtCheckout: "Se aplica al contratar.",
+    voucherWait: (seconds) =>
+      `Demasiados intentos. Inténtelo de nuevo en ${seconds < 90 ? `${seconds} segundo${seconds === 1 ? "" : "s"}` : `${Math.ceil(seconds / 60)} minutos`}.`,
+    voucherRedeem: "Aplicar",
+    voucherDismiss: "Ahora no",
+    voucherRedeemed: (name) => `${name} aplicado.`,
+    voucherFromNextInvoice: "Se aplica desde su próxima factura.",
+    voucherForInvoices: (count) =>
+      pluralize(count, { one: "En una factura.", other: "En {n} facturas." }, "es-ES"),
+    voucherTakesEffect: "Surte efecto de inmediato.",
+    voucherUntil: (isoDate) => `Hasta el ${formatKaitenDate(isoDate, { locale: "es-ES" })}.`,
+    voucherActive: "Códigos promocionales activos",
+    voucherActiveNow: "Activo.",
+    voucherUsedOf: (count, max) =>
+      max === null
+        ? pluralize(
+            count,
+            { one: "Aplicado a {n} factura.", other: "Aplicado a {n} facturas." },
+            "es-ES",
+          )
+        : `Aplicado a ${count} de ${max} factura${max > 1 ? "s" : ""}.`,
+    voucherIncomplete:
+      "Su plan empieza en cuanto se confirme su pago. Podrá añadir un código después.",
+    voucherNoSubscription: "No hay ninguna suscripción a la que aplicar un código.",
+    provenance: "De dónde sale este límite",
+    provenanceBase: "base",
+    provenanceAddOn: "complemento",
+    provenanceVoucher: "código promocional",
+    provenanceWithAddOns: "con los complementos",
+    provenanceUnlimited: "Ilimitado",
+    provenanceLayer: (name) => `Origen: ${name}.`,
+    provenanceException: "ajuste",
+    provenanceBeforeException: (value) => `Antes del ajuste: ${value}`,
+    provenanceEffective: (value) => `Cantidad efectiva: ${value}`,
+    grantSet: (value) => `Valor fijado en ${value}`,
+    grantAdd: (value) => `Añadir ${value}`,
+    grantMultiply: (value) => `Multiplicar por ${value}`,
+    grantMinimum: (value) => `Al menos ${value}`,
+    grantFrom: (date) => `A partir del ${formatKaitenDate(date, { locale: "es-ES" })}.`,
+    grantNoEnd: "Sin fecha de fin.",
+    voucherDiscount: (value) => `${value.replace(/%$/, " %")} de descuento.`,
+    voucherFlag: (name, variant) => `Función ${name}: ${variant}.`,
+  },
+  paymentMethodCard: {
+    title: "Método de pago",
+    none: "No hay ningún método de pago guardado.",
+    card: "Tarjeta",
+    expires: (monthYear) => `Caduca el ${monthYear}`,
+    expired: "Caducada",
+    failed: "Fallido",
+    expiredNotice: "Esta tarjeta ha caducado. Añada una nueva para seguir pagando automáticamente.",
+    failedNotice: "Su último pago falló. Actualice su método de pago.",
+    add: "Añadir un método de pago",
+    update: "Actualizar el método de pago",
+    manage: "Gestionar en el portal de facturación",
+    opening: "Abriendo…",
+    saving: "Guardando su método de pago…",
+    saved: "Método de pago actualizado.",
+    incomplete: "Todavía no hemos recibido un método de pago. Añada uno o compruebe otra vez.",
+    unavailable:
+      "No se puede contactar con el proveedor de pagos ahora mismo. Inténtelo de nuevo en un momento.",
+    error: "Algo ha salido mal. Vuelva a intentarlo.",
+  },
+  trialBanner: {
+    title: "Periodo de prueba",
+    endsInDays: (days) =>
+      pluralize(
+        days,
+        { one: "Su prueba termina en {n} día", other: "Su prueba termina en {n} días" },
+        "es-ES",
+      ),
+    endsInHours: (hours) =>
+      pluralize(
+        hours,
+        { one: "Su prueba termina en {n} hora", other: "Su prueba termina en {n} horas" },
+        "es-ES",
+      ),
+    endsInMinutes: (minutes) =>
+      pluralize(
+        minutes,
+        { one: "Su prueba termina en {n} minuto", other: "Su prueba termina en {n} minutos" },
+        "es-ES",
+      ),
+    endsInAMoment: "Su prueba termina en un momento",
+    endsOn: (isoDate) => `Termina el ${formatKaitenDate(isoDate, { locale: "es-ES" })}`,
+    chargeOn: (price, isoDate) =>
+      `Se cobrarán ${price} el ${formatKaitenDate(isoDate, { locale: "es-ES" })}.`,
+    chargeWouldOn: (price, isoDate) =>
+      `Se cobrarían ${price} el ${formatKaitenDate(isoDate, { locale: "es-ES" })}.`,
+    nothingCharged: "No se cobrará nada al terminar su prueba.",
+    cardOnFile: (label) => `Tarjeta guardada: ${label}.`,
+    noCard: "Todavía no hay ninguna tarjeta guardada. Añada una antes de que termine su prueba.",
+    card: "Tarjeta",
+    addCard: "Añadir una tarjeta",
+    cancel: "Cancelar",
+    cancelPrompt: "Su prueba terminará de inmediato y no se le cobrará nada.",
+    cancelConfirm: "Terminar mi prueba",
+    cancelKeep: "Mantener mi prueba",
+    opening: "Abriendo…",
+    saving: "Guardando su tarjeta…",
+    saved: "Tarjeta guardada.",
+    incomplete: "Todavía no hemos recibido una tarjeta. Añada una o compruebe otra vez.",
+    unavailable:
+      "No se puede contactar con el proveedor de pagos ahora mismo. Inténtelo de nuevo en un momento.",
+    stillClosing:
+      "Su periodo de facturación todavía se está cerrando. Inténtelo de nuevo en un minuto.",
+    error: "Algo ha salido mal. Vuelva a intentarlo.",
+  },
+};

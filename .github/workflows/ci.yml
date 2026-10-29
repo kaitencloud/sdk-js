@@ -42,6 +42,8 @@ jobs:
         run: vp check
       - name: Check coupled dependency versions
         run: node scripts/check-version-invariants.mjs
+      - name: Check token contrast (WCAG AA)
+        run: node scripts/check-token-contrast.mjs
       - name: Check the shipped GraphQL operations against the schema snapshot
         run: node scripts/check-graphql-drift.mjs --operations-only
 
@@ -64,20 +66,34 @@ jobs:
           run-install: false
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+      # Builds the examples too: examples/react-vite has a `build` script, so a
+      # React example that no longer compiles fails here.
       - name: Build packages
         run: vp run -r build
       # Every published package is checked for its LICENSE, NOTICE and
       # THIRD_PARTY_NOTICES.md, each the root's copy, and for a manifest npm can
-      # install from; publint and attw already run inside each package's `vp pack`.
+      # install from. react and react-ui are checked with publint and attw on the
+      # real tarball, since react-ui's CSS subpath only exists after its build
+      # hook; client and server already run both inside their `vp pack`.
       - name: Check the published shape of every package
         run: node scripts/check-published-shape.mjs
-      # What the browser package costs a host is invisible in review: each import
-      # scenario is held to a gzip budget.
+      # The chunk graph is invisible in review: each import scenario is held to a
+      # gzip budget, and the headless ones to a module list.
       - name: Check bundle-size budgets
         run: node scripts/check-bundle-size.mjs
+      # Anything that reaches a browser is public. The client is bundled the way a
+      # host would, and the browser build of each example is scanned: no token, no
+      # name of a secret variable, no code of @kaitencloud/server.
+      - name: Check that no browser bundle carries a secret
+        run: node scripts/check-no-secrets-in-example-build.mjs
 
   test:
     runs-on: ubuntu-latest
+    # The official Playwright image ships the browsers, so CI never downloads
+    # them. Keep the tag in sync with the pinned @playwright/test version;
+    # scripts/check-version-invariants.mjs fails when they differ.
+    container:
+      image: mcr.microsoft.com/playwright:v1.63.0-noble
     steps:
       - uses: actions/checkout@v7.0.1
       - uses: pnpm/action-setup@v6.1.0
@@ -97,8 +113,171 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Build packages
         run: vp run -r build
+      - name: Link preinstalled Playwright browsers into the default cache path
+        # The image ships browsers at /ms-playwright, but the test scripts run with
+        # `env -u PLAYWRIGHT_BROWSERS_PATH`, so Playwright looks in its default cache.
+        run: |
+          for home in "$HOME" /root; do
+            mkdir -p "$home/.cache"
+            ln -sfn /ms-playwright "$home/.cache/ms-playwright"
+          done
+      - name: Verify the linked browsers are the ones Playwright will launch
+        working-directory: packages/react-ui
+        run: |
+          env -u PLAYWRIGHT_BROWSERS_PATH node -e '
+            const { existsSync } = require("node:fs");
+            const { chromium } = require("playwright");
+            const executable = chromium.executablePath();
+            if (!existsSync(executable)) {
+              console.error(`::error::Playwright resolves chromium to ${executable}, which does not exist`);
+              process.exit(1);
+            }
+            console.log(`chromium resolves to ${executable}`);
+          '
+      # react-ui's `test` runs its Storybook stories in Chromium too, with the
+      # accessibility checks of the a11y addon.
       - name: Run workspace tests
         run: vp run -r test
+      # The checks above are code too: each is tried on a tree that passes and on
+      # one that does not.
+      - name: Test the repository's own scripts
+        run: vp test run scripts
+      # A ratchet, not a bar: it fails when coverage drops. The thresholds live on
+      # the scripts as CLI flags.
+      - name: Check React unit coverage does not regress
+        run: |
+          (cd packages/react && vp run test:unit:coverage)
+          (cd packages/react-ui && vp run test:unit:coverage)
+      - name: Build React Storybook
+        working-directory: packages/react-ui
+        run: vp run build-storybook
+      - name: Run visual regression (Playwright snapshots)
+        id: visual
+        # Fails on any unexpected visual diff. When a change moves pixels on
+        # purpose, regenerate the *-linux.png with the "Update visual baselines"
+        # workflow, then commit them.
+        working-directory: packages/react-ui
+        run: vp run test:visual
+      - name: Upload visual diff report
+        if: ${{ failure() && steps.visual.outcome == 'failure' }}
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: playwright-visual-report
+          path: |
+            packages/react-ui/playwright-report
+            packages/react-ui/test-results
+          retention-days: 14
+      - name: Run layout invariants (container overflow)
+        # No component may escape the box its host gives it, at 320/480/768/1280px
+        # of container width. Recorded overflows live in
+        # tests/layout/overflow.spec.ts, and that map may only ever shrink.
+        working-directory: packages/react-ui
+        run: vp run test:layout
+
+  # The storefront example in a browser: its pricing table, its checkout and its customer
+  # portal, against a stand-in for Kaiten that runs in the same process, so the job needs no
+  # stack and no secret. examples/storefront/e2e holds the specs, and its README says what
+  # they prove and what they leave to a real Kaiten. The job does not run the `live` project,
+  # which needs a Kaiten of someone's and subscribes an instance of it.
+  #
+  # Kaiten's own compose has no fake Stripe to drive a card, a declined card or a 3-D Secure
+  # challenge, so these paths are played by the stand-in. When it has one, this job starts
+  # that stack and points the `live` project at it.
+  storefront-e2e:
+    runs-on: ubuntu-latest
+    # Same image as the `test` job, and the same tag to keep in sync with @playwright/test;
+    # scripts/check-version-invariants.mjs fails when they differ.
+    container:
+      image: mcr.microsoft.com/playwright:v1.63.0-noble
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: pnpm/action-setup@v6.1.0
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - uses: voidzero-dev/setup-vp@v1.22.0
+        with:
+          # actions/setup-node and pnpm/action-setup own Node.js and pnpm. Vite+
+          # only provides vp, at the catalog's vite-plus version.
+          node-manager: false
+          package-manager: false
+          cache: true
+          run-install: false
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      # The storefront is served from its build, which resolves the packages through their dist/.
+      - name: Build packages
+        run: vp run -r build
+      - name: Link preinstalled Playwright browsers into the default cache path
+        # See the `test` job: the scripts run with `env -u PLAYWRIGHT_BROWSERS_PATH`.
+        run: |
+          for home in "$HOME" /root; do
+            mkdir -p "$home/.cache"
+            ln -sfn /ms-playwright "$home/.cache/ms-playwright"
+          done
+      - name: Run the storefront's end-to-end tests
+        working-directory: examples/storefront
+        run: pnpm run test:e2e
+      - name: Upload the traces of a failure
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: storefront-e2e-traces
+          path: examples/storefront/test-results
+          retention-days: 14
+
+  react-18-compat:
+    # The React packages declare a `react >=18` peer floor but the workspace runs
+    # React 19. Pin React 18 and run their unit suites to prove the floor holds.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: pnpm/action-setup@v6.1.0
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - uses: voidzero-dev/setup-vp@v1.22.0
+        with:
+          # actions/setup-node and pnpm/action-setup own Node.js and pnpm. Vite+
+          # only provides vp, at the catalog's vite-plus version.
+          node-manager: false
+          package-manager: false
+          cache: true
+          run-install: false
+      - name: Pin React 18 via a pnpm-workspace override
+        # pnpm ignores the `pnpm` field of package.json, so overrides have to live
+        # in pnpm-workspace.yaml.
+        run: |
+          node -e '
+            const fs = require("node:fs");
+            const file = "pnpm-workspace.yaml";
+            const src = fs.readFileSync(file, "utf8");
+            if (!/^overrides:$/m.test(src)) {
+              throw new Error("no `overrides:` block in pnpm-workspace.yaml — update this step");
+            }
+            fs.writeFileSync(
+              file,
+              src.replace(/^overrides:$/m, "overrides:\n  react: ^18.3.1\n  react-dom: ^18.3.1"),
+            );
+          '
+      - name: Install with React 18
+        run: pnpm install --no-frozen-lockfile
+      - name: Verify React 18 is what actually resolved
+        run: |
+          version=$(node -p "require('./packages/react/node_modules/react/package.json').version")
+          echo "react resolved to $version"
+          case "$version" in
+            18.*) ;;
+            *) echo "::error::expected React 18, got $version — the override is not taking effect"; exit 1 ;;
+          esac
+      - name: Build packages
+        run: vp run -r build
+      - name: Run React unit tests against React 18
+        run: |
+          (cd packages/react && vp test --project unit)
+          (cd packages/react-ui && vp test --project unit)
 
   changeset:
     if: github.event_name == 'pull_request'
@@ -155,3 +334,64 @@ jobs:
         run: git diff --exit-code -- contracts packages/client/src/core/generated packages/server/src/generated packages/client/src/graphql/generated
       - name: Verify shipped GraphQL operations validate against the snapshot
         run: node scripts/check-graphql-drift.mjs --operations-only
+
+  # Compatibility with already published 1.0.0 packages reads the npm registry.
+  # This job is not required by the main-branch ruleset.
+
+  # Code written against 1.0.0 compiles against the tarball npm serves for 1.0.0,
+  # and against the one this tree would publish, and the server keeps every name
+  # it exported. See scripts/check-compat-1.0.mjs.
+  compat-1_0:
+    name: compat-1.0
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: pnpm/action-setup@v6.1.0
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - uses: voidzero-dev/setup-vp@v1.22.0
+        with:
+          # actions/setup-node and pnpm/action-setup own Node.js and pnpm. Vite+
+          # only provides vp, at the catalog's vite-plus version.
+          node-manager: false
+          package-manager: false
+          cache: true
+          run-install: false
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build packages
+        run: vp run -r build
+      - name: Compile a 1.0.0 consumer against 1.0.0 and against this tree, and compare the exports
+        run: node scripts/check-compat-1.0.mjs
+
+  # Check the release Changesets would produce, not new code against pre-release
+  # manifest versions. --project versions an isolated copy of the built tree and
+  # checks React -> client and React UI -> React at their dependency floors.
+  # A not-yet-published floor may use only its exact public same-release tarball;
+  # missing changesets, incompatible imports and registry failures still fail.
+  release-dependencies:
+    name: release-dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: pnpm/action-setup@v6.1.0
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - uses: voidzero-dev/setup-vp@v1.22.0
+        with:
+          # actions/setup-node and pnpm/action-setup own Node.js and pnpm. Vite+
+          # only provides vp, at the catalog's vite-plus version.
+          node-manager: false
+          package-manager: false
+          cache: true
+          run-install: false
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build packages
+        run: vp run -r build
+      - name: Check dependency floors and the shape of the projected release
+        run: node scripts/check-release-dependencies.mjs --project

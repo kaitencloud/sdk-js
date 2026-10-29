@@ -1,7 +1,108 @@
 """
+An add-on version: what a voucher names an add-on by, and the prices it
+is sold at. The versions of one product share a name, so the version tells them
+apart.
+"""
+type Addon {
+  description: String!
+
+  """The family the version belongs to."""
+  familySlug: String!
+  id: UUID!
+
+  """
+  The family's: how a mid-period increase of its ADVANCE add-ons is billed.
+  """
+  increaseBilling: IncreaseBilling!
+
+  """The version the family resolves to. Only a PUBLISHED version."""
+  isDefault: Boolean!
+  lifecycleState: AddonLifecycleState!
+
+  """The most one instance may hold; null when unbounded."""
+  maxQuantity: Int
+  name: String!
+
+  """The version's prices in display order; status narrows them."""
+  prices(status: PriceStatus): [AddonPrice!]!
+
+  """How this version is sold."""
+  pricingType: PricingType!
+  slug: String!
+
+  """The version number in its family."""
+  version: Int!
+  versionName: String!
+}
+
+"""The lifecycle of an add-on version."""
+enum AddonLifecycleState {
+  ARCHIVED
+  DRAFT
+  PUBLISHED
+}
+
+"""A cursor-paginated page of add-on versions."""
+type AddonPage {
+  hasMore: Boolean!
+  items: [Addon!]!
+
+  """Opaque cursor for the next page. Null when hasMore is false."""
+  nextCursor: String
+}
+
+"""
+A price of an add-on version. It has the shape of a licence price.
+Amounts are in minor units of currency; unitAmountDecimal is the amount.
+"""
+type AddonPrice {
+  billingModel: PriceBillingModel!
+
+  """Null on a metered price."""
+  billingPeriod: PriceBillingPeriod
+  billingTiming: PriceBillingTiming!
+  currency: String!
+  deprecatedAt: Time
+  displayLabel: String
+  displayOrder: Int!
+  id: UUID!
+  isDefault: Boolean!
+
+  """
+  The slug of the entitlement a metered price measures; null on a flat fee.
+  """
+  meteredEntitlement: String
+
+  """
+  Measured units in one sale unit of a metered price; null on a flat fee.
+  """
+  saleUnitFactor: String
+  status: PriceStatus!
+
+  """The amount in minor units, up to 12 decimal places."""
+  unitAmountDecimal: String!
+}
+
+"""
+The user an audit entry is recorded under: a person, a service account, or
+Kaiten itself ("Kaiten (system)"), which records jobs and anonymous checkouts.
+"""
+type AuditActor {
+  id: UUID!
+
+  """USER, SERVICE or SYSTEM."""
+  kind: String!
+  name: String!
+}
+
+"""
 AuditTrail records a single domain event captured from the outbox CDC pipeline.
 """
 type AuditTrail {
+  """
+  Who the event is recorded under; null for an entry recorded before actors were.
+  """
+  actor: AuditActor
   eventName: String!
 
   """
@@ -53,6 +154,8 @@ type ComponentPage {
 
 """Customer represents a client organization of a organization."""
 type Customer {
+  """Where the customer's invoices are sent. Personal data."""
+  billingEmail: String
   createdAt: Time!
   createdBy: User!
   domain: String
@@ -203,6 +306,59 @@ type Entitlement {
 }
 
 """
+The vendor's dated decision on one entitlement of one instance, without a
+code: the last layer of its effective entitlements. Never gated by billing.
+"""
+type EntitlementException {
+  createdAt: Time!
+
+  """Null: no end."""
+  endsAt: Time
+  entitlementSlug: String!
+  entitlementType: EntitlementType!
+  id: UUID!
+  kind: EntitlementExceptionKind!
+
+  """Why the vendor decided it."""
+  reason: String!
+  revokedAt: Time
+  startsAt: Time!
+  status: EntitlementExceptionStatus!
+
+  """
+  The value in the {type, value} shape of a licence grant; null for UNLIMITED.
+  """
+  value: Map
+}
+
+"""Which exceptions of an instance to list."""
+enum EntitlementExceptionFilter {
+  """Neither revoked nor ended, scheduled ones included."""
+  ACTIVE
+
+  """Every exception of the instance, revoked and ended ones included."""
+  ALL
+}
+
+"""
+How an exception sets its entitlement: SET works on every type, ADD and
+UNLIMITED on NUMBER and NUMBER_AI_CREDIT only.
+"""
+enum EntitlementExceptionKind {
+  ADD
+  SET
+  UNLIMITED
+}
+
+"""An exception's status at the read."""
+enum EntitlementExceptionStatus {
+  ACTIVE
+  EXPIRED
+  REVOKED
+  SCHEDULED
+}
+
+"""
 Lightweight reference to an entitlement group (category axis for presentation).
 """
 type EntitlementGroupSummary {
@@ -222,10 +378,13 @@ type EntitlementPage {
 }
 
 """
-Phase of a periodic usage window: CALENDAR (UTC calendar-aligned) or
-LICENSE_START (phased off the instance's license start date).
+Phase of a periodic usage window: CALENDAR (UTC calendar-aligned),
+LICENSE_START (phased off the instance's license start date) or
+BILLING_PERIOD (phased off the instance's live subscription's billing anchor,
+LICENSE_START without one; with resetPeriod MONTH or YEAR only).
 """
 enum EntitlementResetAnchor {
+  BILLING_PERIOD
   CALENDAR
   LICENSE_START
 }
@@ -276,13 +435,52 @@ type EntitlementUsage {
   limit: Map
 
   """
+  How far above limit usage is still accepted, in percent: -1 unlimited, 0 a
+  hard limit. Null for BOOLEAN and CONFIG.
+  """
+  limitCapExceededOveragePercent: Int
+
+  """
+  What the licence, the add-ons, the boosts and the exception each
+  contribute, as the REST gauge read returns it.
+  """
+  provenance: Map
+  source: EntitlementUsageSource!
+
+  """
   Typed usage value. Shapes: {type:"number",value:N,event_count:C},
   {type:"boolean",value:B}, {type:"object",value:{...}}
   """
   value: Map!
 }
 
+"""Where an entitlement of an instance comes from."""
+enum EntitlementUsageSource {
+  """An add-on attached grants it."""
+  addon
+
+  """Only the instance's exception grants it."""
+  exception
+
+  """The licence grants it; add-ons, boosts and an exception may change it."""
+  license
+}
+
+"""
+How a mid-period increase of an add-on family's ADVANCE add-ons is billed.
+"""
+enum IncreaseBilling {
+  NEXT_BOUNDARY
+  TRUE_UP
+}
+
 type Instance {
+  """
+  The add-ons the instance holds now, oldest attachment first. Like the REST
+  list, it needs billing to be enabled for the organization.
+  """
+  addons: [InstanceAddon!]!
+
   """Cursor-paginated audit trail entries for this instance."""
   auditTrails(
     after: Time
@@ -295,6 +493,13 @@ type Instance {
     """Maximum number of entries to return (default 50, max 200)"""
     limit: Int
   ): AuditTrailPage!
+
+  """
+  The instance's subscription; null when it was never subscribed. Requires
+  read:billing and billing enabled for the organization: fetch it in a
+  document of its own, once billing is enabled.
+  """
+  billing: InstanceBillingSummary
   createdAt: Time!
   createdBy: User!
 
@@ -309,6 +514,12 @@ type Instance {
   deploymentZoneSlug: String
   description: String!
   endLicenseDate: Time!
+
+  """
+  The instance's entitlement exceptions, latest start first, as
+  GET /instances/{instanceSlug}/entitlement-exceptions lists them.
+  """
+  entitlementExceptions(filter: EntitlementExceptionFilter = ACTIVE): [EntitlementException!]!
 
   """
   Current entitlement usage for this instance (one row per license grant)
@@ -329,6 +540,39 @@ type Instance {
   status: InstanceStatus!
   updatedAt: Time!
   updatedBy: User!
+}
+
+"""An add-on version an instance holds, and how many units."""
+type InstanceAddon {
+  addonId: UUID!
+  addonSlug: String!
+  attachedAt: Time!
+  familySlug: String!
+  id: UUID!
+
+  """The most one instance may hold; null when unbounded."""
+  maxQuantity: Int
+  name: String!
+
+  """
+  A decrease scheduled for the next boundary, 0 for a removal; null when
+  nothing is scheduled.
+  """
+  pendingQuantity: Int
+  quantity: Int!
+}
+
+"""
+What the console's instance lists show of an instance's subscription. The
+whole subscription is GET /instances/{instanceSlug}/billing.
+"""
+type InstanceBillingSummary {
+  cancelAtPeriodEnd: Boolean!
+  currentPeriodEnd: Time!
+  pastDueSince: Time
+  providerKind: ProviderKind!
+  status: SubscriptionStatus!
+  trialEndsAt: Time
 }
 
 """A cursor-paginated page of instances."""
@@ -373,7 +617,27 @@ type License {
   """Whether this version may be served."""
   lifecycleState: LicenseLifecycleState!
   name: String!
+
+  """
+  The version's prices in display order; status narrows them. Like the REST
+  list, it needs billing to be enabled for the organization.
+  """
+  prices(status: PriceStatus): [LicensePrice!]!
+
+  """How this version is sold."""
+  pricingType: PricingType!
+
+  """Whether self-serve signup captures a payment method before activation."""
+  requiresPaymentMethod: Boolean
+
+  """Where a buyer is sent when this version cannot be bought self-serve."""
+  selfServeCtaUrl: String
   slug: String!
+
+  """
+  The trial a subscription starts with by default, in days; null when none.
+  """
+  trialPeriodDays: Int
   type: LicenseType!
   version: String!
   versionName: String
@@ -419,15 +683,34 @@ type LicenseEntitlement {
 
 """
 LicenseFamily is the product a license is a version of. It carries identity and
-nothing else: no display name, because the display name is the current version's
-own name. Renaming a version or publishing a new one never changes it, which is
+the family's own settings, no display name: the display name is the current
+version's own name. Renaming a version or publishing a new one never changes it, which is
 what makes its slug safe to put in a public pricing URL -- for as long as the
 family has a version: deleting its last version deletes the family and frees the
 slug.
 """
 type LicenseFamily {
+  """
+  The FREE family an instance of this family moves to when its subscription
+  ends; null without one.
+  """
+  fallbackLicenseFamilySlug: String
   id: UUID!
+
+  """
+  Whether the family's default PUBLISHED version is in the public catalogue.
+  """
+  isPublic: Boolean!
   slug: String!
+
+  """
+  What a trial charged automatically with a total above 0 becomes at its end
+  when the customer has no ACTIVE payment method.
+  """
+  trialEndWithoutPaymentMethod: TrialEndWithoutPaymentMethod!
+
+  """How many days before a trial's end trial_will_end fires (1 to 30)."""
+  trialReminderDays: Int!
 }
 
 """
@@ -445,8 +728,28 @@ type LicenseFamilyView {
   been archived.
   """
   currentVersion: License
+
+  """
+  The FREE family an instance of this family moves to when its subscription
+  ends; null without one.
+  """
+  fallbackLicenseFamilySlug: String
   id: UUID!
+
+  """
+  Whether the family's default PUBLISHED version is in the public catalogue.
+  """
+  isPublic: Boolean!
   slug: String!
+
+  """
+  What a trial charged automatically with a total above 0 becomes at its end
+  when the customer has no ACTIVE payment method.
+  """
+  trialEndWithoutPaymentMethod: TrialEndWithoutPaymentMethod!
+
+  """How many days before a trial's end trial_will_end fires (1 to 30)."""
+  trialReminderDays: Int!
 
   """Number of versions in this family, whatever their lifecycle state."""
   versionCount: Int!
@@ -477,6 +780,38 @@ type LicensePage {
 
   """Opaque cursor for the next page. Null when hasMore is false."""
   nextCursor: String
+}
+
+"""
+A price of a licence version. Amounts are in minor units of currency.
+unitAmountDecimal is the amount: GraphQL has no Int wide enough for every one.
+"""
+type LicensePrice {
+  billingModel: PriceBillingModel!
+
+  """Null on a metered price."""
+  billingPeriod: PriceBillingPeriod
+  billingTiming: PriceBillingTiming!
+  currency: String!
+  deprecatedAt: Time
+  displayLabel: String
+  displayOrder: Int!
+  id: UUID!
+  isDefault: Boolean!
+
+  """
+  The slug of the entitlement a metered price measures; null on a flat fee.
+  """
+  meteredEntitlement: String
+
+  """
+  Measured units in one sale unit of a metered price; null on a flat fee.
+  """
+  saleUnitFactor: String
+  status: PriceStatus!
+
+  """The amount in minor units, up to 12 decimal places."""
+  unitAmountDecimal: String!
 }
 
 """License type enumeration"""
@@ -539,11 +874,26 @@ enum MetadataFieldResourceType {
 }
 
 """
+The user an organization-wide audit entry is recorded under, as AuditActor.
+"""
+type OrganizationAuditActor {
+  id: UUID!
+
+  """USER, SERVICE or SYSTEM."""
+  kind: String!
+  name: String!
+}
+
+"""
 OrganizationAuditTrail is an organization-wide audit trail entry. Instance and
 customer context is only present for instance-scoped events; organization-level
 events (e.g. customer or entitlement lifecycle) carry null instance fields.
 """
 type OrganizationAuditTrail {
+  """
+  Who the event is recorded under; null for an entry recorded before actors were.
+  """
+  actor: OrganizationAuditActor
   customerId: UUID
   customerName: String
   customerSlug: String
@@ -574,9 +924,59 @@ type OrganizationAuditTrailPage {
   nextCursor: String
 }
 
+"""
+How a price bills: a flat fee per period, or the usage of an entitlement.
+"""
+enum PriceBillingModel {
+  FLAT_FEE
+  OVERAGE
+  USAGE_BASED
+}
+
+"""The length of a flat fee's period."""
+enum PriceBillingPeriod {
+  ANNUAL
+  MONTHLY
+  QUARTERLY
+  SEMI_ANNUAL
+}
+
+"""
+When a price bills: at the start of the period it covers, or at its end.
+"""
+enum PriceBillingTiming {
+  ADVANCE
+  ARREARS
+}
+
+"""Whether a price is still offered."""
+enum PriceStatus {
+  ACTIVE
+  DEPRECATED
+}
+
+"""How a licence or add-on version is sold."""
+enum PricingType {
+  CUSTOM
+  FREE
+  PAID
+}
+
+"""The payment provider a subscription's invoices go to."""
+enum ProviderKind {
+  NOOP
+  STRIPE
+}
+
 """Health check endpoint"""
 type Query {
   _health: String!
+
+  """
+  The organization's add-on versions, newest first, cursor-paginated. Like the
+  REST list, it needs billing to be enabled for the organization.
+  """
+  addons(cursor: String, limit: Int): AddonPage!
 
   """List audit trail entries for a given instance slug."""
   auditTrails(
@@ -735,8 +1135,28 @@ type ReleasePage {
   nextCursor: String
 }
 
+"""
+The status of a subscription. INCOMPLETE: a public checkout waiting for its first payment.
+"""
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELED
+  INCOMPLETE
+  PAST_DUE
+  TRIAL
+}
+
 """Custom scalar for timestamps"""
 scalar Time
+
+"""
+What a trial without an ACTIVE payment method becomes at its end: CANCEL it,
+or CONVERT it to ACTIVE.
+"""
+enum TrialEndWithoutPaymentMethod {
+  CANCEL
+  CONVERT
+}
 
 """Custom scalar for UUIDs"""
 scalar UUID

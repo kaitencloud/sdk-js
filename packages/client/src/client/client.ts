@@ -17,7 +17,15 @@ import {
   listCustomers,
   reportEntitlementUsageMetric,
 } from "../core/index.ts";
-import type { KaitenClientConfig } from "../core/index.ts";
+import type { KaitenClientConfig, PublicCatalog } from "../core/index.ts";
+import {
+  IDEMPOTENCY_KEY_LOCATION,
+  INVALID_TRANSACTION_ID_CODE,
+  InvalidTransactionIdError,
+  KaitenError,
+  TRANSACTION_ID_REUSED_CODE,
+  TransactionIdReusedError,
+} from "../core/runtime/errors.ts";
 import {
   defaultActions,
   normalizeBrandingCapability,
@@ -27,6 +35,7 @@ import {
   resolveLicenseTerm,
 } from "./normalize.ts";
 import { isEvaluationSuccess } from "./feature-flags.ts";
+import { catalogQuery, mapPublicCatalog } from "./billing.ts";
 import { KaitenTransport } from "../core/index.ts";
 import { LICENSING_CATALOG_QUERY, LICENSING_SNAPSHOT_QUERY } from "../graphql/documents.ts";
 import type {
@@ -39,6 +48,7 @@ import type {
   EntitlementGroupUsageItem,
   EntitlementUsage,
   EvaluationSuccess,
+  GetCatalogOptions,
   Instance,
   KaitenCatalog,
   License,
@@ -47,6 +57,7 @@ import type {
   LicensingSnapshot,
   Plan,
   ReportUsageInput,
+  ReportUsageResult,
   ResolvedEntitlement,
   ResolvedFeatureFlag,
 } from "./types.ts";
@@ -79,7 +90,7 @@ interface PageOf<T> {
  * `KaitenClient implements KaitenClientLike`, so the two cannot drift.
  */
 export interface KaitenClientLike {
-  getCatalog: () => Promise<KaitenCatalog>;
+  getCatalog: (options?: GetCatalogOptions) => Promise<KaitenCatalog>;
   getLicensingSnapshot: (customerId: string, instanceId?: string) => Promise<LicensingSnapshot>;
   evaluateFlag: (key: string, context?: Record<string, unknown>) => Promise<EvaluationSuccess>;
   evaluateFlags: (context?: Record<string, unknown>) => Promise<BulkEvaluationResponse>;
@@ -87,11 +98,11 @@ export interface KaitenClientLike {
     instanceSlug: string,
     entitlementSlug: string,
     input: ReportUsageInput,
-  ) => Promise<EntitlementUsage>;
+  ) => Promise<ReportUsageResult>;
 }
 
 export interface KaitenComponentsModule {
-  getCatalog: () => Promise<KaitenCatalog>;
+  getCatalog: (options?: GetCatalogOptions) => Promise<KaitenCatalog>;
   getSnapshot: (customerId: string, instanceId?: string) => Promise<LicensingSnapshot>;
 }
 
@@ -119,7 +130,7 @@ export interface KaitenUsageModule {
     instanceSlug: string,
     entitlementSlug: string,
     input: ReportUsageInput,
-  ) => Promise<EntitlementUsage>;
+  ) => Promise<ReportUsageResult>;
   getByGroup: (
     groupSlug: string,
     instanceSlug: string,
@@ -175,6 +186,10 @@ interface GraphQLUsageRow {
  * The bounds are forwarded only when present: the API populates both exactly
  * when a reset period is configured, so an absent pair is the entitlement
  * saying "lifetime counter", which the normalizer reads as such.
+ *
+ * The row carries no `source`, `provenance` or overage percent: the document does
+ * not select them yet (see `LICENSING_SNAPSHOT_QUERY`), so the normalizer falls
+ * back to the licence grant's percent on this path.
  */
 function usageRowFromGraphql(row: GraphQLUsageRow): EntitlementUsage {
   return {
@@ -331,9 +346,93 @@ function catalogFromGqlLicenses(licenses: LicensingCatalogQuery["licenses"]["ite
 
 const AUTH_SCHEMES: ReadonlySet<unknown> = new Set(["bearer", "publishable", "none"]);
 
+/**
+ * The statuses a keyed report is sent again after. A 500, 502, 503 or 504 says
+ * the server, or something between it and the client, failed this time. A 501
+ * (a method the server does not implement), a 505 or a 511 say the same thing
+ * every time, and a second attempt only repeats the first.
+ */
+const REPORT_RETRY_STATUSES = [500, 502, 503, 504] as const;
+
+/** The header the report's key travels in. The body has no member for it. */
+const IDEMPOTENCY_KEY_HEADER = "Idempotency-Key";
+
+/** The report as the body carries it: the key travels in a header, never here. */
+function reportBody(input: ReportUsageInput): Omit<ReportUsageInput, "transactionId"> {
+  const { transactionId: _key, ...body } = input;
+  return body;
+}
+
+/** What the API accepts as a `transactionId`: 1 to 128 characters of `[A-Za-z0-9._:-]`. */
+const TRANSACTION_ID_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/;
+
+/**
+ * Refuses a key the API would refuse, before the request leaves. A malformed
+ * string is the same `InvalidTransactionIdError` the API answers with (422), so
+ * a handler written for the API's answer also catches this one, and it names the
+ * same location. An empty string is refused too: the API reads an empty header
+ * as no key at all, which would leave a caller who meant to send one believing
+ * it is protected. A value that is not a string is a programming error, a
+ * `TypeError`.
+ */
+function assertTransactionId(key: unknown): void {
+  if (key === undefined) return;
+  if (typeof key !== "string") {
+    throw new TypeError(
+      `Kaiten reportUsage: transactionId must be a string (received ${typeof key}).`,
+    );
+  }
+  if (TRANSACTION_ID_PATTERN.test(key)) return;
+  const message =
+    "transactionId must be 1 to 128 characters of letters, digits, '.', '_', ':' and '-'";
+  throw new InvalidTransactionIdError(
+    {
+      title: "Invalid transactionId",
+      status: 422,
+      detail: `${message}. It was refused before the request was sent.`,
+      code: INVALID_TRANSACTION_ID_CODE,
+      errors: [{ location: IDEMPOTENCY_KEY_LOCATION, message, value: key }],
+    },
+    key,
+  );
+}
+
+/** Types the two refusals of a key; every other failure is returned as it came. */
+function typedReportError(error: unknown, transactionId: string | undefined): unknown {
+  if (!(error instanceof KaitenError)) return error;
+  const apiError = error.raw ?? { title: error.message, status: error.status, code: error.code };
+  if (error.status === 409 && error.code === TRANSACTION_ID_REUSED_CODE) {
+    return new TransactionIdReusedError(apiError, transactionId);
+  }
+  if (error.status === 422 && error.code === INVALID_TRANSACTION_ID_CODE) {
+    return new InvalidTransactionIdError(apiError, transactionId);
+  }
+  return error;
+}
+
+/** Adds what the report's response headers said, when they said anything. */
+function withReportHeaders(usage: ReportUsageResult, headers?: Headers): ReportUsageResult {
+  const replayed = headers?.get("Idempotent-Replayed")?.toLowerCase() === "true";
+  const metadataDropped = headers?.get("Kaiten-Metadata-Dropped") || undefined;
+  if (!replayed && !metadataDropped) return usage;
+  return {
+    ...usage,
+    ...(replayed ? { idempotentReplayed: true as const } : {}),
+    ...(metadataDropped ? { metadataDropped } : {}),
+  };
+}
+
 export class KaitenClient implements KaitenClientLike {
   private readonly transport: KaitenTransport;
   private readonly onDegraded: KaitenClientConfig["onDegraded"];
+  // Set once this client has read a key echoed back by its server: a response
+  // to a keyed report whose `transactionId` is a string. Only a server that
+  // honours the header does that, and until one has, a keyed report is not known
+  // to be applied once, so it is not retried. It stays set for the life of the
+  // client, and is the client's, not the process's.
+  private serverEchoesKeys = false;
+  // A publishable key reads the public catalogue and nothing else.
+  private readonly publishable: boolean;
 
   public readonly components: KaitenComponentsModule;
   public readonly customers: KaitenCustomersModule;
@@ -343,8 +442,8 @@ export class KaitenClient implements KaitenClientLike {
   public readonly flags: KaitenFlagsModule;
 
   constructor(config: KaitenClientConfig) {
-    // No default scheme: publishable keys are not served yet, and a default that
-    // sends a header no endpoint reads would fail every call without a word.
+    // No default scheme: a publishable key reads the public catalogue only, and a
+    // default that sent the wrong credential would fail every call without a word.
     if (!AUTH_SCHEMES.has(config.authScheme)) {
       throw new TypeError(
         'Kaiten authScheme is required: "bearer", "publishable" or "none". ' +
@@ -353,9 +452,10 @@ export class KaitenClient implements KaitenClientLike {
     }
     this.transport = new KaitenTransport(config);
     this.onDegraded = config.onDegraded;
+    this.publishable = config.authScheme === "publishable";
 
     this.components = {
-      getCatalog: () => this.getCatalog(),
+      getCatalog: (options) => this.getCatalog(options),
       getSnapshot: (customerId, instanceId) => this.getLicensingSnapshot(customerId, instanceId),
     };
 
@@ -699,12 +799,21 @@ export class KaitenClient implements KaitenClientLike {
   // dropped. The rollout `percentage` isn't available from evaluation alone (it
   // lives on the flag definition), so it is left null — FlagsSummary renders the
   // rollout badge only when it's a number.
-  private async resolveSnapshotFlags(targetingKey: string): Promise<ResolvedFeatureFlag[]> {
+  private async resolveSnapshotFlags(
+    targetingKey: string,
+    instanceSlug?: string,
+  ): Promise<ResolvedFeatureFlag[]> {
     // A targeting key is required or OFREP returns PROVIDER_FATAL ("missing
     // targeting key") for any flag whose rules reference the subject — so scope
     // the evaluation to this customer. Rules that don't match fall back to the
     // flag's default variant.
-    const { flags } = await this.evaluateFlags({ targetingKey });
+    // `kaiten.instanceSlug` is sent when the host named the instance, so that a flag
+    // granted on that instance applies. An instance the SDK picked on its own is
+    // not named: the flags of the customer are all it can claim.
+    const { flags } = await this.evaluateFlags({
+      targetingKey,
+      ...(instanceSlug ? { kaiten: { instanceSlug } } : {}),
+    });
     return flags.filter(isEvaluationSuccess).map((flag) => ({
       key: flag.key,
       enabled: typeof flag.value === "boolean" ? flag.value : flag.reason !== "DISABLED",
@@ -716,9 +825,22 @@ export class KaitenClient implements KaitenClientLike {
     }));
   }
 
-  // Composed client-side from existing licenses endpoints — there is no bespoke
-  // catalog endpoint server-side (Option A, see ARCHITECTURE.md).
-  async getCatalog(): Promise<KaitenCatalog> {
+  // With a publishable key: the public catalogue, `GET /public/catalog`, and
+  // nothing else — no GraphQL and no REST fallback, which a publishable key may
+  // not read. `options` narrow that read (one family, or without the add-ons).
+  // With any other credential: composed from the licenses endpoints, every
+  // licence of the organization (Option A, see ARCHITECTURE.md), and `options`
+  // are not read.
+  async getCatalog(options?: GetCatalogOptions): Promise<KaitenCatalog> {
+    if (this.publishable) {
+      return mapPublicCatalog(
+        await this.transport.callPublic<PublicCatalog>(
+          "/public/catalog",
+          "getCatalog()",
+          catalogQuery(options),
+        ),
+      );
+    }
     const { plans } = await this.buildCatalog();
     return {
       plans: normalizePlansResponse(plans),
@@ -735,7 +857,7 @@ export class KaitenClient implements KaitenClientLike {
   // against an older API without the schema — also when the customer is absent,
   // so the not-found error keeps its canonical REST shape.
   async getLicensingSnapshot(customerId: string, instanceId?: string): Promise<LicensingSnapshot> {
-    const flagsPromise = this.resolveSnapshotFlags(customerId).catch(
+    const flagsPromise = this.resolveSnapshotFlags(customerId, instanceId).catch(
       (): ResolvedFeatureFlag[] => [],
     );
 
@@ -1067,24 +1189,63 @@ export class KaitenClient implements KaitenClientLike {
     );
   }
 
-  reportUsage(
+  async reportUsage(
     instanceSlug: string,
     entitlementSlug: string,
     input: ReportUsageInput,
-  ): Promise<EntitlementUsage> {
-    return this.transport.run(
+  ): Promise<ReportUsageResult> {
+    const { transactionId } = input;
+    // Refused here, before any request: a key the API cannot accept is a bug in
+    // the caller, and it is the same error the API would answer with.
+    assertTransactionId(transactionId);
+
+    try {
+      return await this.sendUsageReport(instanceSlug, entitlementSlug, input);
+    } catch (error) {
+      throw typedReportError(error, transactionId);
+    }
+  }
+
+  private async sendUsageReport(
+    instanceSlug: string,
+    entitlementSlug: string,
+    input: ReportUsageInput,
+  ): Promise<ReportUsageResult> {
+    const { transactionId } = input;
+    let headers: Headers | undefined;
+    const usage: ReportUsageResult = await this.transport.run(
       (client) =>
         reportEntitlementUsageMetric({
           client,
           path: { instanceSlug, entitlementSlug },
-          body: input,
+          body: reportBody(input),
+          // The key is sent whenever the caller gave one, and only then: this
+          // client never makes one up, so an unkeyed report carries no header.
+          ...(transactionId === undefined
+            ? {}
+            : { headers: { [IDEMPOTENCY_KEY_HEADER]: transactionId } }),
         }),
       `reportUsage(${instanceSlug}, ${entitlementSlug})`,
-      // Never replayed. The endpoint carries no idempotency key, so a retry
-      // after a timeout that the server had already committed would count the
-      // same consumption twice — and this counter is the billing base.
-      { idempotent: false },
+      {
+        // Replayed only when the server is known to apply a key once. Without
+        // a key, a retry after a timeout the server had already committed would
+        // count the same consumption twice, and this counter is the billing
+        // base. With one, a server that honours it applies the report once and
+        // answers every retry with the original result; but a server that
+        // ignores the header would count the retry, and nothing but an echo of a
+        // key says which kind this one is. So the first keyed report of a client
+        // is sent once, and the retries start after the server has echoed a key.
+        idempotent: transactionId !== undefined && this.serverEchoesKeys,
+        retryStatuses: REPORT_RETRY_STATUSES,
+        onResponse: (response) => {
+          headers = response.headers;
+        },
+      },
     );
+    if (transactionId !== undefined && typeof usage.transactionId === "string") {
+      this.serverEchoesKeys = true;
+    }
+    return withReportHeaders(usage, headers);
   }
 
   getEntitlementGroupUsage(

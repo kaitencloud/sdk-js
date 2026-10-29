@@ -90,18 +90,64 @@ vp check
 vp run -r test
 ```
 
-`examples/node` is tested against the builds of `@kaitencloud/client` and
-`@kaitencloud/server`. `pnpm run ready` runs the whole sequence, build first, with
-the contract and release checks; its GraphQL drift check needs a checkout of kaiten
-next to this repository, or a schema file named by `KAITEN_GRAPHQL_SCHEMA`.
+`packages/react` is tested against the build of `@kaitencloud/client`,
+`packages/react-ui` against the build of `@kaitencloud/react`, and `examples/node`
+against the builds of `@kaitencloud/client` and `@kaitencloud/server`. react-ui's
+`test` also runs its Storybook stories in Chromium, which Playwright installs with
+`vp run test:browsers:install` in `packages/react-ui`. `pnpm run ready` runs the
+whole sequence, build first, with the contract and release checks; its GraphQL drift
+check needs a checkout of kaiten next to this repository, or a schema file named by
+`KAITEN_GRAPHQL_SCHEMA`.
+
+The components have a Storybook playground: `vp run @kaitencloud/react-ui#storybook`.
 
 ## What CI runs
 
 - **lint**: the license headers, formatting, lint and types (`vp check`), version
-  invariants, and the GraphQL operations against the schema snapshot.
-- **build**: every package, the license and notice files and the manifest of each
-  tarball, and the client's bundle-size budget.
-- **test**: the tests of every package and of the Node example.
+  invariants, token contrast, and the GraphQL operations against the schema snapshot.
+- **build**: every package and example, the license and notice files and the
+  manifest of each tarball, publint and attw on the React tarballs, the bundle-size
+  budgets, and that no browser bundle carries a token, the name of a secret variable
+  or code of `@kaitencloud/server`.
+- **test**: the tests of every package and of the Node example, the React coverage
+  ratchets, Storybook, visual regression and layout invariants, in the Playwright
+  container, those of the conformance example (which skip the live suite and rehearse
+  its code), and those of the repository's own scripts (`vp test run scripts`).
+- **storefront-e2e**: the storefront example (`examples/storefront`) in Chromium: its pricing
+  table, its checkout and its customer portal, against a stand-in for Kaiten that runs in the
+  same process, so it needs no stack and no secret. A card saved on a provider's page, a declined
+  card and a 3-D Secure challenge are played by the stand-in; the example's `live` project
+  runs the paths that need no card against a Kaiten of your own, and is not run in CI. Not
+  required to merge. [`examples/storefront`](examples/storefront) says what it proves.
+- **react-18-compat**: the React packages' unit tests against React 18, their peer
+  floor.
+- **compat-1.0**: code written against `@kaitencloud/client` 1.0.0 compiles against
+  the tarball npm serves for 1.0.0 and against the one this tree would publish, and
+  every name 1.0.0 exports, from the client and from `@kaitencloud/server`, is still
+  exported, a value still a value, except the client's `MeterType`, removed on
+  purpose in 1.1.0 (`REMOVED_SINCE_1_0`). Not required to merge, because it reads
+  the npm registry.
+- **release-dependencies**: the shape of what a release would publish, with npm's own
+  dry run, and that React and React UI compile against their minimum client/React
+  dependencies, including React's internal entries and transitive client floor.
+  After the build, PR CI applies Changesets' versioning to an isolated copy and checks
+  its manifests and tarballs. A version PR with consumed changesets keeps its versions.
+  Published floors are checked against npm; a missing floor can use only its exact
+  public same-release tarball. A missing changeset, incompatible import or registry
+  failure fails CI. The Release workflow repeats the floor check as a blocking gate.
+- **Conformance** (its own workflow, `conformance.yml`, run by hand or on a pull
+  request): a customer's whole journey through a running Kaiten with the two packages
+  alone, each answer held to the API contract. It reads the stack it runs against from the
+  repository's secrets and skips without them. [`examples/conformance`](examples/conformance)
+  says what it needs.
+
+Four of these are scripts you can run yourself, after `vp run -r build`:
+`pnpm run check:no-secrets`, `pnpm run check:compat-1.0`,
+`pnpm run check:release-dependencies` and `pnpm run test:scripts`.
+
+Visual baselines are Linux screenshots. When a change moves pixels on purpose,
+regenerate them with the **Update visual baselines** workflow rather than locally:
+`vp run baselines:update` dispatches it on your pushed branch.
 
 ## License headers
 
@@ -137,7 +183,9 @@ commands above for the OpenAPI contract, and with `vp run sync-graphql-schema`, 
 Both contracts are required: a drift check that cannot read one fails. Locally, the
 OpenAPI check fetches the published contract from npm, with no token, and the
 GraphQL check reads a checkout of kaiten next to this repository, or the schema file
-`KAITEN_GRAPHQL_SCHEMA` names.
+`KAITEN_GRAPHQL_SCHEMA` names. To sync from an OpenAPI contract you already hold, set
+`KAITEN_OPENAPI` to its path and run `pnpm run sync-openapi`: `vp run` hides the
+variable from the script and would fetch the published contract in its place.
 
 ## Upgrading Vite+
 
@@ -177,6 +225,97 @@ to date: it bumps versions and writes the changelogs. Merging it publishes the
 bumped packages to npm, tags them and creates the GitHub releases. The publish uses
 npm trusted publishing, so no npm token is stored anywhere.
 
+### The Kaiten version the READMEs name
+
+The billing features need a Kaiten release that serves billing's routes. The root README and
+those of the four packages each say which, in a "Kaiten version" section whose first sentence
+is the same everywhere, and `vp test run scripts` fails when they differ. While no Kaiten
+release carries billing, the sentence says so. The pull request of the first release that
+needs a Kaiten with billing replaces "the first Kaiten release with billing" by that Kaiten's
+version, in all five.
+
+### The React packages are private until their first version
+
+`@kaitencloud/react` and `@kaitencloud/react-ui` are `"private": true` in their
+`package.json` until their first version, 1.0.0, is published by hand as described
+below, and nothing publishes them before that. Neither name exists on npm yet.
+Changesets neither versions nor publishes a private package: a change to them needs
+no changeset, and a changeset that names them bumps nothing. Their changelogs are
+written by hand until their first release. CI still builds them, tests them, checks
+their bundle size and the shape of the tarball they will ship, so making them public
+is a change of two lines.
+
+Make them public together. `node scripts/check-version-invariants.mjs` fails when a
+public package depends on a private one, and Changesets itself refuses a tree where
+`react-ui` would be released without `react`.
+
+npm accepts a trusted publisher only on a package that already exists, so their
+first version is published by hand, once, by a maintainer of the `@kaitencloud`
+npm scope:
+
+1. On a branch from `main`, delete `"private": true` from both `package.json`
+   files, check that each `CHANGELOG.md` describes the version in its
+   `package.json` (1.0.0 today), and add an empty changeset
+   (`pnpm changeset --empty`).
+   The READMEs of the packages already on npm say nothing about these two until they
+   exist there: add the sentence to `packages/client/README.md` that names
+   `@kaitencloud/react` and `@kaitencloud/react-ui` as built on the client, and name
+   both in the Node 22.12+ note of `packages/server/README.md`.
+   Say in the same change that the React packages are on npm. The "Not on npm yet" note
+   in the Installation section of `packages/react/README.md` and
+   `packages/react-ui/README.md` goes first: a tarball carries its README to
+   npmjs.com, and the release-dependencies check below fails while one of them says
+   so. The status line of `packages/react/STABILITY.md`, the paragraph and the install
+   block of the root `README.md` that call the React packages unpublished, the opening
+   of `ARCHITECTURE.md`, the comments of `release.yml` and `check-published-shape.mjs`
+   that call them private, and this section, which becomes a note on first versions,
+   change with them.
+2. Build, check and pack both packages on that branch, as the Release workflow
+   does, so the tarballs carry the catalog's real ranges. The release-dependencies
+   check blocks here: it compiles what `@kaitencloud/react` imports from the client
+   against the lowest client its range allows, fetched from npm, so the client that
+   carries those exports has to be published first and be the one this branch
+   builds with:
+
+   ```bash
+   vp run -r build
+   node scripts/check-published-shape.mjs
+   node scripts/check-release-dependencies.mjs
+   mkdir -p /tmp/kaiten-react-release
+   (cd packages/react && pnpm pack --pack-destination /tmp/kaiten-react-release)
+   (cd packages/react-ui && pnpm pack --pack-destination /tmp/kaiten-react-release)
+   ```
+
+3. Read the file list of each tarball (`tar -tzf`). Then, logged in to npmjs.com,
+   publish `@kaitencloud/react` first, then `@kaitencloud/react-ui`, from those
+   tarballs: `npm publish /tmp/kaiten-react-release/kaitencloud-react-1.0.0.tgz`, then
+   the same for `kaitencloud-react-ui-1.0.0.tgz`. If your `.npmrc` maps `@kaitencloud` to
+   another registry, add `--@kaitencloud:registry=https://registry.npmjs.org/`. Run each
+   with `--dry-run` first and read the line it prints, "Publishing to ...": it has to name
+   `https://registry.npmjs.org/`.
+4. On npmjs.com, add this repository's `release.yml` as the trusted publisher of
+   each package.
+5. Merge the branch, and not before step 3: the Release workflow publishes every
+   package whose current version npm lacks, so a merge that came first would have it
+   try to publish these two, with no trusted publisher yet. Once npm has 1.0.0, the
+   workflow has nothing to publish for them, and publishes their later versions itself.
+
+The release builds and checks all four packages before packing. Its blocking
+dependency-floor check uses npm's minimum client and React, or, with
+`--allow-unpublished-workspace`, the public packed dependency at that exact version in
+this release if npm does not have it yet. Changesets v3 preserves the dependency
+order in the packed plan and stops on failure: client/server, then React, then
+react-ui. React therefore cannot be published before the client carrying its
+imports. A registry error is not treated as an unpublished version.
+
+`pnpm run check:release-dependencies` runs the same `--project` check as PR CI, after
+`vp run -r build`. Projection copies the built artifacts and sources, then runs the
+installed Changesets CLI with changelog generation, formatting and commits disabled
+in the copy only. pnpm's workspace links point at that copy's versioned manifests.
+No install or publish runs in the copy, and the working tree's versions and changesets
+are untouched. An empty changeset cannot substitute for a required package bump:
+if the dependency version stays published, its older npm tarball remains the probe.
+
 ## Pull requests
 
 For substantial features, architectural changes, or changes to public APIs,
@@ -211,7 +350,8 @@ compatible with the way Kaiten is distributed.
 Preserve all required copyright, license, attribution, and NOTICE information.
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) says when an entry belongs
 there. Each published package ships a copy of it, and the build fails when a copy
-differs from the root file.
+differs from the root file. A test (`vp test run scripts`) also holds it against the icons
+and the primitives `@kaitencloud/react-ui` copies, so that a new one is a reason to read it.
 
 Do not assume that material found publicly online is available for inclusion in
 an Apache-2.0 project.

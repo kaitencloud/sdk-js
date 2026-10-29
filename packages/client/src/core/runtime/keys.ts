@@ -4,6 +4,14 @@
 const PUBLISHABLE_KEY_PREFIX = "pk_";
 
 /**
+ * The prefix of a checkout session token, the credential of one anonymous
+ * checkout. A third class beside the publishable key (`pk_`) and the customer
+ * session (`kst_`): the three are disjoint, and the API refuses one presented on
+ * the routes of another.
+ */
+export const CHECKOUT_SESSION_TOKEN_PREFIX = "ksc_";
+
+/**
  * Credential prefixes that must never reach a browser.
  *
  * - `ksh_` — an organization-scoped access token. It was missing once,
@@ -27,8 +35,36 @@ const PUBLISHABLE_KEY_PREFIX = "pk_";
  */
 const SECRET_KEY_PREFIXES = ["sk_", "ksh_", "ksm_"] as const;
 
+/**
+ * True for a checkout session token (`ksc_…`), the credential `startCheckout`
+ * obtains for one anonymous checkout: a bearer credential for one session, which
+ * reads and confirms that session and nothing else. Do not log or share it. It is
+ * not a publishable key or a customer session either, and none of the three is
+ * accepted where another is expected.
+ */
+export function isCheckoutSessionToken(token: unknown): token is string {
+  return (
+    typeof token === "string" &&
+    token.startsWith(CHECKOUT_SESSION_TOKEN_PREFIX) &&
+    token.length > CHECKOUT_SESSION_TOKEN_PREFIX.length
+  );
+}
+
 export function isPublishableKey(key: string = ""): boolean {
   return key.startsWith(PUBLISHABLE_KEY_PREFIX);
+}
+
+/**
+ * A publishable key as Kaiten issues it: `pk_` and 43 random base64url
+ * characters. `isPublishableKey` only reads the prefix and stays lenient, because
+ * it has long accepted any `pk_` string and a test key such as `pk_live_abc` is
+ * how many hosts have written theirs.
+ */
+const PUBLISHABLE_KEY_SHAPE = /^pk_[A-Za-z0-9_-]{43}$/;
+
+/** True for a string of the shape Kaiten issues publishable keys in. */
+export function isPublishableKeyShape(key: unknown): boolean {
+  return typeof key === "string" && PUBLISHABLE_KEY_SHAPE.test(key);
 }
 
 /** The secret prefix a credential starts with, if any. */
@@ -55,5 +91,23 @@ export function assertPublishableKey(key: string): void {
 
   if (!isPublishableKey(key)) {
     throw new Error("Kaiten: Invalid publishable key format. Keys should start with 'pk_'.");
+  }
+}
+
+/**
+ * Like `assertPublishableKey`, and stricter: a key that has the right prefix but
+ * not the shape of a key Kaiten issued (cut short by a paste, quoted, padded
+ * with a space) is refused too. Use it where a mistyped key should fail at once,
+ * with a message that says so, instead of as a 401 from the API; the client's
+ * own requests keep the lenient check.
+ */
+export function assertPublishableKeyShape(key: string): void {
+  assertPublishableKey(key);
+
+  if (!isPublishableKeyShape(key)) {
+    throw new Error(
+      "Kaiten: Malformed publishable key. A key is 'pk_' followed by 43 letters, digits, '-' or '_'. " +
+        "Check that it was copied whole.",
+    );
   }
 }

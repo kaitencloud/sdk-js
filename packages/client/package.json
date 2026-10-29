@@ -47,7 +47,8 @@
     "@types/node": "catalog:",
     "graphql": "catalog:",
     "typescript": "catalog:codegen",
-    "vite-plus": "catalog:"
+    "vite-plus": "catalog:",
+    "yaml": "catalog:"
   },
   "engines": {
     "node": ">=22.12.0"

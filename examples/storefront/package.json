@@ -1,0 +1,35 @@
+{
+  "name": "@kaitencloud/example-storefront",
+  "version": "0.0.0",
+  "private": true,
+  "description": "A storefront on Kaiten billing: a pricing table, a checkout and a customer portal in a Vite app, with a route that mints the customer's session on the server. Runs against a stand-in for Kaiten by default.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vp dev",
+    "build": "vp build",
+    "preview": "vp preview",
+    "test": "vp test",
+    "test:e2e": "env -u PLAYWRIGHT_BROWSERS_PATH playwright test",
+    "check": "vp check"
+  },
+  "dependencies": {
+    "@kaitencloud/client": "workspace:*",
+    "@kaitencloud/react": "workspace:*",
+    "@kaitencloud/react-ui": "workspace:*",
+    "@kaitencloud/server": "workspace:*",
+    "react": "catalog:",
+    "react-dom": "catalog:"
+  },
+  "devDependencies": {
+    "@playwright/test": "catalog:",
+    "@types/node": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "typescript": "catalog:",
+    "vite-plus": "catalog:"
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  }
+}

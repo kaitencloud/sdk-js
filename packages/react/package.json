@@ -1,0 +1,72 @@
+{
+  "name": "@kaitencloud/react",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Kaiten React SDK — headless core: provider, hooks and control primitives for licensing & monetization",
+  "homepage": "https://github.com/kaitencloud/sdk-js/tree/main/packages/react#readme",
+  "bugs": {
+    "url": "https://github.com/kaitencloud/sdk-js/issues"
+  },
+  "license": "Apache-2.0",
+  "author": "Kaiten",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kaitencloud/sdk-js.git",
+    "directory": "packages/react"
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "NOTICE",
+    "THIRD_PARTY_NOTICES.md"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "types": "./dist/index.d.mts",
+  "exports": {
+    ".": "./dist/index.mjs",
+    "./billing": "./dist/billing.mjs",
+    "./internal": "./dist/internal.mjs",
+    "./locales": "./dist/locales.mjs",
+    "./types": "./dist/types.mjs",
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "scripts": {
+    "build": "vp pack",
+    "dev": "vp pack --watch",
+    "test": "vp test",
+    "test:coverage": "vp test --coverage",
+    "test:unit": "vp test --project unit",
+    "test:unit:coverage": "vp test --project unit --coverage --coverage.thresholds.lines=93 --coverage.thresholds.statements=91 --coverage.thresholds.functions=82 --coverage.thresholds.branches=89",
+    "check": "vp check"
+  },
+  "dependencies": {
+    "@kaitencloud/client": "workspace:^",
+    "swr": "^2.5.1"
+  },
+  "devDependencies": {
+    "@testing-library/react": "^16.3.2",
+    "@types/node": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "@vitest/coverage-v8": "catalog:",
+    "jsdom": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "typescript": "catalog:",
+    "vite-plus": "catalog:",
+    "vitest": "catalog:"
+  },
+  "peerDependencies": {
+    "react": ">=18",
+    "react-dom": ">=18"
+  },
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "packageManager": "pnpm@12.4.1"
+}

@@ -1,0 +1,2330 @@
+{
+  "addon": {
+    "addonSlug": "extra-seats-v1",
+    "familySlug": "extra-seats",
+    "name": "Extra seats",
+    "quantity": 4,
+    "maxQuantity": 50,
+    "prices": [
+      {
+        "id": "00000000-0000-4000-8000-00000000a101",
+        "billingModel": "FLAT_FEE",
+        "billingTiming": "ADVANCE",
+        "billingPeriod": "MONTHLY",
+        "currency": "EUR",
+        "unitAmount": 1000,
+        "unitAmountDecimal": "1000",
+        "displayLabel": "Monthly",
+        "displayOrder": 0,
+        "isDefault": true,
+        "metered": null
+      },
+      {
+        "id": "00000000-0000-4000-8000-00000000a102",
+        "billingModel": "USAGE_BASED",
+        "billingTiming": "ARREARS",
+        "currency": "EUR",
+        "unitAmountDecimal": "0.5",
+        "metered": {
+          "entitlementSlug": "api-calls",
+          "saleUnitFactor": "1000",
+          "saleUnitSingular": "1k calls",
+          "saleUnitPlural": "1k calls"
+        },
+        "displayOrder": 1,
+        "isDefault": false,
+        "billingPeriod": null,
+        "unitAmount": null,
+        "displayLabel": null
+      }
+    ],
+    "pendingQuantity": null
+  },
+  "addonDetached": {
+    "addonSlug": "gpu-pack-v1",
+    "familySlug": "gpu-pack",
+    "name": "GPU pack",
+    "quantity": 0,
+    "maxQuantity": null,
+    "prices": [],
+    "pendingQuantity": null
+  },
+  "cancel": {
+    "status": "ACTIVE",
+    "providerKind": "STRIPE",
+    "collectionMethod": "CHARGE_AUTOMATICALLY",
+    "currency": "EUR",
+    "billingPeriod": "MONTHLY",
+    "basePrice": {
+      "id": "00000000-0000-4000-8000-000000000201",
+      "billingModel": "FLAT_FEE",
+      "billingTiming": "ADVANCE",
+      "billingPeriod": "MONTHLY",
+      "currency": "EUR",
+      "unitAmount": 4900,
+      "unitAmountDecimal": "4900",
+      "displayLabel": "Monthly",
+      "displayOrder": 0,
+      "isDefault": true,
+      "metered": null
+    },
+    "currentPeriodStart": "2026-10-01T00:00:00Z",
+    "currentPeriodEnd": "2026-11-01T00:00:00Z",
+    "trialEndsAt": null,
+    "cancelAtPeriodEnd": true,
+    "scheduledChange": null,
+    "incompleteExpiresAt": null,
+    "canceledAt": null,
+    "cancellationReason": null
+  },
+  "checkoutPreview": {
+    "status": "preview",
+    "dueToday": {
+      "currency": "EUR",
+      "subtotal": 6900,
+      "discountTotal": 1380,
+      "total": 5520,
+      "lines": [
+        {
+          "seq": 1,
+          "type": "BASE",
+          "label": "Pro",
+          "description": "1 × 49.00 EUR",
+          "quantity": "1",
+          "unitAmountDecimal": "4900",
+          "amount": 4900,
+          "serviceFrom": "2026-10-01T00:00:00Z",
+          "serviceTo": "2026-11-01T00:00:00Z"
+        },
+        {
+          "seq": 2,
+          "type": "ADDON",
+          "label": "Extra seats",
+          "description": "2 × 10.00 EUR",
+          "quantity": "2",
+          "unitAmountDecimal": "1000",
+          "amount": 2000,
+          "serviceFrom": "2026-10-01T00:00:00Z",
+          "serviceTo": "2026-11-01T00:00:00Z"
+        },
+        {
+          "seq": 3,
+          "type": "DISCOUNT",
+          "label": "Welcome 20%",
+          "description": "20% off the base fee",
+          "quantity": "1",
+          "unitAmountDecimal": null,
+          "amount": -1380,
+          "serviceFrom": "2026-10-01T00:00:00Z",
+          "serviceTo": "2026-11-01T00:00:00Z"
+        }
+      ]
+    }
+  },
+  "checkoutPreviewTrial": {
+    "status": "preview",
+    "dueToday": {
+      "currency": "EUR",
+      "subtotal": 0,
+      "discountTotal": 0,
+      "total": 0,
+      "lines": []
+    },
+    "trialEndsAt": "2026-11-01T00:00:00Z"
+  },
+  "checkoutRequiresMethod": {
+    "status": "requires_payment_method",
+    "setupUrl": "https://checkout.stripe.test/c/setup_1",
+    "setupSessionId": "cs_setup_1",
+    "expiresAt": "2026-10-11T12:00:00Z"
+  },
+  "checkoutSubscribed": {
+    "status": "subscribed",
+    "subscription": {
+      "status": "ACTIVE",
+      "providerKind": "STRIPE",
+      "collectionMethod": "CHARGE_AUTOMATICALLY",
+      "currency": "EUR",
+      "billingPeriod": "MONTHLY",
+      "basePrice": {
+        "id": "00000000-0000-4000-8000-000000000201",
+        "billingModel": "FLAT_FEE",
+        "billingTiming": "ADVANCE",
+        "billingPeriod": "MONTHLY",
+        "currency": "EUR",
+        "unitAmount": 4900,
+        "unitAmountDecimal": "4900",
+        "displayLabel": "Monthly",
+        "displayOrder": 0,
+        "isDefault": true,
+        "metered": null
+      },
+      "currentPeriodStart": "2026-10-01T00:00:00Z",
+      "currentPeriodEnd": "2026-11-01T00:00:00Z",
+      "trialEndsAt": null,
+      "cancelAtPeriodEnd": false,
+      "scheduledChange": null,
+      "incompleteExpiresAt": null,
+      "canceledAt": null,
+      "cancellationReason": null
+    },
+    "activationInvoice": {
+      "id": "00000000-0000-4000-8000-000000000401",
+      "kind": "ACTIVATION",
+      "status": "PAID",
+      "currency": "EUR",
+      "subtotal": 4900,
+      "discountTotal": 0,
+      "total": 4900,
+      "issuedAt": "2026-10-10T10:00:00Z",
+      "dueAt": "2026-10-10T10:00:00Z",
+      "paidAt": "2026-10-10T10:00:00Z",
+      "serviceFrom": "2026-10-01T00:00:00Z",
+      "serviceTo": "2026-11-01T00:00:00Z",
+      "providerInvoiceNumber": "INV-0100",
+      "externalReference": null,
+      "hostedInvoiceUrl": "https://pay.initech.test/i/100",
+      "invoicePdfUrl": "https://pay.initech.test/i/100.pdf",
+      "lines": [
+        {
+          "seq": 1,
+          "type": "BASE",
+          "label": "Pro",
+          "description": "1 × 49.00 EUR",
+          "quantity": "1",
+          "unitAmountDecimal": "4900",
+          "amount": 4900,
+          "serviceFrom": "2026-10-01T00:00:00Z",
+          "serviceTo": "2026-11-01T00:00:00Z"
+        }
+      ]
+    },
+    "payment": {
+      "status": "paid",
+      "hostedInvoiceUrl": "https://pay.initech.test/i/100"
+    }
+  },
+  "checkoutSubscribedAction": {
+    "status": "subscribed",
+    "subscription": {
+      "status": "ACTIVE",
+      "providerKind": "STRIPE",
+      "collectionMethod": "CHARGE_AUTOMATICALLY",
+      "currency": "EUR",
+      "billingPeriod": "MONTHLY",
+      "basePrice": {
+        "id": "00000000-0000-4000-8000-000000000201",
+        "billingModel": "FLAT_FEE",
+        "billingTiming": "ADVANCE",
+        "billingPeriod": "MONTHLY",
+        "currency": "EUR",
+        "unitAmount": 4900,
+        "unitAmountDecimal": "4900",
+        "displayLabel": "Monthly",
+        "displayOrder": 0,
+        "isDefault": true,
+        "metered": null
+      },
+      "currentPeriodStart": "2026-10-01T00:00:00Z",
+      "currentPeriodEnd": "2026-11-01T00:00:00Z",
+      "trialEndsAt": null,
+      "cancelAtPeriodEnd": false,
+      "scheduledChange": null,
+      "incompleteExpiresAt": null,
+      "canceledAt": null,
+      "cancellationReason": null
+    },
+    "activationInvoice": {
+      "id": "00000000-0000-4000-8000-000000000301",
+      "kind": "ACTIVATION",
+      "status": "PAYMENT_FAILED",
+      "currency": "EUR",
+      "subtotal": 4900,
+      "discountTotal": 0,
+      "total": 4900,
+      "issuedAt": "2026-10-01T00:00:00Z",
+      "dueAt": "2026-10-15T00:00:00Z",
+      "paidAt": null,
+      "serviceFrom": "2026-10-01T00:00:00Z",
+      "serviceTo": "2026-11-01T00:00:00Z",
+      "providerInvoiceNumber": "INV-0001",
+      "externalReference": null,
+      "hostedInvoiceUrl": "https://pay.initech.test/i/1",
+      "invoicePdfUrl": null,
+      "lines": [
+        {
+          "seq": 1,
+          "type": "BASE",
+          "label": "Pro",
+          "description": "1 × 49.00 EUR",
+          "quantity": "1",
+          "unitAmountDecimal": "4900",
+          "amount": 4900,
+          "serviceFrom": "2026-10-01T00:00:00Z",
+          "serviceTo": "2026-11-01T00:00:00Z"
+        }
+      ]
+    },
+    "payment": {
+      "status": "requires_action",
+      "hostedInvoiceUrl": "https://pay.initech.test/i/1"
+    }
+  },
+  "checkoutSubscribedTrial": {
+    "status": "subscribed",
+    "subscription": {
+      "status": "TRIAL",
+      "providerKind": "STRIPE",
+      "collectionMethod": "CHARGE_AUTOMATICALLY",
+      "currency": "EUR",
+      "billingPeriod": "MONTHLY",
+      "basePrice": {
+        "id": "00000000-0000-4000-8000-000000000201",
+        "billingModel": "FLAT_FEE",
+        "billingTiming": "ADVANCE",
+        "billingPeriod": "MONTHLY",
+        "currency": "EUR",
+        "unitAmount": 4900,
+        "unitAmountDecimal": "4900",
+        "displayLabel": "Monthly",
+        "displayOrder": 0,
+        "isDefault": true,
+        "metered": null
+      },
+      "currentPeriodStart": "2026-10-01T00:00:00Z",
+      "currentPeriodEnd": "2026-11-01T00:00:00Z",
+      "trialEndsAt": "2026-11-01T00:00:00Z",
+      "cancelAtPeriodEnd": false,
+      "scheduledChange": null,
+      "incompleteExpiresAt": null,
+      "canceledAt": null,
+      "cancellationReason": null
+    },
+    "payment": {
+      "status": "not_required"
+    }
+  },
+  "errors": {
+    "addonIncompatible": {
+      "body": {
+        "type": "https://tools.ietf.org/html/rfc4918#section-11.2",
+        "title": "Unprocessable Entity",
+        "status": 422,
+        "detail": "this add-on does not fit the instance's plan",
+        "instance": "/api/public/session/addons/extra-seats-v1",
+        "code": "SetSessionAddonQuantity.Incompatible"
+      },
+      "status": 422
+    },
+    "cancelBoundaryPending": {
+      "body": {
+        "type": "https://tools.ietf.org/html/rfc7231#section-6.5.8",
+        "title": "Conflict",
+        "status": 409,
+        "detail": "the period that ended is being closed: try again shortly",
+        "instance": "/api/public/session/billing/cancel",
+        "code": "CancelSessionSubscription.BoundaryPending"
+      },
+      "retryAfter": 60,
+      "status": 409
+    },
+    "cancelNotActive": {
+      "body": {
+        "type": "https://tools.ietf.org/html/rfc7231#section-6.5.8",
+        "title": "Conflict",
+        "status": 409,
+        "detail": "this instance has no subscription to cancel",
+        "instance": "/api/public/session/billing/cancel",
+        "code": "CancelSessionSubscription.NotActive"
+      },
+      "status": 409
+    },
+    "checkoutAlreadySubscribed": {
+      "body": {
+        "type": "https://tools.ietf.org/html/rfc7231#section-6.5.8",
+        "title": "Conflict",
+        "status": 409,
+        "detail": "this instance already has a live subscription; a plan change is made by the vendor",
+        "instance": "/api/public/session/checkout",
+        "code": "CreateSessionCheckout.AlreadySubscribed"
+      },
+      "status": 409
+    },
+    "checkoutProviderUnavailable": {
+      "body": {
+        "type": "https://tools.ietf.org/html/rfc7231#section-6.6.4",
+        "title": "Service Unavailable",
+        "status": 503,
+        "detail": "the payment provider could not be reached; retry in a moment",
+        "instance": "/api/public/session/checkout",
+        "code": "CreateSessionCheckout.ProviderUnavailable"
+      },
+      "retryAfter": 30,
+      "status": 503
+    },
+    "paymentMethodUnavailable": {
+      "body": {
+        "type": "https://tools.ietf.org/html/rfc7231#section-6.6.4",
+        "title": "Service Unavailable",
+        "status": 503,
+        "detail": "the payment provider could not be reached; retry in a moment",
+        "instance": "/api/public/session/billing/payment-method-session",
+        "code": "CreateSessionPaymentMethodSession.ProviderUnavailable"
+      },
+      "retryAfter": 30,
+      "status": 503
+    },
+    "voucherRateLimited": {
+      "body": {
+        "type": "https://tools.ietf.org/html/rfc7231#section-6.6.1",
+        "title": "Too Many Requests",
+        "status": 429,
+        "detail": "too many voucher checks: wait before trying again",
+        "instance": "/api/public/session/vouchers/validate",
+        "code": "ValidateSessionVoucher.RateLimited"
+      },
+      "retryAfter": 90,
+      "status": 429
+    },
+    "redeemSubscriptionIncomplete": {
+      "body": {
+        "type": "https://tools.ietf.org/html/rfc7231#section-6.5.8",
+        "title": "Conflict",
+        "status": 409,
+        "detail": "a checkout waits for its payment: its own selection, voucher included, applies once paid",
+        "instance": "/api/public/session/vouchers/redeem",
+        "code": "RedeemSessionVoucher.SubscriptionIncomplete"
+      },
+      "status": 409
+    },
+    "redeemNoLiveSubscription": {
+      "body": {
+        "type": "https://tools.ietf.org/html/rfc7231#section-6.5.8",
+        "title": "Conflict",
+        "status": 409,
+        "detail": "the instance has no live subscription: a checkout starts one",
+        "instance": "/api/public/session/vouchers/redeem",
+        "code": "RedeemSessionVoucher.NoLiveSubscription"
+      },
+      "status": 409
+    },
+    "redeemVoucherInvalid": {
+      "body": {
+        "type": "https://tools.ietf.org/html/rfc4918#section-11.2",
+        "title": "Unprocessable Entity",
+        "status": 422,
+        "detail": "this code cannot be redeemed",
+        "instance": "/api/public/session/vouchers/redeem",
+        "code": "RedeemSessionVoucher.VoucherInvalid"
+      },
+      "status": 422
+    },
+    "redeemInstanceRequired": {
+      "body": {
+        "type": "https://tools.ietf.org/html/rfc4918#section-11.2",
+        "title": "Unprocessable Entity",
+        "status": 422,
+        "detail": "this session is bound to the customer only: a code is redeemed on an instance",
+        "instance": "/api/public/session/vouchers/redeem",
+        "code": "RedeemSessionVoucher.InstanceRequired"
+      },
+      "status": 422
+    },
+    "redeemRateLimited": {
+      "body": {
+        "type": "https://tools.ietf.org/html/rfc7231#section-6.6.1",
+        "title": "Too Many Requests",
+        "status": 429,
+        "detail": "too many voucher codes checked: try again later",
+        "instance": "/api/public/session/vouchers/redeem",
+        "code": "RedeemSessionVoucher.RateLimited"
+      },
+      "status": 429,
+      "retryAfter": 90
+    }
+  },
+  "invoicesEmpty": {
+    "items": [],
+    "hasMore": false
+  },
+  "invoicesFirstPage": {
+    "items": [
+      {
+        "id": "00000000-0000-4000-8000-000000000302",
+        "kind": "RENEWAL",
+        "status": "PAID",
+        "currency": "EUR",
+        "subtotal": 12646,
+        "discountTotal": 2000,
+        "total": 10646,
+        "issuedAt": "2026-10-01T00:00:00Z",
+        "dueAt": "2026-10-01T00:00:00Z",
+        "paidAt": "2026-10-01T01:00:00Z",
+        "serviceFrom": "2026-10-01T00:00:00Z",
+        "serviceTo": "2026-11-01T00:00:00Z",
+        "providerInvoiceNumber": "INV-0002",
+        "externalReference": null,
+        "hostedInvoiceUrl": "https://pay.initech.test/i/2",
+        "invoicePdfUrl": "https://pay.initech.test/i/2.pdf",
+        "lines": [
+          {
+            "seq": 1,
+            "type": "BASE",
+            "label": "Pro",
+            "description": "1 × 49.00 EUR",
+            "quantity": "1",
+            "unitAmountDecimal": "4900",
+            "amount": 4900,
+            "serviceFrom": "2026-10-01T00:00:00Z",
+            "serviceTo": "2026-11-01T00:00:00Z"
+          },
+          {
+            "seq": 2,
+            "type": "ADDON",
+            "label": "Extra seats",
+            "description": "3 × 10.00 EUR",
+            "quantity": "3",
+            "unitAmountDecimal": "1000",
+            "amount": 3000,
+            "serviceFrom": "2026-10-01T00:00:00Z",
+            "serviceTo": "2026-11-01T00:00:00Z"
+          },
+          {
+            "seq": 3,
+            "type": "USAGE",
+            "label": "API calls",
+            "description": "9,692 × 0.50 EUR (per 1k calls)",
+            "quantity": "9.692",
+            "unitAmountDecimal": "0.5",
+            "amount": 4846,
+            "serviceFrom": "2026-10-01T00:00:00Z",
+            "serviceTo": "2026-11-01T00:00:00Z"
+          },
+          {
+            "seq": 4,
+            "type": "DISCOUNT",
+            "label": "Welcome 20%",
+            "description": "20% off the base fee",
+            "quantity": "1",
+            "unitAmountDecimal": null,
+            "amount": -2000,
+            "serviceFrom": "2026-10-01T00:00:00Z",
+            "serviceTo": "2026-11-01T00:00:00Z"
+          }
+        ]
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000301",
+        "kind": "ACTIVATION",
+        "status": "PAYMENT_FAILED",
+        "currency": "EUR",
+        "subtotal": 4900,
+        "discountTotal": 0,
+        "total": 4900,
+        "issuedAt": "2026-10-01T00:00:00Z",
+        "dueAt": "2026-10-15T00:00:00Z",
+        "paidAt": null,
+        "serviceFrom": "2026-10-01T00:00:00Z",
+        "serviceTo": "2026-11-01T00:00:00Z",
+        "providerInvoiceNumber": "INV-0001",
+        "externalReference": null,
+        "hostedInvoiceUrl": "https://pay.initech.test/i/1",
+        "invoicePdfUrl": null,
+        "lines": [
+          {
+            "seq": 1,
+            "type": "BASE",
+            "label": "Pro",
+            "description": "1 × 49.00 EUR",
+            "quantity": "1",
+            "unitAmountDecimal": "4900",
+            "amount": 4900,
+            "serviceFrom": "2026-10-01T00:00:00Z",
+            "serviceTo": "2026-11-01T00:00:00Z"
+          }
+        ]
+      }
+    ],
+    "nextCursor": "eyJzZXEiOjJ9",
+    "hasMore": true
+  },
+  "invoicesLastPage": {
+    "items": [
+      {
+        "id": "00000000-0000-4000-8000-000000000303",
+        "kind": "FINAL",
+        "status": "MANUAL",
+        "currency": "EUR",
+        "subtotal": 1500,
+        "discountTotal": 0,
+        "total": 1500,
+        "issuedAt": "2026-10-09T00:00:00Z",
+        "dueAt": null,
+        "paidAt": null,
+        "serviceFrom": "2026-10-01T00:00:00Z",
+        "serviceTo": "2026-11-01T00:00:00Z",
+        "providerInvoiceNumber": null,
+        "externalReference": "ACME-2026-17",
+        "hostedInvoiceUrl": null,
+        "invoicePdfUrl": null,
+        "lines": [
+          {
+            "seq": 1,
+            "type": "BASE",
+            "label": "Pro (final)",
+            "description": "",
+            "quantity": "0.3",
+            "unitAmountDecimal": "4900",
+            "amount": 1500,
+            "serviceFrom": "2026-10-01T00:00:00Z",
+            "serviceTo": "2026-11-01T00:00:00Z"
+          }
+        ]
+      }
+    ],
+    "hasMore": false
+  },
+  "paymentMethodCompleted": {
+    "paymentMethod": {
+      "status": "ACTIVE",
+      "brand": "visa",
+      "last4": "4242",
+      "expMonth": 12,
+      "expYear": 2030,
+      "attachedAt": "2026-10-10T11:00:00Z"
+    }
+  },
+  "paymentMethodCompletedBare": {
+    "paymentMethod": {
+      "status": "ACTIVE",
+      "brand": null,
+      "last4": null,
+      "expMonth": null,
+      "expYear": null,
+      "attachedAt": null
+    }
+  },
+  "paymentMethodSession": {
+    "expiresAt": "2026-10-11T12:00:00Z",
+    "sessionId": "cs_setup_2",
+    "url": "https://checkout.stripe.test/c/setup_2"
+  },
+  "portal": {
+    "customer": {
+      "slug": "initech",
+      "name": "Initech",
+      "billingEmail": "ap@initech.test"
+    },
+    "instance": {
+      "slug": "initech-prod",
+      "name": "Initech Prod",
+      "licenseSlug": "pro-v2",
+      "licenseName": "Pro"
+    },
+    "instances": [],
+    "subscription": {
+      "status": "ACTIVE",
+      "providerKind": "STRIPE",
+      "collectionMethod": "CHARGE_AUTOMATICALLY",
+      "currency": "EUR",
+      "billingPeriod": "MONTHLY",
+      "basePrice": {
+        "id": "00000000-0000-4000-8000-000000000201",
+        "billingModel": "FLAT_FEE",
+        "billingTiming": "ADVANCE",
+        "billingPeriod": "MONTHLY",
+        "currency": "EUR",
+        "unitAmount": 4900,
+        "unitAmountDecimal": "4900",
+        "displayLabel": "Monthly",
+        "displayOrder": 0,
+        "isDefault": true,
+        "metered": null
+      },
+      "currentPeriodStart": "2026-10-01T00:00:00Z",
+      "currentPeriodEnd": "2026-11-01T00:00:00Z",
+      "trialEndsAt": null,
+      "cancelAtPeriodEnd": false,
+      "scheduledChange": null,
+      "incompleteExpiresAt": null,
+      "canceledAt": null,
+      "cancellationReason": null
+    },
+    "entitlements": [
+      {
+        "slug": "ai-credits",
+        "name": "AI credits",
+        "type": "NUMBER_AI_CREDIT",
+        "limitValue": {
+          "type": "number",
+          "value": 100
+        },
+        "currentValue": 0,
+        "unlimited": false,
+        "limitCapExceededOveragePercent": 0,
+        "maximumAllowedUsage": 100,
+        "percentageUsed": 0,
+        "currentPeriodStart": "2026-10-01T00:00:00Z",
+        "currentPeriodEnd": "2026-11-01T00:00:00Z",
+        "source": "license",
+        "provenance": null
+      },
+      {
+        "slug": "api-calls",
+        "name": "API calls",
+        "type": "NUMBER",
+        "limitValue": {
+          "type": "number",
+          "value": 200000
+        },
+        "currentValue": 30000,
+        "unlimited": false,
+        "limitCapExceededOveragePercent": 20,
+        "maximumAllowedUsage": 240000,
+        "percentageUsed": 15,
+        "currentPeriodStart": "2026-10-01T00:00:00Z",
+        "currentPeriodEnd": "2026-11-01T00:00:00Z",
+        "source": "license",
+        "provenance": {
+          "exception": null,
+          "license": {
+            "licenseEntitlementId": "00000000-0000-4000-8000-000000000e01",
+            "value": {
+              "type": "number",
+              "value": 100000
+            },
+            "limitCapExceededOveragePercent": 20
+          },
+          "addons": [],
+          "boosts": [
+            {
+              "instanceVoucherId": "00000000-0000-4000-8000-000000000b01",
+              "voucherId": "00000000-0000-4000-8000-000000000b02",
+              "voucherEntitlementGrantId": "00000000-0000-4000-8000-000000000b03",
+              "value": null,
+              "modifierType": "MULTIPLY",
+              "modifierValue": 2,
+              "redeemedAt": "2026-10-06T09:00:00Z",
+              "effectiveStartsAt": "2026-10-06T09:00:00Z",
+              "effectiveExpiresAt": null
+            }
+          ],
+          "number": {
+            "license": 100000,
+            "afterAddons": 100000,
+            "boostSet": null,
+            "boostAdd": null,
+            "boostMultiply": 2,
+            "unlimited": false,
+            "afterBoosts": 200000,
+            "effective": 200000
+          }
+        }
+      },
+      {
+        "slug": "branding",
+        "name": "Branding",
+        "type": "CONFIG",
+        "limitValue": {
+          "type": "object",
+          "value": {
+            "logo": true,
+            "theme": "dark"
+          }
+        },
+        "currentValue": null,
+        "unlimited": false,
+        "limitCapExceededOveragePercent": null,
+        "maximumAllowedUsage": null,
+        "percentageUsed": null,
+        "currentPeriodStart": null,
+        "currentPeriodEnd": null,
+        "source": "license",
+        "provenance": null
+      },
+      {
+        "slug": "priority-support",
+        "name": "Priority support",
+        "type": "BOOLEAN",
+        "limitValue": {
+          "type": "boolean",
+          "value": true
+        },
+        "currentValue": null,
+        "unlimited": false,
+        "limitCapExceededOveragePercent": null,
+        "maximumAllowedUsage": null,
+        "percentageUsed": null,
+        "currentPeriodStart": null,
+        "currentPeriodEnd": null,
+        "source": "addon",
+        "provenance": {
+          "exception": null,
+          "license": null,
+          "addons": [
+            {
+              "instanceAddonId": "00000000-0000-4000-8000-00000000a002",
+              "addonId": "00000000-0000-4000-8000-0000000000a2",
+              "addonEntitlementId": "00000000-0000-4000-8000-000000000e05",
+              "quantity": 1,
+              "overrideBehavior": "OVERRIDE",
+              "value": {
+                "type": "boolean",
+                "value": true
+              },
+              "limitCapExceededOveragePercent": null,
+              "attachedAt": "2026-10-03T00:00:00Z"
+            }
+          ],
+          "boosts": [],
+          "number": null
+        }
+      },
+      {
+        "slug": "seats",
+        "name": "Seats",
+        "type": "NUMBER",
+        "limitValue": {
+          "type": "number",
+          "value": 8
+        },
+        "currentValue": 8,
+        "unlimited": false,
+        "limitCapExceededOveragePercent": 0,
+        "maximumAllowedUsage": 8,
+        "percentageUsed": 100,
+        "currentPeriodStart": null,
+        "currentPeriodEnd": null,
+        "source": "license",
+        "provenance": {
+          "exception": null,
+          "license": {
+            "licenseEntitlementId": "00000000-0000-4000-8000-000000000e02",
+            "value": {
+              "type": "number",
+              "value": 5
+            },
+            "limitCapExceededOveragePercent": 0
+          },
+          "addons": [
+            {
+              "instanceAddonId": "00000000-0000-4000-8000-00000000a001",
+              "addonId": "00000000-0000-4000-8000-0000000000a1",
+              "addonEntitlementId": "00000000-0000-4000-8000-000000000e03",
+              "quantity": 3,
+              "overrideBehavior": "ADD",
+              "value": {
+                "type": "number",
+                "value": 1
+              },
+              "limitCapExceededOveragePercent": 0,
+              "attachedAt": "2026-10-02T00:00:00Z"
+            }
+          ],
+          "boosts": [],
+          "number": {
+            "license": 5,
+            "afterAddons": 8,
+            "boostSet": null,
+            "boostAdd": null,
+            "boostMultiply": null,
+            "unlimited": false,
+            "afterBoosts": 8,
+            "effective": 8
+          }
+        }
+      },
+      {
+        "slug": "sso",
+        "name": "Single sign-on",
+        "type": "BOOLEAN",
+        "limitValue": {
+          "type": "boolean",
+          "value": true
+        },
+        "currentValue": null,
+        "unlimited": false,
+        "limitCapExceededOveragePercent": null,
+        "maximumAllowedUsage": null,
+        "percentageUsed": null,
+        "currentPeriodStart": null,
+        "currentPeriodEnd": null,
+        "source": "license",
+        "provenance": {
+          "exception": null,
+          "license": {
+            "licenseEntitlementId": "00000000-0000-4000-8000-000000000e04",
+            "value": {
+              "type": "boolean",
+              "value": true
+            },
+            "limitCapExceededOveragePercent": null
+          },
+          "addons": [],
+          "boosts": [],
+          "number": null
+        }
+      },
+      {
+        "slug": "workspaces",
+        "name": "Workspaces",
+        "type": "NUMBER",
+        "limitValue": {
+          "type": "number",
+          "value": -1
+        },
+        "currentValue": 12,
+        "unlimited": true,
+        "limitCapExceededOveragePercent": -1,
+        "maximumAllowedUsage": null,
+        "percentageUsed": null,
+        "currentPeriodStart": null,
+        "currentPeriodEnd": null,
+        "source": "license",
+        "provenance": null
+      }
+    ],
+    "addOns": [
+      {
+        "addonSlug": "extra-seats-v1",
+        "familySlug": "extra-seats",
+        "name": "Extra seats",
+        "quantity": 3,
+        "maxQuantity": 50,
+        "prices": [
+          {
+            "id": "00000000-0000-4000-8000-00000000a101",
+            "billingModel": "FLAT_FEE",
+            "billingTiming": "ADVANCE",
+            "billingPeriod": "MONTHLY",
+            "currency": "EUR",
+            "unitAmount": 1000,
+            "unitAmountDecimal": "1000",
+            "displayLabel": "Monthly",
+            "displayOrder": 0,
+            "isDefault": true,
+            "metered": null
+          },
+          {
+            "id": "00000000-0000-4000-8000-00000000a102",
+            "billingModel": "USAGE_BASED",
+            "billingTiming": "ARREARS",
+            "currency": "EUR",
+            "unitAmountDecimal": "0.5",
+            "metered": {
+              "entitlementSlug": "api-calls",
+              "saleUnitFactor": "1000",
+              "saleUnitSingular": "1k calls",
+              "saleUnitPlural": "1k calls"
+            },
+            "displayOrder": 1,
+            "isDefault": false,
+            "billingPeriod": null,
+            "unitAmount": null,
+            "displayLabel": null
+          }
+        ],
+        "pendingQuantity": null
+      },
+      {
+        "addonSlug": "gpu-pack-v1",
+        "familySlug": "gpu-pack",
+        "name": "GPU pack",
+        "quantity": 1,
+        "maxQuantity": null,
+        "prices": [],
+        "pendingQuantity": null
+      }
+    ],
+    "vouchers": [
+      {
+        "name": "Double API calls",
+        "voucherType": "ENTITLEMENT_BOOST",
+        "status": "ACTIVE",
+        "appliesFromInvoice": null,
+        "applicationsCount": 0,
+        "applicationsMax": null,
+        "effectiveStartsAt": "2026-10-06T09:00:00Z",
+        "effectiveExpiresAt": null
+      },
+      {
+        "name": "Welcome 20%",
+        "voucherType": "PRICE",
+        "status": "ACTIVE",
+        "appliesFromInvoice": "next",
+        "applicationsCount": 0,
+        "applicationsMax": 3,
+        "effectiveStartsAt": "2026-10-01T00:00:00Z",
+        "effectiveExpiresAt": null
+      }
+    ],
+    "paymentMethod": {
+      "status": "ACTIVE",
+      "brand": "visa",
+      "last4": "4242",
+      "expMonth": 12,
+      "expYear": 2030
+    },
+    "upcomingInvoice": {
+      "currency": "EUR",
+      "subtotal": 10646,
+      "discountTotal": 0,
+      "total": 10646,
+      "boundaryAt": "2026-11-01T00:00:00Z"
+    },
+    "capabilities": {
+      "paymentMethods": true,
+      "invoices": true,
+      "unsubscribe": true,
+      "checkout": false
+    },
+    "updatedAt": "2026-10-10T10:00:00Z",
+    "trial": null,
+    "branding": {
+      "poweredByRemovable": false
+    }
+  },
+  "portalCanceling": {
+    "customer": {
+      "slug": "initech",
+      "name": "Initech",
+      "billingEmail": "ap@initech.test"
+    },
+    "instance": {
+      "slug": "initech-prod",
+      "name": "Initech Prod",
+      "licenseSlug": "pro-v2",
+      "licenseName": "Pro"
+    },
+    "instances": [],
+    "subscription": {
+      "status": "ACTIVE",
+      "providerKind": "STRIPE",
+      "collectionMethod": "CHARGE_AUTOMATICALLY",
+      "currency": "EUR",
+      "billingPeriod": "MONTHLY",
+      "basePrice": {
+        "id": "00000000-0000-4000-8000-000000000201",
+        "billingModel": "FLAT_FEE",
+        "billingTiming": "ADVANCE",
+        "billingPeriod": "MONTHLY",
+        "currency": "EUR",
+        "unitAmount": 4900,
+        "unitAmountDecimal": "4900",
+        "displayLabel": "Monthly",
+        "displayOrder": 0,
+        "isDefault": true,
+        "metered": null
+      },
+      "currentPeriodStart": "2026-10-01T00:00:00Z",
+      "currentPeriodEnd": "2026-11-01T00:00:00Z",
+      "trialEndsAt": null,
+      "cancelAtPeriodEnd": true,
+      "scheduledChange": null,
+      "incompleteExpiresAt": null,
+      "canceledAt": null,
+      "cancellationReason": null
+    },
+    "entitlements": [
+      {
+        "slug": "ai-credits",
+        "name": "AI credits",
+        "type": "NUMBER_AI_CREDIT",
+        "limitValue": {
+          "type": "number",
+          "value": 100
+        },
+        "currentValue": 0,
+        "unlimited": false,
+        "limitCapExceededOveragePercent": 0,
+        "maximumAllowedUsage": 100,
+        "percentageUsed": 0,
+        "currentPeriodStart": "2026-10-01T00:00:00Z",
+        "currentPeriodEnd": "2026-11-01T00:00:00Z",
+        "source": "license",
+        "provenance": null
+      },
+      {
+        "slug": "api-calls",
+        "name": "API calls",
+        "type": "NUMBER",
+        "limitValue": {
+          "type": "number",
+          "value": 200000
+        },
+        "currentValue": 30000,
+        "unlimited": false,
+        "limitCapExceededOveragePercent": 20,
+        "maximumAllowedUsage": 240000,
+        "percentageUsed": 15,
+        "currentPeriodStart": "2026-10-01T00:00:00Z",
+        "currentPeriodEnd": "2026-11-01T00:00:00Z",
+        "source": "license",
+        "provenance": {
+          "exception": null,
+          "license": {
+            "licenseEntitlementId": "00000000-0000-4000-8000-000000000e01",
+            "value": {
+              "type": "number",
+              "value": 100000
+            },
+            "limitCapExceededOveragePercent": 20
+          },
+          "addons": [],
+          "boosts": [
+            {
+              "instanceVoucherId": "00000000-0000-4000-8000-000000000b01",
+              "voucherId": "00000000-0000-4000-8000-000000000b02",
+              "voucherEntitlementGrantId": "00000000-0000-4000-8000-000000000b03",
+              "value": null,
+              "modifierType": "MULTIPLY",
+              "modifierValue": 2,
+              "redeemedAt": "2026-10-06T09:00:00Z",
+              "effectiveStartsAt": "2026-10-06T09:00:00Z",
+              "effectiveExpiresAt": null
+            }
+          ],
+          "number": {
+            "license": 100000,
+            "afterAddons": 100000,
+            "boostSet": null,
+            "boostAdd": null,
+            "boostMultiply": 2,
+            "unlimited": false,
+            "afterBoosts": 200000,
+            "effective": 200000
+          }
+        }
+      },
+      {
+        "slug": "branding",
+        "name": "Branding",
+        "type": "CONFIG",
+        "limitValue": {
+          "type": "object",
+          "value": {
+            "logo": true,
+            "theme": "dark"
+          }
+        },
+        "currentValue": null,
+        "unlimited": false,
+        "limitCapExceededOveragePercent": null,
+        "maximumAllowedUsage": null,
+        "percentageUsed": null,
+        "currentPeriodStart": null,
+        "currentPeriodEnd": null,
+        "source": "license",
+        "provenance": null
+      },
+      {
+        "slug": "priority-support",
+        "name": "Priority support",
+        "type": "BOOLEAN",
+        "limitValue": {
+          "type": "boolean",
+          "value": true
+        },
+        "currentValue": null,
+        "unlimited": false,
+        "limitCapExceededOveragePercent": null,
+        "maximumAllowedUsage": null,
+        "percentageUsed": null,
+        "currentPeriodStart": null,
+        "currentPeriodEnd": null,
+        "source": "addon",
+        "provenance": {
+          "exception": null,
+          "license": null,
+          "addons": [
+            {
+              "instanceAddonId": "00000000-0000-4000-8000-00000000a002",
+              "addonId": "00000000-0000-4000-8000-0000000000a2",
+              "addonEntitlementId": "00000000-0000-4000-8000-000000000e05",
+              "quantity": 1,
+              "overrideBehavior": "OVERRIDE",
+              "value": {
+                "type": "boolean",
+                "value": true
+              },
+              "limitCapExceededOveragePercent": null,
+              "attachedAt": "2026-10-03T00:00:00Z"
+            }
+          ],
+          "boosts": [],
+          "number": null
+        }
+      },
+      {
+        "slug": "seats",
+        "name": "Seats",
+        "type": "NUMBER",
+        "limitValue": {
+          "type": "number",
+          "value": 8
+        },
+        "currentValue": 8,
+        "unlimited": false,
+        "limitCapExceededOveragePercent": 0,
+        "maximumAllowedUsage": 8,
+        "percentageUsed": 100,
+        "currentPeriodStart": null,
+        "currentPeriodEnd": null,
+        "source": "license",
+        "provenance": {
+          "exception": null,
+          "license": {
+            "licenseEntitlementId": "00000000-0000-4000-8000-000000000e02",
+            "value": {
+              "type": "number",
+              "value": 5
+            },
+            "limitCapExceededOveragePercent": 0
+          },
+          "addons": [
+            {
+              "instanceAddonId": "00000000-0000-4000-8000-00000000a001",
+              "addonId": "00000000-0000-4000-8000-0000000000a1",
+              "addonEntitlementId": "00000000-0000-4000-8000-000000000e03",
+              "quantity": 3,
+              "overrideBehavior": "ADD",
+              "value": {
+                "type": "number",
+                "value": 1
+              },
+              "limitCapExceededOveragePercent": 0,
+              "attachedAt": "2026-10-02T00:00:00Z"
+            }
+          ],
+          "boosts": [],
+          "number": {
+            "license": 5,
+            "afterAddons": 8,
+            "boostSet": null,
+            "boostAdd": null,
+            "boostMultiply": null,
+            "unlimited": false,
+            "afterBoosts": 8,
+            "effective": 8
+          }
+        }
+      },
+      {
+        "slug": "sso",
+        "name": "Single sign-on",
+        "type": "BOOLEAN",
+        "limitValue": {
+          "type": "boolean",
+          "value": true
+        },
+        "currentValue": null,
+        "unlimited": false,
+        "limitCapExceededOveragePercent": null,
+        "maximumAllowedUsage": null,
+        "percentageUsed": null,
+        "currentPeriodStart": null,
+        "currentPeriodEnd": null,
+        "source": "license",
+        "provenance": {
+          "exception": null,
+          "license": {
+            "licenseEntitlementId": "00000000-0000-4000-8000-000000000e04",
+            "value": {
+              "type": "boolean",
+              "value": true
+            },
+            "limitCapExceededOveragePercent": null
+          },
+          "addons": [],
+          "boosts": [],
+          "number": null
+        }
+      },
+      {
+        "slug": "workspaces",
+        "name": "Workspaces",
+        "type": "NUMBER",
+        "limitValue": {
+          "type": "number",
+          "value": -1
+        },
+        "currentValue": 12,
+        "unlimited": true,
+        "limitCapExceededOveragePercent": -1,
+        "maximumAllowedUsage": null,
+        "percentageUsed": null,
+        "currentPeriodStart": null,
+        "currentPeriodEnd": null,
+        "source": "license",
+        "provenance": null
+      }
+    ],
+    "addOns": [
+      {
+        "addonSlug": "extra-seats-v1",
+        "familySlug": "extra-seats",
+        "name": "Extra seats",
+        "quantity": 3,
+        "maxQuantity": 50,
+        "prices": [
+          {
+            "id": "00000000-0000-4000-8000-00000000a101",
+            "billingModel": "FLAT_FEE",
+            "billingTiming": "ADVANCE",
+            "billingPeriod": "MONTHLY",
+            "currency": "EUR",
+            "unitAmount": 1000,
+            "unitAmountDecimal": "1000",
+            "displayLabel": "Monthly",
+            "displayOrder": 0,
+            "isDefault": true,
+            "metered": null
+          },
+          {
+            "id": "00000000-0000-4000-8000-00000000a102",
+            "billingModel": "USAGE_BASED",
+            "billingTiming": "ARREARS",
+            "currency": "EUR",
+            "unitAmountDecimal": "0.5",
+            "metered": {
+              "entitlementSlug": "api-calls",
+              "saleUnitFactor": "1000",
+              "saleUnitSingular": "1k calls",
+              "saleUnitPlural": "1k calls"
+            },
+            "displayOrder": 1,
+            "isDefault": false,
+            "billingPeriod": null,
+            "unitAmount": null,
+            "displayLabel": null
+          }
+        ],
+        "pendingQuantity": null
+      },
+      {
+        "addonSlug": "gpu-pack-v1",
+        "familySlug": "gpu-pack",
+        "name": "GPU pack",
+        "quantity": 1,
+        "maxQuantity": null,
+        "prices": [],
+        "pendingQuantity": null
+      }
+    ],
+    "vouchers": [
+      {
+        "name": "Double API calls",
+        "voucherType": "ENTITLEMENT_BOOST",
+        "status": "ACTIVE",
+        "appliesFromInvoice": null,
+        "applicationsCount": 0,
+        "applicationsMax": null,
+        "effectiveStartsAt": "2026-10-06T09:00:00Z",
+        "effectiveExpiresAt": null
+      },
+      {
+        "name": "Welcome 20%",
+        "voucherType": "PRICE",
+        "status": "ACTIVE",
+        "appliesFromInvoice": "next",
+        "applicationsCount": 0,
+        "applicationsMax": 3,
+        "effectiveStartsAt": "2026-10-01T00:00:00Z",
+        "effectiveExpiresAt": null
+      }
+    ],
+    "paymentMethod": {
+      "status": "ACTIVE",
+      "brand": "visa",
+      "last4": "4242",
+      "expMonth": 12,
+      "expYear": 2030
+    },
+    "upcomingInvoice": {
+      "currency": "EUR",
+      "subtotal": 10646,
+      "discountTotal": 0,
+      "total": 10646,
+      "boundaryAt": "2026-11-01T00:00:00Z"
+    },
+    "capabilities": {
+      "paymentMethods": true,
+      "invoices": true,
+      "unsubscribe": false,
+      "checkout": false
+    },
+    "updatedAt": "2026-10-10T10:00:00Z",
+    "trial": null,
+    "branding": {
+      "poweredByRemovable": false
+    }
+  },
+  "portalCustomerWide": {
+    "customer": {
+      "slug": "initech",
+      "name": "Initech",
+      "billingEmail": "ap@initech.test"
+    },
+    "instance": null,
+    "instances": [
+      {
+        "slug": "initech-prod",
+        "name": "Initech Prod",
+        "licenseSlug": "pro-v2",
+        "billingStatus": "ACTIVE"
+      },
+      {
+        "slug": "initech-lab",
+        "name": "Initech Lab",
+        "licenseSlug": "starter-v1",
+        "billingStatus": null
+      }
+    ],
+    "subscription": null,
+    "entitlements": [],
+    "addOns": [],
+    "vouchers": [],
+    "paymentMethod": {
+      "status": "ACTIVE",
+      "brand": "visa",
+      "last4": "4242",
+      "expMonth": 12,
+      "expYear": 2030
+    },
+    "upcomingInvoice": null,
+    "capabilities": {
+      "paymentMethods": true,
+      "invoices": true,
+      "unsubscribe": false,
+      "checkout": false
+    },
+    "updatedAt": "2026-10-10T10:00:00Z",
+    "trial": null,
+    "branding": {
+      "poweredByRemovable": false
+    }
+  },
+  "portalNeverSubscribed": {
+    "customer": {
+      "slug": "initech",
+      "name": "Initech",
+      "billingEmail": null
+    },
+    "instance": {
+      "slug": "initech-lab",
+      "name": "Initech Lab",
+      "licenseSlug": "starter-v1",
+      "licenseName": "Starter"
+    },
+    "instances": [],
+    "subscription": null,
+    "entitlements": [
+      {
+        "slug": "sso",
+        "name": "Single sign-on",
+        "type": "BOOLEAN",
+        "limitValue": {
+          "type": "boolean",
+          "value": true
+        },
+        "currentValue": null,
+        "unlimited": false,
+        "limitCapExceededOveragePercent": null,
+        "maximumAllowedUsage": null,
+        "percentageUsed": null,
+        "currentPeriodStart": null,
+        "currentPeriodEnd": null,
+        "source": "license",
+        "provenance": {
+          "exception": null,
+          "license": {
+            "licenseEntitlementId": "00000000-0000-4000-8000-000000000e04",
+            "value": {
+              "type": "boolean",
+              "value": true
+            },
+            "limitCapExceededOveragePercent": null
+          },
+          "addons": [],
+          "boosts": [],
+          "number": null
+        }
+      }
+    ],
+    "addOns": [],
+    "vouchers": [],
+    "paymentMethod": null,
+    "upcomingInvoice": null,
+    "capabilities": {
+      "paymentMethods": true,
+      "invoices": true,
+      "unsubscribe": false,
+      "checkout": true
+    },
+    "updatedAt": "2026-10-10T10:00:00Z",
+    "trial": null,
+    "branding": {
+      "poweredByRemovable": false
+    }
+  },
+  "portalPastDue": {
+    "customer": {
+      "slug": "initech",
+      "name": "Initech",
+      "billingEmail": "ap@initech.test"
+    },
+    "instance": {
+      "slug": "initech-prod",
+      "name": "Initech Prod",
+      "licenseSlug": "pro-v2",
+      "licenseName": "Pro"
+    },
+    "instances": [],
+    "subscription": {
+      "status": "PAST_DUE",
+      "providerKind": "STRIPE",
+      "collectionMethod": "CHARGE_AUTOMATICALLY",
+      "currency": "EUR",
+      "billingPeriod": "QUARTERLY",
+      "basePrice": {
+        "id": "00000000-0000-4000-8000-000000000202",
+        "billingModel": "FLAT_FEE",
+        "billingTiming": "ADVANCE",
+        "billingPeriod": "QUARTERLY",
+        "currency": "EUR",
+        "unitAmount": 13500,
+        "unitAmountDecimal": "13500",
+        "displayLabel": "Quarterly",
+        "displayOrder": 0,
+        "isDefault": true,
+        "metered": null
+      },
+      "currentPeriodStart": "2026-10-01T00:00:00Z",
+      "currentPeriodEnd": "2026-11-01T00:00:00Z",
+      "trialEndsAt": null,
+      "cancelAtPeriodEnd": false,
+      "scheduledChange": null,
+      "incompleteExpiresAt": null,
+      "canceledAt": null,
+      "cancellationReason": null
+    },
+    "entitlements": [
+      {
+        "slug": "ai-credits",
+        "name": "AI credits",
+        "type": "NUMBER_AI_CREDIT",
+        "limitValue": {
+          "type": "number",
+          "value": 100
+        },
+        "currentValue": 0,
+        "unlimited": false,
+        "limitCapExceededOveragePercent": 0,
+        "maximumAllowedUsage": 100,
+        "percentageUsed": 0,
+        "currentPeriodStart": "2026-10-01T00:00:00Z",
+        "currentPeriodEnd": "2026-11-01T00:00:00Z",
+        "source": "license",
+        "provenance": null
+      },
+      {
+        "slug": "api-calls",
+        "name": "API calls",
+        "type": "NUMBER",
+        "limitValue": {
+          "type": "number",
+          "value": 200000
+        },
+        "currentValue": 30000,
+        "unlimited": false,
+        "limitCapExceededOveragePercent": 20,
+        "maximumAllowedUsage": 240000,
+        "percentageUsed": 15,
+        "currentPeriodStart": "2026-10-01T00:00:00Z",
+        "currentPeriodEnd": "2026-11-01T00:00:00Z",
+        "source": "license",
+        "provenance": {
+          "exception": null,
+          "license": {
+            "licenseEntitlementId": "00000000-0000-4000-8000-000000000e01",
+            "value": {
+              "type": "number",
+              "value": 100000
+            },
+            "limitCapExceededOveragePercent": 20
+          },
+          "addons": [],
+          "boosts": [
+            {
+              "instanceVoucherId": "00000000-0000-4000-8000-000000000b01",
+              "voucherId": "00000000-0000-4000-8000-000000000b02",
+              "voucherEntitlementGrantId": "00000000-0000-4000-8000-000000000b03",
+              "value": null,
+              "modifierType": "MULTIPLY",
+              "modifierValue": 2,
+              "redeemedAt": "2026-10-06T09:00:00Z",
+              "effectiveStartsAt": "2026-10-06T09:00:00Z",
+              "effectiveExpiresAt": null
+            }
+          ],
+          "number": {
+            "license": 100000,
+            "afterAddons": 100000,
+            "boostSet": null,
+            "boostAdd": null,
+            "boostMultiply": 2,
+            "unlimited": false,
+            "afterBoosts": 200000,
+            "effective": 200000
+          }
+        }
+      },
+      {
+        "slug": "branding",
+        "name": "Branding",
+        "type": "CONFIG",
+        "limitValue": {
+          "type": "object",
+          "value": {
+            "logo": true,
+            "theme": "dark"
+          }
+        },
+        "currentValue": null,
+        "unlimited": false,
+        "limitCapExceededOveragePercent": null,
+        "maximumAllowedUsage": null,
+        "percentageUsed": null,
+        "currentPeriodStart": null,
+        "currentPeriodEnd": null,
+        "source": "license",
+        "provenance": null
+      },
+      {
+        "slug": "priority-support",
+        "name": "Priority support",
+        "type": "BOOLEAN",
+        "limitValue": {
+          "type": "boolean",
+          "value": true
+        },
+        "currentValue": null,
+        "unlimited": false,
+        "limitCapExceededOveragePercent": null,
+        "maximumAllowedUsage": null,
+        "percentageUsed": null,
+        "currentPeriodStart": null,
+        "currentPeriodEnd": null,
+        "source": "addon",
+        "provenance": {
+          "exception": null,
+          "license": null,
+          "addons": [
+            {
+              "instanceAddonId": "00000000-0000-4000-8000-00000000a002",
+              "addonId": "00000000-0000-4000-8000-0000000000a2",
+              "addonEntitlementId": "00000000-0000-4000-8000-000000000e05",
+              "quantity": 1,
+              "overrideBehavior": "OVERRIDE",
+              "value": {
+                "type": "boolean",
+                "value": true
+              },
+              "limitCapExceededOveragePercent": null,
+              "attachedAt": "2026-10-03T00:00:00Z"
+            }
+          ],
+          "boosts": [],
+          "number": null
+        }
+      },
+      {
+        "slug": "seats",
+        "name": "Seats",
+        "type": "NUMBER",
+        "limitValue": {
+          "type": "number",
+          "value": 8
+        },
+        "currentValue": 8,
+        "unlimited": false,
+        "limitCapExceededOveragePercent": 0,
+        "maximumAllowedUsage": 8,
+        "percentageUsed": 100,
+        "currentPeriodStart": null,
+        "currentPeriodEnd": null,
+        "source": "license",
+        "provenance": {
+          "exception": null,
+          "license": {
+            "licenseEntitlementId": "00000000-0000-4000-8000-000000000e02",
+            "value": {
+              "type": "number",
+              "value": 5
+            },
+            "limitCapExceededOveragePercent": 0
+          },
+          "addons": [
+            {
+              "instanceAddonId": "00000000-0000-4000-8000-00000000a001",
+              "addonId": "00000000-0000-4000-8000-0000000000a1",
+              "addonEntitlementId": "00000000-0000-4000-8000-000000000e03",
+              "quantity": 3,
+              "overrideBehavior": "ADD",
+              "value": {
+                "type": "number",
+                "value": 1
+              },
+              "limitCapExceededOveragePercent": 0,
+              "attachedAt": "2026-10-02T00:00:00Z"
+            }
+          ],
+          "boosts": [],
+          "number": {
+            "license": 5,
+            "afterAddons": 8,
+            "boostSet": null,
+            "boostAdd": null,
+            "boostMultiply": null,
+            "unlimited": false,
+            "afterBoosts": 8,
+            "effective": 8
+          }
+        }
+      },
+      {
+        "slug": "sso",
+        "name": "Single sign-on",
+        "type": "BOOLEAN",
+        "limitValue": {
+          "type": "boolean",
+          "value": true
+        },
+        "currentValue": null,
+        "unlimited": false,
+        "limitCapExceededOveragePercent": null,
+        "maximumAllowedUsage": null,
+        "percentageUsed": null,
+        "currentPeriodStart": null,
+        "currentPeriodEnd": null,
+        "source": "license",
+        "provenance": {
+          "exception": null,
+          "license": {
+            "licenseEntitlementId": "00000000-0000-4000-8000-000000000e04",
+            "value": {
+              "type": "boolean",
+              "value": true
+            },
+            "limitCapExceededOveragePercent": null
+          },
+          "addons": [],
+          "boosts": [],
+          "number": null
+        }
+      },
+      {
+        "slug": "workspaces",
+        "name": "Workspaces",
+        "type": "NUMBER",
+        "limitValue": {
+          "type": "number",
+          "value": -1
+        },
+        "currentValue": 12,
+        "unlimited": true,
+        "limitCapExceededOveragePercent": -1,
+        "maximumAllowedUsage": null,
+        "percentageUsed": null,
+        "currentPeriodStart": null,
+        "currentPeriodEnd": null,
+        "source": "license",
+        "provenance": null
+      }
+    ],
+    "addOns": [
+      {
+        "addonSlug": "extra-seats-v1",
+        "familySlug": "extra-seats",
+        "name": "Extra seats",
+        "quantity": 3,
+        "maxQuantity": 50,
+        "prices": [
+          {
+            "id": "00000000-0000-4000-8000-00000000a101",
+            "billingModel": "FLAT_FEE",
+            "billingTiming": "ADVANCE",
+            "billingPeriod": "MONTHLY",
+            "currency": "EUR",
+            "unitAmount": 1000,
+            "unitAmountDecimal": "1000",
+            "displayLabel": "Monthly",
+            "displayOrder": 0,
+            "isDefault": true,
+            "metered": null
+          },
+          {
+            "id": "00000000-0000-4000-8000-00000000a102",
+            "billingModel": "USAGE_BASED",
+            "billingTiming": "ARREARS",
+            "currency": "EUR",
+            "unitAmountDecimal": "0.5",
+            "metered": {
+              "entitlementSlug": "api-calls",
+              "saleUnitFactor": "1000",
+              "saleUnitSingular": "1k calls",
+              "saleUnitPlural": "1k calls"
+            },
+            "displayOrder": 1,
+            "isDefault": false,
+            "billingPeriod": null,
+            "unitAmount": null,
+            "displayLabel": null
+          }
+        ],
+        "pendingQuantity": null
+      },
+      {
+        "addonSlug": "gpu-pack-v1",
+        "familySlug": "gpu-pack",
+        "name": "GPU pack",
+        "quantity": 1,
+        "maxQuantity": null,
+        "prices": [],
+        "pendingQuantity": null
+      }
+    ],
+    "vouchers": [
+      {
+        "name": "Double API calls",
+        "voucherType": "ENTITLEMENT_BOOST",
+        "status": "ACTIVE",
+        "appliesFromInvoice": null,
+        "applicationsCount": 0,
+        "applicationsMax": null,
+        "effectiveStartsAt": "2026-10-06T09:00:00Z",
+        "effectiveExpiresAt": null
+      },
+      {
+        "name": "Welcome 20%",
+        "voucherType": "PRICE",
+        "status": "ACTIVE",
+        "appliesFromInvoice": "next",
+        "applicationsCount": 0,
+        "applicationsMax": 3,
+        "effectiveStartsAt": "2026-10-01T00:00:00Z",
+        "effectiveExpiresAt": null
+      }
+    ],
+    "paymentMethod": {
+      "status": "FAILED",
+      "brand": null,
+      "last4": null,
+      "expMonth": null,
+      "expYear": null
+    },
+    "upcomingInvoice": null,
+    "capabilities": {
+      "paymentMethods": true,
+      "invoices": true,
+      "unsubscribe": true,
+      "checkout": false
+    },
+    "updatedAt": "2026-10-10T10:00:00Z",
+    "trial": null,
+    "branding": {
+      "poweredByRemovable": false
+    }
+  },
+  "portalScheduledChange": {
+    "customer": {
+      "slug": "initech",
+      "name": "Initech",
+      "billingEmail": "ap@initech.test"
+    },
+    "instance": {
+      "slug": "initech-prod",
+      "name": "Initech Prod",
+      "licenseSlug": "pro-v2",
+      "licenseName": "Pro"
+    },
+    "instances": [],
+    "subscription": {
+      "status": "ACTIVE",
+      "providerKind": "STRIPE",
+      "collectionMethod": "CHARGE_AUTOMATICALLY",
+      "currency": "EUR",
+      "billingPeriod": "MONTHLY",
+      "basePrice": {
+        "id": "00000000-0000-4000-8000-000000000201",
+        "billingModel": "FLAT_FEE",
+        "billingTiming": "ADVANCE",
+        "billingPeriod": "MONTHLY",
+        "currency": "EUR",
+        "unitAmount": 4900,
+        "unitAmountDecimal": "4900",
+        "displayLabel": "Monthly",
+        "displayOrder": 0,
+        "isDefault": true,
+        "metered": null
+      },
+      "currentPeriodStart": "2026-10-01T00:00:00Z",
+      "currentPeriodEnd": "2026-11-01T00:00:00Z",
+      "trialEndsAt": null,
+      "cancelAtPeriodEnd": false,
+      "scheduledChange": {
+        "price": {
+          "id": "00000000-0000-4000-8000-000000000204",
+          "billingModel": "FLAT_FEE",
+          "billingTiming": "ADVANCE",
+          "billingPeriod": "ANNUAL",
+          "currency": "EUR",
+          "unitAmount": 49000,
+          "unitAmountDecimal": "49000",
+          "displayLabel": "Annual",
+          "displayOrder": 0,
+          "isDefault": true,
+          "metered": null
+        },
+        "effectiveAt": "2026-11-01T00:00:00Z"
+      },
+      "incompleteExpiresAt": null,
+      "canceledAt": null,
+      "cancellationReason": null
+    },
+    "entitlements": [
+      {
+        "slug": "ai-credits",
+        "name": "AI credits",
+        "type": "NUMBER_AI_CREDIT",
+        "limitValue": {
+          "type": "number",
+          "value": 100
+        },
+        "currentValue": 0,
+        "unlimited": false,
+        "limitCapExceededOveragePercent": 0,
+        "maximumAllowedUsage": 100,
+        "percentageUsed": 0,
+        "currentPeriodStart": "2026-10-01T00:00:00Z",
+        "currentPeriodEnd": "2026-11-01T00:00:00Z",
+        "source": "license",
+        "provenance": null
+      },
+      {
+        "slug": "api-calls",
+        "name": "API calls",
+        "type": "NUMBER",
+        "limitValue": {
+          "type": "number",
+          "value": 200000
+        },
+        "currentValue": 30000,
+        "unlimited": false,
+        "limitCapExceededOveragePercent": 20,
+        "maximumAllowedUsage": 240000,
+        "percentageUsed": 15,
+        "currentPeriodStart": "2026-10-01T00:00:00Z",
+        "currentPeriodEnd": "2026-11-01T00:00:00Z",
+        "source": "license",
+        "provenance": {
+          "exception": null,
+          "license": {
+            "licenseEntitlementId": "00000000-0000-4000-8000-000000000e01",
+            "value": {
+              "type": "number",
+              "value": 100000
+            },
+            "limitCapExceededOveragePercent": 20
+          },
+          "addons": [],
+          "boosts": [
+            {
+              "instanceVoucherId": "00000000-0000-4000-8000-000000000b01",
+              "voucherId": "00000000-0000-4000-8000-000000000b02",
+              "voucherEntitlementGrantId": "00000000-0000-4000-8000-000000000b03",
+              "value": null,
+              "modifierType": "MULTIPLY",
+              "modifierValue": 2,
+              "redeemedAt": "2026-10-06T09:00:00Z",
+              "effectiveStartsAt": "2026-10-06T09:00:00Z",
+              "effectiveExpiresAt": null
+            }
+          ],
+          "number": {
+            "license": 100000,
+            "afterAddons": 100000,
+            "boostSet": null,
+            "boostAdd": null,
+            "boostMultiply": 2,
+            "unlimited": false,
+            "afterBoosts": 200000,
+            "effective": 200000
+          }
+        }
+      },
+      {
+        "slug": "branding",
+        "name": "Branding",
+        "type": "CONFIG",
+        "limitValue": {
+          "type": "object",
+          "value": {
+            "logo": true,
+            "theme": "dark"
+          }
+        },
+        "currentValue": null,
+        "unlimited": false,
+        "limitCapExceededOveragePercent": null,
+        "maximumAllowedUsage": null,
+        "percentageUsed": null,
+        "currentPeriodStart": null,
+        "currentPeriodEnd": null,
+        "source": "license",
+        "provenance": null
+      },
+      {
+        "slug": "priority-support",
+        "name": "Priority support",
+        "type": "BOOLEAN",
+        "limitValue": {
+          "type": "boolean",
+          "value": true
+        },
+        "currentValue": null,
+        "unlimited": false,
+        "limitCapExceededOveragePercent": null,
+        "maximumAllowedUsage": null,
+        "percentageUsed": null,
+        "currentPeriodStart": null,
+        "currentPeriodEnd": null,
+        "source": "addon",
+        "provenance": {
+          "exception": null,
+          "license": null,
+          "addons": [
+            {
+              "instanceAddonId": "00000000-0000-4000-8000-00000000a002",
+              "addonId": "00000000-0000-4000-8000-0000000000a2",
+              "addonEntitlementId": "00000000-0000-4000-8000-000000000e05",
+              "quantity": 1,
+              "overrideBehavior": "OVERRIDE",
+              "value": {
+                "type": "boolean",
+                "value": true
+              },
+              "limitCapExceededOveragePercent": null,
+              "attachedAt": "2026-10-03T00:00:00Z"
+            }
+          ],
+          "boosts": [],
+          "number": null
+        }
+      },
+      {
+        "slug": "seats",
+        "name": "Seats",
+        "type": "NUMBER",
+        "limitValue": {
+          "type": "number",
+          "value": 8
+        },
+        "currentValue": 8,
+        "unlimited": false,
+        "limitCapExceededOveragePercent": 0,
+        "maximumAllowedUsage": 8,
+        "percentageUsed": 100,
+        "currentPeriodStart": null,
+        "currentPeriodEnd": null,
+        "source": "license",
+        "provenance": {
+          "exception": null,
+          "license": {
+            "licenseEntitlementId": "00000000-0000-4000-8000-000000000e02",
+            "value": {
+              "type": "number",
+              "value": 5
+            },
+            "limitCapExceededOveragePercent": 0
+          },
+          "addons": [
+            {
+              "instanceAddonId": "00000000-0000-4000-8000-00000000a001",
+              "addonId": "00000000-0000-4000-8000-0000000000a1",
+              "addonEntitlementId": "00000000-0000-4000-8000-000000000e03",
+              "quantity": 3,
+              "overrideBehavior": "ADD",
+              "value": {
+                "type": "number",
+                "value": 1
+              },
+              "limitCapExceededOveragePercent": 0,
+              "attachedAt": "2026-10-02T00:00:00Z"
+            }
+          ],
+          "boosts": [],
+          "number": {
+            "license": 5,
+            "afterAddons": 8,
+            "boostSet": null,
+            "boostAdd": null,
+            "boostMultiply": null,
+            "unlimited": false,
+            "afterBoosts": 8,
+            "effective": 8
+          }
+        }
+      },
+      {
+        "slug": "sso",
+        "name": "Single sign-on",
+        "type": "BOOLEAN",
+        "limitValue": {
+          "type": "boolean",
+          "value": true
+        },
+        "currentValue": null,
+        "unlimited": false,
+        "limitCapExceededOveragePercent": null,
+        "maximumAllowedUsage": null,
+        "percentageUsed": null,
+        "currentPeriodStart": null,
+        "currentPeriodEnd": null,
+        "source": "license",
+        "provenance": {
+          "exception": null,
+          "license": {
+            "licenseEntitlementId": "00000000-0000-4000-8000-000000000e04",
+            "value": {
+              "type": "boolean",
+              "value": true
+            },
+            "limitCapExceededOveragePercent": null
+          },
+          "addons": [],
+          "boosts": [],
+          "number": null
+        }
+      },
+      {
+        "slug": "workspaces",
+        "name": "Workspaces",
+        "type": "NUMBER",
+        "limitValue": {
+          "type": "number",
+          "value": -1
+        },
+        "currentValue": 12,
+        "unlimited": true,
+        "limitCapExceededOveragePercent": -1,
+        "maximumAllowedUsage": null,
+        "percentageUsed": null,
+        "currentPeriodStart": null,
+        "currentPeriodEnd": null,
+        "source": "license",
+        "provenance": null
+      }
+    ],
+    "addOns": [
+      {
+        "addonSlug": "extra-seats-v1",
+        "familySlug": "extra-seats",
+        "name": "Extra seats",
+        "quantity": 3,
+        "maxQuantity": 50,
+        "prices": [
+          {
+            "id": "00000000-0000-4000-8000-00000000a101",
+            "billingModel": "FLAT_FEE",
+            "billingTiming": "ADVANCE",
+            "billingPeriod": "MONTHLY",
+            "currency": "EUR",
+            "unitAmount": 1000,
+            "unitAmountDecimal": "1000",
+            "displayLabel": "Monthly",
+            "displayOrder": 0,
+            "isDefault": true,
+            "metered": null
+          },
+          {
+            "id": "00000000-0000-4000-8000-00000000a102",
+            "billingModel": "USAGE_BASED",
+            "billingTiming": "ARREARS",
+            "currency": "EUR",
+            "unitAmountDecimal": "0.5",
+            "metered": {
+              "entitlementSlug": "api-calls",
+              "saleUnitFactor": "1000",
+              "saleUnitSingular": "1k calls",
+              "saleUnitPlural": "1k calls"
+            },
+            "displayOrder": 1,
+            "isDefault": false,
+            "billingPeriod": null,
+            "unitAmount": null,
+            "displayLabel": null
+          }
+        ],
+        "pendingQuantity": null
+      },
+      {
+        "addonSlug": "gpu-pack-v1",
+        "familySlug": "gpu-pack",
+        "name": "GPU pack",
+        "quantity": 1,
+        "maxQuantity": null,
+        "prices": [],
+        "pendingQuantity": null
+      }
+    ],
+    "vouchers": [
+      {
+        "name": "Double API calls",
+        "voucherType": "ENTITLEMENT_BOOST",
+        "status": "ACTIVE",
+        "appliesFromInvoice": null,
+        "applicationsCount": 0,
+        "applicationsMax": null,
+        "effectiveStartsAt": "2026-10-06T09:00:00Z",
+        "effectiveExpiresAt": null
+      },
+      {
+        "name": "Welcome 20%",
+        "voucherType": "PRICE",
+        "status": "ACTIVE",
+        "appliesFromInvoice": "next",
+        "applicationsCount": 0,
+        "applicationsMax": 3,
+        "effectiveStartsAt": "2026-10-01T00:00:00Z",
+        "effectiveExpiresAt": null
+      }
+    ],
+    "paymentMethod": {
+      "status": "ACTIVE",
+      "brand": "visa",
+      "last4": "4242",
+      "expMonth": 12,
+      "expYear": 2030
+    },
+    "upcomingInvoice": {
+      "currency": "EUR",
+      "subtotal": 10646,
+      "discountTotal": 0,
+      "total": 10646,
+      "boundaryAt": "2026-11-01T00:00:00Z"
+    },
+    "capabilities": {
+      "paymentMethods": true,
+      "invoices": true,
+      "unsubscribe": true,
+      "checkout": false
+    },
+    "updatedAt": "2026-10-10T10:00:00Z",
+    "trial": null,
+    "branding": {
+      "poweredByRemovable": false
+    }
+  },
+  "portalSession": {
+    "url": "https://billing.stripe.test/p/session_1"
+  },
+  "reactivate": {
+    "status": "ACTIVE",
+    "providerKind": "STRIPE",
+    "collectionMethod": "CHARGE_AUTOMATICALLY",
+    "currency": "EUR",
+    "billingPeriod": "MONTHLY",
+    "basePrice": {
+      "id": "00000000-0000-4000-8000-000000000201",
+      "billingModel": "FLAT_FEE",
+      "billingTiming": "ADVANCE",
+      "billingPeriod": "MONTHLY",
+      "currency": "EUR",
+      "unitAmount": 4900,
+      "unitAmountDecimal": "4900",
+      "displayLabel": "Monthly",
+      "displayOrder": 0,
+      "isDefault": true,
+      "metered": null
+    },
+    "currentPeriodStart": "2026-10-01T00:00:00Z",
+    "currentPeriodEnd": "2026-11-01T00:00:00Z",
+    "trialEndsAt": null,
+    "cancelAtPeriodEnd": false,
+    "scheduledChange": null,
+    "incompleteExpiresAt": null,
+    "canceledAt": null,
+    "cancellationReason": null
+  },
+  "voucherBoost": {
+    "valid": true,
+    "voucher": {
+      "name": "Launch boost",
+      "voucherType": "ENTITLEMENT_BOOST",
+      "duration": "FOREVER",
+      "boosts": [
+        {
+          "entitlementSlug": "api-calls",
+          "modifierType": "MULTIPLY",
+          "modifierValue": "2"
+        },
+        {
+          "entitlementSlug": "workspaces",
+          "modifierType": "UNLIMITED"
+        }
+      ]
+    }
+  },
+  "voucherFixed": {
+    "valid": true,
+    "voucher": {
+      "name": "Five off",
+      "voucherType": "PRICE",
+      "duration": "ONE_TIME",
+      "discount": {
+        "type": "FIXED_AMOUNT",
+        "value": "500",
+        "currency": "EUR",
+        "appliesTo": "BOTH"
+      }
+    }
+  },
+  "voucherPercent": {
+    "valid": true,
+    "voucher": {
+      "name": "Welcome 20%",
+      "voucherType": "PRICE",
+      "duration": "REPEATING",
+      "durationInPeriods": 3,
+      "discount": {
+        "type": "PERCENTAGE",
+        "value": "20",
+        "appliesTo": "LICENSE_BASE"
+      }
+    }
+  },
+  "voucherRefused": {
+    "valid": false
+  },
+  "redemption": {
+    "name": "Welcome 20%",
+    "voucherType": "PRICE",
+    "status": "ACTIVE",
+    "appliesFromInvoice": "next",
+    "applicationsCount": 0,
+    "applicationsMax": 3,
+    "effectiveStartsAt": "2026-10-06T10:00:00Z",
+    "effectiveExpiresAt": null
+  },
+  "redemptionBoost": {
+    "name": "Double API calls",
+    "voucherType": "ENTITLEMENT_BOOST",
+    "status": "ACTIVE",
+    "appliesFromInvoice": null,
+    "applicationsCount": 0,
+    "applicationsMax": null,
+    "effectiveStartsAt": "2026-10-06T10:00:00Z",
+    "effectiveExpiresAt": "2026-11-06T10:00:00Z"
+  }
+}

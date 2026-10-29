@@ -10,6 +10,7 @@ import {
 } from "../src/client/normalize.ts";
 import { resolveUsageScope } from "../src/domain/entitlement-usage.ts";
 import type {
+  EntitlementType,
   Instance,
   License,
   LicenseEntitlement,
@@ -375,5 +376,232 @@ describe("soft limits", () => {
     expect(resolved.remaining).toBeNull();
     expect(resolved.maximumAllowedUsage).toBeNull();
     expect(resolved.status).toBe("enabled");
+  });
+});
+
+// A Kaiten server with add-ons and vouchers answers its gauges with the
+// instance's effective value, which is what its usage gate enforces. An older
+// server answers with the licence grant, so the row's `limit` is right on both.
+describe("effective limits", () => {
+  const usageRow = (
+    limit: unknown,
+    value: unknown = { type: "number", value: 6 },
+    limitCapExceededOveragePercent?: number,
+  ) =>
+    ({
+      entitlementSlug: "customers",
+      value,
+      limit,
+      ...(limitCapExceededOveragePercent === undefined ? {} : { limitCapExceededOveragePercent }),
+    }) as unknown as import("../src/client/types.ts").EntitlementUsage;
+
+  test("a numeric grant raised by add-ons is measured against the effective value", () => {
+    const [seats] = normalizeResolvedEntitlements(
+      [licenseEntitlement({ value: { type: "number", value: 5 } })],
+      [usageRow({ type: "number", value: 8 })],
+    );
+
+    expect(seats).toMatchObject({
+      limitValue: { type: "number", value: 8 },
+      currentValue: { type: "number", value: 6 },
+      maximumAllowedUsage: 8,
+      remaining: 2,
+      percentageUsed: 75,
+      status: "enabled",
+      unlimited: false,
+    });
+  });
+
+  test("an effective unlimited value uncaps a finite grant, and the reverse caps an unlimited one", () => {
+    const [boosted] = normalizeResolvedEntitlements(
+      [licenseEntitlement({ value: { type: "number", value: 5 } })],
+      [usageRow({ type: "number", value: -1 })],
+    );
+    expect(boosted).toMatchObject({ unlimited: true, maximumAllowedUsage: null, remaining: null });
+
+    const [capped] = normalizeResolvedEntitlements(
+      [
+        {
+          ...licenseEntitlement({ value: { type: "number", value: -1 } }),
+          unlimited: true,
+        } as unknown as LicenseEntitlementRow,
+      ],
+      [usageRow({ type: "number", value: 10 })],
+    );
+    expect(capped).toMatchObject({ unlimited: false, maximumAllowedUsage: 10, remaining: 4 });
+  });
+
+  test("a boolean switched on by an add-on is enabled", () => {
+    const [sso] = normalizeResolvedEntitlements(
+      [
+        licenseEntitlement({
+          entitlementSlug: "customers",
+          entitlementType: "BOOLEAN",
+          value: { type: "boolean", value: false },
+        }),
+      ],
+      [usageRow({ type: "boolean", value: true }, { type: "boolean", value: true })],
+    );
+
+    expect(sso).toMatchObject({
+      limitValue: { type: "boolean", value: true },
+      currentValue: { type: "boolean", value: true },
+      status: "enabled",
+    });
+  });
+
+  test("the overage percent applies to the effective value", () => {
+    const [soft] = normalizeResolvedEntitlements(
+      [
+        licenseEntitlement({
+          value: { type: "number", value: 100 },
+          limitCapExceededOveragePercent: 20,
+        } as Partial<LicenseEntitlement>),
+      ],
+      [usageRow({ type: "number", value: 200 }, { type: "number", value: 210 })],
+    );
+
+    expect(soft).toMatchObject({ maximumAllowedUsage: 240, remaining: 30, status: "near_limit" });
+  });
+
+  // The allowance travels with the limit it belongs to. A grant of 100 with no
+  // allowance, raised to 200 by an add-on that brings 20%, is entitled to 200 and
+  // served up to 240: measuring it against the grant's 0% called it over its
+  // limit at 210 while the server went on accepting reports.
+  test("the row's overage percent wins over the grant's", () => {
+    const hardGrant = licenseEntitlement({
+      value: { type: "number", value: 100 },
+      limitCapExceededOveragePercent: 0,
+    } as Partial<LicenseEntitlement>);
+
+    const [soft] = normalizeResolvedEntitlements(
+      [hardGrant],
+      [usageRow({ type: "number", value: 200 }, { type: "number", value: 210 }, 20)],
+    );
+
+    expect(soft).toMatchObject({
+      limitValue: { type: "number", value: 200 },
+      limitCapExceededOveragePercent: 20,
+      maximumAllowedUsage: 240,
+      remaining: 30,
+      status: "near_limit",
+    });
+  });
+
+  test("a row that says hard limit makes a soft grant hard", () => {
+    const softGrant = licenseEntitlement({
+      value: { type: "number", value: 100 },
+      limitCapExceededOveragePercent: 20,
+    } as Partial<LicenseEntitlement>);
+
+    const [hard] = normalizeResolvedEntitlements(
+      [softGrant],
+      [usageRow({ type: "number", value: 100 }, { type: "number", value: 100 }, 0)],
+    );
+
+    expect(hard).toMatchObject({
+      limitCapExceededOveragePercent: 0,
+      maximumAllowedUsage: 100,
+      remaining: 0,
+      status: "over_limit",
+    });
+  });
+
+  test("a row without a percent leaves the grant's, as an older server or the GraphQL read gives it", () => {
+    const softGrant = licenseEntitlement({
+      value: { type: "number", value: 100 },
+      limitCapExceededOveragePercent: 20,
+    } as Partial<LicenseEntitlement>);
+
+    const [kept] = normalizeResolvedEntitlements(
+      [softGrant],
+      [usageRow({ type: "number", value: 200 }, { type: "number", value: 210 })],
+    );
+
+    expect(kept).toMatchObject({ limitCapExceededOveragePercent: 20, maximumAllowedUsage: 240 });
+  });
+
+  test("an unlimited effective value is uncapped whatever the percent says", () => {
+    const [boosted] = normalizeResolvedEntitlements(
+      [licenseEntitlement({ value: { type: "number", value: 5 } })],
+      [usageRow({ type: "number", value: -1 }, { type: "number", value: 900 }, -1)],
+    );
+
+    expect(boosted).toMatchObject({
+      unlimited: true,
+      limitCapExceededOveragePercent: -1,
+      maximumAllowedUsage: null,
+      remaining: null,
+    });
+  });
+
+  test("a failed usage read leaves the grant's percent, with the usage unknown", () => {
+    const softGrant = licenseEntitlement({
+      value: { type: "number", value: 100 },
+      limitCapExceededOveragePercent: 20,
+    } as Partial<LicenseEntitlement>);
+
+    const [unknown] = normalizeResolvedEntitlements([softGrant], null, { usageUnavailable: true });
+
+    expect(unknown).toMatchObject({
+      limitCapExceededOveragePercent: 20,
+      maximumAllowedUsage: 120,
+      currentValue: null,
+    });
+  });
+
+  test("without a limit on the row, or with one of another type, the grant stands", () => {
+    const [absent] = normalizeResolvedEntitlements(
+      [licenseEntitlement({ value: { type: "number", value: 5 } })],
+      [usageRow(undefined)],
+    );
+    const [mismatched] = normalizeResolvedEntitlements(
+      [licenseEntitlement({ value: { type: "number", value: 5 } })],
+      [usageRow({ type: "boolean", value: true })],
+    );
+
+    expect(absent?.limitValue).toEqual({ type: "number", value: 5 });
+    expect(mismatched?.limitValue).toEqual({ type: "number", value: 5 });
+  });
+
+  test("a failed usage read falls back to the grant, and its usage stays unknown", () => {
+    const [unknown] = normalizeResolvedEntitlements(
+      [licenseEntitlement({ value: { type: "number", value: 5 } })],
+      null,
+      { usageUnavailable: true },
+    );
+
+    expect(unknown).toMatchObject({
+      limitValue: { type: "number", value: 5 },
+      currentValue: null,
+      usageUnavailable: true,
+    });
+  });
+});
+
+describe("NUMBER_AI_CREDIT", () => {
+  test("is named by EntitlementType and metered like a number", () => {
+    const [credits] = normalizeResolvedEntitlements(
+      [
+        licenseEntitlement({
+          entitlementType: "NUMBER_AI_CREDIT",
+        } as unknown as Partial<LicenseEntitlement>),
+      ],
+      [
+        {
+          entitlementSlug: "customers",
+          value: { type: "number", value: 30 },
+        } as unknown as import("../src/client/types.ts").EntitlementUsage,
+      ],
+    );
+    const type: EntitlementType = "NUMBER_AI_CREDIT";
+
+    expect(credits).toMatchObject({
+      type,
+      limitValue: { type: "number", value: 120 },
+      currentValue: { type: "number", value: 30 },
+      remaining: 90,
+      percentageUsed: 25,
+    });
   });
 });

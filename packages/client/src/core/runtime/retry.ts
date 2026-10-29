@@ -11,9 +11,16 @@ export interface RetryOptions {
   retryImmediately?: boolean;
   jitter?: boolean;
   onBeforeRetry?: (iteration: number) => void | Promise<void>;
+  /**
+   * How long to wait, in milliseconds, before the attempt that follows `error`,
+   * when the error itself says so, as a `Retry-After` does. It replaces the
+   * backoff for that attempt, whatever `retryImmediately` says. Return
+   * `undefined` to back off as usual.
+   */
+  delayOf?: (error: unknown) => Milliseconds | undefined;
 }
 
-const defaultOptions: Required<Omit<RetryOptions, "onBeforeRetry">> = {
+const defaultOptions: Required<Omit<RetryOptions, "onBeforeRetry" | "delayOf">> = {
   initialDelay: 125,
   maxDelayBetweenRetries: 0,
   factor: 2,
@@ -72,7 +79,10 @@ export async function retry<T>(
 
       await options.onBeforeRetry?.(iterations);
 
-      if (resolved.retryImmediately && iterations === 1) {
+      const asked = options.delayOf?.(error);
+      if (asked !== undefined) {
+        await sleep(asked);
+      } else if (resolved.retryImmediately && iterations === 1) {
         await sleep(applyJitter(RETRY_IMMEDIATELY_DELAY, resolved.jitter));
       } else {
         await delay();

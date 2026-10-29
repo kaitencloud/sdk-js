@@ -5,7 +5,6 @@
 export type {
   BooleanEntitlementValue,
   ConfigEntitlementValue,
-  EntitlementUsage,
   EvaluationFailure,
   EvaluationSuccess,
   NumberEntitlementValue,
@@ -22,11 +21,133 @@ export type { EntitlementGroupUsage as EntitlementGroupUsageItem } from "../core
 import type {
   BooleanEntitlementValue,
   ConfigEntitlementValue,
+  EntitlementUsage as ApiEntitlementUsage,
   EvaluationFailure,
   EvaluationSuccess,
   NumberEntitlementValue,
   User,
 } from "../core/index.ts";
+
+/**
+ * One entitlement's usage row, as the usage routes answer it.
+ *
+ * A current server answers with the instance's effective entitlement: `limit`
+ * and `limitCapExceededOveragePercent` are the licence's grant with the
+ * instance's add-ons and voucher boosts applied, the values its usage gate
+ * enforces, and `source` and `provenance` say where they come from. An older
+ * server answers with the grant itself, and sends neither.
+ *
+ * The contract marks `source` required and the generated type follows. This
+ * one keeps `source`, `provenance` and the overage percent optional: a row built
+ * against the 1.0 shape (a test double, a host's own fixture, the GraphQL
+ * mapping, which cannot tell the layers apart) must keep compiling, and a member
+ * that becomes required on a type hosts construct would break them. Reading them
+ * is unaffected; the raw type is still `KaitenApi.EntitlementUsage`.
+ *
+ * All three also accept `null`. A report the server answers from its journal,
+ * because the same key was already applied, carries the figures of that first
+ * report and not a fresh reading of the layers, so its `source` and
+ * `provenance` are `null`, as the contract declares: read them as "not computed
+ * for this answer", never as "no layer grants this". Narrow with
+ * `row.source != null` before using them.
+ */
+export type EntitlementUsage = Omit<
+  ApiEntitlementUsage,
+  "source" | "provenance" | "limitCapExceededOveragePercent"
+> & {
+  /**
+   * The layer that grants the entitlement: `license` when the licence does, its
+   * value possibly changed by add-ons and boosts, `addon` when only add-ons do.
+   * Open: more may come. Absent on a server that predates it, `null` on the
+   * answer to a replayed report.
+   */
+  source?: "license" | "addon" | (string & {}) | null;
+  /**
+   * Why `limit` is what it is: the licence's grant, the add-ons, the voucher
+   * boosts. Absent on a server that predates it, `null` on the answer to a
+   * replayed report.
+   */
+  provenance?: EntitlementProvenance | null;
+  /**
+   * How far above `limit` usage is still accepted, in percent: `0` for a hard
+   * limit, positive for a soft one, `-1` when `limit` is unlimited. The
+   * allowance of the instance's effective limit, not of the licence's grant.
+   * Absent on a server that predates it, `null` for a BOOLEAN or CONFIG
+   * entitlement, which has no value to cap.
+   */
+  limitCapExceededOveragePercent?: number | null;
+};
+
+/** `SET`, `ADD`, `MULTIPLY` or `UNLIMITED`: how a voucher boost changes an entitlement. Open: more may come. */
+export type BoostModifierType = "SET" | "ADD" | "MULTIPLY" | "UNLIMITED" | (string & {});
+
+/**
+ * Why an entitlement's effective value is what it is: the licence grant, then
+ * each add-on attached, then each voucher boost in its window. The identifiers
+ * name the rows each layer comes from, for a vendor to find them by.
+ */
+export interface EntitlementProvenance {
+  /** The licence's grant. Null when only add-ons or an exception grant the entitlement. */
+  license: {
+    licenseEntitlementId: string;
+    value: EntitlementValue;
+    limitCapExceededOveragePercent: number | null;
+  } | null;
+  /** The active add-on grants, in attachment order. */
+  addons: {
+    instanceAddonId: string;
+    addonId: string;
+    addonEntitlementId: string;
+    quantity: number;
+    /** `ADD`, `OVERRIDE` or `MAX`. Open: more may come. */
+    overrideBehavior: "ADD" | "OVERRIDE" | "MAX" | (string & {});
+    /** One unit's grant: it counts `quantity` times. */
+    value: EntitlementValue;
+    limitCapExceededOveragePercent: number | null;
+    attachedAt: string;
+  }[];
+  /** The voucher boosts in their window, in redemption order. */
+  boosts: {
+    instanceVoucherId: string;
+    voucherId: string;
+    voucherEntitlementGrantId: string;
+    modifierType: BoostModifierType;
+    modifierValue: number | null;
+    /** A BOOLEAN/CONFIG SET boost's tagged value; null for numeric modifiers. Absent on older servers. */
+    value?: EntitlementValue | null;
+    redeemedAt: string;
+    effectiveStartsAt: string;
+    effectiveExpiresAt: string | null;
+  }[];
+  /** The last effective layer. Null without an exception; absent on older servers. Never its reason or author. */
+  exception?: {
+    instanceEntitlementExceptionId: string;
+    /** Open: more kinds may come. */
+    kind: "SET" | "ADD" | "UNLIMITED" | (string & {});
+    /** Null for UNLIMITED. */
+    value: EntitlementValue | null;
+    startsAt: string;
+    /** Null when it has no end. */
+    endsAt: string | null;
+  } | null;
+  /**
+   * The arithmetic of a number entitlement, step by step. Null for a flag or a
+   * configuration, and when no add-on, boost or exception changes the number.
+   */
+  number: {
+    /** The licence's value. Null when only add-ons or an exception grant it. */
+    license: number | null;
+    afterAddons: number;
+    boostSet: number | null;
+    boostAdd: number | null;
+    boostMultiply: number | null;
+    /** Before the exception, as the API computed it; -1 when unlimited. Absent on older servers. */
+    afterBoosts?: number;
+    unlimited: boolean;
+    /** The effective value; `-1` when unlimited. */
+    effective: number;
+  } | null;
+}
 
 export type EntitlementValue =
   | BooleanEntitlementValue
@@ -46,7 +167,16 @@ export interface BulkEvaluationResponse {
 
 export type LicenseType = "DEVELOPMENT" | "TRIAL" | "PAID" | "COMMUNITY";
 
-export type EntitlementType = "BOOLEAN" | "NUMBER" | "CONFIG";
+/**
+ * An entitlement's type. `NUMBER_AI_CREDIT` is a number entitlement counted in
+ * AI credits: it carries a `number` value and is metered like `NUMBER`, so
+ * branch on `limitValue.type` rather than on this to tell numbers apart.
+ *
+ * Closed over these four. `NUMBER_AI_CREDIT` was added to what 1.0.0 named
+ * because the API already sent it; code that switches over this type
+ * exhaustively needs its case, and no other member will follow in 1.x.
+ */
+export type EntitlementType = "BOOLEAN" | "NUMBER" | "CONFIG" | "NUMBER_AI_CREDIT";
 
 export type AggregationMethod = "COUNT" | "SUM" | "AVERAGE" | "MIN" | "MAX" | "LATEST";
 
@@ -214,15 +344,74 @@ export interface LicenseEntitlementRow {
  * the API receives it. The window it lands in is derived from database time —
  * and for a `LICENSE_START` anchor, from the instance's own license start date —
  * so a caller-supplied clock has nothing to say about which window a report
- * belongs to. `ReportEntitlementUsageBody` declares `additionalProperties: false`
- * over `value`, `behavior` and `metadata`, so sending one is a rejected request,
- * not an ignored field.
+ * belongs to. `ReportEntitlementUsageBody` declares `additionalProperties: false`,
+ * so sending one is a rejected request, not an ignored field.
  */
 export interface ReportUsageInput {
   value: EntitlementValue;
   behavior: UsageBehavior;
   metadata?: Record<string, unknown>;
+  /**
+   * Idempotency key: 1 to 128 characters of `[A-Za-z0-9._:-]`, matched exactly
+   * and case-sensitively, such as a UUID or `llm-call:9f2c:tokens`. It travels
+   * in the `Idempotency-Key` request header, never in the body.
+   *
+   * The API applies a report once per key, per instance and entitlement, over
+   * its idempotency window (35 days by default; a key older than that is
+   * forgotten and counts as new): sent again with the same `behavior` and value,
+   * the report answers its original result with `idempotentReplayed: true` and
+   * counts nothing; sent with another `behavior` or value, it is refused with
+   * `TransactionIdReusedError`. A refused report (`ThresholdExceeded`) does not
+   * spend its key.
+   *
+   * A server that honours the key says so by echoing it as `transactionId` in
+   * the result. The client sends the key regardless, but retries a report that
+   * failed on the network or with a 500, 502, 503 or 504, up to three attempts
+   * under the same key, only once this client has received such an echo. Until
+   * then a failure surfaces after the first attempt: a server that ignored the
+   * header would count a retry twice. The client never makes a key up, and a
+   * report without one is sent exactly once.
+   *
+   * A key outside that format is refused before anything is sent, with an
+   * `InvalidTransactionIdError`; so is an empty one, which the API would read as
+   * no key at all.
+   */
+  transactionId?: string;
 }
+
+/**
+ * What a usage report resolves with: the counter after it, plus what the API
+ * said about the report in its response headers.
+ *
+ * On a replay (`idempotentReplayed: true`) the body is rebuilt from the report's
+ * journal entry, which keeps the figures of the counter but not the layers they
+ * were computed from: `source` and `provenance` are `null`, and the overage
+ * percent is the one recorded with that report. A first answer fills all three
+ * for a number entitlement.
+ */
+export type ReportUsageResult = EntitlementUsage & {
+  /**
+   * The key the report was accepted under, echoed by the server on the first
+   * answer and on every replay: the `transactionId` you sent, or `null` when you
+   * sent none. A string says the server honours the key. Absent from a server
+   * that predates the header.
+   */
+  transactionId?: string | null;
+  /**
+   * `true` when the API answered a report already applied under the same
+   * `Idempotency-Key` (`Idempotent-Replayed: true`). The body is then that
+   * report's original result, nothing was counted again, and its window,
+   * value and limit are the ones of that report: do not read it as the current
+   * gauge. Its `source` and `provenance` are `null`. Absent otherwise.
+   */
+  idempotentReplayed?: true;
+  /**
+   * Why the report's `metadata` was not stored, when it was not
+   * (`Kaiten-Metadata-Dropped`): `"too_large"` above 4 KiB. The report itself
+   * was counted. Absent otherwise.
+   */
+  metadataDropped?: string;
+};
 
 // ---------------------------------------------------------------------------
 // Instance
@@ -251,6 +440,39 @@ export interface ResolvedFeatureFlag {
  */
 export type CurrencyCode = string;
 
+/**
+ * How a price is charged. `FLAT_FEE` is a fixed amount per billing period;
+ * `USAGE_BASED` charges every sale unit consumed; `OVERAGE` charges only the
+ * sale units consumed above the included quota.
+ *
+ * Open: the API may add a model in a minor release, so handle an unknown value
+ * (by not rendering the price, for instance) rather than assuming this list is
+ * exhaustive.
+ */
+export type PriceBillingModel = "FLAT_FEE" | "USAGE_BASED" | "OVERAGE" | (string & {});
+
+/**
+ * How a licence or an add-on is sold: `FREE`, `PAID`, or `CUSTOM` (priced by
+ * sales, "Contact us"). Open, like {@link PriceBillingModel}.
+ */
+export type PricingType = "FREE" | "PAID" | "CUSTOM" | (string & {});
+
+/**
+ * A price as `@kaitencloud/client` 1.0 typed it: an integer amount and a billing
+ * interval.
+ *
+ * The lists typed `PlanPrice[]` (`Plan.prices`, `Addon.prices`) only ever hold
+ * prices that this shape describes faithfully: a flat fee, an integer amount,
+ * and an interval of exactly one month or one year. Every other price — a
+ * quarterly or semi-annual fee, a usage or overage price, a price in fractions
+ * of a minor unit — is in `billingPrices`, typed {@link BillingPrice}. A
+ * consumer written against 1.0, which reads `interval === "month"` as "per
+ * month" and `amount` as the whole price, therefore never misreads one.
+ *
+ * The optional members below were added in 1.2. The client sets `id`,
+ * `unitAmountDecimal`, `billingModel` and `isDefault` on the prices it maps from
+ * the API; the others are only ever set on a {@link BillingPrice}.
+ */
 export interface PlanPrice {
   /**
    * Price in the currency's **minor units** (integer): cents for USD/EUR,
@@ -262,6 +484,64 @@ export interface PlanPrice {
   currencyCode?: CurrencyCode;
   interval?: BillingInterval;
   label?: string;
+  /** The price's id: what a checkout names as `licensePriceId`. */
+  id?: string;
+  /**
+   * The exact unit amount in the currency's minor units, as a decimal string
+   * (`"4900"`, `"0.0002"`). Equal to `amount` whenever the price is integral.
+   */
+  unitAmountDecimal?: string;
+  /**
+   * How many `interval`s one billing period spans: `3` for a quarterly price and
+   * `6` for a semi-annual one, both with `interval: "month"`. Absent means one.
+   */
+  intervalCount?: number;
+  billingModel?: PriceBillingModel;
+  /** For a `USAGE_BASED` or `OVERAGE` price, the entitlement it meters. */
+  meteredEntitlementSlug?: string;
+  /**
+   * For a metered price, how many measured units make the sale unit the price
+   * is per: `1000000` for a price per 1M tokens. The amount is per sale unit.
+   */
+  saleUnitFactor?: number;
+  /** Whether this is the default price of its billing period. */
+  isDefault?: boolean;
+}
+
+/**
+ * Any price the billing API serves, mapped to the SDK's money conventions:
+ * `currencyCode` for the API's `currency`, integer minor units for the amount.
+ *
+ * Unlike {@link PlanPrice}, `amount` is optional: it is absent when the price
+ * is not a whole number of minor units (`unitAmountDecimal: "0.0002"`, a price
+ * per token), which is then rendered from `unitAmountDecimal` and never
+ * rounded into an integer. A metered price (`USAGE_BASED`, `OVERAGE`) has no
+ * `interval` and is quoted per sale unit; never add it into a headline price.
+ */
+export interface BillingPrice extends Omit<
+  PlanPrice,
+  "amount" | "id" | "unitAmountDecimal" | "currencyCode" | "billingModel" | "isDefault"
+> {
+  id: string;
+  /** The amount in minor units, when it is an integer. */
+  amount?: number;
+  /** The exact unit amount in minor units, as a decimal string. Always set. */
+  unitAmountDecimal: string;
+  currencyCode: CurrencyCode;
+  billingModel: PriceBillingModel;
+  isDefault: boolean;
+  /** Singular label of the sale unit a metered price is per, e.g. `"1M tokens"`. */
+  saleUnitSingular?: string | null;
+  /** Plural label of that sale unit. */
+  saleUnitPlural?: string | null;
+  /**
+   * When the price is billed, as the API says it: `ADVANCE` bills the period that starts,
+   * `ARREARS` the period that ended. A metered price is always `ARREARS`. Open: more may come.
+   * Absent from a server that predates it.
+   */
+  billingTiming?: "ADVANCE" | "ARREARS" | (string & {});
+  /** The API's ascending display order. Absent on older servers. */
+  displayOrder?: number;
 }
 
 export interface PortalAction {
@@ -322,6 +602,10 @@ export interface PlanEntitlement extends EntitlementPresentation {
   description?: string | null;
   type: EntitlementType | Lowercase<EntitlementValue["type"]>;
   value?: EntitlementValue;
+  /** The catalogue grant's overage allowance, when supplied. */
+  limitCapExceededOveragePercent?: number | null;
+  /** How a catalogue add-on's number grant combines with the licence. Open: more may come. */
+  overrideBehavior?: "ADD" | "OVERRIDE" | "MAX" | (string & {});
   /**
    * True when the grant carries the unlimited sentinel. Server-computed on the
    * GraphQL read path; derived from the value on REST rows. Prefer this over
@@ -348,6 +632,23 @@ export interface Addon {
   entitlements?: PlanEntitlement[];
   features?: string[];
   action?: PortalAction | null;
+  /** The add-on family this add-on is a version of. */
+  familySlug?: string;
+  pricingType?: PricingType;
+  /** The most units one instance may hold. Null when unbounded. */
+  maxQuantity?: number | null;
+  /** How many units the instance holds, on an add-on read from a customer's portal. */
+  quantity?: number;
+  /**
+   * A decrease scheduled for the next renewal, on an add-on read from a customer's portal: the
+   * quantity from that renewal, `0` for a removal. `quantity` and the access it gives hold until
+   * then. `null` when nothing is scheduled; absent from a server that predates it.
+   */
+  pendingQuantity?: number | null;
+  /** Every price of the add-on. See {@link PlanPrice} for why `prices` holds fewer. */
+  billingPrices?: BillingPrice[];
+  /** The licence families this add-on can be attached to. */
+  compatibleLicenseFamilies?: string[];
 }
 
 export interface CreditBalance {
@@ -387,6 +688,26 @@ export interface Plan {
   lifecycleState?: LicenseLifecycleState;
   /** Family of the license behind this plan: plans sharing it are versions of one product. */
   familyId?: string;
+  /** Every active price of the plan. See {@link PlanPrice} for why `prices` holds fewer. */
+  billingPrices?: BillingPrice[];
+  pricingType?: PricingType;
+  /** Length of the trial a subscription starts with, in days. Null without a trial. */
+  trialPeriodDays?: number | null;
+  /** Whether subscribing requires a payment method, even when nothing is due today. */
+  requiresPaymentMethod?: boolean;
+  /**
+   * Whether a customer can subscribe to this plan by themselves, through a
+   * checkout. When false, offer `selfServeCtaUrl` instead, when there is one.
+   */
+  selfServe?: boolean;
+  /**
+   * Where to send a customer for a plan that is not self-serve ("Contact us"). The vendor sets it in
+   * Kaiten; a component links to it as written when it is an http(s) address, so a page does not
+   * overwrite it with a value taken from a request parameter.
+   */
+  selfServeCtaUrl?: string | null;
+  /** The add-on families that can be attached to this plan. */
+  compatibleAddonFamilies?: string[];
 }
 
 export interface ResolvedEntitlement extends EntitlementPresentation {
@@ -410,11 +731,13 @@ export interface ResolvedEntitlement extends EntitlementPresentation {
   unlimited?: boolean;
   remaining?: number | null;
   /**
-   * The allowance carried by the grant, as a percentage of its included value:
-   * `0` for a hard limit, positive for a soft one, `-1`/null when nothing caps
-   * it. Beside `maximumAllowedUsage` so a host can tell "at the included cap
-   * but still served" from "the server will refuse the next report" — two
-   * states that both read above 100% used.
+   * The allowance in force, as a percentage of the limit: `0` for a hard limit,
+   * positive for a soft one, `-1`/null when nothing caps it. It is the
+   * instance's effective allowance when the usage read carried it, as a current
+   * server's REST read does, and the licence grant's otherwise. Beside
+   * `maximumAllowedUsage` so a host can tell "at the included cap but still
+   * served" from "the server will refuse the next report" — two states that both
+   * read above 100% used.
    */
   limitCapExceededOveragePercent?: number | null;
   /** The highest usage the API accepts. Null when nothing caps the grant. */
@@ -455,8 +778,20 @@ export interface ResolvedEntitlement extends EntitlementPresentation {
   usageWindowUnknown?: boolean;
   status: "enabled" | "disabled" | "near_limit" | "over_limit";
   configLabel?: string | null;
+  /**
+   * The legacy 1.0 layer. An exception or an unknown layer reads as `license` here for
+   * compatibility; read `effectiveSource` for the portal's actual layer. `credit` is reserved.
+   */
   source: "license" | "addon" | "credit";
+  /** The portal's actual layer, without a fallback. Open; absent when the server says nothing. */
+  effectiveSource?: "license" | "addon" | "exception" | (string & {});
   actions?: PortalAction[];
+  /**
+   * How each layer contributed to the effective value — the licence grant, the
+   * add-ons, the voucher boosts — on an entitlement read from a customer's
+   * portal: enough to render "(100,000 base) × 2 voucher = 200,000".
+   */
+  provenance?: EntitlementProvenance;
 }
 
 export interface BillingCapabilities {
@@ -464,15 +799,57 @@ export interface BillingCapabilities {
   invoices: boolean;
   unsubscribe: boolean;
   checkout: boolean;
+  /**
+   * Whether a visitor with no account can check out anonymously with the
+   * publishable key the catalogue was read with: the key has the feature on, with
+   * its Turnstile values. Read on a catalogue with a publishable key; absent
+   * elsewhere. Always paired with `turnstileSiteKey`: when it is true, that is a
+   * site key.
+   */
+  anonymousCheckout?: boolean;
+  /**
+   * The Turnstile site key to render the widget with, whose token `startCheckout`
+   * takes. `null` when `anonymousCheckout` is false. Absent where the catalogue was
+   * not read with a publishable key.
+   */
+  turnstileSiteKey?: string | null;
 }
 
 export interface KaitenBrandingCapability {
   removable: boolean;
 }
 
+/**
+ * What a catalog read may narrow. They apply to the public catalog, read with a
+ * publishable key; a client with any other credential composes the catalog from
+ * the licences endpoints and ignores them.
+ */
+export interface GetCatalogOptions {
+  /** Only the licence family with this slug. Without it, every public family. */
+  familySlug?: string;
+  /**
+   * `"addons"` lists the public add-ons beside the plans, which is also what
+   * leaving it out does; `"none"` leaves them out, and `catalog.addOns` is empty.
+   */
+  include?: "addons" | "none";
+}
+
 export interface KaitenCatalog {
   plans: Plan[];
   branding?: KaitenBrandingCapability;
+  /** The public add-ons, on a catalog read with a publishable key. */
+  addOns?: Addon[];
+  /**
+   * What the organization offers to self-serve customers, on a catalog read
+   * with a publishable key: `checkout` when at least one plan is self-serve,
+   * `paymentMethods` when its billing provider can capture a payment method,
+   * `anonymousCheckout` when the publishable key can start a checkout for a visitor
+   * with no account, and then `turnstileSiteKey` is the site key of its widget.
+   */
+  capabilities?: Pick<
+    BillingCapabilities,
+    "checkout" | "paymentMethods" | "anonymousCheckout" | "turnstileSiteKey"
+  >;
 }
 
 /**
@@ -482,10 +859,15 @@ export interface KaitenCatalog {
  * always sent and the SDK never read — so an expired license kept every one of
  * its entitlements. `null` when there is no instance (nothing to date).
  *
- * The comparison is against the *client* clock, so this is an indication and not
- * an enforcement: the server remains the authority, exactly as for the rest of
- * the gating surface. It is enough to stop presenting an expired license as
- * current, and to stop opening quota gates against it.
+ * Information, not an entitlement decision. No Kaiten server gates on these
+ * dates: its usage gate, its flag evaluation and its entitlement reads ignore
+ * them, and Kaiten billing never moves them — a subscription renews without
+ * touching `endLicenseDate`. A gate that denied an `expired` term would
+ * therefore refuse a customer the server still serves, including a paying one
+ * whose subscription renewed. Show the term ("expired on …"); decide access on
+ * the entitlements, as the server does.
+ *
+ * The comparison is against the *client* clock.
  */
 export interface LicenseTerm {
   status: "active" | "expired" | "not_started";
