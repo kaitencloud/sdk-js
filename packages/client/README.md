@@ -75,8 +75,43 @@ const snapshot = await kaiten.components.getSnapshot("acme-corp");
 
 - `kaiten.components` — embedded monetization: `getCatalog()`, `getSnapshot(customerId, instanceId?)`
 - `kaiten.customers` / `kaiten.instances` / `kaiten.licenses` — curated reads
-- `kaiten.usage` — entitlement usage (read + report)
+- `kaiten.usage` — entitlement usage (read + report, `reportDetailed`, `history`)
 - `kaiten.flags` — feature-flag evaluation (`evaluate`, `evaluateAll`)
+
+### Reporting usage safely
+
+A report without a key is sent once and never retried: if its request fails, it may or
+may not have been counted, and sending it again could count it twice. Give it a
+`transactionId` and the API applies it at most once (per instance, entitlement and key,
+within 35 days by default), so the client retries it on network errors and 5xx, every
+attempt under the same key.
+
+```ts
+import { TransactionIdReusedError } from "@kaitencloud/client";
+
+try {
+  const { usage, replayed } = await kaiten.usage.reportDetailed("acme-production", "tokens", {
+    value: { type: "number", value: 1200 },
+    behavior: "append",
+    transactionId: "llm-call:9f2c:tokens", // a UUID, or the business event id plus the meter
+  });
+  // replayed: the API had already counted this report, and `usage` is its original answer.
+} catch (error) {
+  if (error instanceof TransactionIdReusedError) {
+    // The key was already used for a different report: a bug in how keys are made,
+    // not retryable. A correction is a new report under a new key.
+    log.error({ original: error.errors?.[0]?.value }, "usage report key reused");
+  }
+  throw error;
+}
+```
+
+An API older than `transactionId` refuses the field: the report is then resent without it,
+and the client stops sending keys for its lifetime, warning once.
+
+`kaiten.usage.history(instanceSlug, entitlementSlug, { from, to, transactionId, limit })`
+returns the accepted reports, oldest first, with the counter before and after each one and
+the limit it was gated on. It needs `read:instances`, so it belongs on a server.
 
 ## Testing without an API — `@kaitencloud/client/testing`
 

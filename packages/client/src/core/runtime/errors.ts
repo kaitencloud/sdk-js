@@ -51,6 +51,23 @@ export class KaitenError extends Error {
 }
 
 /**
+ * Thrown by a usage report whose `transactionId` was already used, within the
+ * API's idempotency window, for a report with another behavior or value. It is
+ * a bug in how keys are made, not a transient failure: the same report under
+ * the same key fails the same way, so it is never retried. Send a correction as
+ * a new report under a new key.
+ */
+export class TransactionIdReusedError extends KaitenError {
+  constructor(apiError: KaitenApiError) {
+    super(apiError);
+    this.name = "TransactionIdReusedError";
+  }
+}
+
+/** The problem code the API answers a reused usage report key with. */
+export const TRANSACTION_ID_REUSED = "ReportEntitlementUsageMetric.TransactionIdReused";
+
+/**
  * Thrown when the request never reached the API (offline, DNS, CORS, abort) —
  * there is no HTTP status. Narrow with `instanceof KaitenNetworkError` or the
  * `kind === "network"` discriminant (see {@link KaitenThrownError}).

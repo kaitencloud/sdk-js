@@ -20,6 +20,7 @@ export {
   KaitenError,
   KaitenNetworkError,
   KaitenTransport,
+  TransactionIdReusedError,
   assertPublishableKey,
   isPublishableKey,
   retry,

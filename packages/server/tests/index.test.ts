@@ -9,6 +9,7 @@ import {
   KaitenError,
   KaitenNetworkError,
   isThresholdExceeded,
+  isTransactionIdReused,
 } from "../src/index.ts";
 
 const jsonOk = async () =>
@@ -186,5 +187,101 @@ describe("@kaitencloud/server", () => {
       ).toBe(false);
       expect(isThresholdExceeded(new KaitenError({ title: "Conflict", status: 409 }))).toBe(false);
     });
+  });
+});
+
+describe("usage report keys and the usage history", () => {
+  const problem = (status: number, code: string) =>
+    new Response(JSON.stringify({ title: "Conflict", status, code }), {
+      status,
+      headers: { "content-type": "application/problem+json" },
+    });
+
+  test("a usage report sends its transactionId", async () => {
+    const { seen, fetch } = recordingFetch(
+      async () =>
+        new Response(JSON.stringify({ entitlementSlug: "seats" }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+    );
+    const client = createKaitenClient({ token: "t", baseUrl: "https://example.test", fetch });
+
+    await Instances.reportEntitlementUsageMetric({
+      client,
+      path: { instanceSlug: "inst-1", entitlementSlug: "seats" },
+      body: { value: { type: "number", value: 1 }, behavior: "append", transactionId: "evt-1" },
+    });
+
+    expect(await seen[0]?.json()).toMatchObject({ transactionId: "evt-1" });
+  });
+
+  test("isTransactionIdReused recognises the reused-key conflict, and only it", async () => {
+    const client = createKaitenClient({
+      token: "t",
+      baseUrl: "https://example.test",
+      fetch: async () => problem(409, "ReportEntitlementUsageMetric.TransactionIdReused"),
+    });
+    const error = await Instances.reportEntitlementUsageMetric({
+      client,
+      path: { instanceSlug: "inst-1", entitlementSlug: "seats" },
+      body: { value: { type: "number", value: 1 }, behavior: "append", transactionId: "evt-1" },
+    }).catch((caught: unknown) => caught);
+
+    expect(isTransactionIdReused(error)).toBe(true);
+    expect(isThresholdExceeded(error)).toBe(false);
+    expect(
+      isTransactionIdReused(
+        new KaitenError({
+          title: "Conflict",
+          status: 409,
+          code: "ReportEntitlementUsageMetric.ThresholdExceeded",
+        }),
+      ),
+    ).toBe(false);
+  });
+
+  test("the usage history is a paged read by afterSeq", async () => {
+    const { seen, fetch } = recordingFetch(
+      async () =>
+        new Response(JSON.stringify({ items: [], nextAfterSeq: 2 }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+    );
+    const client = createKaitenClient({ token: "t", baseUrl: "https://example.test", fetch });
+
+    const { data } = await Instances.listUsageReports({
+      client,
+      path: { instanceSlug: "inst-1", entitlementSlug: "seats" },
+      query: { afterSeq: 1, limit: 2, transactionId: "evt-1" },
+    });
+
+    expect(data?.nextAfterSeq).toBe(2);
+    const url = new URL(seen[0]!.url);
+    expect(url.pathname).toBe("/api/instances/inst-1/entitlements/seats/usage/reports");
+    expect(url.searchParams.get("afterSeq")).toBe("1");
+    expect(url.searchParams.get("transactionId")).toBe("evt-1");
+  });
+
+  test("an export streams when asked to", async () => {
+    const csv = "organization_id,instance_id\no,i\n";
+    const client = createKaitenClient({
+      token: "t",
+      baseUrl: "https://example.test",
+      fetch: async () =>
+        new Response(csv, { status: 200, headers: { "content-type": "text/csv" } }),
+    });
+
+    const { data } = await Instances.exportUsageReports({
+      client,
+      path: { instanceSlug: "inst-1", entitlementSlug: "seats" },
+      query: { format: "csv" },
+      parseAs: "stream",
+    });
+
+    expect(data).toBeInstanceOf(ReadableStream);
+    // Typed as the body the contract declares; parseAs "stream" hands back the stream.
+    expect(await new Response(data as unknown as ReadableStream).text()).toBe(csv);
   });
 });
