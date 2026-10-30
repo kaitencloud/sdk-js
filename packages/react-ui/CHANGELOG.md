@@ -1,5 +1,13 @@
 # @kaitencloud/react-ui
 
+## 1.0.1
+
+### Patch Changes
+
+- [#18](https://github.com/kaitencloud/sdk-js/pull/18) [`6da91b7`](https://github.com/kaitencloud/sdk-js/commit/6da91b7d3f341052a976caf5755d1009a0d81e81) Thanks [@Lleios](https://github.com/Lleios)! - Publish from the Release workflow, with npm provenance, which the 1.0.0 published by hand lacks. The code does not change.
+- Updated dependencies [[`6da91b7`](https://github.com/kaitencloud/sdk-js/commit/6da91b7d3f341052a976caf5755d1009a0d81e81)]:
+  - @kaitencloud/react@1.0.1
+
 ## 1.0.0
 
 First public release, on npm under the Apache License 2.0. These are Kaiten's styled React
