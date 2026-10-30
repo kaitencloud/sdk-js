@@ -743,12 +743,13 @@ describe("this repository", () => {
       const results = checkReleaseShape(repoRoot, { dryRun: accepted });
 
       expect(results.filter((result) => result.status === "fail")).toEqual([]);
-      // The two React packages join these the day they stop being private, and this
-      // test must not be what stands in the way: it holds for whichever are public.
       const published = publishedPackages(repoRoot).map(({ name }) => name);
-      expect(published).toEqual(
-        expect.arrayContaining(["@kaitencloud/client", "@kaitencloud/server"]),
-      );
+      expect(published.toSorted((a, b) => a.localeCompare(b))).toEqual([
+        "@kaitencloud/client",
+        "@kaitencloud/react",
+        "@kaitencloud/react-ui",
+        "@kaitencloud/server",
+      ]);
       expect(results.filter((result) => result.rule.endsWith("tarball"))).toHaveLength(
         published.length,
       );

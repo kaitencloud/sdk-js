@@ -379,12 +379,10 @@ const majorOf = (version) => Number(/(\d+)/.exec(version ?? "")?.[1]) || 0;
 
 // ---------------------------------------------------------------------------
 // 7. A package npm publishes never depends on one it does not.
-//    @kaitencloud/react and @kaitencloud/react-ui stay `"private": true` until
-//    Kaiten billing ships, and Changesets publishes no private package. Flipping
-//    react-ui public while react stays private would publish a manifest whose
-//    `@kaitencloud/react` range nobody can install. A private package may depend
-//    on anything; the check is about what reaches npm. Unlike the rules above,
-//    this one guards a change still to come, the day the two are made public.
+//    Changesets publishes no private package. Making react-ui public while
+//    react stays private would publish a manifest whose `@kaitencloud/react`
+//    range nobody can install. A private package may depend on anything; the
+//    check is about what reaches npm.
 // ---------------------------------------------------------------------------
 {
   const manifests = new Map(

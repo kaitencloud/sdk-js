@@ -7,7 +7,7 @@
 
 # Stability & versioning — `@kaitencloud/react` and `@kaitencloud/react-ui`
 
-> **Status: `1.x`, not on npm yet.** Both packages are published at 1.0.0, after
+> **Status: `1.x`.** Both packages were first published at 1.0.0, after
 > `@kaitencloud/client` 1.2.0, and the guarantees below hold from that release on. The
 > _stable_ surface follows semantic versioning: a breaking change to it needs a
 > major release. The surface marked _experimental_ has **no stability
@@ -304,8 +304,8 @@ the core lists here that `@kaitencloud/react-ui` imports only grows within a maj
   `KaitenAnonymousCheckoutWords`). Optional and carried whole by every language pack, like the
   checkout's; the English is in `@kaitencloud/react-ui`. The company field's words
   (`companyLabel`, `companyHint`, `companyRequired`), the name's hint and the mark of an optional
-  field (`optional`) are members of 1.0.0, which is not published: a pack that predates them is
-  incomplete, and the compiler says so. It says what a customer's checkout does
+  field (`optional`) are members of 1.0.0, the first published version: a pack written before
+  them is incomplete, and the compiler says so. It says what a customer's checkout does
   not (the form, the security check, the review, the end, each refusal) and leans on
   `checkoutFlow` for the rest, so a host that overrides it overrides both.
 - **The words of the portal and of a subscription**, `KaitenLocalization.portalBilling` and

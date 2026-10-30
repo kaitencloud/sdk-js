@@ -1,13 +1,13 @@
 name: Release
 
-# Versions and publishes @kaitencloud/client and @kaitencloud/server to npm.
+# Versions and publishes @kaitencloud/client, @kaitencloud/server, @kaitencloud/react
+# and @kaitencloud/react-ui to npm.
 #
-# @kaitencloud/react and @kaitencloud/react-ui are `"private": true` until their
-# first version, 1.0.0, is published by hand: npm accepts a trusted publisher only
-# on a package that already exists, and neither name exists on npm yet. Changesets
-# neither versions nor publishes a private package, so no run of this workflow can
-# put them on npm before that. CONTRIBUTING.md says how; once they are public, this
-# workflow publishes their later versions.
+# npm accepts a trusted publisher only on a package that already exists, so the
+# first version of a package is published by hand, from its packed tarball, and
+# its trusted publisher configured on npmjs.com before this workflow can publish
+# the next one. @kaitencloud/react and @kaitencloud/react-ui started that way, at
+# 1.0.0 (CONTRIBUTING.md, "The first version of a package").
 #
 # On every push to main, Changesets picks what the run does:
 #   version  a changeset that bumps something is pending: open or refresh the

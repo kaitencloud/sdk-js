@@ -1,7 +1,6 @@
 {
   "name": "@kaitencloud/react-ui",
   "version": "1.0.0",
-  "private": true,
   "description": "Kaiten React SDK — styled licensing & monetization components on the headless core",
   "homepage": "https://github.com/kaitencloud/sdk-js/tree/main/packages/react-ui#readme",
   "bugs": {

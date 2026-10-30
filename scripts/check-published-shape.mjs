@@ -27,14 +27,12 @@
 // For @kaitencloud/client and @kaitencloud/server, publint and attw run inside
 // `vp pack` (see each vite.config.ts), so they are not repeated here.
 //
-// Private packages: @kaitencloud/react and @kaitencloud/react-ui are
-// `"private": true` until their first version is published by hand (CONTRIBUTING.md),
-// so nothing publishes them before that. They
-// are checked all the same, as the tarball they will ship, so that making them
-// public is a one-line change and not the first time their shape is looked at.
-// While private, each must keep the `publishConfig` a public package carries
-// (public access, the npm registry), and its packed manifest must still say
-// `private`, which makes `npm publish` refuse the tarball.
+// Private packages: a package marked `"private": true` is not published. It is
+// checked all the same, as the tarball it will ship, so that making it public is
+// a one-line change and not the first time its shape is looked at. While private,
+// it must keep the `publishConfig` a public package carries (public access, the
+// npm registry), and its packed manifest must still say `private`, which makes
+// `npm publish` refuse the tarball.
 //
 //   node scripts/check-published-shape.mjs          # build must have run first
 
@@ -78,7 +76,7 @@ function isExpectedProblem(problem) {
 /** The packages whose `vp pack` cannot validate them, checked here instead. */
 const VALIDATED_HERE = ["react", "react-ui"];
 
-/** Every package this repository ships, or will once it stops being private. */
+/** Every package this repository ships. */
 const PUBLISHED = ["client", "server", "react", "react-ui"];
 const NPM_REGISTRY = "https://registry.npmjs.org/";
 const LICENSE = "Apache-2.0";
