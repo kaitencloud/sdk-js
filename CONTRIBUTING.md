@@ -295,6 +295,15 @@ dependency first.
    itself. It tags and releases only what it publishes, so a first version has no git
    tag or GitHub release, as `@kaitencloud/client` and `@kaitencloud/server` 1.0.0 have
    none.
+6. Release a patch of each new package through the workflow, within 2 days of step 4.
+   npm checks nothing when a trusted publisher is saved, so a mistake only shows at the
+   first publish, and a trusted publisher that has not completed one within 2 days
+   expires: it can no longer be used or edited. Delete it, create it again, and release
+   within the next 2 days. The patch also gives the package what a version published
+   by hand lacks: provenance, a git tag and a GitHub release. Its changeset can replace
+   the empty one in the branch, since the merge only opens the version pull request.
+   `@kaitencloud/react` and `@kaitencloud/react-ui` 1.0.1 were released this way. On
+   npmjs.com, check that each trusted publisher no longer reads "Pending validation".
 
 The release builds and checks all four packages before packing. Its blocking
 dependency-floor check uses npm's minimum client and React, or, with
