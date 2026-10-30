@@ -121,12 +121,12 @@ The components have a Storybook playground: `vp run @kaitencloud/react-ui#storyb
   required to merge. [`examples/storefront`](examples/storefront) says what it proves.
 - **react-18-compat**: the React packages' unit tests against React 18, their peer
   floor.
-- **compat-1.0**: code written against `@kaitencloud/client` 1.0.0 compiles against
-  the tarball npm serves for 1.0.0 and against the one this tree would publish, and
-  every name 1.0.0 exports, from the client and from `@kaitencloud/server`, is still
-  exported, a value still a value, except the client's `MeterType`, removed on
-  purpose in 1.1.0 (`REMOVED_SINCE_1_0`). Not required to merge, because it reads
-  the npm registry.
+- **compat-1.0**: the immutable 1.0 consumer compiles against the tarball npm serves
+  for 1.0.0; a current management consumer compiles against this tree. Export checks
+  permit only the documented major OpenFeature policy removals (and historical
+  `MeterType` removal). Major-release metadata is required. No evaluation alias may
+  be added to satisfy a historical consumer. Not required to merge, because it reads
+  the npm registry. See [MIGRATION-2.md](MIGRATION-2.md).
 - **release-dependencies**: the shape of what a release would publish, with npm's own
   dry run, and that React and React UI compile against their minimum client/React
   dependencies, including React's internal entries and transitive client floor.

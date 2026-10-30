@@ -50,7 +50,10 @@ const server = createServer(async (req, res) => {
       res.writeHead(503).end("KAITEN_API_URL and KAITEN_API_TOKEN are not set");
       return;
     }
-    const enabled = await isEnabled(flag[1], url.searchParams.get("user") ?? "anonymous");
+    // This example has no login middleware. Evaluate only an anonymous subject;
+    // never let a query parameter impersonate a customer or name its instance.
+    // A real application derives both from its authenticated, authorized principal.
+    const enabled = await isEnabled(flag[1], "anonymous");
     res.writeHead(200, { "content-type": "application/json" });
     res.end(JSON.stringify({ flag: flag[1], enabled }));
     return;

@@ -216,12 +216,6 @@ import type {
   DryRunMetadataFieldData,
   DryRunMetadataFieldErrors,
   DryRunMetadataFieldResponses,
-  EvaluateFlagData,
-  EvaluateFlagErrors,
-  EvaluateFlagResponses,
-  EvaluateFlagsBulkData,
-  EvaluateFlagsBulkErrors,
-  EvaluateFlagsBulkResponses,
   ExportInvoicesData,
   ExportInvoicesErrors,
   ExportInvoicesResponses,
@@ -5952,65 +5946,6 @@ export class MetadataFields {
       url: "/metadata-fields/{id}/unarchive",
       ...options,
     });
-  }
-}
-
-export class OfrepCore {
-  /**
-   * OFREP bulk flag evaluation contract
-   *
-   * OFREP bulk evaluation request.
-   * The endpoint is called by the client providers to evaluate all flags at once.
-   */
-  public static evaluateFlagsBulk<ThrowOnError extends boolean = false>(
-    options?: Options<EvaluateFlagsBulkData, ThrowOnError>,
-  ): RequestResult<EvaluateFlagsBulkResponses, EvaluateFlagsBulkErrors, ThrowOnError> {
-    return (options?.client ?? client).post<
-      EvaluateFlagsBulkResponses,
-      EvaluateFlagsBulkErrors,
-      ThrowOnError
-    >({
-      security: [
-        {
-          key: "bearerAuth",
-          scheme: "bearer",
-          type: "http",
-        },
-      ],
-      url: "/ofrep/v1/evaluate/flags",
-      ...options,
-      headers: {
-        "Content-Type": "application/json",
-        ...options?.headers,
-      },
-    });
-  }
-
-  /**
-   * OFREP single flag evaluation contract
-   *
-   * EvaluateVariant a single feature flag for a given key
-   */
-  public static evaluateFlag<ThrowOnError extends boolean = false>(
-    options: Options<EvaluateFlagData, ThrowOnError>,
-  ): RequestResult<EvaluateFlagResponses, EvaluateFlagErrors, ThrowOnError> {
-    return (options.client ?? client).post<EvaluateFlagResponses, EvaluateFlagErrors, ThrowOnError>(
-      {
-        security: [
-          {
-            key: "bearerAuth",
-            scheme: "bearer",
-            type: "http",
-          },
-        ],
-        url: "/ofrep/v1/evaluate/flags/{key}",
-        ...options,
-        headers: {
-          "Content-Type": "application/json",
-          ...options.headers,
-        },
-      },
-    );
   }
 }
 

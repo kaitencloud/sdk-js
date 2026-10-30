@@ -15,8 +15,8 @@ import { graphql } from "./generated/gql.ts";
  * with their live entitlement usage, plus the full plan catalog — replacing the
  * REST fan-out (customer + instances + N×license entitlements + usage). The
  * license selection is kept textually identical to LicensingCatalog's so both
- * map through the same catalog code path. Feature flags stay on OFREP (a REST
- * standard) and are fetched alongside.
+ * map through the same catalog code path. Flag decisions use OpenFeature
+ * separately; this management query never evaluates flags.
  *
  * `entitlementUsage` selects the window bounds (`currentPeriodStart` /
  * `currentPeriodEnd`) and the `limit` the usage is measured against. The bounds

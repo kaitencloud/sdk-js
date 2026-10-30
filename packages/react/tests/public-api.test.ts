@@ -21,8 +21,6 @@ const DOCUMENTED_EXPORTS = [
   "usePaywallTrigger",
   "useLicensingSnapshot",
   "useReportUsage",
-  "useFeatureFlag",
-  "useFeatureFlags",
   "useLicense",
   "useInstance",
   "useEntitlement",
@@ -64,6 +62,8 @@ const DOCUMENTED_EXPORTS = [
 
 // Identifiers that were removed and must NOT come back without a docs update.
 const REMOVED_EXPORTS = [
+  "useFeatureFlag",
+  "useFeatureFlags",
   // Moved to `@kaitencloud/react-ui` with every styled component: the core
   // renders no element and ships no stylesheet.
   "KaitenStyleRoot",

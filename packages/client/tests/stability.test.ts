@@ -30,8 +30,6 @@ const RELEASED_UNNAMED = new Set([
   "defaultActions",
   "getMaximumAllowedUsage",
   "getUsageScope",
-  "isEvaluationFailure",
-  "isEvaluationSuccess",
   "isPeriodicEntitlement",
   "isPublishableKey",
   "isSoftLimit",

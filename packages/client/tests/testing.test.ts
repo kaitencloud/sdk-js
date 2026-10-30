@@ -225,17 +225,6 @@ describe("createMockKaitenClient", () => {
     expect(client.usageReports[0]?.instanceSlug).toBe("acme-production");
   });
 
-  test("evaluates flags from the snapshot, and unknown ones fail closed", async () => {
-    const client = createMockKaitenClient();
-
-    expect(await client.evaluateFlag("new-dashboard")).toMatchObject({ value: true });
-    expect(await client.evaluateFlag("never-defined")).toMatchObject({
-      value: false,
-      reason: "DEFAULT",
-    });
-    expect((await client.evaluateFlags()).flags).toHaveLength(3);
-  });
-
   // Failure states are as much a part of a UI as the happy path, and are the
   // hardest to reach against a real API.
   test("error makes every read reject", async () => {

@@ -62,8 +62,10 @@ release. Add a tool name to select part of the graph. For example, run
   `e2e/` out, since those files are Playwright's.
 - `packages/client/tests/compat/consumer-1.0.ts` is an application written against
   `@kaitencloud/client` 1.0.0. `node scripts/check-compat-1.0.mjs` compiles it against
-  the published 1.0.0 and against the build of this tree. When it stops compiling, the
-  change under test is breaking: fix the change, never the fixture.
+  the published 1.0.0 and against the build of this tree. It remains unchanged and compiles against its published 1.0.0 tarball. The
+  intentional 2.0 OpenFeature policy removes direct flag evaluation with no alias:
+  the checker now uses `tests/compat-current` for current management consumers
+  and requires major-release metadata. Never rewrite the historical fixture.
 - A script that reads npm names the registry itself (`scripts/lib/npm-package.mjs`),
   the scope included: a user-level mapping of `@kaitencloud` to another registry
   outranks `--registry`. Do the same in a new one, and unpack tarballs rather than

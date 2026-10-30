@@ -8,7 +8,7 @@ import type { KaitenCatalog } from "../types.ts";
 const HINTS = {
   static:
     `the provider was given a catalog and no API to call. Use mode="public" for a live ` +
-    `catalog, or mode="authenticated" for a customer's snapshot, flags and usage.`,
+    `catalog, or mode="authenticated" for a customer's snapshot and usage.`,
   "customer-session": `a customer session reads its portal, and the catalog with a publishableKey.`,
 } as const;
 
@@ -19,8 +19,7 @@ const HINTS = {
  * the catalog, fetched wherever the host fetches — a Server Component, a build
  * step, a CMS. A customer session without a publishable key has no route but
  * its portal's. But the hooks are written against `KaitenClientLike`, and a few
- * of them can still ask for a live read: `useFeatureFlag` with an evaluation
- * context evaluates over OFREP, `useReportUsage` writes. Rather than making the
+ * of them still write, such as `useReportUsage`. Rather than making the
  * context's `client` optional and teaching every hook to check, this object
  * answers those asks with the one thing that is true — the catalog it was
  * given, if any — and rejects everything else, naming the mode.
@@ -42,8 +41,6 @@ export function createOfflineKaitenClient(
   return {
     getCatalog: () => (catalog ? Promise.resolve(catalog) : unavailable("getCatalog")),
     getLicensingSnapshot: () => unavailable("getLicensingSnapshot"),
-    evaluateFlag: () => unavailable("evaluateFlag"),
-    evaluateFlags: () => unavailable("evaluateFlags"),
     reportUsage: () => unavailable("reportUsage"),
   };
 }

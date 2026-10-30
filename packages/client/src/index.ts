@@ -77,7 +77,6 @@ export type {
   KaitenClientLike,
   KaitenComponentsModule,
   KaitenCustomersModule,
-  KaitenFlagsModule,
   KaitenInstancesModule,
   KaitenLicensesModule,
   KaitenUsageModule,
@@ -94,8 +93,6 @@ export {
   resolveLicenseTerm,
   withQuery,
 } from "./client/normalize.ts";
-export { isEvaluationFailure, isEvaluationSuccess } from "./client/feature-flags.ts";
-export type { FeatureFlagEvaluation } from "./client/feature-flags.ts";
 // An entitlement business rule shared by every usage surface, not infrastructure
 // — hence a domain module rather than a `lib/` helper. Exported because a host
 // rendering its own meters needs the same rule the SDK's components use, and the

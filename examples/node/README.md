@@ -7,7 +7,7 @@ Kaiten's server-side packages in a small Node backend, with no framework:
   The token stays on the server.
 - **`POST /webhooks/kaiten`** verifies a webhook's signature with
   `@kaitencloud/server` before trusting it.
-- **`GET /flags/:key?user=…`** evaluates a feature flag with OpenFeature and its
+- **`GET /flags/:key`** evaluates a feature flag with OpenFeature and its
   generic OFREP provider, `@openfeature/ofrep-provider`: Kaiten implements the
   protocol, so this route needs no Kaiten package.
 
@@ -28,3 +28,12 @@ variable is missing. With an account, set:
 | `KAITEN_WEBHOOK_SECRET` | The `whsec_` secret of your webhook endpoint                                      |
 
 `vp test` runs the tests, which need neither an account nor the network.
+
+The HTTP sample has no authentication middleware and evaluates only `anonymous`.
+It does not accept a query parameter to impersonate a customer. In a real backend,
+derive the targeting key and optional `kaiten.instanceSlug` from your authenticated
+principal and an authorized instance; the server credential scopes the organization.
+Each call passes its own context, and provider errors/wrong types use the false default.
+The provider uses a dedicated OpenFeature domain and a per-request header factory
+for caller-owned token rotation; it never closes a supplied fetch implementation.
+See [the 2.0 migration](../../MIGRATION-2.md) for browser-safe integration constraints.

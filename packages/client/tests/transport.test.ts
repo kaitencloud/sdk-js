@@ -103,8 +103,8 @@ describe("KaitenTransport Content-Type handling", () => {
   test("sets application/json on POST bodies but leaves GET requests untouched", async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = new URL((input as Request).url);
-      if (url.pathname.includes("/ofrep/")) {
-        return json({ key: "flag", value: true });
+      if (url.pathname.includes("/graphql")) {
+        return json({ data: { licenses: { items: [], hasMore: false } } });
       }
       return json({ id: "c", slug: "acme", name: "Acme" });
     });
@@ -117,7 +117,7 @@ describe("KaitenTransport Content-Type handling", () => {
     });
 
     await client.getCustomer("acme");
-    await client.evaluateFlag("flag", {});
+    await client.getCatalog();
 
     const getReq = fetchMock.mock.calls
       .map(([input]) => input as Request)
@@ -193,27 +193,6 @@ describe("KaitenTransport retry policy", () => {
 });
 
 describe("KaitenTransport error mapping", () => {
-  test("maps OFREP {errorCode, errorDetails} bodies onto KaitenError", async () => {
-    const fetchMock = vi.fn(async () =>
-      json({ errorCode: "PARSE_ERROR", errorDetails: "bad context" }, 422),
-    );
-    vi.stubGlobal("fetch", fetchMock);
-
-    const client = new KaitenClient({
-      apiUrl: "https://api.test",
-      authScheme: "none",
-      fetch: fetchMock,
-    });
-
-    await expect(client.evaluateFlag("flag", {})).rejects.toMatchObject({
-      message: "PARSE_ERROR",
-      code: "PARSE_ERROR",
-      status: 422,
-      detail: "bad context",
-    });
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-  });
-
   test("exposes the problem's code and errorId", async () => {
     const fetchMock = vi.fn(async () =>
       json(

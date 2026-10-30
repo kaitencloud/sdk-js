@@ -92,7 +92,17 @@ function resourceClasses() {
   return classes;
 }
 
-const ALL = operations(CONTRACT);
+const PROTOCOL = operations(CONTRACT);
+const ALL = PROTOCOL.filter((operation) => !operation.path.startsWith("/ofrep/v1/evaluate/"));
+
+test("OFREP protocol stays in the contract, never in the SDK", () => {
+  expect(
+    PROTOCOL.filter((operation) => operation.path.startsWith("/ofrep/v1/evaluate/"))
+      .map((operation) => operation.operationId)
+      .sort(),
+  ).toEqual(["evaluateFlag", "evaluateFlagsBulk"]);
+  expect("OfrepCore" in server).toBe(false);
+});
 const CLASSES = resourceClasses();
 
 /** The class the generator makes of a tag: `customer-sessions` is `CustomerSessions`, `OFREP Core` is `OfrepCore`. */
@@ -113,8 +123,8 @@ describe("the contract and the generated classes", () => {
   test("the snapshot is read whole", () => {
     // 206 REST operations at the snapshot; a read that finds far fewer has lost
     // its footing in the file, and every test below would pass on what is left.
-    expect(ALL.length).toBeGreaterThan(200);
-    expect(new Set(ALL.map((operation) => operation.operationId)).size).toBe(ALL.length);
+    expect(PROTOCOL.length).toBeGreaterThan(200);
+    expect(new Set(PROTOCOL.map((operation) => operation.operationId)).size).toBe(PROTOCOL.length);
   });
 
   test("every operation is a static method of the class of each of its tags", () => {

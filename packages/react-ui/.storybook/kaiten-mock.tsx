@@ -398,12 +398,6 @@ export function createStoryClient(
       await settle();
       return toSnapshot(scenario);
     },
-    async evaluateFlag(key: string) {
-      return (scenario.flags ?? []).find((flag) => flag.key === key) ?? { key, value: false };
-    },
-    async evaluateFlags() {
-      return { flags: scenario.flags ?? [] };
-    },
     async reportUsage(
       _instanceSlug: string,
       entitlementSlug: string,

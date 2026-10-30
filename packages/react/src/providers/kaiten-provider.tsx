@@ -45,7 +45,7 @@ interface KaitenContextValue {
    */
   scopeKey: string;
   // `KaitenClientLike`, not `KaitenClient`: a host-supplied client (a fixture
-  // double, a custom transport) flows through here, and only the five methods
+  // double, a custom transport) flows through here, and only the three methods
   // of the interface are ever called below. Internal type — this context is not
   // exported.
   client: KaitenClientLike;
@@ -353,7 +353,7 @@ interface KaitenProviderNetworkProps {
    * `apiUrl`/keys — fixture data in tests and Storybook, or a custom
    * transport/cache/SSR arrangement.
    *
-   * Typed as `KaitenClientLike` (the five methods a UI consumes) rather than the
+   * Typed as `KaitenClientLike` (the three management methods a UI consumes) rather than the
    * `KaitenClient` class: the class has a private field, so TypeScript types it
    * nominally and no object could ever satisfy it structurally. Every fake had to
    * end in `as unknown as KaitenClient` — a cast that turns a swapped-in double

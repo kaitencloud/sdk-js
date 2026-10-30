@@ -66,7 +66,7 @@ const HOST_SUBTREE = "ktn-host";
  * duplicating `usePaywallTrigger` beside the component that already computed it.
  * `data-reason` carries `usePaywallTrigger`'s own verdict:
  *
- *   over_limit | near_limit | not_entitled | flag_disabled | error
+ *   over_limit | near_limit | not_entitled | error
  *
  * and, because the set is open, whatever reason a later Kaiten billing adds: a
  * reason this component does not know comes up as a wall with the generic wording,
@@ -106,7 +106,6 @@ export interface PaywallProps {
   /** Minimum remaining numeric units required before the wrapped content unlocks. */
   min?: number;
   mode?: "soft" | "hard";
-  flagKey?: string;
   /**
    * Fail policy when access data can't be loaded. `"block"` (default,
    * fail-closed) shows the paywall so paid content is never revealed during an
@@ -135,7 +134,6 @@ function PaywallRoot({
   threshold = 0.8,
   min,
   mode = "soft",
-  flagKey,
   onError = "block",
   loading = null,
   onUpgrade,
@@ -149,7 +147,7 @@ function PaywallRoot({
   useTrackComponent("Paywall");
 
   const merged = useMergedAppearance(appearance);
-  const trigger = usePaywallTrigger(entitlement, { threshold, min, flagKey, onError });
+  const trigger = usePaywallTrigger(entitlement, { threshold, min, onError });
   // The trigger gates on its own, older rule and says nothing of the allowance, which the bar needs
   // to draw the track the grant actually permits.
   const entitlements = useEntitlements();
@@ -184,9 +182,7 @@ function PaywallRoot({
     if (typeof process !== "undefined" && process.env.NODE_ENV === "production") return;
     if (
       mode === "hard" &&
-      (trigger.reason === "over_limit" ||
-        trigger.reason === "not_entitled" ||
-        trigger.reason === "flag_disabled") &&
+      (trigger.reason === "over_limit" || trigger.reason === "not_entitled") &&
       trigger.shouldShow &&
       !onUpgrade
     ) {
@@ -241,26 +237,18 @@ function PaywallRoot({
       ? localization.paywall.limitReached
       : trigger.reason === "near_limit"
         ? localization.paywall.approachingLimit
-        : trigger.reason === "flag_disabled"
-          ? localization.paywall.featureUnavailable
-          : localization.paywall.notAvailable;
+        : localization.paywall.notAvailable;
 
   const badgeVariant =
-    trigger.reason === "over_limit" ||
-    trigger.reason === "flag_disabled" ||
-    trigger.reason === "error"
-      ? "destructive"
-      : "secondary";
+    trigger.reason === "over_limit" || trigger.reason === "error" ? "destructive" : "secondary";
 
   const description =
     trigger.reason === "error"
       ? localization.paywall.errorDescription
-      : trigger.reason === "flag_disabled"
-        ? localization.paywall.flagDisabledDescription
-        : localization.paywall.usageDescription(
-            trigger.current.toLocaleString(),
-            trigger.limit.toLocaleString(),
-          );
+      : localization.paywall.usageDescription(
+          trigger.current.toLocaleString(),
+          trigger.limit.toLocaleString(),
+        );
 
   // Under a customer session the portal also says where the subscription stands. That never opens
   // or closes a wall (billing status closes none), but it explains one: a subscription that is over,
@@ -325,9 +313,7 @@ function PaywallRoot({
   if (
     mode === "hard" &&
     !modalDismissed &&
-    (trigger.reason === "over_limit" ||
-      trigger.reason === "not_entitled" ||
-      trigger.reason === "flag_disabled")
+    (trigger.reason === "over_limit" || trigger.reason === "not_entitled")
   ) {
     return (
       <>
