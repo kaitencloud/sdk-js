@@ -83,7 +83,7 @@ describe("retry and idempotency", () => {
   it("retries a POST the caller declares idempotent", async () => {
     const { fetch, requests } = stubFetch([500, 200]);
 
-    // GraphQL and OFREP are POSTs by protocol and reads by intent: the input
+    // GraphQL queries are POSTs by protocol and reads by intent: the input
     // travels in a body, but replaying them changes nothing.
     await transportWith(fetch).post("/graphql", { query: "{ me }" }, { idempotent: true });
 

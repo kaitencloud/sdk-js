@@ -27,7 +27,6 @@ import {
   emitKaitenEvent,
   usePlans,
   useEntitlementCheck,
-  useFeatureFlag,
   useLicense,
   useReportUsage,
   CurrentPlan,
@@ -422,7 +421,7 @@ test("PricingTable supports annual toggle and selection", () => {
   expect(onSelectPlan).toHaveBeenCalledWith("pro", expect.objectContaining({ slug: "pro" }));
 });
 
-test("Paywall reacts to quota and flag state from snapshot cache", async () => {
+test("Paywall reacts to quota state from snapshot cache", async () => {
   installFetchMock();
   const onThresholdReached = vi.fn();
 
@@ -435,7 +434,6 @@ test("Paywall reacts to quota and flag state from snapshot cache", async () => {
     >
       <Paywall
         entitlement="api_calls"
-        flagKey="premium-feature"
         onThresholdReached={onThresholdReached}
         children={<div>Protected content</div>}
       />
@@ -443,7 +441,7 @@ test("Paywall reacts to quota and flag state from snapshot cache", async () => {
   );
 
   await waitFor(() => {
-    expect(screen.getByText("Feature unavailable")).toBeDefined();
+    expect(screen.getByText("Approaching limit")).toBeDefined();
     expect(onThresholdReached).toHaveBeenCalled();
   });
 });
@@ -901,27 +899,6 @@ test("KaitenStyleRoot exposes portal stacking through appearance.zIndex", () => 
   expect(portalHost.className).not.toContain("z-[100]");
   expect(portalHost.style.zIndex).toBe("var(--ktn-z-portal)");
   expect(root.style.getPropertyValue("--ktn-z-portal")).toBe("240");
-});
-
-test("Show supports flag-based gating", async () => {
-  installFetchMock();
-
-  render(
-    <KaitenProvider
-      mode="authenticated"
-      accessToken="tmp_demo"
-      customerId="cust-1"
-      polling={{ enabled: false }}
-    >
-      <Show when="flag-disabled" flagKey="premium-feature" fallback={<div>fallback hidden</div>}>
-        <div>flag gate active</div>
-      </Show>
-    </KaitenProvider>,
-  );
-
-  await waitFor(() => {
-    expect(screen.getByText("flag gate active")).toBeDefined();
-  });
 });
 
 test("Show + useEntitlementCheck support numeric remaining thresholds", async () => {
@@ -2791,95 +2768,6 @@ test("the fake's error option drives the failure state", async () => {
   );
 
   await waitFor(() => expect(screen.getByText("failed: fixture outage")).toBeDefined());
-});
-
-// --- Cache isolation between provider scopes -------------------------------
-// The SDK's SWR keys live in the cache the host app also uses. The flag keys
-// carried no scope at all (`["kaiten","feature-flag",key]`), so two providers
-// pointed at different customers — a case the SDK supports, and warns about
-// only when it is *un*intentional — shared one entry: whichever mounted first
-// decided what the other saw.
-
-function FlagProbe({ label }: { label: string }) {
-  // A custom context is what routes this through the flag query key; without
-  // one the hook reads the flag out of the snapshot instead.
-  const flag = useFeatureFlag<string>("rollout", { tier: "pro" });
-  return <div>{`${label}:${flag.data?.value ?? "loading"}`}</div>;
-}
-
-test("two provider scopes do not serve each other their flag evaluations", async () => {
-  installFetchMock();
-  kaitenClientMock.evaluateFlag
-    .mockResolvedValueOnce({ key: "rollout", value: "for-a", reason: "targeting_match" })
-    .mockResolvedValueOnce({ key: "rollout", value: "for-b", reason: "targeting_match" });
-
-  render(
-    <>
-      <KaitenProvider
-        mode="authenticated"
-        accessToken="tmp_demo"
-        customerId="cust-cache-a"
-        polling={{ enabled: false }}
-      >
-        <FlagProbe label="A" />
-      </KaitenProvider>
-      <KaitenProvider
-        mode="authenticated"
-        accessToken="tmp_demo"
-        customerId="cust-cache-b"
-        polling={{ enabled: false }}
-      >
-        <FlagProbe label="B" />
-      </KaitenProvider>
-    </>,
-  );
-
-  // Each scope resolves its own evaluation. Sharing one key would have given
-  // both subtrees the first answer, and issued a single request.
-  await waitFor(() => {
-    expect(screen.getByText("A:for-a")).toBeDefined();
-    expect(screen.getByText("B:for-b")).toBeDefined();
-  });
-  expect(kaitenClientMock.evaluateFlag).toHaveBeenCalledTimes(2);
-});
-
-test("one scope mounted twice still shares a single evaluation", async () => {
-  installFetchMock();
-  kaitenClientMock.evaluateFlag.mockResolvedValue({
-    key: "rollout",
-    value: "shared",
-    reason: "targeting_match",
-  });
-
-  render(
-    <>
-      <KaitenProvider
-        mode="authenticated"
-        accessToken="tmp_demo"
-        customerId="cust-cache-same"
-        polling={{ enabled: false }}
-      >
-        <FlagProbe label="A" />
-      </KaitenProvider>
-      <KaitenProvider
-        mode="authenticated"
-        accessToken="tmp_demo"
-        customerId="cust-cache-same"
-        polling={{ enabled: false }}
-      >
-        <FlagProbe label="B" />
-      </KaitenProvider>
-    </>,
-  );
-
-  await waitFor(() => {
-    expect(screen.getByText("A:shared")).toBeDefined();
-    expect(screen.getByText("B:shared")).toBeDefined();
-  });
-
-  // Scoping the keys must not cost legitimate sharing: the same scope is still
-  // one cache entry and one request, not one per provider.
-  expect(kaitenClientMock.evaluateFlag).toHaveBeenCalledTimes(1);
 });
 
 // The provider used to wrap its children in a <SWRConfig> carrying its own read

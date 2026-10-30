@@ -8,7 +8,6 @@ import { expect, userEvent, within } from "storybook/test";
 
 import {
   KaitenStoryProvider,
-  scenarioPaywallFlagDisabled,
   scenarioPaywallNearLimit,
   scenarioPaywallOk,
   scenarioPaywallOverLimit,
@@ -18,7 +17,6 @@ import { Paywall } from "./paywall.tsx";
 const nearScenario = scenarioPaywallNearLimit();
 const overScenario = scenarioPaywallOverLimit();
 const okScenario = scenarioPaywallOk();
-const flagDisabledScenario = scenarioPaywallFlagDisabled();
 
 const shell = (node: ReactNode) => (
   <div className="relative min-h-[280px] w-full max-w-xl rounded-lg border border-dashed border-border p-4">
@@ -84,7 +82,7 @@ export const SoftVsHardDocs: Story = {
     docs: {
       description: {
         story:
-          "**Soft** blurs content and allows dismiss. **Hard** uses a blocking dialog for over-limit or flag-disabled. Compare `SoftNearLimit` with `HardOverLimit` or `HardFlagDisabled`.",
+          "**Soft** blurs content and allows dismiss. **Hard** uses a blocking dialog for over-limit. Compare `SoftNearLimit` with `HardOverLimit`.",
       },
     },
   },
@@ -226,22 +224,6 @@ export const NoOverlayUnderThreshold: Story = {
       <p className="text-sm text-muted-foreground">
         Usage is low — no paywall overlay (check should not appear).
       </p>
-    ),
-  },
-};
-
-export const HardFlagDisabled: Story = {
-  decorators: [
-    (Story) => (
-      <KaitenStoryProvider scenario={flagDisabledScenario}>{shell(<Story />)}</KaitenStoryProvider>
-    ),
-  ],
-  args: {
-    entitlement: "api_calls",
-    flagKey: "premium-feature",
-    mode: "hard",
-    children: (
-      <p className="text-sm">Content hidden when the feature flag is disabled (hard mode).</p>
     ),
   },
 };

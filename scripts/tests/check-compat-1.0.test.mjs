@@ -14,7 +14,13 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, test } from "vite-plus/test";
 
-import { REMOVED_SINCE_1_0, compileConsumers, withoutRemoved } from "../check-compat-1.0.mjs";
+import {
+  HISTORICAL_CONSUMERS_DIR,
+  REMOVED_SINCE_1_0,
+  assertOpenFeatureMajorRelease,
+  compileConsumers,
+  withoutRemoved,
+} from "../check-compat-1.0.mjs";
 import { declaredExports, lostExports } from "../lib/declared-exports.mjs";
 import {
   PROFILES,
@@ -67,8 +73,28 @@ function changedTarball(label, change, base = current) {
 }
 
 describe("the compile check of 1.0 consumers", () => {
+  test("policy removals have major release metadata", () => {
+    expect(() => assertOpenFeatureMajorRelease()).not.toThrow();
+  });
+
   test(
-    "compiles the real consumer against the tree, under every compiler and resolution",
+    "the immutable historical evaluator cannot compile against current API",
+    () => {
+      const results = compileConsumers({
+        workDir: work,
+        label: "historical-against-current",
+        tarball: current,
+        consumersDir: HISTORICAL_CONSUMERS_DIR,
+      });
+      expect(results.every((result) => !result.ok)).toBe(true);
+      expect(results[0].output).toContain("evaluateFlag");
+      expect(results[0].output).toContain("KaitenFlagsModule");
+    },
+    LONG,
+  );
+
+  test(
+    "compiles the current management consumer under every compiler and resolution",
     () => {
       const results = compileConsumers({ workDir: work, label: "tree", tarball: current });
 
@@ -175,7 +201,7 @@ describe("the list of exports the compile check holds", () => {
     ]);
   });
 
-  test("lets go of MeterType, which 1.1.0 removed on purpose, and of nothing else", () => {
+  test("lets go only of documented removals, never management exports", () => {
     const published = new Map([
       [
         ".",
@@ -191,7 +217,17 @@ describe("the list of exports the compile check holds", () => {
       ["./testing", new Map([["demoCatalog", "value"]])],
     ]);
 
-    expect([...REMOVED_SINCE_1_0.get(".").keys()]).toEqual(["MeterType"]);
+    expect([...REMOVED_SINCE_1_0.get(".").keys()]).toEqual([
+      "MeterType",
+      "KaitenFlagsModule",
+      "BulkEvaluationResponse",
+      "EvaluationResult",
+      "EvaluationSuccess",
+      "EvaluationFailure",
+      "FeatureFlagEvaluation",
+      "isEvaluationSuccess",
+      "isEvaluationFailure",
+    ]);
     expect(lostExports(withoutRemoved(published), tree)).toEqual([
       ".: type Customer is no longer exported",
     ]);

@@ -3,15 +3,12 @@
 
 import type { KaitenClientLike } from "../client/client.ts";
 import type {
-  BulkEvaluationResponse,
   EntitlementUsage,
-  EvaluationSuccess,
   KaitenCatalog,
   LicensingSnapshot,
   ReportUsageInput,
   ReportUsageResult,
   ResolvedEntitlement,
-  ResolvedFeatureFlag,
 } from "../client/types.ts";
 import { demoCatalog, demoSnapshot } from "./fixtures.ts";
 
@@ -47,16 +44,6 @@ export interface MockKaitenClient extends KaitenClientLike {
     entitlementSlug: string;
     input: ReportUsageInput;
   }[];
-}
-
-function flagToEvaluation(flag: ResolvedFeatureFlag): EvaluationSuccess {
-  return {
-    key: flag.key,
-    value: flag.value,
-    variant: flag.variant,
-    reason: flag.reason,
-    metadata: flag.metadata,
-  } as EvaluationSuccess;
 }
 
 // Re-derives the fields the snapshot normalizer computes, so a reported usage
@@ -156,21 +143,6 @@ export function createMockKaitenClient(options: MockKaitenClientOptions = {}): M
     async getLicensingSnapshot(): Promise<LicensingSnapshot> {
       await settle();
       return snapshot;
-    },
-
-    async evaluateFlag(key: string): Promise<EvaluationSuccess> {
-      await settle();
-      const flag = snapshot.flags.find((candidate) => candidate.key === key);
-      // Unknown flags evaluate to the off default rather than throwing — the
-      // same fail-closed answer OFREP gives for a flag the org never defined.
-      return flag
-        ? flagToEvaluation(flag)
-        : ({ key, value: false, reason: "DEFAULT" } as EvaluationSuccess);
-    },
-
-    async evaluateFlags(): Promise<BulkEvaluationResponse> {
-      await settle();
-      return { flags: snapshot.flags.map(flagToEvaluation) };
     },
 
     async reportUsage(

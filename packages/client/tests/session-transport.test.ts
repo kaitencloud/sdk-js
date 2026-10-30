@@ -234,7 +234,7 @@ describe("session mode: Bearer kst_ on session routes only, refreshed before exp
 });
 
 describe("KaitenSessionClientLike", () => {
-  test("is its own interface: KaitenClientLike keeps its five 1.0 methods", () => {
+  test("is its own interface: KaitenClientLike only owns management calls", () => {
     const sessionLike: KaitenSessionClientLike = sessionClient(
       server(() => json(PORTAL)).fetch,
       sessions(session(KST_A, T0 + 30 * MINUTE)),
@@ -242,7 +242,7 @@ describe("KaitenSessionClientLike", () => {
     type Same<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
     const unchanged: Same<
       keyof KaitenClientLike,
-      "getCatalog" | "getLicensingSnapshot" | "evaluateFlag" | "evaluateFlags" | "reportUsage"
+      "getCatalog" | "getLicensingSnapshot" | "reportUsage"
     > = true;
 
     expect(typeof sessionLike.getPortal).toBe("function");

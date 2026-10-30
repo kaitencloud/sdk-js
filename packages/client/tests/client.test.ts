@@ -345,27 +345,6 @@ describe("KaitenClient transport", () => {
     const request = getFetchRequest(fetchMock);
     expect(request.url).toBe("http://localhost/api/customers/acme");
   });
-
-  test("evaluates a feature flag via OFREP", async () => {
-    const fetchMock = vi.fn(async () =>
-      json({ key: "flag-a", value: true, variant: "on", reason: "DEFAULT" }),
-    );
-    vi.stubGlobal("fetch", fetchMock);
-
-    const client = new KaitenClient({
-      authScheme: "none",
-      apiUrl: "https://api.test",
-      fetch: fetchMock,
-    });
-
-    const result = await client.evaluateFlag("flag-a", { plan: "pro" });
-    expect(result).toMatchObject({ key: "flag-a", value: true });
-
-    const request = getFetchRequest(fetchMock);
-    expect(request.url).toContain("/ofrep/v1/evaluate/flags/flag-a");
-    expect(request.method).toBe("POST");
-    expect(await request.text()).toBe(JSON.stringify({ context: { plan: "pro" } }));
-  });
 });
 
 // ---------------------------------------------------------------------------
@@ -450,7 +429,6 @@ function installSnapshotApi(options: {
         },
       });
     }
-    if (url.includes("/ofrep/")) return json({ flags: [] });
     if (url.includes("/entitlements/usage")) return json([]);
     if (url.includes("/licenses/pro/entitlements")) return json([]);
     if (url.endsWith("/licenses")) return json([licenseRow]);
@@ -651,7 +629,6 @@ describe("onDegraded", () => {
       const url = new URL(input instanceof Request ? input.url : String(input)).pathname;
       if (url.includes("/graphql"))
         return graphqlJson({ data: { licenses: { items: [], hasMore: false }, customer: null } });
-      if (url.includes("/ofrep/")) return json({ flags: [] });
       if (url.includes("/customers/")) return json({ title: "Not found", status: 404 }, 404);
       return json([]);
     });
@@ -845,7 +822,6 @@ describe("cursor pagination", () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const request = input instanceof Request ? input : new Request(String(input));
       const path = new URL(request.url).pathname;
-      if (path.includes("/ofrep/")) return json({ flags: [] });
       if (!path.endsWith("/graphql")) return json([]);
 
       const body = (await request.json()) as {
@@ -1169,7 +1145,6 @@ describe("the usage window travels only where it was actually read", () => {
           },
         });
       }
-      if (url.includes("/ofrep/")) return json({ flags: [] });
       if (url.includes("/entitlements/usage")) return json([row]);
       if (url.includes("/licenses/pro/entitlements")) return json([grant(entitlementRow)]);
       if (url.endsWith("/licenses")) return json([licenseRow]);

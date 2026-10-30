@@ -128,7 +128,6 @@ describe("public mode reads the catalogue from /public/catalog only", () => {
       () => client.getLicensingSnapshot("acme"),
       () => client.getCustomer("acme"),
       () => client.listLicenses(),
-      () => client.evaluateFlags(),
       () =>
         client.reportUsage("acme-prod", "seats", {
           value: { type: "number", value: 1 },

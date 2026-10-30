@@ -36,7 +36,7 @@ test("kaitenKeys produces stable, scope-prefixed key structures", () => {
     "components",
     "snapshot",
   ]);
-  expect(kaitenKeys.featureFlag.bulk(scope)).toEqual(["kaiten", scope, "feature-flags", "bulk"]);
+  expect("featureFlag" in kaitenKeys).toBe(false);
 });
 
 test("formatKaitenDate formats valid inputs and preserves invalid strings", () => {

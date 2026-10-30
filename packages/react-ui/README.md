@@ -72,7 +72,6 @@ function App() {
       <KaitenStyleRoot>
         <Paywall
           entitlement="api_calls"
-          flagKey="premium-feature"
           threshold={0.8}
           onUpgrade={(action) => {
             console.log("recommended action", action?.type);
@@ -135,12 +134,12 @@ Storybook uses mocked Kaiten scenarios and the scoped Kaiten design system adapt
 | `<IncludedFeatures />`      | The plan's feature catalog (limit + status); unlimited rows are collapsed    |
 | `<UsageMeters />`           | Finite, metered quotas with live usage and the console's usage states        |
 | `<AddOns />`                | Available and active add-ons plus credit balances                            |
-| `<FlagsSummary />`          | Customer feature flags and rollout status                                    |
+| `<FlagsSummary />`          | Host-provided flag display data (not evaluated by the SDK)                   |
 | `<InvoiceList />`           | A customer session's invoices, to pay and to download                        |
 | `<VoucherEntry />`          | A voucher code: checked before a subscription, previewed then applied on one |
 | `<PaymentMethodCard />`     | The payment method a customer session pays with, to add or replace           |
 | `<TrialBanner />`           | The trial an instance is in: countdown, what its end charges, the card       |
-| `<Paywall />`               | Paywall aware of both entitlements and feature flags                         |
+| `<Paywall />`               | Paywall based on entitlements                                                |
 | `<PlanBadge />`             | Compact badge showing the customer's current plan                            |
 | `<UpgradeButton />`         | Button wired to the recommended upgrade action                               |
 | `<CheckoutFlow />`          | A customer's checkout of a plan: choices, what is due, payment, outcome      |
@@ -454,3 +453,6 @@ Edit the `STORIES` allowlist in
 [`tests/visual/stories.ts`](tests/visual/stories.ts). The `storyId` is
 the Storybook URL `?id=` value (kebab-case: `<title-slug>--<export-slug>`). Run
 `vp run test:visual:update` after each addition to record the baseline.
+
+Flag decisions are separate from entitlement paywalls: use the OpenFeature SDK and
+its official OFREP provider. See [the breaking 2.0 migration](../../MIGRATION-2.md).

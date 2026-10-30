@@ -43,13 +43,6 @@ export interface ScopeSelector extends Partial<ClientScope> {
   instanceId?: string;
 }
 
-interface FlagEvaluation {
-  key: string;
-  value: unknown;
-  variant?: string;
-  reason: string;
-}
-
 interface DoubleState {
   /** Flat fallback: what every unregistered scope resolves to. */
   snapshot: unknown;
@@ -58,27 +51,13 @@ interface DoubleState {
   scoped: Map<string, ScopedFixtures>;
   /** Every config a double was constructed with, in order. */
   constructions: ClientScope[];
-  /**
-   * Flag payloads. The two suites disagree on purpose — components.test.tsx
-   * exercises a disabled flag, hooks.test.tsx an enabled variant — so this is a
-   * slot rather than a constant.
-   */
-  flag: (key: string) => FlagEvaluation;
-  flags: () => { flags: FlagEvaluation[] };
 }
-
-const defaultFlag = (key: string): FlagEvaluation => ({ key, value: false, reason: "rule" });
-const defaultFlags = () => ({
-  flags: [{ key: "premium-feature", value: false, reason: "rule" }],
-});
 
 const state: DoubleState = {
   snapshot: null,
   catalog: null,
   scoped: new Map(),
   constructions: [],
-  flag: defaultFlag,
-  flags: defaultFlags,
 };
 
 /**
@@ -164,8 +143,6 @@ export const kaitenClientMock = {
   getLicensingSnapshot: vi.fn(async (_customerId?: string, _instanceId?: string) =>
     resolveSnapshot(),
   ),
-  evaluateFlag: vi.fn(async (key: string, _context?: Record<string, unknown>) => state.flag(key)),
-  evaluateFlags: vi.fn(async (_context?: Record<string, unknown>) => state.flags()),
   reportUsage: vi.fn(
     async (_instanceSlug: string, entitlementSlug: string, input: { value: unknown }) => ({
       entitlementId: "ent-api",
@@ -185,15 +162,6 @@ export const kaitenClientMock = {
   resetScopes(): void {
     state.scoped.clear();
     state.constructions.length = 0;
-  },
-
-  /** Replace the flag payloads this double answers with. */
-  setFlagBehaviour(behaviour: {
-    flag?: (key: string) => FlagEvaluation;
-    flags?: () => { flags: FlagEvaluation[] };
-  }): void {
-    state.flag = behaviour.flag ?? defaultFlag;
-    state.flags = behaviour.flags ?? defaultFlags;
   },
 
   /** The scope of the call currently in flight — for asserting inside a stub. */
@@ -240,14 +208,6 @@ export function createKaitenClientDouble() {
       withScope(this.scope, customerId, instanceId, () =>
         kaitenClientMock.getLicensingSnapshot(customerId, instanceId),
       );
-
-    evaluateFlag = (key: string, context?: Record<string, unknown>) =>
-      withScope(this.scope, undefined, undefined, () =>
-        kaitenClientMock.evaluateFlag(key, context),
-      );
-
-    evaluateFlags = (context?: Record<string, unknown>) =>
-      withScope(this.scope, undefined, undefined, () => kaitenClientMock.evaluateFlags(context));
 
     reportUsage = (instanceSlug: string, entitlementSlug: string, input: { value: unknown }) =>
       withScope(this.scope, undefined, instanceSlug, () =>

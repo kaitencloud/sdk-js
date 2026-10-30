@@ -27,7 +27,6 @@ import {
   KaitenScopeProvider,
   useCustomer,
   useEntitlementCheck,
-  useFeatureFlag,
   useKaitenScopeKey,
   useKaitenSessionClient,
   useLicense,
@@ -315,7 +314,6 @@ test("refuses what a customer session cannot do, before any request", async () =
   const { result } = renderHook(
     () => ({
       report: useReportUsage(),
-      flag: useFeatureFlag("beta", { plan: "pro" }),
       snapshot: useLicensingSnapshot(),
     }),
     { wrapper: wrapperFor(sessionClientFor(fetchSpy)) },
@@ -328,9 +326,6 @@ test("refuses what a customer session cannot do, before any request", async () =
       input: { value: { type: "number", value: 1 }, behavior: "append", transactionId: "t-1" },
     }),
   ).rejects.toThrow(/only available in authenticated mode, not under mode="customer-session"/);
-
-  await waitFor(() => expect(result.current.flag.error).not.toBeNull());
-  expect(result.current.flag.error?.message).toContain('mode="customer-session"');
 
   // The portal read, and nothing the session is not for.
   expect(requests.map((request) => new URL(request.url).pathname)).toEqual([

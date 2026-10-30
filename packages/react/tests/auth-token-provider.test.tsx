@@ -160,11 +160,9 @@ function installDegradedApi() {
       const request = new Request(input as RequestInfo, init);
       const body = request.url.includes("/graphql")
         ? { errors: [{ message: 'Cannot query field "saleUnitFactor"' }] }
-        : request.url.includes("/ofrep/")
-          ? { flags: [] }
-          : request.url.includes("/customers/")
-            ? { id: "c1", slug: "acme", name: "Acme" }
-            : [];
+        : request.url.includes("/customers/")
+          ? { id: "c1", slug: "acme", name: "Acme" }
+          : [];
 
       return new Response(JSON.stringify(body), {
         status: 200,

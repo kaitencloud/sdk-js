@@ -2,40 +2,17 @@
 // Copyright 2026 KAITEN INC
 // SPDX-License-Identifier: Apache-2.0
 
-// Fails when code written against @kaitencloud/client 1.0.0 stops compiling.
-//
-// Every release of 1.x promises that code written against 1.0.0 keeps compiling
-// and working (packages/client/STABILITY.md). `tests/compat-1.0.test.ts` holds some
-// of that from inside the package, against the sources. This check holds it the way
-// a consumer meets it: through the declarations in a tarball.
-//
-// packages/client/tests/compat/consumer-1.0.ts is an application written against
-// 1.0.0. It is type-checked, never run, against two packages, each unpacked under
-// `node_modules` of a throwaway project and compiled by every TypeScript this
-// repository installs, with both module resolutions a consumer is likely to have:
-//
-//   - the tarball npm serves for @kaitencloud/client@1.0.0. If this fails the
-//     fixture is not 1.0 code, and its other result means nothing. The tarball is
-//     held to the integrity npm published it with.
-//   - the tarball `pnpm pack` makes from this tree, which is what would be
-//     published. If this fails, a change broke 1.0 code, and the compiler's output
-//     names where.
+// Checks immutable 1.0 consumers against npm's immutable 1.0.0 tarball and
+// current management consumers against this tree's built tarball. Every compiler
+// and consumer module resolution is tested. Historical evaluation code is never
+// adapted or restored as a compatibility alias: the OpenFeature policy is major.
+// Export checks allow only named policy removals and the historical MeterType
+// removal; all remaining management exports must stay values/types as before.
 //
 //   node scripts/check-compat-1.0.mjs                 # after `vp run -r build`
 //   node scripts/check-compat-1.0.mjs --published <tarball> --published-server <tarball>
-//                                                     # use tarballs of 1.0.0 you already have
 //
-// A fixture only names what its author remembered to use, so a second check holds
-// the rest: every name the declarations of 1.0.0 export, from `.` and `./testing`,
-// must still be exported by this tree, and a value must still be a value. The names
-// are read by the compiler from the unpacked declarations, not from the fixture.
-// REMOVED_SINCE_1_0 lists the one name a release removed on purpose.
-//
-// `@kaitencloud/server` has no fixture, since its resource classes follow the API
-// contract, but its names are held the same way: a class, a helper or a type of
-// 1.0.0 that a release drops or renames breaks the code that imports it.
-//
-// The first run needs the npm registry; nothing is installed.
+// The first run reads npm; tarballs are unpacked, no dependency scripts run.
 
 import {
   existsSync,
@@ -75,12 +52,63 @@ export const PUBLISHED_INTEGRITY =
   "sha512-f4hWzqyhiu6Oul1Xoo3OQ3WUe123YEWqBMQEtEVizm1La3vl2THULfTnQLBtN6mPB6zlKwv1QDKwX03CgO0keg==";
 
 /**
- * Exports of 1.0.0 that a 1.x release removed on purpose, by entry point, with the
- * release that removed each. 1.1.0 removed `MeterType`: it typed an
- * `Entitlement.meterType` field that no call could return, because the Kaiten API
- * has no meter type (packages/client/CHANGELOG.md). Nothing else belongs here.
+ * Deliberate removals, by entry point and release. 1.1.0 removed MeterType,
+ * which the API never returned. 2.0.0 removes only the direct flag evaluation
+ * surface required by the OpenFeature policy. Management exports stay checked.
  */
-export const REMOVED_SINCE_1_0 = new Map([[".", new Map([["MeterType", "1.1.0"]])]]);
+export const REMOVED_SINCE_1_0 = new Map([
+  [
+    ".",
+    new Map([
+      ["MeterType", "1.1.0"],
+      ...[
+        "KaitenFlagsModule",
+        "BulkEvaluationResponse",
+        "EvaluationResult",
+        "EvaluationSuccess",
+        "EvaluationFailure",
+        "FeatureFlagEvaluation",
+        "isEvaluationSuccess",
+        "isEvaluationFailure",
+      ].map((name) => [name, "2.0.0"]),
+    ]),
+  ],
+]);
+
+export const SERVER_REMOVED_SINCE_1_0 = new Map([
+  [
+    ".",
+    new Map(
+      [
+        "OfrepCore",
+        ...["EvaluateFlag", "EvaluateFlagsBulk"].flatMap((operation) =>
+          ["Data", "Errors", "Error", "Responses", "Response"].map(
+            (suffix) => `${operation}${suffix}`,
+          ),
+        ),
+      ].map((name) => [name, "2.0.0"]),
+    ),
+  ],
+]);
+
+/** A removal ships only as a major release, including Changesets' projected version. */
+export function assertOpenFeatureMajorRelease() {
+  const changesets = readdirSync(join(repoRoot, ".changeset"))
+    .filter((name) => name.endsWith(".md"))
+    .map((name) => readFileSync(join(repoRoot, ".changeset", name), "utf8").split("---")[1] ?? "")
+    .join("\n");
+  for (const pkg of ["client", "server", "react", "react-ui"]) {
+    const manifest = JSON.parse(
+      readFileSync(join(repoRoot, "packages", pkg, "package.json"), "utf8"),
+    );
+    if (
+      Number(manifest.version.split(".")[0]) < 2 &&
+      !changesets.includes(`"${manifest.name}": major`)
+    ) {
+      throw new Failure(`${manifest.name}: OpenFeature policy removals require a major changeset.`);
+    }
+  }
+}
 
 /** `exports` without the names `removed` lists, in a copy. */
 export function withoutRemoved(exports, removed = REMOVED_SINCE_1_0) {
@@ -99,7 +127,8 @@ export const PUBLISHED_SERVER_INTEGRITY =
 const SERVER_PACKAGE = "@kaitencloud/server";
 
 /** The consumer fixtures: every `.ts` file of this directory is compiled. */
-export const CONSUMERS_DIR = join(repoRoot, "packages/client/tests/compat");
+export const HISTORICAL_CONSUMERS_DIR = join(repoRoot, "packages/client/tests/compat");
+export const CONSUMERS_DIR = join(repoRoot, "packages/client/tests/compat-current");
 
 /**
  * Compiles every consumer in `consumersDir` against a package unpacked at
@@ -178,6 +207,7 @@ function main() {
     }
   }
 
+  assertOpenFeatureMajorRelease();
   const work = mkdtempSync(join(tmpdir(), "kaiten-compat-"));
   try {
     /** The tarball of 1.0.0 of `name`: the one given, or the one npm serves, held to its integrity. */
@@ -222,7 +252,12 @@ function main() {
 
     const publishedLabel = `${PACKAGE}@${PUBLISHED_VERSION}`;
     const results = [
-      ...compileConsumers({ workDir: work, label: publishedLabel, tarball: published }),
+      ...compileConsumers({
+        workDir: work,
+        label: publishedLabel,
+        tarball: published,
+        consumersDir: HISTORICAL_CONSUMERS_DIR,
+      }),
       ...compileConsumers({ workDir: work, label: "this tree", tarball: current }),
     ];
     const installed = (label) => join(work, label, "node_modules", ...PACKAGE.split("/"));
@@ -237,7 +272,10 @@ function main() {
     const serverDir = (label, tarball) =>
       unpackAsDependency(tarball, join(work, `server-${label}`), SERVER_PACKAGE);
     const lostFromServer = lostExports(
-      declaredExports(serverDir("published", publishedServer)),
+      withoutRemoved(
+        declaredExports(serverDir("published", publishedServer)),
+        SERVER_REMOVED_SINCE_1_0,
+      ),
       declaredExports(
         serverDir("tree", packWorkspacePackage(join(repoRoot, "packages/server"), packedServer)),
       ),
@@ -245,7 +283,7 @@ function main() {
 
     for (const { label, profile, compiler, ok } of results) {
       (ok ? console.log : console.error)(
-        `${ok ? "✔" : "✘"} 1.0 consumer against ${label}: ${compiler}, ${profile} resolution`,
+        `${ok ? "✔" : "✘"} ${label === publishedLabel ? "historical 1.0" : "current management"} consumer against ${label}: ${compiler}, ${profile} resolution`,
       );
     }
     for (const { output, labels } of distinctOutputs(
@@ -258,7 +296,9 @@ function main() {
       console.error(`✘ ${PACKAGE}@${PUBLISHED_VERSION} exports what this tree does not:`);
       for (const line of lost) console.error(`    ${line}`);
     } else {
-      console.log(`✔ every export of ${PACKAGE}@${PUBLISHED_VERSION} is still exported`);
+      console.log(
+        `✔ every retained export of ${PACKAGE}@${PUBLISHED_VERSION} is still exported (documented removals excepted)`,
+      );
     }
     for (const [entry, names] of REMOVED_SINCE_1_0) {
       for (const [name, release] of names) {
@@ -269,7 +309,9 @@ function main() {
       console.error(`✘ ${serverLabel} exports what this tree does not:`);
       for (const line of lostFromServer) console.error(`    ${line}`);
     } else {
-      console.log(`✔ every export of ${serverLabel} is still exported`);
+      console.log(
+        `✔ every retained export of ${serverLabel} is still exported (documented OFREP removals excepted)`,
+      );
     }
     if (lost.length > 0 || lostFromServer.length > 0) {
       throw new Failure(
@@ -279,12 +321,12 @@ function main() {
     }
     if (results.some(({ ok }) => !ok)) {
       throw new Failure(
-        "A 1.0 consumer no longer compiles. If it fails against the published tarball, the fixture " +
-          "is not 1.0 code; if it fails against this tree, a change broke 1.x: see packages/client/STABILITY.md.",
+        "A consumer no longer compiles. If the historical fixture fails against the published tarball, it " +
+          "is not 1.0 code; if current management code fails against this tree, the remaining API broke: see packages/client/STABILITY.md.",
       );
     }
     console.log(
-      `\n1.0 consumers compile against ${PACKAGE}@${PUBLISHED_VERSION} and against this tree, and ${SERVER_PACKAGE} keeps its exports.`,
+      `\nHistorical 1.0 consumers compile against ${PACKAGE}@${PUBLISHED_VERSION}; current management consumers compile against this tree. Only documented major-policy exports are removed.`,
     );
   } finally {
     rmSync(work, { recursive: true, force: true });

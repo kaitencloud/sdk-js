@@ -49,8 +49,6 @@ export {
   RateLimitedError,
   TransactionIdReusedError,
   getUsageScope,
-  isEvaluationFailure,
-  isEvaluationSuccess,
   isPeriodicEntitlement,
   resolveUsageScope,
 } from "@kaitencloud/client";
@@ -64,8 +62,6 @@ export { useLicense } from "./hooks/use-license.ts";
 export { useInstance } from "./hooks/use-instance.ts";
 export { useEntitlement } from "./hooks/use-entitlement.ts";
 export { useUsage, useUsageGroup, type EntitlementGroupUsageRow } from "./hooks/use-usage.ts";
-export { useFeatureFlag } from "./hooks/use-feature-flag.ts";
-export { useFeatureFlags } from "./hooks/use-feature-flags.ts";
 export {
   useEntitlementCheck,
   type EntitlementCheckOptions,

@@ -165,26 +165,6 @@ test('Show when="not-entitled" is the upsell branch', async () => {
   await waitFor(() => expect(screen.getByTestId("upsell")).toBeDefined());
 });
 
-test("Show reads a flag by key, in both directions", async () => {
-  harness(
-    <>
-      <Show when="flag-enabled" flagKey="new-dashboard">
-        <span data-testid="on" />
-      </Show>
-      <Show when="flag-disabled" flagKey="beta-export">
-        <span data-testid="off" />
-      </Show>
-      <Show when="flag-enabled" flagKey="beta-export">
-        <span data-testid="never" />
-      </Show>
-    </>,
-  );
-
-  await waitFor(() => expect(screen.getByTestId("on")).toBeDefined());
-  expect(screen.getByTestId("off")).toBeDefined();
-  expect(screen.queryByTestId("never")).toBeNull();
-});
-
 test("Show renders `loading` while the read is in flight", () => {
   harness(
     <Show when="entitled" entitlement="seats" loading={<span data-testid="pending" />}>
