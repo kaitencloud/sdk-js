@@ -815,7 +815,7 @@ building and publishing never need a kaiten checkout. Refreshing that snapshot i
 separate step, run from the repo root:
 
 ```bash
-node scripts/sync-graphql-schema.mjs          # snapshot <- kaiten (KAITEN_PATH)
+node scripts/sync-graphql-schema.mjs          # snapshot <- @kaitencloud/graphql-schema
 vp run @kaitencloud/client#generate-graphql   # types    <- snapshot
 ```
 

@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // Rewrites the committed GraphQL schema snapshot
-// (contracts/schema.graphql) from kaiten's gqlgen schema.
+// (contracts/schema.graphql) from the published @kaitencloud/graphql-schema.
 //
 // The GraphQL twin of `sync-openapi.mjs`. Same contract: resolve the upstream
 // source, write the snapshot, hard-fail when the source is unreachable — a
@@ -22,12 +22,10 @@ const source = resolveSourceSchema();
 if (!source) {
   console.error(
     `✘ Could not resolve kaiten's GraphQL schema.\n\n` +
-      `  Point one of these at it:\n` +
-      `    KAITEN_PATH=../kaiten node scripts/sync-graphql-schema.mjs\n` +
-      `    KAITEN_GRAPHQL_SCHEMA=/path/to/schema.graphql node scripts/sync-graphql-schema.mjs\n\n` +
-      `  In CI the schema arrives as the published @kaitencloud/graphql-schema\n` +
-      `  artifact (.github/workflows/contract-drift.yml); locally a sibling\n` +
-      `  checkout is the ordinary source.`,
+      `  Check that registry.npmjs.org is reachable and that kaiten has published\n` +
+      `  @kaitencloud/graphql-schema, or point one of these at it:\n` +
+      `    KAITEN_GRAPHQL_SCHEMA=/path/to/schema.graphql node scripts/sync-graphql-schema.mjs\n` +
+      `    KAITEN_PATH=/path/to/kaiten node scripts/sync-graphql-schema.mjs`,
   );
   process.exit(1);
 }
