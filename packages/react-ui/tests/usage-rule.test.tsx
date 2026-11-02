@@ -133,6 +133,18 @@ const segment = (bar: HTMLElement, name: string) =>
 /** A style's percentage as a number: the widths are quotients, not round figures. */
 const percent = (value: string | undefined) => Number.parseFloat(value ?? "NaN");
 
+/**
+ * A customer session reports a read that failed one quota at a time: the entitlement is known, its
+ * usage is not. The client marks it the way it marks a whole snapshot whose usage read failed.
+ */
+function failUsageOf(slug: string) {
+  const entitlement = (kaitenClientMock.state.snapshot as LicensingSnapshot).entitlements.find(
+    (each) => each.slug === slug,
+  )!;
+  entitlement.currentValue = null;
+  entitlement.usageUnavailable = true;
+}
+
 // --- ProgressBar -----------------------------------------------------------------------------
 
 test("ProgressBar: a hard limit is a track to the grant, amber from 80% and red on the wall", () => {
@@ -488,6 +500,60 @@ test("UsageMeters: the badge turns red on the wall and past it", async () => {
   expect(screen.getByText("150%").className).toContain("bg-destructive");
 });
 
+test("UsageMeters: a quota whose usage could not be read says so, in place of 0, a percentage and a bar", async () => {
+  install(
+    [
+      { name: "API calls", limit: 100, used: 100 },
+      { name: "Seats", limit: 25, used: 25 },
+    ],
+    { usageUnavailable: true },
+  );
+  mount(<UsageMeters />);
+  await settled();
+
+  expect(document.querySelectorAll('[data-slot="usage-meters-unavailable"]')).toHaveLength(2);
+  expect(screen.getAllByText("Usage unavailable")).toHaveLength(2);
+  // The grants are known and the names stay; what is consumed is not, so nothing claims it.
+  expect(screen.getByText("API calls")).toBeDefined();
+  expect(screen.queryByText(/^0 \/ /)).toBeNull();
+  expect(screen.queryByText("0%")).toBeNull();
+  expect(bars()).toHaveLength(0);
+});
+
+test("UsageMeters: only the quota that could not be read loses its figures", async () => {
+  install([
+    { name: "API calls", limit: 100, used: 30 },
+    { name: "Seats", limit: 25, used: 25 },
+  ]);
+  failUsageOf("seats");
+  mount(<UsageMeters />);
+  await settled();
+
+  expect(screen.getAllByText("Usage unavailable")).toHaveLength(1);
+  expect(screen.getByText("30%")).toBeDefined();
+  expect(barNamed("Progress: 30 of 100").dataset.usageState).toBe("healthy");
+  expect(bars()).toHaveLength(1);
+  expect(screen.queryByText(/^0 \/ /)).toBeNull();
+});
+
+test("UsageMeters: unstyled never claims a failed read used nothing", async () => {
+  install([{ name: "API calls", limit: 100, used: 100 }], { usageUnavailable: true });
+  mount(<UsageMeters unstyled />);
+  await settled();
+
+  const item = screen.getByText(/^API calls:/);
+  expect(item.textContent).toContain("Usage unavailable");
+  expect(item.textContent).not.toMatch(/0 \/ 100/);
+});
+
+test("UsageMeters: a quota whose usage could not be read is said so in French", async () => {
+  install([{ name: "API calls", limit: 100, used: 100 }], { usageUnavailable: true });
+  mount(<UsageMeters />, fr);
+  await settled();
+
+  expect(screen.getByText("Consommation indisponible")).toBeDefined();
+});
+
 // --- EntitlementStatusBar --------------------------------------------------------------------
 
 test("EntitlementStatusBar: the label takes the tone of the shared rule", async () => {
@@ -520,6 +586,60 @@ test("EntitlementStatusBar: a watch band quota keeps the plain label", async () 
 
   expect(screen.getByTitle("Atlas").className).toContain("text-ktn-foreground");
   expect(barNamed("Atlas: 85 / 100").dataset.usageState).toBe("watch");
+});
+
+test("EntitlementStatusBar: a quota whose usage could not be read says so, in place of 0%, a bar and 0/100", async () => {
+  install(
+    [
+      { name: "API calls", limit: 100, used: 100 },
+      { name: "Seats", limit: 25, used: 25 },
+    ],
+    { usageUnavailable: true },
+  );
+  mount(<EntitlementStatusBar />);
+  await settled();
+
+  expect(
+    document.querySelectorAll('[data-slot="entitlement-status-bar-unavailable"]'),
+  ).toHaveLength(2);
+  expect(screen.getAllByText("Usage unavailable")).toHaveLength(2);
+  expect(screen.getByTitle("API calls")).toBeDefined();
+  expect(screen.queryByText("0%")).toBeNull();
+  expect(screen.queryByText("0/100")).toBeNull();
+  expect(bars()).toHaveLength(0);
+});
+
+test("EntitlementStatusBar: only the quota that could not be read loses its figures", async () => {
+  install([
+    { name: "API calls", limit: 100, used: 30 },
+    { name: "Seats", limit: 25, used: 25 },
+  ]);
+  failUsageOf("seats");
+  mount(<EntitlementStatusBar />);
+  await settled();
+
+  expect(screen.getAllByText("Usage unavailable")).toHaveLength(1);
+  expect(barNamed("API calls: 30 / 100").dataset.usageState).toBe("healthy");
+  expect(screen.getByText("30%")).toBeDefined();
+  expect(bars()).toHaveLength(1);
+});
+
+test("EntitlementStatusBar: unstyled never claims a failed read used nothing", async () => {
+  install([{ name: "API calls", limit: 100, used: 100 }], { usageUnavailable: true });
+  mount(<EntitlementStatusBar unstyled />);
+  await settled();
+
+  const item = screen.getByText(/^API calls:/);
+  expect(item.textContent).toContain("Usage unavailable");
+  expect(item.textContent).not.toMatch(/0 \/ 100/);
+});
+
+test("EntitlementStatusBar: a quota whose usage could not be read is said so in French", async () => {
+  install([{ name: "API calls", limit: 100, used: 100 }], { usageUnavailable: true });
+  mount(<EntitlementStatusBar />, fr);
+  await settled();
+
+  expect(screen.getByText("Consommation indisponible")).toBeDefined();
 });
 
 // --- IncludedFeatures ------------------------------------------------------------------------

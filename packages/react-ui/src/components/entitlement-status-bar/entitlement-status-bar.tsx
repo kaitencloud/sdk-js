@@ -148,7 +148,10 @@ function EntitlementStatusBarImpl({
             const limit = numberOf(entitlement.limitValue);
             return (
               <li key={entitlement.slug}>
-                {entitlement.name}: {used.toLocaleString()} / {limit.toLocaleString()}
+                {entitlement.name}:{" "}
+                {readQuota(entitlement).unavailable
+                  ? localization.billingSummary.usageUnavailable
+                  : `${used.toLocaleString()} / ${limit.toLocaleString()}`}
               </li>
             );
           })}
@@ -228,28 +231,43 @@ function EntitlementStatusBarImpl({
                   >
                     {entitlement.name}
                   </span>
-                  <span className="ktn-own font-ktn-mono text-[11px] text-ktn-muted-foreground">
-                    {reading.percentOfGrant}%
-                  </span>
+                  {reading.unavailable ? null : (
+                    <span className="ktn-own font-ktn-mono text-[11px] text-ktn-muted-foreground">
+                      {reading.percentOfGrant}%
+                    </span>
+                  )}
                 </div>
-                {/*
-                 * The bar carries the accessible name and the numbers; the caption
-                 * under it is the same figures compacted for the eye, so it is
-                 * `aria-hidden` rather than read out a second time as "45k/100k".
-                 */}
-                <ProgressBar
-                  value={used}
-                  max={limit}
-                  overagePercent={reading.overagePercent}
-                  className="h-1.5"
-                  aria-label={`${entitlement.name}: ${used.toLocaleString()} / ${limit.toLocaleString()}`}
-                />
-                <span
-                  aria-hidden="true"
-                  className="ktn-own font-ktn-mono text-[10px] text-ktn-muted-foreground"
-                >
-                  {compact(used)}/{compact(limit)}
-                </span>
+                {reading.unavailable ? (
+                  /* A usage read that failed says nothing about how much is used, so the meter says
+                     that in place of "0%", a bar of nothing and "0/100". */
+                  <span
+                    data-slot="entitlement-status-bar-unavailable"
+                    className="ktn-own font-ktn-mono text-[10px] leading-tight text-ktn-muted-foreground"
+                  >
+                    {localization.billingSummary.usageUnavailable}
+                  </span>
+                ) : (
+                  <>
+                    {/*
+                     * The bar carries the accessible name and the numbers; the caption
+                     * under it is the same figures compacted for the eye, so it is
+                     * `aria-hidden` rather than read out a second time as "45k/100k".
+                     */}
+                    <ProgressBar
+                      value={used}
+                      max={limit}
+                      overagePercent={reading.overagePercent}
+                      className="h-1.5"
+                      aria-label={`${entitlement.name}: ${used.toLocaleString()} / ${limit.toLocaleString()}`}
+                    />
+                    <span
+                      aria-hidden="true"
+                      className="ktn-own font-ktn-mono text-[10px] text-ktn-muted-foreground"
+                    >
+                      {compact(used)}/{compact(limit)}
+                    </span>
+                  </>
+                )}
               </div>
             </li>
           );
