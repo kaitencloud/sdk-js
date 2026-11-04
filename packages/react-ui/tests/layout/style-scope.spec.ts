@@ -1,9 +1,72 @@
 // Copyright 2026 KAITEN INC
 // SPDX-License-Identifier: Apache-2.0
 
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 import { STORIES } from "../visual/stories.ts";
+
+const EMPTY_STORY = `
+  <div id="storybook-root">
+    <div class="kaiten" style="--ktn-primary: red">
+      <div data-slot="kaiten-portal-host" style="position: absolute; width: 0; height: 0"></div>
+    </div>
+  </div>
+`;
+
+test("style-scope probe accepts an empty component with a zero-size portal host", async ({
+  page,
+}) => {
+  await page.setContent(EMPTY_STORY);
+  await expectStyleScope(page);
+});
+
+test("style-scope probe rejects an unscoped component after a styled portal host", async ({
+  page,
+}) => {
+  await page.setContent(EMPTY_STORY);
+  await page.locator("#storybook-root").evaluate((root) => {
+    const card = document.createElement("div");
+    card.dataset.slot = "card";
+    root.append(card);
+  });
+  await expect(expectStyleScope(page)).rejects.toThrow("a .kaiten ancestor for card");
+});
+
+test("style-scope probe rejects a style root without theme tokens", async ({ page }) => {
+  await page.setContent(EMPTY_STORY);
+  await page.locator(".kaiten").evaluate((root) => root.removeAttribute("style"));
+  await expect(expectStyleScope(page)).rejects.toThrow("--ktn-primary resolves");
+});
+
+async function expectStyleScope(page: Page) {
+  // Portal hosts are intentionally zero-sized. A component may render nothing,
+  // so attachment, not visibility, is the readiness condition for this probe.
+  await page.locator("#storybook-root [data-slot]").first().waitFor({
+    state: "attached",
+    timeout: 15_000,
+  });
+
+  const probe = await page.evaluate(() => ({
+    elements: [...document.querySelectorAll<HTMLElement>("#storybook-root [data-slot]")].map(
+      (element) => {
+        const scope = element.closest<HTMLElement>(".kaiten");
+        return {
+          slot: element.dataset.slot,
+          hasScope: Boolean(scope),
+          primary: scope ? getComputedStyle(scope).getPropertyValue("--ktn-primary").trim() : "",
+        };
+      },
+    ),
+    portalHosts: document.querySelectorAll("[data-slot='kaiten-portal-host']").length,
+  }));
+
+  // Check every SDK element: a styled portal host must not mask an unstyled card.
+  for (const element of probe.elements) {
+    expect(element.hasScope, `a .kaiten ancestor for ${element.slot}`).toBe(true);
+    expect(element.primary, `--ktn-primary resolves for ${element.slot}`).not.toBe("");
+  }
+  expect(probe.portalHosts, "a portal host").toBeGreaterThanOrEqual(1);
+}
 
 /**
  * Every snapshotted story renders inside a style root.
@@ -30,23 +93,16 @@ for (const { storyId } of STORIES) {
     });
 
     await page.goto(`/iframe.html?id=${storyId}&viewMode=story`);
-    await page.waitForSelector("#storybook-root [data-slot]", { timeout: 15_000 });
-
-    const probe = await page.evaluate(() => {
-      const element = document.querySelector("#storybook-root [data-slot]") as HTMLElement;
-      const scope = element.closest(".kaiten") as HTMLElement | null;
-      return {
-        hasScope: Boolean(scope),
-        // Written by the theme's scoped token block; an out-of-scope render
-        // resolves it to the empty string.
-        primary: scope ? getComputedStyle(scope).getPropertyValue("--ktn-primary").trim() : "",
-        portalHosts: document.querySelectorAll("[data-slot='kaiten-portal-host']").length,
-      };
+    // As in the visual suite, wait for play functions to finish before probing.
+    await page.waitForFunction(() => {
+      const preview = (
+        window as unknown as { __STORYBOOK_PREVIEW__?: { currentRender?: { phase?: string } } }
+      ).__STORYBOOK_PREVIEW__;
+      const phase = preview?.currentRender?.phase;
+      return phase === "finished" || phase === "completed";
     });
 
-    expect(probe.hasScope, "a .kaiten ancestor").toBe(true);
-    expect(probe.primary, "--ktn-primary resolves").not.toBe("");
-    expect(probe.portalHosts, "a portal host").toBeGreaterThanOrEqual(1);
+    await expectStyleScope(page);
     expect(warnings.filter((warning) => warning.includes("KaitenStyleRoot"))).toEqual([]);
   });
 }
