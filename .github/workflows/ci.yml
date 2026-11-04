@@ -160,7 +160,7 @@ jobs:
         run: vp run test:visual
       - name: Upload visual diff report
         if: ${{ failure() && steps.visual.outcome == 'failure' }}
-        uses: actions/upload-artifact@v7.0.1
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: playwright-visual-report
           path: |
@@ -221,7 +221,7 @@ jobs:
         run: pnpm run test:e2e
       - name: Upload the traces of a failure
         if: ${{ failure() }}
-        uses: actions/upload-artifact@v7.0.1
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: storefront-e2e-traces
           path: examples/storefront/test-results
