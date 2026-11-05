@@ -113,6 +113,7 @@ export const checkoutSession = (
   sessionId: SESSION_ID,
   status: "OPEN",
   email: "ada@acme.test",
+  customerName: null,
   clientReferenceId: "cart-42",
   licenseSlug: "growth-v1",
   billingPeriod: "MONTHLY",

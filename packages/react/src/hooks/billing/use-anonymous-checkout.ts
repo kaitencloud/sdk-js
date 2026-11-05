@@ -88,14 +88,16 @@ export interface AnonymousCheckoutSelection {
   /** The buyer's e-mail. It becomes the customer's billing e-mail once the checkout completes. */
   email: string;
   /**
-   * The buyer's name, if the page asks for one. Kaiten has no member for it: it is never sent to
-   * Kaiten. The hook keeps it for the page, which gets it in `onStarted` and `onSubscribed`.
+   * The buyer's name, if the page asks for one. With no `company`, the start sends it as the
+   * `customerName`, which the new customer and its instance are named after. The hook keeps it for
+   * the page too, which gets it in `onStarted` and `onSubscribed`.
    */
   name: string;
   /**
-   * The buyer's company, if the page asks for one. Like `name`, Kaiten has no member for it: it is
-   * never sent to Kaiten, and the hook keeps it for the page, which gets it in `onStarted` and
-   * `onSubscribed`.
+   * The buyer's company, if the page asks for one. The start sends it as the `customerName`, which
+   * the new customer and its instance are named after; with neither a company nor a `name`, Kaiten
+   * names both after the `email`. The hook keeps it for the page too, which gets it in `onStarted`
+   * and `onSubscribed`.
    */
   company: string;
 }
@@ -680,11 +682,17 @@ export function useAnonymousCheckout(
       return null;
     }
     const email = chosen.email.trim();
+    const name = chosen.name.trim();
+    const company = chosen.company.trim();
+    // What Kaiten names the customer and its instance after: the company, else the buyer's name,
+    // else nothing, and Kaiten falls back to the e-mail.
+    const customerName = company || name;
     const request = {
       ...requestOf(chosen),
       dryRun: false as const,
       email,
       returnUrl,
+      ...(customerName ? { customerName } : {}),
       ...(current.clientReferenceId ? { clientReferenceId: current.clientReferenceId } : {}),
     };
     // Every other member the API would refuse for its shape, found out in the same way.
@@ -696,8 +704,6 @@ export function useAnonymousCheckout(
     }
     const token = takeToken();
     if (token === null) return null;
-    const name = chosen.name.trim();
-    const company = chosen.company.trim();
     setFlow({ ...SELECTING, step: "starting" });
     try {
       const opened = await api.startCheckout({ ...request, turnstileToken: token });

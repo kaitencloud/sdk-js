@@ -162,7 +162,7 @@ describe("choosing", () => {
     expect(document.activeElement).toBe(screen.getByLabelText("Name"));
   });
 
-  test("the name is asked for when the page says so, and it is the page's alone", async () => {
+  test("the name is asked for when the page says so, and with no company it names the customer", async () => {
     const onStarted = vi.fn();
     mount({ plan: starter, collectName: true, onStarted });
     await fillIn();
@@ -178,7 +178,7 @@ describe("choosing", () => {
       company: null,
     });
     const sent = latestAnonymousClient().calls.flatMap((call) => JSON.stringify(call.args));
-    expect(sent.join()).not.toContain("Ada Lovelace");
+    expect(sent.join()).toContain('"customerName":"Ada Lovelace"');
   });
 
   test("the company is asked for, above the name and the email, with the words of browsers' autofill", async () => {
@@ -276,7 +276,7 @@ describe("choosing", () => {
     });
   });
 
-  test("a company and a name are the page's alone: Kaiten is sent neither", async () => {
+  test("a company names the customer, and the name is then the page's alone", async () => {
     const onStarted = vi.fn();
     mount({ plan: starter, collectCompany: true, collectName: "optional", onStarted });
     await fillIn();
@@ -291,7 +291,7 @@ describe("choosing", () => {
       company: "Analytical Engines",
     });
     const sent = latestAnonymousClient().calls.flatMap((call) => JSON.stringify(call.args));
-    expect(sent.join()).not.toContain("Analytical Engines");
+    expect(sent.join()).toContain('"customerName":"Analytical Engines"');
     expect(sent.join()).not.toContain("Ada Lovelace");
   });
 

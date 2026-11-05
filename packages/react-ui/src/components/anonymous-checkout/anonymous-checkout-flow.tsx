@@ -87,14 +87,14 @@ export interface AnonymousCheckoutFlowProps {
   /**
    * Asks for the visitor's company too, above their name and e-mail, and hands it to `onStarted`
    * and `onSubscribed`. `true` and `"required"` hold the button until it is given, `"optional"`
-   * takes an empty answer. Kaiten has no member for it, so it is never sent to Kaiten: the
-   * vendor's backend names the customer after it. Default `false`.
+   * takes an empty answer. The start sends it as the `customerName`, which the new customer and
+   * its instance are named after. Default `false`.
    */
   collectCompany?: AnonymousCheckoutFieldMode;
   /**
    * Asks for the visitor's name too, and hands it to `onStarted` and `onSubscribed`. `true` and
-   * `"required"` hold the button until it is given, `"optional"` takes an empty answer. Kaiten has
-   * no member for it, so it is never sent to Kaiten. Default `false`.
+   * `"required"` hold the button until it is given, `"optional"` takes an empty answer. With no
+   * company, the start sends it as the `customerName`. Default `false`.
    */
   collectName?: AnonymousCheckoutFieldMode;
   /**

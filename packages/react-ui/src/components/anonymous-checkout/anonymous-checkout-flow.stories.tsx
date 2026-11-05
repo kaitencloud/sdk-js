@@ -614,7 +614,7 @@ export const WithAName: Story = {
     await available(go);
     await userEvent.click(go);
     await expect(await canvas.findByText("You're subscribed", {}, SLOW)).toBeInTheDocument();
-    // Kaiten has no member for a name: the page gets it, and nothing else does.
+    // With no company, the name is what the customer is named after; the page gets it too.
     await expect(args.onStarted).toHaveBeenCalledWith({
       sessionId: "chk_mock_1",
       email: EMAIL,
@@ -652,7 +652,7 @@ export const WithACompanyAndAName: Story = {
     await available(go);
     await userEvent.click(go);
     await expect(await canvas.findByText("You're subscribed", {}, SLOW)).toBeInTheDocument();
-    // Kaiten has no member for either: the page gets them, and nothing else does.
+    // The company is what the customer is named after; the page gets it too.
     await expect(args.onStarted).toHaveBeenCalledWith({
       sessionId: "chk_mock_1",
       email: EMAIL,

@@ -65,6 +65,12 @@ interface StartCheckoutOptions {
    * in the browser.
    */
   clientReferenceId?: string;
+  /**
+   * What the completion names the new customer and its instance, at most 255 characters: the
+   * buyer's company, typically. Kaiten drops leading and trailing spaces; left out, both are named
+   * after the `email`.
+   */
+  customerName?: string;
 }
 
 /**
@@ -170,6 +176,8 @@ export interface CheckoutSession extends CheckoutQuote {
   sessionId: string;
   status: CheckoutSessionStatus;
   email: string;
+  /** The `customerName` the start gave, trimmed; `null` when it gave none, and the customer is named after the `email`. */
+  customerName: string | null;
   clientReferenceId: string | null;
   licenseSlug: string;
   /** The period the price bills, as the API writes it. */
