@@ -4,7 +4,6 @@
 import * as React from "react";
 
 import { useEntitlementCheck } from "../../hooks/use-entitlement-check.ts";
-import { useFlags } from "../../hooks/use-kaiten-flags.ts";
 import {
   useKaitenDataContext,
   useAssertWrappedByKaitenProvider,
@@ -77,7 +76,7 @@ interface ShowCommonProps {
   fallback?: React.ReactNode;
   loading?: React.ReactNode;
   /**
-   * Fail policy when the entitlement/flag data can't be loaded. `"block"`
+   * Fail policy when the entitlement data can't be loaded. `"block"`
    * (default, fail-closed) renders `fallback` so gated content is never revealed
    * during an outage; `"allow"` (fail-open) renders `children`. Applied
    * regardless of `when`, since the condition can't be evaluated on error.
@@ -86,32 +85,22 @@ interface ShowCommonProps {
   children: React.ReactNode;
 }
 
-/** Entitlement conditions require `entitlement` (and may take `min`); no `flagKey`. */
+/** Entitlement conditions require `entitlement` (and may take `min`). */
 interface ShowEntitlementProps extends ShowCommonProps {
   when: "entitled" | "not-entitled";
   entitlement: string;
   /** Minimum remaining units required for NUMBER entitlements. */
   min?: number;
-  flagKey?: never;
-}
-
-/** Flag conditions require `flagKey`; no `entitlement`/`min`. */
-interface ShowFlagProps extends ShowCommonProps {
-  when: "flag-enabled" | "flag-disabled";
-  flagKey: string;
-  entitlement?: never;
-  min?: never;
 }
 
 // A discriminated union so an invalid prop combo (e.g. `when="entitled"`
 // without `entitlement`) is a COMPILE error instead of a runtime throw.
-export type ShowProps = ShowEntitlementProps | ShowFlagProps;
+export type ShowProps = ShowEntitlementProps;
 
 export function Show({
   when,
   entitlement,
   min,
-  flagKey,
   fallback = null,
   loading = null,
   onError = "block",
@@ -120,28 +109,17 @@ export function Show({
   useAssertWrappedByKaitenProvider("Show");
 
   const entitlementCheck = useEntitlementCheck(entitlement ?? "", { min });
-  const flags = useFlags();
-  const flag = flagKey ? flags.data?.find((candidate) => candidate.key === flagKey) : undefined;
-
-  const usesEntitlement = when === "entitled" || when === "not-entitled";
-  const isLoading = usesEntitlement ? entitlementCheck.isLoading : flags.isLoading;
+  const isLoading = entitlementCheck.isLoading;
 
   if (isLoading) return <>{loading}</>;
 
   // A data error can't be resolved into a condition result — apply the fail
   // policy instead of letting `!allowed` accidentally reveal `not-entitled`
   // content (fail-open) during an outage.
-  const error = usesEntitlement ? entitlementCheck.error : flags.error;
+  const error = entitlementCheck.error;
   if (error) return <>{onError === "allow" ? children : fallback}</>;
 
-  const shouldRender =
-    when === "entitled"
-      ? entitlementCheck.allowed
-      : when === "not-entitled"
-        ? !entitlementCheck.allowed
-        : when === "flag-enabled"
-          ? Boolean(flag?.enabled)
-          : !flag?.enabled;
+  const shouldRender = when === "entitled" ? entitlementCheck.allowed : !entitlementCheck.allowed;
 
   return <>{shouldRender ? children : fallback}</>;
 }

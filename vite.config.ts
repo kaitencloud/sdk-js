@@ -26,6 +26,9 @@ export default defineConfig({
       "packages/client/src/core/generated/**",
       "packages/server/src/generated/**",
       "src/generated/**",
+      // Immutable 1.0 consumers are checked against their published tarball.
+      "packages/client/tests/compat/**",
+      "packages/client/tests/compat-1.0.test.ts",
     ],
     options: { typeAware: true, typeCheck: true },
   },

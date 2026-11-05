@@ -1,7 +1,7 @@
 # @kaitencloud/server
 
 Server SDK for Kaiten — for **Node/TS backends** authenticating with a **secret API token
-(Bearer)**. Exposes the **full typed contract** as resource classes generated from the
+(Bearer)**. Exposes the **typed management contract** as resource classes generated from the
 same OpenAPI snapshot as [`@kaitencloud/client`](../client), so coverage tracks the contract
 automatically.
 
@@ -473,7 +473,10 @@ Generated and grouped by tag. The Core API:
 
 `Customers`, `Instances`, `LicenseFamilies`, `Licenses`, `Entitlements`, `EntitlementGroups`,
 `Components`, `DeploymentZones`, `MetadataFields`, `Releases`, `ServiceAccounts`, `Connectors`,
-`Integrations`, `Featureflags`, `OfrepCore`, `OpenFeature` and `Notifications`.
+`Integrations`, `Featureflags`, `OpenFeature` and `Notifications`.
+
+`Featureflags` manages definitions; no SDK resource evaluates them. Flag decisions
+require OpenFeature + its official OFREP provider. See [the 2.0 migration](../../MIGRATION-2.md).
 
 Billing:
 

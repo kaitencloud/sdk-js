@@ -16,6 +16,7 @@ import type {
   OnInstanceBillingTrialWillEndWebhookPayload,
   OnInstanceInvoiceHandoffAcknowledgedWebhookPayload,
   OnInstanceInvoiceIssuedWebhookPayload,
+  OnVoucherDeletedWebhookPayload,
   OnVoucherExpiredWebhookPayload,
 } from "../src/index.ts";
 
@@ -45,9 +46,9 @@ type EventsWithoutPayload = {
 }[KaitenWebhookType];
 
 describe("KaitenWebhookType", () => {
-  test("names the 116 events of the contract, one payload each", () => {
-    expectTypeOf<UnionToTuple<KaitenWebhookType>["length"]>().toEqualTypeOf<116>();
-    expectTypeOf<UnionToTuple<KaitenWebhookEvent>["length"]>().toEqualTypeOf<116>();
+  test("names the 117 events of the contract, one payload each", () => {
+    expectTypeOf<UnionToTuple<KaitenWebhookType>["length"]>().toEqualTypeOf<117>();
+    expectTypeOf<UnionToTuple<KaitenWebhookEvent>["length"]>().toEqualTypeOf<117>();
   });
 
   test("is a union of literals, not a string a typo can slip through", () => {
@@ -69,6 +70,7 @@ describe("KaitenWebhookType", () => {
     expectTypeOf<"com.kaiten.customer.payment_method.v1.expiring">().toExtend<KaitenWebhookType>();
     expectTypeOf<"com.kaiten.publishable_key.v1.revoked">().toExtend<KaitenWebhookType>();
     expectTypeOf<"com.kaiten.voucher.v1.expired">().toExtend<KaitenWebhookType>();
+    expectTypeOf<"com.kaiten.voucher.v1.deleted">().toExtend<KaitenWebhookType>();
   });
 
   test("narrows the event to the payload of one name", () => {
@@ -78,6 +80,9 @@ describe("KaitenWebhookType", () => {
     expectTypeOf<
       Extract<KaitenWebhookEvent, { type: "com.kaiten.voucher.v1.expired" }>
     >().toEqualTypeOf<OnVoucherExpiredWebhookPayload>();
+    expectTypeOf<
+      Extract<KaitenWebhookEvent, { type: "com.kaiten.voucher.v1.deleted" }>
+    >().toEqualTypeOf<OnVoucherDeletedWebhookPayload>();
     expectTypeOf<
       Extract<KaitenWebhookEvent, { type: "com.kaiten.instance.billing.v1.trial_will_end" }>
     >().toEqualTypeOf<OnInstanceBillingTrialWillEndWebhookPayload>();

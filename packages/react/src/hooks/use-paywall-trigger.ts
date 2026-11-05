@@ -7,7 +7,6 @@ import { useTrackHook } from "../telemetry/context.tsx";
 import { useKaitenContext } from "../providers/kaiten-provider.tsx";
 import { useEntitlementCheck } from "./use-entitlement-check.ts";
 import { useEntitlements } from "./use-kaiten-entitlements.ts";
-import { useFlags } from "./use-kaiten-flags.ts";
 import { useLicensingSnapshot } from "./use-licensing-snapshot.ts";
 import { useLocalization } from "../localization/context.tsx";
 import { usageWindowLabel } from "../lib/entitlement-usage-window.ts";
@@ -15,11 +14,10 @@ import type { PortalAction } from "../types.ts";
 
 export interface PaywallTriggerOptions {
   threshold?: number;
-  flagKey?: string;
   /** Minimum remaining numeric units required (R-?): denies when `remaining < min`. */
   min?: number;
   /**
-   * What to do when the entitlement/flag data fails to load. `"block"`
+   * What to do when the entitlement data fails to load. `"block"`
    * (default, fail-closed) shows the paywall so paid content is never revealed
    * during an outage; `"allow"` (fail-open) hides the paywall and reveals the
    * content. The error stays available on `error` either way.
@@ -33,7 +31,6 @@ export interface PaywallTriggerOptions {
  * - `over_limit`: the quota is used up.
  * - `near_limit`: past the threshold, still allowed.
  * - `not_entitled`: the plan does not include it.
- * - `flag_disabled`: the flag it is behind is off.
  * - `error`: the entitlement could not be read, and the policy is to block.
  *
  * The union is open: a minor release may name more, for instance when Kaiten
@@ -41,13 +38,7 @@ export interface PaywallTriggerOptions {
  * as a wall, not as an error: `shouldShow` and `GateState.blocked` already say
  * whether one is up.
  */
-export type PaywallReason =
-  | "over_limit"
-  | "near_limit"
-  | "not_entitled"
-  | "flag_disabled"
-  | "error"
-  | (string & {});
+export type PaywallReason = "over_limit" | "near_limit" | "not_entitled" | "error" | (string & {});
 
 export interface PaywallTriggerResult {
   shouldShow: boolean;
@@ -59,7 +50,7 @@ export interface PaywallTriggerResult {
   /**
    * True only when the decision is driven by a FINITE numeric quota (so the
    * `current`/`limit`/`percentage` and a progress bar are meaningful). False for
-   * boolean/config/flag denials and unlimited entitlements — UIs should not draw
+   * boolean/config denials and unlimited entitlements — UIs should not draw
    * a 0% meter for "feature not in plan" (R-?, it read as a metering bug).
    */
   metered: boolean;
@@ -90,7 +81,6 @@ export function usePaywallTrigger(
   const check = useEntitlementCheck(entitlementSlug, { min: options.min });
   const localization = useLocalization();
   const entitlements = useEntitlements();
-  const flags = useFlags();
   const snapshot = useLicensingSnapshot();
   const { mode } = useKaitenContext();
   // A customer's scope: an authenticated provider's snapshot, or a customer
@@ -134,7 +124,7 @@ export function usePaywallTrigger(
       };
     }
 
-    if (check.isLoading || flags.isLoading) {
+    if (check.isLoading) {
       return {
         shouldShow: false,
         reason: null,
@@ -153,7 +143,7 @@ export function usePaywallTrigger(
     // so paid content is never revealed during an outage). `onError: "allow"`
     // opts back into fail-open. `reason: "error"` is distinct from a legitimate
     // `not_entitled` so consumers can tell an outage from a real denial.
-    if (check.error || flags.error) {
+    if (check.error) {
       const failClosed = (options.onError ?? "block") === "block";
       return {
         shouldShow: failClosed,
@@ -164,7 +154,7 @@ export function usePaywallTrigger(
         metered,
         usageWindow,
         isLoading: false,
-        error: check.error ?? flags.error,
+        error: check.error,
         recommendedAction: undefined,
       };
     }
@@ -182,25 +172,6 @@ export function usePaywallTrigger(
         reason === "over_limit" || reason === "near_limit" ? "add_quota" : "upgrade_plan";
       return fallbackActions.find((action) => action.type === preferred) ?? fallbackActions[0];
     };
-    const flag = options.flagKey
-      ? flags.data?.find((candidate) => candidate.key === options.flagKey)
-      : undefined;
-
-    if (options.flagKey && (!flag || flag.enabled === false)) {
-      return {
-        shouldShow: true,
-        reason: "flag_disabled",
-        current: check.current,
-        limit: check.limit,
-        percentage: check.percentage,
-        metered: false,
-        usageWindow,
-        isLoading: false,
-        error: null,
-        recommendedAction: pickAction("flag_disabled"),
-      };
-    }
-
     if (!check.allowed) {
       const reason = check.percentage >= 100 ? "over_limit" : "not_entitled";
       return {
@@ -248,13 +219,9 @@ export function usePaywallTrigger(
     check,
     entitlements.data,
     entitlementSlug,
-    flags.data,
-    flags.error,
-    flags.isLoading,
     metered,
     usageWindow,
     gates,
-    options.flagKey,
     options.min,
     options.onError,
     snapshot.data,

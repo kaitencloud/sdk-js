@@ -9,7 +9,6 @@ import {
   KaitenStoryProvider,
   scenarioGateAllowed,
   scenarioGateDenied,
-  scenarioPaywallFlagDisabled,
   scenarioPortalDefault,
 } from "../../../.storybook/kaiten-mock.tsx";
 import { Skeleton } from "../ui/skeleton.tsx";
@@ -18,7 +17,6 @@ import { KaitenFailed, KaitenLoaded, KaitenLoading, Show } from "@kaitencloud/re
 const portalScenario = scenarioPortalDefault();
 const allowedScenario = scenarioGateAllowed();
 const deniedScenario = scenarioGateDenied();
-const flagDisabledScenario = scenarioPaywallFlagDisabled();
 
 const Surface = ({
   children,
@@ -46,7 +44,7 @@ const meta: Meta = {
     docs: {
       description: {
         component:
-          "`KaitenLoaded`, `KaitenLoading`, and `KaitenFailed` mirror the lifecycle of the `KaitenProvider` data. `Show` declaratively gates content on entitlements or feature flags.",
+          "`KaitenLoaded`, `KaitenLoading`, and `KaitenFailed` mirror the lifecycle of the `KaitenProvider` data. `Show` declaratively gates content on entitlements; flag decisions use OpenFeature separately.",
       },
     },
   },
@@ -245,54 +243,6 @@ export const ShowNotEntitled: Story = {
   ),
   play: async ({ canvasElement }) => {
     await within(canvasElement).findByText(/Premium is locked/);
-  },
-};
-
-export const ShowFlagEnabled: Story = {
-  name: 'Show — when="flag-enabled"',
-  decorators: [
-    (Story) => (
-      <KaitenStoryProvider scenario={portalScenario}>
-        <Story />
-      </KaitenStoryProvider>
-    ),
-  ],
-  render: () => (
-    <Show
-      when="flag-enabled"
-      flagKey="premium-feature"
-      fallback={<Surface tone="muted">Fallback — flag is disabled.</Surface>}
-    >
-      <Surface>The `premium-feature` flag is on for this user.</Surface>
-    </Show>
-  ),
-  play: async ({ canvasElement }) => {
-    await within(canvasElement).findByText(/flag is on for this user/);
-  },
-};
-
-export const ShowFlagDisabled: Story = {
-  name: 'Show — when="flag-disabled"',
-  decorators: [
-    (Story) => (
-      <KaitenStoryProvider scenario={flagDisabledScenario}>
-        <Story />
-      </KaitenStoryProvider>
-    ),
-  ],
-  render: () => (
-    <Show
-      when="flag-disabled"
-      flagKey="premium-feature"
-      fallback={<Surface tone="muted">Fallback — flag is enabled (this is hidden).</Surface>}
-    >
-      <Surface tone="destructive">
-        The `premium-feature` flag is off — show a disabled state or kill switch.
-      </Surface>
-    </Show>
-  ),
-  play: async ({ canvasElement }) => {
-    await within(canvasElement).findByText(/flag is off/);
   },
 };
 

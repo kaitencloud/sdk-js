@@ -72,6 +72,14 @@ localization member is removed or made required.
   where it describes the name, and does not strike the name through: it does that for
   `@deprecated` only. This document is the list to go by.
 
+## Breaking 2.0 policy
+
+Flag evaluation hooks and flag conditions in `Show`, `Gate`, `usePaywallTrigger`
+and `Paywall` are removed, as are evaluation helper re-exports. Decisions require
+OpenFeature SDK + official OFREP provider, independently of Kaiten entitlement
+gating. [The migration](../../MIGRATION-2.md) lists the removed APIs; both React
+packages require major releases. Published 1.x packages are unchanged.
+
 ## The blessed path (most stable)
 
 Build on these first — they are the lowest-churn surface and the intended
@@ -86,9 +94,7 @@ integration points:
   one app still yields one provider and one context.
 - **Headless hooks** — they return data/decisions, you render:
   `useEntitlementCheck`, `usePaywallTrigger`, `useLicensingSnapshot`,
-  `useReportUsage`, `useFeatureFlag` / `useFeatureFlags` (given a context, they evaluate live and
-  add the provider's instance to it as `kaiten.instanceSlug`, the host's own value winning; an
-  `instanceId` is that instance's slug), `useLicense`,
+  `useReportUsage`, `useLicense`,
   `useInstance`, `useEntitlement`, `useUsage` / `useUsageGroup`, `usePlans`,
   `useCustomer`, `useEntitlements`, `useFlags`, `useAddOns`, `useCredits`,
   `useUpgradeOptions`, `useKaitenAvailable`, `useKaitenBranding`,
@@ -99,8 +105,7 @@ integration points:
   `KaitenClient`, the error types (`KaitenError`,
   `KaitenNetworkError`, `TransactionIdReusedError`, `InvalidTransactionIdError`,
   `QuotaExceededError`, `RateLimitedError`, `BoundaryPendingError`,
-  `ProviderUnavailableError`, `KaitenThrownError`), and the type guards
-  (`isEvaluationSuccess` / `isEvaluationFailure`). A usage report's
+  `ProviderUnavailableError`, `KaitenThrownError`). A usage report's
   `transactionId` travels in the `Idempotency-Key` header, and the client sends
   such a report again only once it has seen a key echoed (see the client's
   `STABILITY.md`).

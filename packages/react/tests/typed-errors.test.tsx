@@ -226,8 +226,6 @@ function reportingWith(reply: () => Response) {
   const client: KaitenClientLike = {
     getCatalog: () => real.getCatalog(),
     getLicensingSnapshot: async () => SNAPSHOT,
-    evaluateFlag: (...args) => real.evaluateFlag(...args),
-    evaluateFlags: (...args) => real.evaluateFlags(...args),
     reportUsage: (...args) => real.reportUsage(...args),
   };
   const customer = freshCustomer();
@@ -411,8 +409,6 @@ test("without a portal there is a source, from the licence, and no provenance", 
           {
             getCatalog: async () => ({ plans: [] }),
             getLicensingSnapshot: async () => SNAPSHOT,
-            evaluateFlag: async () => ({ key: "k", value: false }),
-            evaluateFlags: async () => ({ flags: [] }),
             reportUsage: async () => {
               throw new Error("unused");
             },

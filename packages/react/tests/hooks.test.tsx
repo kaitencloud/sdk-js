@@ -12,8 +12,6 @@ import { KaitenProvider } from "../src/providers/kaiten-provider.tsx";
 import { TelemetryProvider, useTelemetry } from "../src/telemetry/context.tsx";
 import { useEntitlement } from "../src/hooks/use-entitlement.ts";
 import { useLicenseEntitlementsList } from "../src/hooks/use-entitlements.ts";
-import { useFeatureFlag } from "../src/hooks/use-feature-flag.ts";
-import { useFeatureFlags } from "../src/hooks/use-feature-flags.ts";
 import { useEntitlementCheck } from "../src/hooks/use-entitlement-check.ts";
 import { usePaywallTrigger } from "../src/hooks/use-paywall-trigger.ts";
 import { useLicensingSnapshot } from "../src/hooks/use-licensing-snapshot.ts";
@@ -48,15 +46,6 @@ vi.mock("@kaitencloud/client", async (importActual) => {
   const actual = await importActual<typeof import("@kaitencloud/client")>();
   const { createKaitenClientDouble } = await import("./support/kaiten-client-double.ts");
   return { ...actual, KaitenClient: createKaitenClientDouble() };
-});
-
-// This suite exercises an enabled flag with a variant, where components.test.tsx
-// exercises a disabled one.
-kaitenClientMock.setFlagBehaviour({
-  flag: (key: string) => ({ key, value: true, variant: "b", reason: "targeting_match" }),
-  flags: () => ({
-    flags: [{ key: "gradual-rollout", value: true, variant: "b", reason: "targeting_match" }],
-  }),
 });
 
 const user = { id: "user-1", name: "Test User" };
@@ -318,8 +307,6 @@ test("snapshot-derived hooks expose customer, instance, entitlements, flags, usa
       entitlement: useEntitlement("api_calls"),
       entitlementMissing: useEntitlement("missing"),
       entitlements: useEntitlements(),
-      featureFlag: useFeatureFlag("gradual-rollout"),
-      featureFlags: useFeatureFlags(),
       flags: useFlags(),
       gateApiMin25: useEntitlementCheck("api_calls", { min: 25 }),
       gateApiMin100: useEntitlementCheck("api_calls", { min: 100 }),
@@ -354,29 +341,6 @@ test("snapshot-derived hooks expose customer, instance, entitlements, flags, usa
   });
   expect(result.current.entitlement.data?.entitlementName).toBe("API calls");
   expect(result.current.entitlementMissing.data).toBeUndefined();
-  expect(result.current.featureFlag.data).toEqual({
-    key: "gradual-rollout",
-    value: "variant-a",
-    variant: "a",
-    reason: "rule_match",
-    metadata: { cohort: "beta" },
-  });
-  expect(result.current.featureFlags.data?.flags).toEqual([
-    {
-      key: "gradual-rollout",
-      value: "variant-a",
-      variant: "a",
-      reason: "rule_match",
-      metadata: { cohort: "beta" },
-    },
-    {
-      key: "disabled-flag",
-      value: false,
-      variant: undefined,
-      reason: "default",
-      metadata: undefined,
-    },
-  ]);
   expect(result.current.gateApiMin25.allowed).toBe(true);
   expect(result.current.gateApiMin100).toMatchObject({
     allowed: false,
@@ -431,64 +395,6 @@ test("snapshot-derived hooks expose customer, instance, entitlements, flags, usa
     "free",
     "enterprise",
   ]);
-});
-
-test("useFeatureFlag and useFeatureFlags evaluate live via OFREP when a context is provided", async () => {
-  const context = { plan: "pro" };
-  const { result } = renderHook(
-    () => ({
-      flag: useFeatureFlag("gradual-rollout", context),
-      flags: useFeatureFlags(context),
-    }),
-    { wrapper: authenticatedWrapper() },
-  );
-
-  await waitFor(() => {
-    expect(result.current.flag.data?.reason).toBe("targeting_match");
-  });
-  expect(result.current.flag.data).toMatchObject({
-    key: "gradual-rollout",
-    value: true,
-    variant: "b",
-  });
-
-  await waitFor(() => {
-    expect(result.current.flags.data?.flags).toHaveLength(1);
-  });
-  expect(result.current.flags.data?.flags[0]).toMatchObject({ reason: "targeting_match" });
-
-  // The hooks evaluate live via the client, forwarding the provided context.
-  expect(kaitenClientMock.evaluateFlag).toHaveBeenCalledWith("gradual-rollout", context);
-  expect(kaitenClientMock.evaluateFlags).toHaveBeenCalledWith(context);
-});
-
-test("a flag evaluated live names the instance the provider is bound to, without overwriting the host's context", async () => {
-  const wrapper = authenticatedWrapper({ instanceId: "prod-instance" });
-  kaitenClientMock.evaluateFlag.mockClear();
-  kaitenClientMock.evaluateFlags.mockClear();
-  const context = { plan: "pro", kaiten: { team: "fe" } };
-  const own = { kaiten: { instanceSlug: "the-hosts" } };
-
-  const { result } = renderHook(
-    () => ({
-      flag: useFeatureFlag("gradual-rollout", context),
-      flags: useFeatureFlags(context),
-      own: useFeatureFlag("gradual-rollout", own),
-    }),
-    { wrapper },
-  );
-
-  await waitFor(() => {
-    expect(result.current.flag.data?.reason).toBe("targeting_match");
-    expect(result.current.own.data?.reason).toBe("targeting_match");
-    expect(result.current.flags.data?.flags).toHaveLength(1);
-  });
-  const named = { plan: "pro", kaiten: { team: "fe", instanceSlug: "prod-instance" } };
-  expect(kaitenClientMock.evaluateFlag).toHaveBeenCalledWith("gradual-rollout", named);
-  expect(kaitenClientMock.evaluateFlags).toHaveBeenCalledWith(named);
-  expect(kaitenClientMock.evaluateFlag).toHaveBeenCalledWith("gradual-rollout", own);
-  // The host's own objects are not touched.
-  expect(context).toEqual({ plan: "pro", kaiten: { team: "fe" } });
 });
 
 test("useKaitenQuery supports enabled, disabled, and manual refetch flows", async () => {
@@ -848,23 +754,7 @@ test("every kaitenKeys entry is prefixed by the provider scope", () => {
 
   // The regression this pins: these two carried no scope at all, so two
   // providers on different customers served each other their evaluations.
-  expect(kaitenKeys.featureFlag.detail(authedScope, "flag-a")).toEqual([
-    "kaiten",
-    authedScope,
-    "feature-flag",
-    "flag-a",
-  ]);
-  expect(kaitenKeys.featureFlag.bulk(authedScope)).toEqual([
-    "kaiten",
-    authedScope,
-    "feature-flags",
-    "bulk",
-  ]);
-
-  // No two scopes can collide on any key.
-  expect(kaitenKeys.featureFlag.detail(publicScope, "flag-a")).not.toEqual(
-    kaitenKeys.featureFlag.detail(authedScope, "flag-a"),
-  );
+  expect("featureFlag" in kaitenKeys).toBe(false);
 });
 
 test("useEntitlementCheck resolves number, boolean, config, min, and missing entitlements", async () => {
@@ -922,8 +812,6 @@ test("usePaywallTrigger surfaces over-limit, near-limit, threshold, flag, and no
       apiBelow: usePaywallTrigger("api_calls", 0.99), // 95% < 99% threshold
       seats: usePaywallTrigger("seats"), // at limit
       missing: usePaywallTrigger("ghost"), // no entitlement
-      flagOff: usePaywallTrigger("api_calls", { flagKey: "disabled-flag" }),
-      flagOn: usePaywallTrigger("api_calls", { threshold: 0.99, flagKey: "gradual-rollout" }),
     }),
     { wrapper: authenticatedWrapper() },
   );
@@ -938,8 +826,6 @@ test("usePaywallTrigger surfaces over-limit, near-limit, threshold, flag, and no
   expect(result.current.seats).toMatchObject({ shouldShow: true, reason: "over_limit" });
   expect(result.current.missing).toMatchObject({ shouldShow: true, reason: "not_entitled" });
   // A disabled flag forces the paywall regardless of usage; an enabled flag does not.
-  expect(result.current.flagOff).toMatchObject({ shouldShow: true, reason: "flag_disabled" });
-  expect(result.current.flagOn).toMatchObject({ shouldShow: false, reason: null });
 });
 
 test("usePaywallTrigger falls back to a reason-appropriate snapshot action when the entitlement has none", async () => {
@@ -969,7 +855,6 @@ test("usePaywallTrigger falls back to a reason-appropriate snapshot action when 
   const { result } = renderHook(
     () => ({
       overLimit: usePaywallTrigger("bare_metric"), // over_limit → add_quota
-      flagOff: usePaywallTrigger("bare_metric", { flagKey: "disabled-flag" }), // flag_disabled → upgrade_plan
     }),
     { wrapper: authenticatedWrapper({ snapshot }) },
   );
@@ -978,7 +863,6 @@ test("usePaywallTrigger falls back to a reason-appropriate snapshot action when 
 
   expect(result.current.overLimit).toMatchObject({ reason: "over_limit" });
   expect(result.current.overLimit.recommendedAction).toMatchObject({ type: "add_quota" });
-  expect(result.current.flagOff.recommendedAction).toMatchObject({ type: "upgrade_plan" });
 });
 
 test("unlimited (-1) entitlements are allowed and never paywalled", async () => {

@@ -42,7 +42,7 @@ function mergeAbortSignals(left: AbortSignal | null | undefined, right: AbortSig
 export interface KaitenRunOptions {
   /**
    * Whether replaying this call is safe. Defaults to `true`, which is correct
-   * for every read and for the OFREP evaluations. Set it to `false` on anything
+   * for every read. Set it to `false` on anything
    * that mutates server state — the transport then never retries it. A replay
    * waits for the `Retry-After` of the failure when it has one, at most 30
    * seconds, and backs off otherwise.
@@ -142,8 +142,8 @@ export class KaitenTransport {
     options: KaitenRunOptions = {},
   ): Promise<T> {
     // Retrying is only safe when replaying the call cannot change server state
-    // twice. Reads qualify, and so do the OFREP evaluations — they are POSTs
-    // only because the evaluation context travels in a body.
+    // twice. Reads qualify; GraphQL queries are POSTs because their input
+    // travels in a body.
     const idempotent = options.idempotent ?? true;
 
     return retry(
@@ -243,8 +243,8 @@ export class KaitenTransport {
         }),
       `POST ${path}`,
       // The generic write helper: assume the call mutates unless the caller says
-      // otherwise. Some POSTs here are really reads — GraphQL queries and OFREP
-      // evaluations use a body, not a verb, to carry their input — and those opt
+      // otherwise. Some POSTs here are really reads — GraphQL queries
+      // use a body, not a verb, to carry their input — and those opt
       // retry back in explicitly.
       { idempotent: options.idempotent ?? false },
     );

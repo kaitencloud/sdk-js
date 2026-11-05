@@ -1,7 +1,7 @@
 # @kaitencloud/client
 
 Kaiten SDK for the embedded monetization surface: the plan catalog, a customer's
-licensing snapshot, entitlement usage and feature flags. It is built for browsers,
+licensing snapshot and entitlement usage. It is built for browsers,
 where it never holds a secret, and it runs on servers too.
 [`@kaitencloud/react`](../react) builds its hooks on it, and
 [`@kaitencloud/react-ui`](../react-ui) its components (`PricingTable`,
@@ -24,7 +24,7 @@ with a `transactionId` carries it in the `Idempotency-Key` header, which such a 
 the report is counted at every sending, its answer has no `transactionId`, and the client never
 sends it again, as [Reporting usage](#reporting-usage) describes. Everything else, which 1.0.0
 already did (the catalogue and the licensing snapshot composed from the licences endpoints, usage reports
-without a key, flag evaluation), works against the Kaiten releases it worked against. What a
+without a key), works against the Kaiten releases it worked against. What a
 newer server adds to a usage row (`source`, `provenance`, the effective limit) is read when it
 is there and left out when it is not.
 
@@ -385,23 +385,22 @@ client waits its default of 60 seconds, twice as long as the API asked for the T
 The API checks a token's scopes on every call. Give the token the scopes of the calls
 you make:
 
-| Call                                         | Scopes                                                                                         |
-| -------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| `components.getCatalog()`                    | `read:licenses`, `read:entitlements`                                                           |
-| `components.getSnapshot()`                   | `read:licenses`, `read:entitlements`, `read:customers`, `read:instances`, `read:feature_flags` |
-| `customers.*`                                | `read:customers`                                                                               |
-| `instances.*`                                | `read:instances`                                                                               |
-| `licenses.*`                                 | `read:licenses`                                                                                |
-| `usage.getByInstance()`, `usage.getDetail()` | `read:instances`                                                                               |
-| `usage.getByGroup()`                         | `read:entitlements`                                                                            |
-| `usage.report()`                             | `write:instances`                                                                              |
-| `flags.*`                                    | `read:feature_flags`                                                                           |
+| Call                                         | Scopes                                                                   |
+| -------------------------------------------- | ------------------------------------------------------------------------ |
+| `components.getCatalog()`                    | `read:licenses`, `read:entitlements`                                     |
+| `components.getSnapshot()`                   | `read:licenses`, `read:entitlements`, `read:customers`, `read:instances` |
+| `customers.*`                                | `read:customers`                                                         |
+| `instances.*`                                | `read:instances`                                                         |
+| `licenses.*`                                 | `read:licenses`                                                          |
+| `usage.getByInstance()`, `usage.getDetail()` | `read:instances`                                                         |
+| `usage.getByGroup()`                         | `read:entitlements`                                                      |
+| `usage.report()`                             | `write:instances`                                                        |
 
 A call that needs a scope the token lacks is refused with `403` and the code
 `Auth.MissingScope`. The two composed reads degrade instead of failing: when the API
 refuses the GraphQL query for a missing scope, `getCatalog()` falls back to REST, which
 needs only `read:licenses` but loses the presentation fields, and `onDegraded` reports
-it; without `read:feature_flags`, the snapshot comes back with no flags.
+it. Flags are evaluated only through OpenFeature, never by a snapshot read.
 
 ## Quick start
 
@@ -425,7 +424,6 @@ const snapshot = await kaiten.components.getSnapshot("acme-corp");
 - `kaiten.components` — embedded monetization: `getCatalog()`, `getSnapshot(customerId, instanceId?)`
 - `kaiten.customers` / `kaiten.instances` / `kaiten.licenses` — curated reads
 - `kaiten.usage` — entitlement usage (read + report)
-- `kaiten.flags` — feature-flag evaluation (`evaluate`, `evaluateAll`)
 
 ## Reporting usage
 
@@ -750,9 +748,8 @@ joining the snapshot to the catalog's prices resolves.
 
 ### Bringing your own client
 
-Type the client your code takes as `KaitenClientLike` — the five methods a UI
-consumes (`getCatalog`, `getLicensingSnapshot`, `evaluateFlag`, `evaluateFlags`,
-`reportUsage`) — rather than the `KaitenClient` class. The class has a private
+Type the client your code takes as `KaitenClientLike` — the three management methods a UI
+consumes (`getCatalog`, `getLicensingSnapshot`, `reportUsage`) — rather than the `KaitenClient` class. The class has a private
 field, so TypeScript types it nominally and no object could satisfy it
 structurally; every double would end in `as unknown as KaitenClient`, a cast
 that turns a checked substitution into an unchecked one. Implement the interface
@@ -771,8 +768,9 @@ API's `/graphql` endpoint (a backend aggregate in kaiten) returns the customer,
 its instances with live usage, and the full plan catalog with presentation metadata.
 Against an older API without the GraphQL schema, the client **falls back** to
 composing the same shape from existing REST endpoints (licenses, customers,
-instances, entitlement usage). Snapshot feature flags are resolved **live via OFREP**
-(bulk evaluation with the customer as targeting key) on both paths.
+instances, entitlement usage). Neither path evaluates flags: the snapshot returns
+an empty flag display list. For decisions use OpenFeature + its official OFREP provider
+separately; see [the 2.0 migration](../../MIGRATION-2.md).
 
 An entitlement's `limitValue` is what the instance is entitled to: the usage read's
 `limit` when it carries one, the licence grant otherwise. A Kaiten server with add-ons

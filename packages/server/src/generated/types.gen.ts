@@ -120,6 +120,7 @@ export type Webhooks =
   | OnReleaseDeletedWebhookRequest
   | OnVoucherArchivedWebhookRequest
   | OnVoucherCreatedWebhookRequest
+  | OnVoucherDeletedWebhookRequest
   | OnVoucherExhaustedWebhookRequest
   | OnVoucherExpiredWebhookRequest
   | OnVoucherPublishedWebhookRequest
@@ -2771,7 +2772,7 @@ export type HandoffBacklog = {
   oldestPendingIssuedAt: string | null;
   pending: number;
   /**
-   * PENDING invoices claimed again after a lease expired, whose latest lease runs or ended in the last 24 hours: a consumer that claims and does not acknowledge
+   * Invoices claimed again after a lease expired, in the last 24 hours: a consumer that claims and does not acknowledge
    */
   reclaimedLast24h: number;
 };
@@ -3013,7 +3014,7 @@ export type Instance = {
    */
   description: string;
   /**
-   * End date of the license for this instance
+   * UTC exclusive end of the assigned license term for this instance
    */
   endLicenseDate: string;
   /**
@@ -3035,6 +3036,10 @@ export type Instance = {
    */
   readonly licenseSlug: string;
   /**
+   * Assigned license term state at UTC database time. Always present on GET instance details; omitted from list, create and event representations.
+   */
+  readonly licenseTerm?: LicenseTerm;
+  /**
    * Commercial lifecycle stage of the instance (free-form; suggested: TRIAL, ACTIVE, AT_RISK, CHURNED)
    */
   readonly lifecycleStage?: string;
@@ -3053,7 +3058,7 @@ export type Instance = {
    */
   slug?: string;
   /**
-   * Start date of the license for this instance
+   * UTC inclusive start of the assigned license term for this instance
    */
   startLicenseDate: string;
   /**
@@ -3304,7 +3309,7 @@ export type InstanceDelivered = {
    */
   description: string;
   /**
-   * End date of the license for this instance
+   * UTC exclusive end of the assigned license term for this instance
    */
   endLicenseDate: string;
   /**
@@ -3326,6 +3331,10 @@ export type InstanceDelivered = {
    */
   readonly licenseSlug: string;
   /**
+   * Assigned license term state at UTC database time. Always present on GET instance details; omitted from list, create and event representations.
+   */
+  readonly licenseTerm?: LicenseTerm;
+  /**
    * Commercial lifecycle stage of the instance (free-form; suggested: TRIAL, ACTIVE, AT_RISK, CHURNED)
    */
   readonly lifecycleStage?: string;
@@ -3344,7 +3353,7 @@ export type InstanceDelivered = {
    */
   slug?: string;
   /**
-   * Start date of the license for this instance
+   * UTC inclusive start of the assigned license term for this instance
    */
   startLicenseDate: string;
   /**
@@ -3693,7 +3702,7 @@ export type InstanceUpdateDelivered = {
    */
   description: string;
   /**
-   * End date of the license for this instance
+   * UTC exclusive end of the assigned license term for this instance
    */
   endLicenseDate: string;
   /**
@@ -3719,6 +3728,10 @@ export type InstanceUpdateDelivered = {
    */
   readonly licenseSlug: string;
   /**
+   * Assigned license term state at UTC database time. Always present on GET instance details; omitted from list, create and event representations.
+   */
+  readonly licenseTerm?: LicenseTerm;
+  /**
    * Commercial lifecycle stage of the instance (free-form; suggested: TRIAL, ACTIVE, AT_RISK, CHURNED)
    */
   readonly lifecycleStage?: string;
@@ -3737,7 +3750,7 @@ export type InstanceUpdateDelivered = {
    */
   slug?: string;
   /**
-   * Start date of the license for this instance
+   * UTC inclusive start of the assigned license term for this instance
    */
   startLicenseDate: string;
   /**
@@ -5004,6 +5017,17 @@ export type LicensePriceUpdatedEventDelivered = {
    * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
    */
   via?: "customer_session" | "checkout_session";
+};
+
+export type LicenseTerm = {
+  /**
+   * UTC database instant used to determine the current term state
+   */
+  evaluatedAt: string;
+  /**
+   * State of the assigned license interval at evaluatedAt
+   */
+  status: "ACTIVE" | "NOT_STARTED" | "EXPIRED";
 };
 
 export type LineDifference = {
@@ -10822,7 +10846,7 @@ export type InstanceWritable = {
    */
   description: string;
   /**
-   * End date of the license for this instance
+   * UTC exclusive end of the assigned license term for this instance
    */
   endLicenseDate: string;
   /**
@@ -10850,7 +10874,7 @@ export type InstanceWritable = {
    */
   slug?: string;
   /**
-   * Start date of the license for this instance
+   * UTC inclusive start of the assigned license term for this instance
    */
   startLicenseDate: string;
 };
@@ -11016,7 +11040,7 @@ export type InstanceDeliveredWritable = {
    */
   description: string;
   /**
-   * End date of the license for this instance
+   * UTC exclusive end of the assigned license term for this instance
    */
   endLicenseDate: string;
   /**
@@ -11044,7 +11068,7 @@ export type InstanceDeliveredWritable = {
    */
   slug?: string;
   /**
-   * Start date of the license for this instance
+   * UTC inclusive start of the assigned license term for this instance
    */
   startLicenseDate: string;
   /**
@@ -11152,7 +11176,7 @@ export type InstanceUpdateDeliveredWritable = {
    */
   description: string;
   /**
-   * End date of the license for this instance
+   * UTC exclusive end of the assigned license term for this instance
    */
   endLicenseDate: string;
   /**
@@ -11184,7 +11208,7 @@ export type InstanceUpdateDeliveredWritable = {
    */
   slug?: string;
   /**
-   * Start date of the license for this instance
+   * UTC inclusive start of the assigned license term for this instance
    */
   startLicenseDate: string;
   /**
@@ -22605,98 +22629,6 @@ export type UnarchiveMetadataFieldResponses = {
 export type UnarchiveMetadataFieldResponse =
   UnarchiveMetadataFieldResponses[keyof UnarchiveMetadataFieldResponses];
 
-export type EvaluateFlagsBulkData = {
-  /**
-   * EvaluateVariant multiple flags in one request
-   */
-  body?: BulkEvaluationRequest;
-  headers?: {
-    /**
-     * The request will be processed only if ETag doesn't match any of the values listed.
-     */
-    "If-None-Match"?: string;
-  };
-  path?: never;
-  query?: never;
-  url: "/ofrep/v1/evaluate/flags";
-};
-
-export type EvaluateFlagsBulkErrors = {
-  /**
-   * Bad evaluation request
-   */
-  400: BulkEvaluationFailure;
-  /**
-   * Unauthorized - You need credentials to access the API
-   */
-  401: unknown;
-  /**
-   * Forbidden - You are not authorized to access the API
-   */
-  403: unknown;
-  /**
-   * Rate limit reached on the Flag Management System
-   */
-  429: unknown;
-  /**
-   * Internal server error
-   */
-  500: BulkEvaluationFailure;
-};
-
-export type EvaluateFlagsBulkError = EvaluateFlagsBulkErrors[keyof EvaluateFlagsBulkErrors];
-
-export type EvaluateFlagsBulkResponses = {
-  /**
-   * OFREP successful evaluation response
-   */
-  200:
-    | {
-        /**
-         * Array of evaluation results
-         */
-        flags?: Array<EvaluationSuccess | EvaluationFailure>;
-      }
-    | BulkEvaluationFailure;
-};
-
-export type EvaluateFlagsBulkResponse =
-  EvaluateFlagsBulkResponses[keyof EvaluateFlagsBulkResponses];
-
-export type EvaluateFlagData = {
-  /**
-   * Evaluation context
-   */
-  body: EvaluationRequest;
-  path: {
-    key: string;
-  };
-  query?: never;
-  url: "/ofrep/v1/evaluate/flags/{key}";
-};
-
-export type EvaluateFlagErrors = {
-  /**
-   * Evaluation failed
-   */
-  400: EvaluationFailure;
-  /**
-   * Internal error
-   */
-  500: EvaluationFailure;
-};
-
-export type EvaluateFlagError = EvaluateFlagErrors[keyof EvaluateFlagErrors];
-
-export type EvaluateFlagResponses = {
-  /**
-   * Flag evaluated successfully
-   */
-  200: EvaluationSuccess;
-};
-
-export type EvaluateFlagResponse = EvaluateFlagResponses[keyof EvaluateFlagResponses];
-
 export type GetOpenfeatureManifestData = {
   body?: never;
   path?: never;
@@ -25369,6 +25301,64 @@ export type ValidateVoucherResponses = {
 
 export type ValidateVoucherResponse = ValidateVoucherResponses[keyof ValidateVoucherResponses];
 
+export type DeleteVoucherData = {
+  body?: never;
+  path: {
+    /**
+     * Voucher id
+     */
+    voucherId: string;
+  };
+  query?: never;
+  url: "/vouchers/{voucherId}";
+};
+
+export type DeleteVoucherErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type DeleteVoucherError = DeleteVoucherErrors[keyof DeleteVoucherErrors];
+
+export type DeleteVoucherResponses = {
+  /**
+   * No Content
+   */
+  204: void;
+};
+
+export type DeleteVoucherResponse = DeleteVoucherResponses[keyof DeleteVoucherResponses];
+
 export type GetVoucherData = {
   body?: never;
   path: {
@@ -27898,6 +27888,26 @@ export type OnVoucherCreatedWebhookPayload = {
 export type OnVoucherCreatedWebhookRequest = {
   body: OnVoucherCreatedWebhookPayload;
   key: "com.kaiten.voucher.v1.created";
+  path?: never;
+  query?: never;
+};
+
+export type OnVoucherDeletedWebhookPayload = {
+  data: VoucherDeliveredWritable;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "VOUCHER_DELETED";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.voucher.v1.deleted";
+};
+
+export type OnVoucherDeletedWebhookRequest = {
+  body: OnVoucherDeletedWebhookPayload;
+  key: "com.kaiten.voucher.v1.deleted";
   path?: never;
   query?: never;
 };

@@ -201,6 +201,9 @@ import type {
   DeleteServiceAccountTokenData,
   DeleteServiceAccountTokenErrors,
   DeleteServiceAccountTokenResponses,
+  DeleteVoucherData,
+  DeleteVoucherErrors,
+  DeleteVoucherResponses,
   DeprecateAddonPriceData,
   DeprecateAddonPriceErrors,
   DeprecateAddonPriceResponses,
@@ -216,12 +219,6 @@ import type {
   DryRunMetadataFieldData,
   DryRunMetadataFieldErrors,
   DryRunMetadataFieldResponses,
-  EvaluateFlagData,
-  EvaluateFlagErrors,
-  EvaluateFlagResponses,
-  EvaluateFlagsBulkData,
-  EvaluateFlagsBulkErrors,
-  EvaluateFlagsBulkResponses,
   ExportInvoicesData,
   ExportInvoicesErrors,
   ExportInvoicesResponses,
@@ -3793,7 +3790,7 @@ export class Instances {
   /**
    * Get an instance by slug
    *
-   * Retrieve an instance by their unique slug
+   * Retrieve an existing instance by its unique slug, including its assigned license term state at UTC database time. licenseTerm is always present on this detail read, with a start-inclusive, end-exclusive interval. NOT_STARTED and EXPIRED describe the retrieved resource, not a failed GET. Catalog publication, operational status and commercial lifecycle do not change the term state.
    */
   public static getInstance<ThrowOnError extends boolean = false>(
     options: Options<GetInstanceData, ThrowOnError>,
@@ -4641,6 +4638,31 @@ export class Vouchers {
         "Content-Type": "application/json",
         ...options.headers,
       },
+    });
+  }
+
+  /**
+   * Delete a voucher
+   *
+   * Deletes a voucher no instance ever redeemed, whatever its status, with its grants and flag grants: the entitlements and flags they held can be deleted again, and its code can be given to another voucher. A voucher redeemed at least once, or one a checkout waiting for its payment applies, is history (409 DeleteVoucher.Redeemed): archive it instead. Emits VOUCHER_DELETED. Requires billing to be enabled for the organization.
+   */
+  public static deleteVoucher<ThrowOnError extends boolean = false>(
+    options: Options<DeleteVoucherData, ThrowOnError>,
+  ): RequestResult<DeleteVoucherResponses, DeleteVoucherErrors, ThrowOnError> {
+    return (options.client ?? client).delete<
+      DeleteVoucherResponses,
+      DeleteVoucherErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/vouchers/{voucherId}",
+      ...options,
     });
   }
 
@@ -5952,65 +5974,6 @@ export class MetadataFields {
       url: "/metadata-fields/{id}/unarchive",
       ...options,
     });
-  }
-}
-
-export class OfrepCore {
-  /**
-   * OFREP bulk flag evaluation contract
-   *
-   * OFREP bulk evaluation request.
-   * The endpoint is called by the client providers to evaluate all flags at once.
-   */
-  public static evaluateFlagsBulk<ThrowOnError extends boolean = false>(
-    options?: Options<EvaluateFlagsBulkData, ThrowOnError>,
-  ): RequestResult<EvaluateFlagsBulkResponses, EvaluateFlagsBulkErrors, ThrowOnError> {
-    return (options?.client ?? client).post<
-      EvaluateFlagsBulkResponses,
-      EvaluateFlagsBulkErrors,
-      ThrowOnError
-    >({
-      security: [
-        {
-          key: "bearerAuth",
-          scheme: "bearer",
-          type: "http",
-        },
-      ],
-      url: "/ofrep/v1/evaluate/flags",
-      ...options,
-      headers: {
-        "Content-Type": "application/json",
-        ...options?.headers,
-      },
-    });
-  }
-
-  /**
-   * OFREP single flag evaluation contract
-   *
-   * EvaluateVariant a single feature flag for a given key
-   */
-  public static evaluateFlag<ThrowOnError extends boolean = false>(
-    options: Options<EvaluateFlagData, ThrowOnError>,
-  ): RequestResult<EvaluateFlagResponses, EvaluateFlagErrors, ThrowOnError> {
-    return (options.client ?? client).post<EvaluateFlagResponses, EvaluateFlagErrors, ThrowOnError>(
-      {
-        security: [
-          {
-            key: "bearerAuth",
-            scheme: "bearer",
-            type: "http",
-          },
-        ],
-        url: "/ofrep/v1/evaluate/flags/{key}",
-        ...options,
-        headers: {
-          "Content-Type": "application/json",
-          ...options.headers,
-        },
-      },
-    );
   }
 }
 

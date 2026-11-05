@@ -5,8 +5,6 @@
 export type {
   BooleanEntitlementValue,
   ConfigEntitlementValue,
-  EvaluationFailure,
-  EvaluationSuccess,
   NumberEntitlementValue,
   User,
 } from "../core/index.ts";
@@ -22,8 +20,6 @@ import type {
   BooleanEntitlementValue,
   ConfigEntitlementValue,
   EntitlementUsage as ApiEntitlementUsage,
-  EvaluationFailure,
-  EvaluationSuccess,
   NumberEntitlementValue,
   User,
 } from "../core/index.ts";
@@ -153,13 +149,6 @@ export type EntitlementValue =
   | BooleanEntitlementValue
   | NumberEntitlementValue
   | ConfigEntitlementValue;
-
-export type EvaluationResult = EvaluationSuccess | EvaluationFailure;
-
-export interface BulkEvaluationResponse {
-  flags: EvaluationResult[];
-  metadata?: Record<string, unknown>;
-}
 
 // ---------------------------------------------------------------------------
 // Enums

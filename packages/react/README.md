@@ -1,7 +1,7 @@
 # @kaitencloud/react
 
 The **headless core** of Kaiten's React SDK: the provider, every hook, and the
-control primitives for licensing, entitlements, usage, flags and gating.
+control primitives for licensing, entitlements, usage and entitlement gating.
 
 It renders no DOM and ships no stylesheet. A host that gates its own buttons in
 its own design system installs this package alone. For Kaiten's prebuilt
@@ -82,7 +82,7 @@ function App() {
       customerId="cust_123"
       instanceId="inst_456"
     >
-      <Gate entitlement="api_calls" flagKey="premium-feature">
+      <Gate entitlement="api_calls">
         {({ blocked }) => (blocked ? <UpgradePrompt /> : <ApiPlayground />)}
       </Gate>
     </KaitenProvider>
@@ -155,8 +155,8 @@ marketing page's prices live.
 [Switching](#switching-from-public-to-signed-in)), so the signed-out half of
 an app can be static and the signed-in half live.
 
-What a static provider cannot do, it says: `useReportUsage` and a contextual
-`useFeatureFlag` reject with the mode in the message, and `usePaywallTrigger`
+What a static provider cannot do, it says: `useReportUsage` rejects with the mode
+in the message, and `usePaywallTrigger`
 (so `Gate`, so `Paywall`) fails open with a development warning — gating needs a
 customer, which only `mode="authenticated"` and `mode="customer-session"` have.
 
@@ -234,7 +234,7 @@ checks it against the origins you allowed for it on every request, and refuses i
 anywhere but the catalog. The SDK sends it the same way: in the
 `X-Kaiten-Publishable-Key` header, never `Authorization`, with no cookie, to
 `/public/catalog` only. Anything else a public provider is asked for — a usage
-report, a flag evaluated with a context — is refused before any request.
+report — is refused before any request.
 
 The catalog lists the default version of each plan family the organization made public:
 
@@ -614,7 +614,7 @@ function App() {
 
 `KaitenProvider` supports four runtime modes:
 
-- `mode="authenticated"` with `accessToken`, `customerId`, and optional `instanceId` — a customer's snapshot: plan, entitlements, usage, flags
+- `mode="authenticated"` with `accessToken`, `customerId`, and optional `instanceId` — a customer's snapshot: plan, entitlements and usage
 - `mode="static"` with `catalog` — the plans the host already holds; no key, no request (see the quick start above)
 - `mode="public"` with `publishableKey` — a live catalog read, from a Kaiten server with billing; see [Public mode](#public-mode)
 - `mode="customer-session"` with `sessionClient`, and optional `publishableKey` — one customer's portal through a customer session, from a Kaiten server with billing; see [Customer session](#customer-session)
@@ -744,14 +744,10 @@ function LicensingSidebar() {
 }
 ```
 
-`useFeatureFlag(key, context)` and `useFeatureFlags(keys, context)` evaluate a flag live, over OFREP,
-when they are given a context. Under `mode="authenticated"` with an `instanceId`, the provider adds
-the instance to that context as `kaiten: { instanceSlug }`, so that a flag granted on that instance
-applies. What you wrote wins: a `kaiten.instanceSlug` of your own is kept, the other members of
-your `kaiten` stay, and nothing is added without an `instanceId`. The API reads the instance by its
-**slug**, so `instanceId` must be the instance's slug. Under `customer-session` no instance is named
-to OFREP: a session's `kst_` has no route there yet, and the session's snapshot carries no flags
-(see above).
+Flag decisions use `@openfeature/react-sdk` + `@openfeature/ofrep-web-provider`
+against an authorized browser-safe endpoint, or the official server SDK/provider on
+your backend. Kaiten has no evaluation hook. `useFlags` is host-fed display data
+only; licensing reads do not populate it. See [the 2.0 migration](../../MIGRATION-2.md).
 
 The rules the styled components apply are exported too, so a host's own UI reaches
 the same answers rather than re-deriving them: `formatKaitenMoney`,
@@ -853,7 +849,7 @@ polling schedule's or `refetch`'s.
 | Component                 | Description                                       |
 | ------------------------- | ------------------------------------------------- |
 | `<Gate />`                | Render-prop gate reporting entitlement state      |
-| `<Show />`                | Minimal declarative entitlement/flag switch       |
+| `<Show />`                | Minimal declarative entitlement switch            |
 | `<KaitenLoaded />`        | Render children when provider data is loaded      |
 | `<KaitenLoading />`       | Render children while provider data is loading    |
 | `<KaitenFailed />`        | Render children when provider data failed to load |
@@ -881,8 +877,7 @@ window.addEventListener("kaiten:plan-changed", (event) => {
 
 In `authenticated` mode, components consume the licensing snapshot and plan catalog
 composed by `@kaitencloud/client` — GraphQL-first against the platform's `/graphql`
-aggregate, with a REST fan-out fallback for older APIs; feature flags are evaluated
-over OFREP. There are no dedicated `/api/components/*` endpoints.
+aggregate, with a REST fan-out fallback for older APIs. Neither path evaluates flags. There are no dedicated `/api/components/*` endpoints.
 
 With Kaiten billing, `public` and `customer-session` modes read the public routes
 billing adds instead, and nothing else: `/public/catalog` with a publishable key,

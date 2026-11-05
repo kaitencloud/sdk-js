@@ -1,22 +1,20 @@
-<!--
-  Maintainers: every name below must match a real export. Before a release,
-  check this document against src/index.ts here and in packages/server.
-  tests/compat-1.0.test.ts and tests/compat/consumer-1.0.ts hold code written
-  against 1.0 and must keep compiling unchanged: scripts/check-compat-1.0.mjs
-  compiles the second against the 1.0.0 tarball and against this tree, and
-  checks that every name of the 1.0.0 client and server is still exported,
-  but for the ones REMOVED_SINCE_1_0 lists.
--->
-
 # Stability & versioning — `@kaitencloud/client` and `@kaitencloud/server`
 
-> **Status: `1.x`, published.** Both packages follow semantic versioning: nothing
+> **Published history: `1.x`; current changes target `2.0`.** Both packages follow semantic versioning: nothing
 > a 1.0 consumer wrote stops compiling or working in a 1.x release. A change that
 > would needs a major release.
 
 This document says what a minor release may add, what it never does, and how
 the parts that have to grow — the client interfaces and the enumerations the
 API extends — grow without breaking anyone.
+
+## Breaking 2.0 policy
+
+[The migration](../../MIGRATION-2.md) names the removed evaluation APIs and the
+OpenFeature SDK + official OFREP replacement. The immutable 1.0 consumer is checked
+against published 1.0.0; the current management consumer is checked against this
+tree. Only documented major-policy export removals are permitted. Published 1.x
+versions and changelogs are never rewritten.
 
 ## What a minor release may do
 
@@ -55,10 +53,10 @@ API extends — grow without breaking anyone.
 ## How the client interfaces grow
 
 `KaitenClientLike` is the seam you implement — a fake, a cache, an SSR client.
-It keeps its five 1.0 methods (`getCatalog`, `getLicensingSnapshot`,
-`evaluateFlag`, `evaluateFlags`, `reportUsage`) for all of 1.x: a required
-member would break every implementation, and an optional one would let a
-consumer call a method an implementation silently lacks.
+Its current management methods are `getCatalog`, `getLicensingSnapshot` and
+`reportUsage`. The 2.0 policy removes all flag evaluation members; no alias remains.
+Within a major, a new required member would break every implementation, and an
+optional one would let a consumer call a method an implementation silently lacks.
 
 A new capability is a **separate interface** instead, implemented by whichever
 client provides it. The first is `KaitenSessionClientLike`, the customer-session

@@ -24,7 +24,6 @@ import {
   KaitenProvider,
   KaitenScopeProvider,
   useEntitlements,
-  useFeatureFlag,
   useKaitenScopeKey,
   useLicense,
   useLicensingSnapshot,
@@ -154,7 +153,6 @@ test("refuses writes and live reads, naming the mode", async () => {
   const { result } = renderHook(
     () => ({
       report: useReportUsage(),
-      flag: useFeatureFlag("beta", { targetingKey: "visitor" }),
     }),
     { wrapper },
   );
@@ -165,13 +163,6 @@ test("refuses writes and live reads, naming the mode", async () => {
       input: { value: { type: "number", value: 1 }, behavior: "append" },
     }),
   ).rejects.toThrow(/authenticated mode/);
-
-  // A contextual flag evaluation is a live OFREP call. It lands in `error`, like
-  // any failed request, rather than throwing through the host's tree.
-  await waitFor(() => {
-    expect(result.current.flag.error).not.toBeNull();
-  });
-  expect(result.current.flag.error?.message).toContain('mode="static"');
 });
 
 test("scope: the same catalog nested is a pass-through, a different one is its own root", () => {

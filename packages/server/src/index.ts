@@ -3,10 +3,10 @@
 
 // @kaitencloud/server — Kaiten server SDK for external Node/TS backends.
 //
-// Full typed contract surface (Bearer auth), grouped by resource. The resource
+// Typed management contract surface (Bearer auth), grouped by resource. The resource
 // classes (`Customers`, `Instances`, …) are generated from the same OpenAPI
-// snapshot as @kaitencloud/client, so coverage stays 100% of the contract
-// automatically.
+// snapshot as @kaitencloud/client. OFREP evaluation operations are excluded:
+// flag decisions belong to OpenFeature and its official provider.
 //
 // Usage:
 //   import { createKaitenClient, Customers } from "@kaitencloud/server";

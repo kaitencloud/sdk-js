@@ -17,5 +17,6 @@
     "verbatimModuleSyntax": true,
     "skipLibCheck": true
   },
-  "include": ["src/**/*.ts", "tests/**/*.ts"]
+  "include": ["src/**/*.ts", "tests/**/*.ts"],
+  "exclude": ["tests/compat/consumer-1.0.ts", "tests/compat-1.0.test.ts"]
 }

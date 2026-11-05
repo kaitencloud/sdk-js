@@ -1,7 +1,7 @@
 # Kaiten SDK for JavaScript
 
 TypeScript packages for [Kaiten](https://kaiten.sh): gate features on licences and
-entitlements, report usage, show pricing and paywalls, and evaluate feature flags.
+entitlements, report usage, and show pricing and paywalls. Flag decisions use OpenFeature.
 
 ## Packages
 
@@ -18,7 +18,8 @@ customer sessions that Kaiten billing serves; see the "Kaiten version" section b
 The design tokens the components use ship separately, as
 [`@kaitencloud/theme`](https://www.npmjs.com/package/@kaitencloud/theme).
 
-To evaluate feature flags through OpenFeature, use its generic OFREP providers:
+**Flag evaluation is exclusively OpenFeature SDK + official OFREP provider**, never a Kaiten SDK method.
+See [the breaking 2.0 migration](MIGRATION-2.md). Use its official providers:
 [`@openfeature/ofrep-web-provider`](https://www.npmjs.com/package/@openfeature/ofrep-web-provider)
 in a browser, [`@openfeature/ofrep-provider`](https://www.npmjs.com/package/@openfeature/ofrep-provider)
 in Node. Kaiten implements the protocol, so no Kaiten provider is needed, and
@@ -38,7 +39,7 @@ no request.
 ## Install
 
 ```bash
-npm install @kaitencloud/client      # catalogue, snapshot, usage and flags
+npm install @kaitencloud/client      # catalogue, snapshot and usage
 npm install @kaitencloud/server      # a Node backend
 ```
 

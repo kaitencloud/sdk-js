@@ -5,8 +5,7 @@ import { afterEach, describe, expect, test, vi } from "vite-plus/test";
 
 import { KaitenClient } from "../src/client/client.ts";
 import { defaultActions } from "../src/client/normalize.ts";
-import { isEvaluationFailure, isEvaluationSuccess } from "../src/client/feature-flags.ts";
-import type { EvaluationResult, ReportUsageInput } from "../src/client/types.ts";
+import type { ReportUsageInput } from "../src/client/types.ts";
 import { assertGraphqlResponseConforms } from "./support/graphql-conformance.ts";
 
 type FetchMock = ReturnType<
@@ -172,34 +171,6 @@ describe("KaitenClient resource facades", () => {
     const req = findRequest(fetchMock, "/instances/demo/entitlements/seats/usage", "POST");
     expect(req?.headers.get("Content-Type")).toBe("application/json");
     expect(JSON.parse(await req!.clone().text())).toEqual(input);
-  });
-
-  test("flags.evaluateAll posts the context and returns the bulk flags", async () => {
-    const fetchMock = router({
-      "POST /ofrep/v1/evaluate/flags": () => ({
-        flags: [
-          { key: "a", value: true, reason: "TARGETING_MATCH" },
-          { key: "b", errorCode: "FLAG_NOT_FOUND", errorDetails: "nope" },
-        ],
-      }),
-    });
-    vi.stubGlobal("fetch", fetchMock);
-    const client = makeClient(fetchMock);
-
-    const result = await client.flags.evaluateAll({ plan: "pro" });
-    expect(result.flags).toHaveLength(2);
-    expect(result.flags[0]).toMatchObject({ key: "a", value: true });
-
-    const req = findRequest(fetchMock, "/ofrep/v1/evaluate/flags", "POST");
-    expect(JSON.parse(await req!.clone().text())).toEqual({ context: { plan: "pro" } });
-  });
-
-  test("flags.evaluateAll defaults to an empty list when the API omits flags", async () => {
-    const fetchMock = router({ "POST /ofrep/v1/evaluate/flags": () => ({}) });
-    vi.stubGlobal("fetch", fetchMock);
-    const client = makeClient(fetchMock);
-
-    await expect(client.flags.evaluateAll()).resolves.toEqual({ flags: [] });
   });
 
   test("getCatalog composes plans from licenses and defaults branding", async () => {
@@ -553,101 +524,6 @@ describe("KaitenClient.getLicensingSnapshot", () => {
     expect(degraded.map((info) => info.operation)).toContain("getLicensingSnapshot.usage");
   });
 
-  test("populates feature flags from the bulk evaluation (enabled derived from the boolean value, failures dropped)", async () => {
-    const fetchMock = router({
-      "GET /customers/cust-1": () => ({ id: "cust-1", slug: "cust-1", name: "Acme" }),
-      "GET /instances/inst-1": () => ({
-        id: "inst-1",
-        slug: "inst-1",
-        customerSlug: "cust-1",
-        licenseSlug: "pro",
-      }),
-      "GET /licenses": () => [
-        {
-          id: "lic-1",
-          slug: "pro",
-          name: "Pro",
-          lifecycleState: "PUBLISHED",
-          familyId: "fam-1",
-          isDefault: true,
-        },
-      ],
-      "GET /licenses/pro": () => ({
-        id: "lic-1",
-        slug: "pro",
-        name: "Pro",
-        lifecycleState: "PUBLISHED",
-        familyId: "fam-1",
-        isDefault: true,
-      }),
-      "GET /licenses/pro/entitlements": () => [],
-      "GET /instances/inst-1/entitlements/usage": () => [],
-      "POST /ofrep/v1/evaluate/flags": () => ({
-        flags: [
-          {
-            key: "new-dashboard",
-            value: true,
-            variant: "on",
-            reason: "TARGETING_MATCH",
-            metadata: { team: "fe" },
-          },
-          // Flag is ON but this customer is excluded from the rollout: the
-          // evaluated boolean must win over the non-DISABLED reason.
-          { key: "excluded-rollout", value: false, reason: "TARGETING_MATCH" },
-          // Non-boolean value: fall back to reason !== DISABLED.
-          { key: "theme", value: "dark", variant: "dark", reason: "STATIC" },
-          { key: "legacy", value: false, reason: "DISABLED" },
-          { key: "broken", errorCode: "GENERAL" },
-        ],
-      }),
-    });
-    vi.stubGlobal("fetch", fetchMock);
-    const client = makeClient(fetchMock);
-
-    const snapshot = await client.getLicensingSnapshot("cust-1", "inst-1");
-
-    // EvaluationFailure ("broken") is dropped; enabled is the evaluated value
-    // when boolean, else derives from reason !== DISABLED.
-    expect(snapshot.flags).toHaveLength(4);
-    expect(snapshot.flags[0]).toMatchObject({
-      key: "new-dashboard",
-      enabled: true,
-      value: true,
-      variant: "on",
-      reason: "TARGETING_MATCH",
-      percentage: null,
-    });
-    expect(snapshot.flags[1]).toMatchObject({
-      key: "excluded-rollout",
-      enabled: false,
-      value: false,
-      reason: "TARGETING_MATCH",
-      percentage: null,
-    });
-    expect(snapshot.flags[2]).toMatchObject({
-      key: "theme",
-      enabled: true,
-      value: "dark",
-      variant: "dark",
-      reason: "STATIC",
-      percentage: null,
-    });
-    expect(snapshot.flags[3]).toMatchObject({
-      key: "legacy",
-      enabled: false,
-      value: false,
-      reason: "DISABLED",
-      percentage: null,
-    });
-
-    // The host named the instance, so the evaluation names it too: a flag granted
-    // on that instance applies.
-    const evaluation = findRequest(fetchMock, "/ofrep/v1/evaluate/flags", "POST");
-    expect(JSON.parse(await evaluation!.clone().text())).toEqual({
-      context: { targetingKey: "cust-1", kaiten: { instanceSlug: "inst-1" } },
-    });
-  });
-
   test("resolves the customer's first instance when no instanceId is given", async () => {
     const fetchMock = router({
       "GET /customers/cust-1": () => ({ id: "cust-1", slug: "cust-1", name: "Acme" }),
@@ -675,7 +551,6 @@ describe("KaitenClient.getLicensingSnapshot", () => {
       }),
       "GET /licenses/pro/entitlements": () => [],
       "GET /instances/demo/entitlements/usage": () => [],
-      "POST /ofrep/v1/evaluate/flags": () => ({ flags: [] }),
     });
     vi.stubGlobal("fetch", fetchMock);
     const client = makeClient(fetchMock);
@@ -684,11 +559,8 @@ describe("KaitenClient.getLicensingSnapshot", () => {
 
     expect(snapshot.instance).toMatchObject({ slug: "demo", customerSlug: "cust-1" });
     expect(snapshot.license).toMatchObject({ slug: "pro" });
-    // An instance the SDK picked itself is not one the host named: nothing is claimed for it.
-    const evaluation = findRequest(fetchMock, "/ofrep/v1/evaluate/flags", "POST");
-    expect(JSON.parse(await evaluation!.clone().text())).toEqual({
-      context: { targetingKey: "cust-1" },
-    });
+    expect(snapshot.flags).toEqual([]);
+    expect(findRequest(fetchMock, "/ofrep/v1/evaluate/flags", "POST")).toBeUndefined();
   });
 
   test("rejects when the explicit instance does not belong to the customer", async () => {
@@ -868,6 +740,9 @@ describe("KaitenClient.getLicensingSnapshot", () => {
       percentageUsed: null,
       status: "enabled",
     });
+    expect(snapshot.flags).toEqual([]);
+    expect(findRequest(fetchMock, "/ofrep/v1/evaluate/flags", "POST")).toBeUndefined();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
     // Everything came from the single GraphQL round-trip.
     expect(findRequest(fetchMock, "/customers/cust-1")).toBeUndefined();
     expect(findRequest(fetchMock, "/instances/inst-1")).toBeUndefined();
@@ -965,24 +840,6 @@ describe("KaitenClient.getLicensingSnapshot", () => {
   });
 });
 
-describe("feature-flag evaluation guards", () => {
-  test("narrow success vs failure by the OpenFeature errorCode and expose .value", () => {
-    const results: EvaluationResult[] = [
-      { key: "beta", value: true, variant: "on", reason: "TARGETING_MATCH" },
-      { key: "missing", errorCode: "FLAG_NOT_FOUND", errorDetails: "no such flag" },
-    ];
-
-    const successes = results.filter(isEvaluationSuccess);
-    const failures = results.filter(isEvaluationFailure);
-
-    expect(successes).toHaveLength(1);
-    expect(failures).toHaveLength(1);
-    // After the guard, `.value` is accessible without a cast (TS narrowing).
-    expect(successes[0]!.value).toBe(true);
-    expect(failures[0]!.errorCode).toBe("FLAG_NOT_FOUND");
-  });
-});
-
 // Guards an invariant, not a fix. An audit flagged `licensesBySlug` as losing
 // one version of a license to another, since a license row IS a version and the
 // map is keyed by slug. It cannot: kaiten constrains
@@ -1076,7 +933,6 @@ test("two versions of one license keep their own entitlements, and the instance 
         },
       },
     }),
-    "POST /ofrep/v1/evaluate/flags": () => ({ flags: [] }),
   });
   vi.stubGlobal("fetch", fetchMock);
   const client = makeClient(fetchMock);

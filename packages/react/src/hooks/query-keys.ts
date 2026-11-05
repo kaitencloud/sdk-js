@@ -43,9 +43,4 @@ export const kaitenKeys = {
     /** A customer session's portal, under `mode="customer-session"`. */
     portal: (scopeKey: string) => ["kaiten", scopeKey, "components", "portal"] as const,
   },
-
-  featureFlag: {
-    detail: (scopeKey: string, key: string) => ["kaiten", scopeKey, "feature-flag", key] as const,
-    bulk: (scopeKey: string) => ["kaiten", scopeKey, "feature-flags", "bulk"] as const,
-  },
 } as const;

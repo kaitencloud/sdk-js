@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {
-  evaluateFlag as evaluateFlagApi,
-  evaluateFlagsBulk,
   getCustomer as getCustomerApi,
   getEntitlementGroupUsage,
   getEntitlementUsageMetrics,
@@ -34,7 +32,6 @@ import {
   planFromLicense,
   resolveLicenseTerm,
 } from "./normalize.ts";
-import { isEvaluationSuccess } from "./feature-flags.ts";
 import { catalogQuery, mapPublicCatalog } from "./billing.ts";
 import { KaitenTransport } from "../core/index.ts";
 import { LICENSING_CATALOG_QUERY, LICENSING_SNAPSHOT_QUERY } from "../graphql/documents.ts";
@@ -43,11 +40,9 @@ import type {
   LicensingSnapshotQuery,
 } from "../graphql/generated/graphql.ts";
 import type {
-  BulkEvaluationResponse,
   Customer,
   EntitlementGroupUsageItem,
   EntitlementUsage,
-  EvaluationSuccess,
   GetCatalogOptions,
   Instance,
   KaitenCatalog,
@@ -59,7 +54,6 @@ import type {
   ReportUsageInput,
   ReportUsageResult,
   ResolvedEntitlement,
-  ResolvedFeatureFlag,
 } from "./types.ts";
 
 interface GraphQLEnvelope<T> {
@@ -77,7 +71,7 @@ interface PageOf<T> {
 }
 
 /**
- * The part of `KaitenClient` a UI actually consumes — five reads and one write.
+ * The part of `KaitenClient` a UI actually consumes — two management reads and one usage write.
  *
  * `KaitenClient` is a class with a private field, so TypeScript types it
  * nominally: no object can satisfy it structurally, whatever its shape. That is
@@ -92,8 +86,6 @@ interface PageOf<T> {
 export interface KaitenClientLike {
   getCatalog: (options?: GetCatalogOptions) => Promise<KaitenCatalog>;
   getLicensingSnapshot: (customerId: string, instanceId?: string) => Promise<LicensingSnapshot>;
-  evaluateFlag: (key: string, context?: Record<string, unknown>) => Promise<EvaluationSuccess>;
-  evaluateFlags: (context?: Record<string, unknown>) => Promise<BulkEvaluationResponse>;
   reportUsage: (
     instanceSlug: string,
     entitlementSlug: string,
@@ -137,11 +129,6 @@ export interface KaitenUsageModule {
   ) => Promise<EntitlementGroupUsageItem[] | null>;
 }
 
-export interface KaitenFlagsModule {
-  evaluate: (key: string, context?: Record<string, unknown>) => Promise<EvaluationSuccess>;
-  evaluateAll: (context?: Record<string, unknown>) => Promise<BulkEvaluationResponse>;
-}
-
 // Result of buildCatalog(): the plan catalog plus the raw licenses and their
 // entitlements keyed by slug, so the snapshot can reuse the active license's data
 // instead of fetching it (and its entitlements) a second time.
@@ -152,7 +139,7 @@ interface CatalogData {
 }
 
 // Result of the composed LicensingSnapshot query: everything getLicensingSnapshot
-// needs except flags (OFREP stays a separate REST call), in one round-trip.
+// needs for management and licensing, in one round-trip.
 interface SnapshotGraphQLData {
   customer: Customer;
   instances: Instance[];
@@ -439,7 +426,6 @@ export class KaitenClient implements KaitenClientLike {
   public readonly instances: KaitenInstancesModule;
   public readonly licenses: KaitenLicensesModule;
   public readonly usage: KaitenUsageModule;
-  public readonly flags: KaitenFlagsModule;
 
   constructor(config: KaitenClientConfig) {
     // No default scheme: a publishable key reads the public catalogue only, and a
@@ -485,11 +471,6 @@ export class KaitenClient implements KaitenClientLike {
         this.reportUsage(instanceSlug, entitlementSlug, input),
       getByGroup: (groupSlug, instanceSlug) =>
         this.getEntitlementGroupUsage(groupSlug, instanceSlug),
-    };
-
-    this.flags = {
-      evaluate: (key, context) => this.evaluateFlag(key, context),
-      evaluateAll: (context) => this.evaluateFlags(context),
     };
   }
 
@@ -791,40 +772,6 @@ export class KaitenClient implements KaitenClientLike {
     return { plans: [], licensesBySlug: new Map(), entitlementsByLicense: new Map() };
   }
 
-  // Evaluates the org's feature flags (OFREP bulk) and maps them to
-  // ResolvedFeatureFlag for the snapshot. `enabled` is the evaluated value when
-  // boolean — the reason alone can't tell an excluded customer apart (a flag can
-  // be ON yet evaluate false via TARGETING_MATCH/STATIC/DEFAULT); for non-boolean
-  // flags it falls back to the reason (DISABLED => off). Evaluation failures are
-  // dropped. The rollout `percentage` isn't available from evaluation alone (it
-  // lives on the flag definition), so it is left null — FlagsSummary renders the
-  // rollout badge only when it's a number.
-  private async resolveSnapshotFlags(
-    targetingKey: string,
-    instanceSlug?: string,
-  ): Promise<ResolvedFeatureFlag[]> {
-    // A targeting key is required or OFREP returns PROVIDER_FATAL ("missing
-    // targeting key") for any flag whose rules reference the subject — so scope
-    // the evaluation to this customer. Rules that don't match fall back to the
-    // flag's default variant.
-    // `kaiten.instanceSlug` is sent when the host named the instance, so that a flag
-    // granted on that instance applies. An instance the SDK picked on its own is
-    // not named: the flags of the customer are all it can claim.
-    const { flags } = await this.evaluateFlags({
-      targetingKey,
-      ...(instanceSlug ? { kaiten: { instanceSlug } } : {}),
-    });
-    return flags.filter(isEvaluationSuccess).map((flag) => ({
-      key: flag.key,
-      enabled: typeof flag.value === "boolean" ? flag.value : flag.reason !== "DISABLED",
-      value: flag.value,
-      variant: flag.variant,
-      reason: flag.reason,
-      percentage: null,
-      metadata: flag.metadata,
-    }));
-  }
-
   // With a publishable key: the public catalogue, `GET /public/catalog`, and
   // nothing else — no GraphQL and no REST fallback, which a publishable key may
   // not read. `options` narrow that read (one family, or without the add-ons).
@@ -852,15 +799,11 @@ export class KaitenClient implements KaitenClientLike {
   // billing capabilities, branding) are returned as defaults.
   //
   // GraphQL-first: ONE composed query returns the customer, its instances with
-  // live usage, and the full plan catalog. Flags stay on OFREP (a REST standard)
-  // and are fetched alongside on both paths. Falls back to the REST fan-out
+  // live usage, and the full plan catalog. No flag evaluation is performed.
+  // Falls back to the REST fan-out
   // against an older API without the schema — also when the customer is absent,
   // so the not-found error keeps its canonical REST shape.
   async getLicensingSnapshot(customerId: string, instanceId?: string): Promise<LicensingSnapshot> {
-    const flagsPromise = this.resolveSnapshotFlags(customerId, instanceId).catch(
-      (): ResolvedFeatureFlag[] => [],
-    );
-
     // Only the fetch is guarded: assembly errors (the belongs-to-customer check)
     // are domain errors and must reject, not silently re-run over REST.
     //
@@ -878,9 +821,9 @@ export class KaitenClient implements KaitenClientLike {
       this.reportDegraded("getLicensingSnapshot", error);
     }
     if (data) {
-      return this.assembleSnapshotGraphQL(data, customerId, instanceId, await flagsPromise);
+      return this.assembleSnapshotGraphQL(data, customerId, instanceId);
     }
-    return this.getLicensingSnapshotRest(customerId, instanceId, flagsPromise, graphqlFailed);
+    return this.getLicensingSnapshotRest(customerId, instanceId, graphqlFailed);
   }
 
   // Fetches the composed snapshot data in one GraphQL round-trip. Returns null
@@ -954,7 +897,6 @@ export class KaitenClient implements KaitenClientLike {
     data: SnapshotGraphQLData,
     customerId: string,
     instanceId: string | undefined,
-    flags: ResolvedFeatureFlag[],
   ): LicensingSnapshot {
     const plans = normalizePlansResponse(data.catalog.plans);
 
@@ -997,7 +939,8 @@ export class KaitenClient implements KaitenClientLike {
       addOns: [],
       credits: [],
       entitlements,
-      flags,
+      // Display data only; flag decisions use OpenFeature, never a licensing read.
+      flags: [],
       actions: defaultActions(),
       capabilities: {
         paymentMethods: false,
@@ -1019,7 +962,6 @@ export class KaitenClient implements KaitenClientLike {
   private async getLicensingSnapshotRest(
     customerId: string,
     instanceId: string | undefined,
-    flagsPromise: Promise<ResolvedFeatureFlag[]>,
     graphqlFailed = false,
   ): Promise<LicensingSnapshot> {
     // Customer, instance resolution and the plan catalog are independent — fetch
@@ -1037,11 +979,10 @@ export class KaitenClient implements KaitenClientLike {
     // metadata (icons, units, sale units, groups) exists only on that path.
     const catalogPromise = graphqlFailed ? this.buildCatalogRest() : this.buildCatalog();
 
-    const [customer, instance, catalog, flags] = await Promise.all([
+    const [customer, instance, catalog] = await Promise.all([
       this.getCustomerByIdOrSlug(customerId),
       this.resolveSnapshotInstance(customerId, instanceId),
       catalogPromise.catch(() => this.emptyCatalog()),
-      flagsPromise,
     ]);
     const plans = normalizePlansResponse(catalog.plans);
 
@@ -1095,7 +1036,8 @@ export class KaitenClient implements KaitenClientLike {
       addOns: [],
       credits: [],
       entitlements,
-      flags,
+      // Display data only; flag decisions use OpenFeature, never a licensing read.
+      flags: [],
       actions: defaultActions(),
       capabilities: {
         paymentMethods: false,
@@ -1261,32 +1203,5 @@ export class KaitenClient implements KaitenClientLike {
         }),
       `getEntitlementGroupUsage(${groupSlug}, ${instanceSlug})`,
     );
-  }
-
-  evaluateFlag(key: string, context?: Record<string, unknown>): Promise<EvaluationSuccess> {
-    return this.transport.run(
-      (client) =>
-        evaluateFlagApi({
-          client,
-          path: { key },
-          body: { context: context ?? {} },
-        }),
-      `evaluateFlag(${key})`,
-    );
-  }
-
-  async evaluateFlags(context?: Record<string, unknown>): Promise<BulkEvaluationResponse> {
-    const response = await this.transport.run<{ flags?: BulkEvaluationResponse["flags"] }>(
-      (client) =>
-        evaluateFlagsBulk({
-          client,
-          body: { context: context ?? {} },
-        }),
-      "evaluateFlags()",
-    );
-
-    return {
-      flags: response.flags ?? [],
-    };
   }
 }

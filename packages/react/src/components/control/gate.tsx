@@ -23,7 +23,7 @@ export interface GateState {
   limit: number;
   percentage: number;
   /**
-   * False for boolean, config and unlimited entitlements, and for flag denials.
+   * False for boolean, config and unlimited entitlements.
    * When false, `current`/`limit`/`percentage` describe nothing — do not draw a
    * meter, it reads as a metering bug rather than "not in your plan".
    */
@@ -64,8 +64,6 @@ const OPEN: GateState = {
 export interface GateProps {
   /** Entitlement slug from your Kaiten catalog, e.g. `seats`. */
   entitlement: string;
-  /** Also require this flag to be enabled. */
-  flagKey?: string;
   /** Minimum remaining units the action needs — gate a bulk import on `min`. */
   min?: number;
   /** Fraction of the quota at which `warning` turns true. Defaults to `0.8`. */
@@ -79,8 +77,8 @@ export interface GateProps {
   children: (state: GateState) => React.ReactNode;
 }
 
-function ActiveGate({ entitlement, flagKey, min, threshold, onError, children }: GateProps) {
-  const trigger = usePaywallTrigger(entitlement, { threshold, flagKey, min, onError });
+function ActiveGate({ entitlement, min, threshold, onError, children }: GateProps) {
+  const trigger = usePaywallTrigger(entitlement, { threshold, min, onError });
   const granted = useEntitlements().data?.find((candidate) => candidate.slug === entitlement);
 
   const state = React.useMemo<GateState>(() => {

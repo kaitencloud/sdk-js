@@ -87,8 +87,6 @@ function clientFor(fetch: typeof globalThis.fetch): KaitenClientLike {
   return {
     getCatalog: () => real.getCatalog(),
     getLicensingSnapshot: async () => SNAPSHOT,
-    evaluateFlag: (...args) => real.evaluateFlag(...args),
-    evaluateFlags: (...args) => real.evaluateFlags(...args),
     reportUsage: (...args) => real.reportUsage(...args),
   };
 }
