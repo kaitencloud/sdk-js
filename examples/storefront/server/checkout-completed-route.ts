@@ -2,14 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // `POST /storefront-api/checkout/completed`: what the storefront's backend does once a visitor's
-// anonymous checkout has completed, so that the customer Kaiten made is named after the buyer's
-// company and not after their e-mail address.
+// anonymous checkout has completed, so that the instance Kaiten made records the buyer as its
+// contact, and so that a customer named after its e-mail is named after the buyer's company.
 //
-// Kaiten has no member for a buyer's company or name: the checkout takes an e-mail, and the
-// completion names the customer and its instance after it. Linking the buyer to anything else is
-// the vendor's job, and the vendor's backend does it with the server token: it reads the customer
-// and the instance the completion made and writes the name it wants (`PUT /customers/{slug}` and
-// `PUT /instances/{slug}`). That is all this route is.
+// The start sends the company as `customerName`, and the completion names the customer and its
+// instance after it; a start that sends none (a page that asks for no company) has them named after
+// the e-mail. Kaiten keeps no contact person. Recording one, and naming a customer the start did not
+// name, is the vendor's job, and the vendor's backend does it with the server token: it reads the
+// customer and the instance the completion made and writes what it wants (`PUT /customers/{slug}`
+// when the customer is still named after the e-mail, and `PUT /instances/{slug}`). That is all this
+// route is.
 //
 // The page that posts is the visitor's browser, which a visitor can change, and nothing proves to
 // this route that the caller holds the checkout: the e-mail is no secret (the slug of a checkout's
@@ -22,7 +24,8 @@
 // - Kaiten itself made the customer and the instance (`createdBy` is Kaiten's own identity), so that
 //   nothing a person or a service made can be renamed through this route, whatever slug is posted;
 // - the customer was made a few minutes ago at most, which bounds the time it can be named in;
-// - its name is still that e-mail: a customer already named is not renamed again;
+// - its name is still that e-mail, or already the name posted (the start's `customerName`): a
+//   customer named otherwise is not renamed;
 // - the instance belongs to that customer.
 //
 // What is left, and this example accepts: anyone who knows the slugs of a customer that a checkout

@@ -1167,15 +1167,45 @@ test("a company alone is kept, and the name is null", async () => {
   ).not.toHaveProperty("name");
 });
 
-test("the company is never sent to Kaiten, whatever the start carries", async () => {
+test("the company names the customer: the start sends it, trimmed, as customerName", async () => {
   const client = doubleOf();
   const probe = await mount(client);
   act(() => probe.now.setName("Ada"));
-  act(() => probe.now.setCompany("Analytical Engines"));
+  act(() => probe.now.setCompany("  Analytical Engines "));
   await started(probe);
-  const sent = JSON.stringify(callsTo(client, "startCheckout"));
-  expect(sent).not.toContain("Analytical Engines");
-  expect(sent).not.toContain("Ada");
+  const [input] = callsTo(client, "startCheckout")[0]!.args as [Record<string, unknown>];
+  expect(input["customerName"]).toBe("Analytical Engines");
+  // The name is the page's alone when there is a company.
+  expect(JSON.stringify(input)).not.toContain("Ada");
+});
+
+test("with no company, the buyer's name names the customer", async () => {
+  const client = doubleOf();
+  const probe = await mount(client);
+  act(() => probe.now.setName(" Ada Lovelace "));
+  await started(probe);
+  const [input] = callsTo(client, "startCheckout")[0]!.args as [Record<string, unknown>];
+  expect(input["customerName"]).toBe("Ada Lovelace");
+});
+
+test("with neither, the start sends no customerName, and Kaiten names the customer after the e-mail", async () => {
+  const client = doubleOf();
+  const probe = await mount(client);
+  act(() => probe.now.setName("   "));
+  await started(probe);
+  const [input] = callsTo(client, "startCheckout")[0]!.args as [Record<string, unknown>];
+  expect(input).not.toHaveProperty("customerName");
+});
+
+test("a company longer than the API takes is refused before the token is spent", async () => {
+  const client = doubleOf();
+  const probe = await mount(client);
+  await fill(probe, STARTER);
+  act(() => probe.now.setCompany("a".repeat(256)));
+  await act(async () => expect(await probe.now.start()).toBeNull());
+  expect(probe.now.error).toBeInstanceOf(TypeError);
+  expect(probe.now.step).toBe("selecting");
+  expect(callsTo(client, "startCheckout")).toHaveLength(0);
 });
 
 test("an initial company fills the selection, and an empty one is the default", async () => {

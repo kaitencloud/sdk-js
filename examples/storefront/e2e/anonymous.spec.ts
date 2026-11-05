@@ -85,12 +85,13 @@ test("a visitor buys a free plan with no account: a company, a name if they like
   // Kaiten made the customer from the address and its instance on the plan, and subscribed it with no
   // provider, no card and no invoice.
   const state = await standIn.state();
-  // Kaiten named the customer after the address; the storefront's backend renamed it after the company, and
-  // its instance too, with the person as the contact. The billing address is still the buyer's.
+  // Kaiten named the customer and its instance after the company the start sent as customerName, and
+  // made the slug from it; the storefront's backend recorded the person as the instance's contact. The
+  // billing address is still the buyer's.
   expect(state.customers).toMatchObject([
     { name: "Analytical Engines", billingEmail: "ada@acme.test", createdBy: "system" },
   ]);
-  expect(state.customers[0]!.slug).toMatch(/^ada-acme-test-[0-9a-f]{6}$/);
+  expect(state.customers[0]!.slug).toMatch(/^analytical-engines-[0-9a-f]{6}$/);
   expect(state.instances).toMatchObject([
     { name: "Analytical Engines", description: "Contact: Ada Lovelace" },
   ]);
@@ -136,6 +137,7 @@ test("a visitor buys a free plan with no account: a company, a name if they like
   expect(anonymous[0]!.body).toMatchObject({
     priceId: STARTER_PRICE,
     email: "ada@acme.test",
+    customerName: "Analytical Engines",
     turnstileToken: "…",
   });
   // A real start, not a preview: a preview spends a security check of its own.
@@ -148,13 +150,13 @@ test("a visitor buys a free plan with no account: a company, a name if they like
   expect(calls.filter((call) => call.path === "/customers" || call.path === "/instances")).toEqual(
     [],
   );
-  // The storefront's backend read the customer and the instance, then wrote both, with the server token. The
-  // page reached it once, and never reached Kaiten's customer routes itself.
+  // The storefront's backend read the customer and the instance with the server token, and wrote the
+  // instance only: the start named the customer already, so only the contact was left to record. The page
+  // reached it once, and never reached Kaiten's customer routes itself.
   const vendor = calls.filter((call) => call.credential === "ksh_");
   expect(vendor.map((call) => `${call.method} ${call.path.split("/")[1]} ${call.status}`)).toEqual([
     "GET customers 200",
     "GET instances 200",
-    "PUT customers 204",
     "PUT instances 204",
   ]);
   expect(
@@ -218,7 +220,7 @@ test("the company is asked for and the name is not: the form says which, and the
   expect(await standIn.state()).toMatchObject({ customers: [], checkoutSessions: [] });
 });
 
-test("a post the backend cannot match to Kaiten's record is refused: the customer keeps the address and the buyer is told", async ({
+test("a post the backend cannot match to Kaiten's record is refused: no contact is recorded and the buyer is told", async ({
   page,
   standIn,
 }) => {
@@ -236,12 +238,13 @@ test("a post the backend cannot match to Kaiten's record is refused: the custome
 
   await expect(flow(page)).toContainText("You're subscribed");
   await expect(page.getByTestId("visitor-company-failed")).toHaveText(
-    "Your order is complete, but we could not register your company name.",
+    "Your order is complete, but we could not register your contact details.",
   );
   await expect(page.getByTestId("visitor-company")).toHaveCount(0);
   const state = await standIn.state();
-  expect(state.customers).toMatchObject([{ name: "ada@acme.test" }]);
-  expect(state.instances).toMatchObject([{ name: "ada@acme.test", description: "" }]);
+  // The start named both after the company the visitor typed; the refused post added no contact.
+  expect(state.customers).toMatchObject([{ name: "Evil Corp" }]);
+  expect(state.instances).toMatchObject([{ name: "Evil Corp", description: "" }]);
   // Kaiten was asked to read the customer and nothing more: no write was made.
   const writes = (await standIn.calls()).filter((call) => call.method === "PUT");
   expect(writes).toEqual([]);

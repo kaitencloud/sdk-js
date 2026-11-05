@@ -343,6 +343,7 @@ export function createMockKaitenAnonymousCheckoutClient(
       sessionId,
       status: "OPEN",
       email: input.email ?? "",
+      customerName: input.customerName?.trim() || null,
       clientReferenceId: input.clientReferenceId ?? null,
       licenseSlug: plan.licenseSlug,
       billingPeriod: plan.billingPeriod,

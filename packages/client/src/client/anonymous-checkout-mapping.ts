@@ -69,6 +69,7 @@ export function mapCheckoutSession(raw: Api.CheckoutSession): CheckoutSession {
     sessionId: raw.sessionId,
     status: raw.status,
     email: raw.email,
+    customerName: raw.customerName ?? null,
     clientReferenceId: raw.clientReferenceId ?? null,
     licenseSlug: raw.licenseSlug,
     billingPeriod: raw.billingPeriod,

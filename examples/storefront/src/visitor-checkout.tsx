@@ -180,7 +180,7 @@ export function VisitorCheckout({ plan, priceId }: { plan: Plan; priceId: string
               ) : null}
               {naming?.state === "failed" ? (
                 <p role="alert" data-testid="visitor-company-failed" className="small muted">
-                  Your order is complete, but we could not register your company name.
+                  Your order is complete, but we could not register your contact details.
                 </p>
               ) : null}
               {/* A note for the person who builds the shop, not for the person who just bought: folded away. */}
@@ -188,10 +188,10 @@ export function VisitorCheckout({ plan, priceId }: { plan: Plan; priceId: string
                 <summary>For the vendor, not the buyer</summary>
                 <p>
                   Kaiten has made the customer and its instance for this address, and named them
-                  after it: it has no member for a company or a name, so this page told the
-                  storefront&rsquo;s backend what the buyer typed, and the backend renamed them
-                  after checking Kaiten&rsquo;s own record. It sends no email to your buyers: a
-                  shop&rsquo;s backend hears of the order from the{" "}
+                  after the company this page sent as <code>customerName</code>. The page then told
+                  the storefront&rsquo;s backend the buyer&rsquo;s name, and the backend recorded it
+                  as the instance&rsquo;s contact after checking Kaiten&rsquo;s own record. Kaiten
+                  sends no email to your buyers: a shop&rsquo;s backend hears of the order from the{" "}
                   <code>checkout_session.v1.completed</code> event, which carries the reference{" "}
                   <code data-testid="visitor-reference">
                     {completed.clientReferenceId ?? "none"}

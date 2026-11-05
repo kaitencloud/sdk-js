@@ -20,6 +20,7 @@ const MEMBERS: ReadonlySet<string> = new Set([
   "voucherCode",
   "trial",
   "email",
+  "customerName",
   "returnUrl",
   "clientReferenceId",
   "dryRun",
@@ -37,6 +38,7 @@ const STRING_LIMITS: Readonly<Record<string, number | undefined>> = {
   billingPeriod: undefined,
   voucherCode: 64,
   email: 254,
+  customerName: 255,
   returnUrl: 2048,
   clientReferenceId: 255,
 };

@@ -46,6 +46,8 @@ export interface StoredCheckout {
   token: string;
   status: CheckoutStatus;
   email: string;
+  /** What the completion names the customer and its instance after, trimmed; `null` names both after the e-mail. */
+  customerName: string | null;
   clientReferenceId: string | null;
   /** The plan and the price of the catalogue it sells. */
   plan: Json;
@@ -80,6 +82,7 @@ export interface Draft {
   voucherCode?: string;
   trial?: boolean;
   email?: string;
+  customerName?: string;
   returnUrl?: string;
   clientReferenceId?: string;
   dryRun: boolean;
@@ -100,6 +103,7 @@ const MEMBERS: Record<string, { max?: number; empty: boolean }> = {
   voucherCode: { max: 64, empty: true },
   trial: { empty: true },
   email: { max: 254, empty: true },
+  customerName: { max: 255, empty: true },
   returnUrl: { max: 2048, empty: true },
   clientReferenceId: { max: 255, empty: false },
   dryRun: { empty: true },
@@ -187,6 +191,7 @@ export function readDraft(body: unknown): { draft: Draft } | { refusal: Response
       voucherCode: given.voucherCode,
       trial: given.trial,
       email: given.email,
+      customerName: given.customerName,
       returnUrl: given.returnUrl,
       clientReferenceId: given.clientReferenceId,
       dryRun: given.dryRun === true,
@@ -236,6 +241,7 @@ export function sessionView(stored: StoredCheckout, now = Date.now()): Json {
     sessionId: stored.id,
     status: readStatus(stored, now),
     email: stored.email,
+    customerName: stored.customerName,
     clientReferenceId: stored.clientReferenceId,
     licenseSlug: stored.plan.licenseSlug,
     billingPeriod: stored.price.billingPeriod,

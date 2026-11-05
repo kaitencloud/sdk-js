@@ -247,7 +247,7 @@ instead of the sign-up step. Where the catalogue says no, or cannot be read, the
 first, as [below](#visitors-who-sign-up).
 
 ```
-page ──POST /public/checkout-sessions (pk_, Turnstile token, email, returnUrl)──▶ Kaiten  one session, nothing else
+page ──POST /public/checkout-sessions (pk_, Turnstile token, email, customerName, returnUrl)──▶ Kaiten  one session, nothing else
 page ◀── 201 { sessionId, token: ksc_…, dueToday } ─────────────────────────────┘
 page ──POST …/{sessionId}/confirm (Bearer ksc_…)───────────────────────────────▶ Kaiten
         a free plan, or a trial with no card: completed, and the customer, instance and subscription exist
@@ -255,7 +255,7 @@ page ──POST …/{sessionId}/confirm (Bearer ksc_…)────────
 page ──POST …/{sessionId}/confirm again, once back, then GET until paid ─────────▶ Kaiten  completed
 page ──POST /storefront-api/checkout/completed (slugs, email, company, name)──▶ backend
 backend ──GET /customers/{slug}, GET /instances/{slug}  (ksh_)───────────────▶ Kaiten  does the record agree?
-backend ──PUT /customers/{slug}, PUT /instances/{slug}  (ksh_)───────────────▶ Kaiten  the customer is named
+backend ──PUT /instances/{slug}  (ksh_)─────────────────────────────────────▶ Kaiten  the contact is recorded
 ```
 
 What the page does ([`src/app.tsx`](src/app.tsx), [`src/visitor-checkout.tsx`](src/visitor-checkout.tsx)):
@@ -271,16 +271,19 @@ What the page does ([`src/app.tsx`](src/app.tsx), [`src/visitor-checkout.tsx`](s
 - **One start per attempt.** A start spends a Turnstile token, a preview too: the page makes no preview, and
   a token refused is replaced by the widget at once.
 - **The form asks for a company (required) and a name (optional)**, besides the email:
-  `collectCompany="required"` and `collectName="optional"` on the flow. Kaiten has no member for either,
-  so the hook keeps them on the visitor's side, across the provider's page, and gives them to
-  `onSubscribed`. Nothing of them is sent to Kaiten.
-- **Naming the customer is the vendor's job, and the backend's call**: Kaiten has made a customer named
-  after the email, with that address as its billing email, an instance and a subscription. Once the
-  checkout completes, the page posts the slugs of the customer and instance the completion made
+  `collectCompany="required"` and `collectName="optional"` on the flow. The start sends the company as
+  `customerName`, and the completion names the customer and its instance after it; the hook also keeps
+  both on the visitor's side, across the provider's page, and gives them to `onSubscribed`. The name is
+  not sent to Kaiten while there is a company.
+- **Recording the contact is the vendor's job, and the backend's call**: Kaiten has made a customer
+  named after the company, with the email as its billing email, an instance named the same, and a
+  subscription. A checkout started with no `customerName` (a page that does not ask for a company) names
+  both after the email instead, and the route below names them. Once the checkout completes, the page posts the slugs of the customer and instance the completion made
   (`session.customerSlug`, `session.instanceSlug`), the email, the company and the name
   to `POST /storefront-api/checkout/completed` ([`server/checkout-completed-route.ts`](server/checkout-completed-route.ts)).
-  The customer is named after the company (else the person's name, else it stays the email), its
-  instance too, and the person's name goes in the instance's description as `Contact: <name>`. The page
+  The person's name goes in the instance's description as `Contact: <name>`; a customer still named after
+  the email is named after the company (else the person's name), its instance too. A customer the start
+  named already is left as it is, and a post naming it otherwise is refused (`already_named`). The page
   is the visitor's browser, which a visitor can change, so the route trusts none of it. With the server
   token it **reads the customer** and goes on only if its billing email is the email posted (any case),
   if **Kaiten itself made it** (`createdBy.id` is Kaiten's own identity, `00000000-0000-0000-0000-000000000001`,
@@ -313,7 +316,7 @@ What the page does ([`src/app.tsx`](src/app.tsx), [`src/visitor-checkout.tsx`](s
   line separators), since the console shows a name.
 - **The naming is two writes, not one.** The customer is written, then the instance. A failure between them
   (a token that has `write:customers` and not `write:instances`, a network error) leaves the customer named
-  and the instance not, and the buyer is told that the company name could not be registered. **The page posts
+  and the instance not, and the buyer is told that their contact details could not be registered. **The page posts
   once and does not retry**: a second post, from a retry button you add or from anything that calls the route,
   goes on from where it stopped, and does not write the customer again. Each write is built from what was
   read a moment before, so a change someone else makes to the instance's dates or metadata in between is
@@ -329,7 +332,7 @@ What the page does ([`src/app.tsx`](src/app.tsx), [`src/visitor-checkout.tsx`](s
   only: the instance made on the fallback licence, the licence moved when the payment lands, and the
   billing status of a trial were not exercised through the `PUT /instances` of the real API. Run one of
   each against your own stack, with the payment provider connected, before relying on it. The page prints
-  the company once the backend has named the customer, and says so when it could not.
+  the company once the backend has recorded the contact, and says so when it could not.
 - **The page gives a `clientReferenceId`** (an order number it makes), which Kaiten echoes on the
   `checkout_session.v1.started`, `.completed` and `.abandoned` events. That reference, or the email, is how
   a vendor links the buyer to its own account when the `completed` event arrives, with the slugs of the

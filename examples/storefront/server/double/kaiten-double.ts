@@ -2418,6 +2418,8 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
       token: `ksc_${randomBytes(32).toString("base64url")}`,
       status: "OPEN",
       email: draft.email!,
+      // Kaiten keeps it trimmed, and a blank one as none.
+      customerName: draft.customerName?.trim() || null,
       clientReferenceId: draft.clientReferenceId ?? null,
       plan,
       price: base,
@@ -2583,14 +2585,16 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
     const now = new Date();
     const owing = stored.due.total > 0;
     const startedOn = owing ? fallbackPlan()! : stored.plan;
-    // What Kaiten makes on its own behalf, as itself: no person and no service account made it.
-    const customer = addCustomer(generateSlug(stored.email), stored.email, stored.email, "system");
+    // What Kaiten makes on its own behalf, as itself: no person and no service account made it. Both
+    // are named after the name the start gave, else the e-mail.
+    const name = stored.customerName ?? stored.email;
+    const customer = addCustomer(generateSlug(name), name, stored.email, "system");
     const instance = addInstance(
       customer,
       startedOn,
       {
-        slug: generateSlug(stored.email),
-        name: stored.email,
+        slug: generateSlug(name),
+        name,
         description: "",
         startLicenseDate: iso(now.getTime()),
         endLicenseDate: iso(now.getTime() + 100 * 365 * 86_400_000),

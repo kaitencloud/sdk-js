@@ -238,6 +238,7 @@ const started = await checkout.startCheckout({
   licenseSlug: "growth-v1", // or priceId
   billingPeriod: "MONTHLY",
   email: "ada@example.com",
+  customerName: "Analytical Engines", // what the customer is named after; the e-mail when left out
   returnUrl: "https://shop.example.com/welcome",
   clientReferenceId: "cart-42", // echoed on the checkout's events; yours, not a request parameter's
 });

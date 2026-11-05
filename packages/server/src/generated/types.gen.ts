@@ -1073,6 +1073,10 @@ export type CheckoutSession = {
   completedAt: string | null;
   createdAt: string;
   /**
+   * As the start gave it; null when it gave none, and the completion names the customer after the e-mail
+   */
+  customerName: string | null;
+  /**
    * Set by the completion
    */
   customerSlug: string | null;
@@ -1109,6 +1113,10 @@ export type CheckoutSessionAdmin = {
   closedAt: string | null;
   completedAt: string | null;
   createdAt: string;
+  /**
+   * As the visitor gave it; null when they gave none. Personal data
+   */
+  customerName: string | null;
   /**
    * Set by the completion
    */
@@ -1148,6 +1156,10 @@ export type CheckoutSessionDraft = {
    * The vendor's opaque reference, echoed on the checkout_session events
    */
   clientReferenceId?: string;
+  /**
+   * What the completion names the new customer and its instance: the buyer's company, typically. Leading and trailing spaces are dropped; absent or blank, both are named after the e-mail.
+   */
+  customerName?: string;
   /**
    * Compute what would be due today, and write nothing
    */
