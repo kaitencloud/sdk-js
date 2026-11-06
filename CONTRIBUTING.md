@@ -95,9 +95,8 @@ vp run -r test
 against the builds of `@kaitencloud/client` and `@kaitencloud/server`. react-ui's
 `test` also runs its Storybook stories in Chromium, which Playwright installs with
 `vp run test:browsers:install` in `packages/react-ui`. `pnpm run ready` runs the
-whole sequence, build first, with the contract and release checks; its GraphQL drift
-check needs a checkout of kaiten next to this repository, or a schema file named by
-`KAITEN_GRAPHQL_SCHEMA`.
+whole sequence, build first, with the contract and release checks; its drift checks
+fetch the published contracts from npm.
 
 The components have a Storybook playground: `vp run @kaitencloud/react-ui#storybook`.
 
@@ -180,12 +179,12 @@ Never edit a snapshot or generated code by hand. The contract-drift workflow
 compares both snapshots with the published contracts. A drift is fixed with the
 commands above for the OpenAPI contract, and with `vp run sync-graphql-schema`, then
 `vp run generate-graphql` in `packages/client`, for the GraphQL schema.
-Both contracts are required: a drift check that cannot read one fails. Locally, the
-OpenAPI check fetches the published contract from npm, with no token, and the
-GraphQL check reads a checkout of kaiten next to this repository, or the schema file
-`KAITEN_GRAPHQL_SCHEMA` names. To sync from an OpenAPI contract you already hold, set
-`KAITEN_OPENAPI` to its path and run `pnpm run sync-openapi`: `vp run` hides the
-variable from the script and would fetch the published contract in its place.
+Both contracts are required: a drift check that cannot read one fails. Locally, both
+checks fetch the published contract from npm, with no token. To sync from a contract
+you already hold, set `KAITEN_OPENAPI` to its path and run `pnpm run sync-openapi`, or
+set `KAITEN_GRAPHQL_SCHEMA` to a schema file, or `KAITEN_PATH` to a checkout of kaiten,
+and run `pnpm run sync-graphql-schema`: `vp run` hides these variables from the scripts
+and would fetch the published contract in their place.
 
 ## Upgrading Vite+
 

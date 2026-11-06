@@ -12,13 +12,17 @@
 // `lexicographicSortSchema` gives that canonical form using only `graphql`,
 // which packages/client already depends on — no codegen plugin needed.
 
-import { existsSync, globSync, readFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { existsSync, globSync, mkdtempSync, readFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildSchema, lexicographicSortSchema, printSchema } from "graphql";
+import { fetchPublishedTarball, tarballFile } from "./lib/npm-package.mjs";
 
 export const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 export const snapshotPath = resolve(repoRoot, "contracts/schema.graphql");
+
+const PUBLISHED_SCHEMA = "@kaitencloud/graphql-schema@latest";
 
 // Relative to a kaiten checkout. Kept in one place: the schema is split
 // across modules, and a module added in kaiten must land in the snapshot
@@ -31,6 +35,16 @@ const SCHEMA_GLOBS = [
 /** Canonical, order-independent SDL for a set of schema fragments. */
 export function printCanonicalSchema(sdl) {
   return `${printSchema(lexicographicSortSchema(buildSchema(sdl)))}`;
+}
+
+/** The published schema fragments, or `null` when npm cannot serve them. */
+function fetchPublishedSchema() {
+  try {
+    const dir = mkdtempSync(join(tmpdir(), "kaiten-graphql-schema-"));
+    return tarballFile(fetchPublishedTarball(PUBLISHED_SCHEMA, dir), "schema.graphqls");
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -47,10 +61,11 @@ export function printCanonicalSchema(sdl) {
  *   pre-printed SDL is deliberate: `printCanonicalSchema` stays the ONE
  *   definition of the canonical form, so a byte-equality diff can never flake on
  *   two implementations of the same sort order disagreeing.
- * - else `$KAITEN_PATH` (default `../kaiten`) — a sibling checkout.
+ * - else `$KAITEN_PATH` — a checkout of kaiten, for a schema not published yet.
+ *   Never assumed: this repository stands alone, wherever it is cloned.
+ * - else @kaitencloud/graphql-schema@latest, fetched from npm.
  *
- * Returns `null` when nothing resolves, so callers decide whether that is a
- * hard failure (sync) or a skip (drift).
+ * Returns `null` when nothing resolves. Both callers fail on it.
  */
 export function resolveSourceSchema() {
   // `||` (not `??`): CI may pass an empty string for a step that soft-failed,
@@ -62,7 +77,12 @@ export function resolveSourceSchema() {
     return { sdl: printCanonicalSchema(readFileSync(path, "utf8")), label: path };
   }
 
-  const kaitenPath = resolve(repoRoot, process.env.KAITEN_PATH || "../kaiten");
+  if (!process.env.KAITEN_PATH) {
+    const sdl = fetchPublishedSchema();
+    return sdl === null ? null : { sdl: printCanonicalSchema(sdl), label: PUBLISHED_SCHEMA };
+  }
+
+  const kaitenPath = resolve(repoRoot, process.env.KAITEN_PATH);
   if (!existsSync(kaitenPath)) return null;
 
   const files = SCHEMA_GLOBS.flatMap((pattern) => globSync(pattern, { cwd: kaitenPath }))

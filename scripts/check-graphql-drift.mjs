@@ -18,8 +18,8 @@
 //   B. snapshot == backend — byte-equality against kaiten's schema, the
 //      analogue of the OpenAPI drift check. The schema is required: it comes from
 //      $KAITEN_GRAPHQL_SCHEMA (CI's contract-drift workflow fetches
-//      @kaitencloud/graphql-schema) or a sibling checkout, and the check fails
-//      when neither resolves.
+//      @kaitencloud/graphql-schema), from the checkout $KAITEN_PATH names, or
+//      from npm, and the check fails when none of them resolves.
 //
 // `--operations-only` runs gate A alone, for the CI jobs that check the shipped
 // operations against the snapshot and never fetch the schema.
@@ -41,7 +41,7 @@ const SNAPSHOT_LABEL = "contracts/schema.graphql";
 if (!existsSync(snapshotPath)) {
   console.error(
     `✘ No GraphQL schema snapshot at ${SNAPSHOT_LABEL}.\n` +
-      `  Create it: KAITEN_PATH=../kaiten node scripts/sync-graphql-schema.mjs`,
+      `  Create it: node scripts/sync-graphql-schema.mjs`,
   );
   process.exit(1);
 }
@@ -104,8 +104,9 @@ if (!source) {
   console.error(
     `✘ kaiten's GraphQL schema could not be resolved, so the snapshot was not ` +
       `compared against the backend.\n` +
-      `  Set KAITEN_GRAPHQL_SCHEMA to the published schema, or KAITEN_PATH ` +
-      `to a checkout of kaiten. --operations-only checks the operations alone.`,
+      `  Check that registry.npmjs.org is reachable, or set KAITEN_GRAPHQL_SCHEMA to a ` +
+      `schema file, or KAITEN_PATH to a checkout of kaiten. --operations-only checks ` +
+      `the operations alone.`,
   );
   process.exit(1);
 }
