@@ -1,5 +1,24 @@
 # @kaitencloud/client
 
+## 2.0.0
+
+### Major Changes
+
+- [#20](https://github.com/kaitencloud/sdk-js/pull/20) [`16006f7`](https://github.com/kaitencloud/sdk-js/commit/16006f71e23820a1be1cd6a8d5f39b7451600b5a) Thanks [@tomflenner](https://github.com/tomflenner)! - BREAKING: enforce OpenFeature SDK + official OFREP providers for all flag decisions. Remove direct client evaluation methods/facades, generated client and server OFREP operations, evaluation helpers and React evaluation hooks. Licensing reads no longer evaluate flags and return an empty flag display list. Remove flag conditions from `Show` and `flagKey` from `Gate`, `usePaywallTrigger` and `Paywall`; entitlement gating and management CRUD are unchanged.
+
+  Use `@openfeature/server-sdk` with `@openfeature/ofrep-provider` on your backend. Browser/React integrations use the official Web/React SDK and `@openfeature/ofrep-web-provider` only with an authorized, browser-safe OFREP endpoint; never expose a Kaiten `ksh_` secret. See `MIGRATION-2.md` for removed symbols, context/authentication and failure handling. Already-published 1.x versions and immutable consumer fixtures are not rewritten; there are no compatibility aliases.
+
+  Sync the published OpenAPI contract and regenerate the management clients: add voucher deletion and its webhook payload, plus the assigned license term state on instance detail reads. Direct OFREP evaluation operations remain excluded from both SDKs.
+
+### Minor Changes
+
+- [#25](https://github.com/kaitencloud/sdk-js/pull/25) [`76107a8`](https://github.com/kaitencloud/sdk-js/commit/76107a82f6987b7f5b2db40c70aafa7985e41110) Thanks [@fuzcap](https://github.com/fuzcap)! - An anonymous checkout names the customer after the buyer's company.
+
+  - `@kaitencloud/client`: `startCheckout` takes an optional `customerName`, at most 255 characters, which the completion names the new customer and its instance after. Kaiten trims it, and names both after the `email` when it is left out. `getCheckoutSession` and `confirmCheckout` read it back as `customerName`, `null` when the start gave none. The mock client does the same.
+  - `@kaitencloud/server`: the generated types carry `customerName` on the checkout session draft and on both session reads.
+  - `@kaitencloud/react`: `useAnonymousCheckout` sends `selection.company`, trimmed, as the `customerName`; with no company, `selection.name`; with neither, nothing. It used to keep both in the tab and send neither, so every customer was named after an e-mail address.
+  - `@kaitencloud/react-ui`: `collectCompany` and `collectName` say that the company, else the name, names the customer.
+
 ## 1.2.0
 
 ### Minor Changes
