@@ -10,16 +10,25 @@ import {
   meterStream,
   ttlFromTimeout,
   wrapByDelegation,
+  readVendorCost,
 } from "@kaitencloud/client/ai";
-import type { AiMeterOptions, AiUsage } from "@kaitencloud/client/ai";
+import type { AiMeterOptions, AiUsage, AiVendorCostReader } from "@kaitencloud/client/ai";
 
 export interface WrapAnthropicOptions extends AiMeterOptions {
   estimator?: (params: Record<string, unknown>) => AiUsage | undefined;
+  /**
+   * Reads what the provider charged for a call, as an exact decimal string in
+   * USD, committed as `vendorCost`. Anthropic's Messages API reports no cost;
+   * never compute one from a price list. A throw or an invalid value is logged
+   * and the commit goes on without it.
+   */
+  vendorCost?: AiVendorCostReader;
 }
 
 /** Wrap the installed client's messages methods without replacing MessageStream. */
 export function wrapAnthropic<T extends object>(client: T, options: WrapAnthropicOptions): T {
   const meter = createAiMeter(options);
+  const logger = options.logger ?? console;
   const estimator =
     options.estimator ??
     ((params) => ({
@@ -36,6 +45,7 @@ export function wrapAnthropic<T extends object>(client: T, options: WrapAnthropi
       if (method === "messages.stream") return (...args) => fn.apply(messages, args);
       return (body, requestOptions) => {
         const params = (body ?? {}) as Record<string, unknown>;
+        const model = typeof params.model === "string" ? params.model : "";
         const timeout =
           (requestOptions as { timeout?: number } | undefined)?.timeout ??
           (client as { timeout?: number }).timeout;
@@ -60,10 +70,39 @@ export function wrapAnthropic<T extends object>(client: T, options: WrapAnthropi
                     usage?: unknown;
                   };
                   const usage = raw.type === "message_start" ? raw.message?.usage : raw.usage;
-                  return usage ? { ...known, ...fromAnthropic(usage) } : known;
+                  return usage ? { ...known, ...fromAnthropic(usage) } : undefined;
+                },
+                vendorCostOf: (requestStatus, usage, event) => {
+                  const raw = event as {
+                    type?: string;
+                    message?: { usage?: unknown };
+                    usage?: unknown;
+                  };
+                  return readVendorCost(
+                    options.vendorCost,
+                    {
+                      model,
+                      requestStatus,
+                      usage,
+                      rawUsage: raw?.type === "message_start" ? raw.message?.usage : raw?.usage,
+                      response: event,
+                    },
+                    logger,
+                  );
                 },
               });
-            await call.settle("SUCCESS", fromAnthropic((data as { usage?: unknown })?.usage));
+            const rawUsage = (data as { usage?: unknown } | null)?.usage;
+            const usage = fromAnthropic(rawUsage);
+            const vendorCost = readVendorCost(
+              options.vendorCost,
+              { model, requestStatus: "SUCCESS", usage, rawUsage, response: data },
+              logger,
+            );
+            await call.settle(
+              "SUCCESS",
+              usage,
+              vendorCost === undefined ? undefined : { vendorCost },
+            );
             return data;
           },
         );

@@ -145,10 +145,10 @@ GraphQL check reads a checkout of kaiten next to this repository, or the schema 
 A feature PR can validate against a companion Kaiten commit **without publishing**
 contracts just to pass CI. `.github/kaiten-contract-source.json` records the fixed
 repository `kaitencloud/kaiten`, its full lowercase 40-hex `commit`, and the SDK
-feature `headBranch`. The current AI credits source is Kaiten PR #66,
-`feat/ai-credits`, at `51224227aaad2c3d2a990440ff48c66db6fbd8e6`; this is **not** a
-claim of compatibility with npm latest (which currently has 162 OpenAPI operations
-versus this feature's 182).
+feature `headBranch`. The current AI credits source is the Kaiten branch
+`feat/ai-credits-explainable-charges` (stacked on Kaiten PR #77), at
+`6625137c077cf2e6a79126f89d391e10d5084507`, for the SDK branch
+`feat/ai-credits-explain`; this is **not** a claim of compatibility with npm latest.
 
 The contract-drift workflow honors this file **only** for a `pull_request` whose
 head branch exactly matches `headBranch`. Other PR branches, pushes to `main`, and

@@ -81,7 +81,7 @@ it("refuses before generation and preserves provider errors", async () => {
   expect(commit.mock.calls[0]![0]).toMatchObject({ requestStatus: "PROVIDER_ERROR" });
 });
 
-it("reports error stream events and cancellation before any event", async () => {
+it("reports error stream events, and cancellation before any event as sent", async () => {
   const { model, doStream, commit } = setup();
   doStream.mockResolvedValueOnce({
     stream: new ReadableStream({
@@ -97,7 +97,8 @@ it("reports error stream events and cancellation before any event", async () => 
   expect(commit.mock.calls[0]![0]).toMatchObject({ requestStatus: "PROVIDER_ERROR" });
   const untouched = await model.doStream(params);
   await untouched.stream.cancel();
-  expect(commit.mock.calls[1]![0]).toMatchObject({ requestStatus: "NOT_SENT" });
+  // doStream returned: the provider accepted the request, so it was sent.
+  expect(commit.mock.calls[1]![0]).toMatchObject({ requestStatus: "CUSTOMER_ERROR" });
 });
 
 it("degrades once when the server cannot accept AI usage", async () => {
@@ -116,4 +117,104 @@ it("degrades once when the server cannot accept AI usage", async () => {
   } finally {
     log.mockRestore();
   }
+});
+
+function withOptions(extra: Record<string, unknown>) {
+  const base = setup();
+  const model = wrapLanguageModel({
+    model: {
+      specificationVersion: "v4",
+      provider: "synthetic",
+      modelId: "synthetic-model",
+      supportedUrls: {},
+      doGenerate: base.doGenerate,
+      doStream: base.doStream,
+    } as LanguageModelV4,
+    middleware: kaitenMiddleware({
+      kaiten: { ai: { reserve: base.reserve, commit: base.commit } } as any,
+      instance: "i",
+      entitlement: "p",
+      logger: { warn: vi.fn(), error: vi.fn() },
+      ...extra,
+    }),
+  });
+  return { ...base, model };
+}
+
+it("commits a provider-reported cost from providerMetadata, as given", async () => {
+  const { model, doGenerate, commit } = withOptions({
+    vendorCost: ({ response }: { response: any }) => response?.providerMetadata?.gateway?.cost,
+  });
+  doGenerate.mockResolvedValueOnce({
+    content: [],
+    finishReason: { unified: "stop", raw: "stop" },
+    usage,
+    warnings: [],
+    providerMetadata: { gateway: { cost: "0.00031" } },
+  } as any);
+  await model.doGenerate(params);
+  expect(commit.mock.calls[0]![0]).toMatchObject({
+    requestStatus: "SUCCESS",
+    vendorCost: "0.00031",
+  });
+});
+
+it("returns the result and commits SUCCESS when a provider sends no usage", async () => {
+  const { model, doGenerate, commit } = withOptions({
+    vendorCost: () => {
+      throw new Error("synthetic reader bug");
+    },
+  });
+  doGenerate.mockResolvedValueOnce({ content: [], warnings: [] } as any);
+  await expect(model.doGenerate(params)).resolves.toMatchObject({ content: [] });
+  expect(commit).toHaveBeenCalledOnce();
+  expect(commit.mock.calls[0]![0]).toMatchObject({ requestStatus: "SUCCESS", usage: undefined });
+  expect(commit.mock.calls[0]![0]).not.toHaveProperty("vendorCost");
+});
+
+it("classifies AI SDK APICallError by statusCode and an abort as the caller's", async () => {
+  const { model, doGenerate, commit } = setup();
+  doGenerate.mockRejectedValueOnce(Object.assign(new Error("rate limited"), { statusCode: 429 }));
+  await expect(model.doGenerate(params)).rejects.toThrow("rate limited");
+  expect(commit.mock.calls[0]![0]).toMatchObject({ requestStatus: "CUSTOMER_ERROR" });
+  doGenerate.mockRejectedValueOnce(Object.assign(new Error("down"), { statusCode: 503 }));
+  await expect(model.doGenerate(params)).rejects.toThrow("down");
+  expect(commit.mock.calls[1]![0]).toMatchObject({ requestStatus: "PROVIDER_ERROR" });
+  doGenerate.mockRejectedValueOnce(new DOMException("aborted", "AbortError"));
+  await expect(model.doGenerate(params)).rejects.toThrow();
+  expect(commit.mock.calls[2]![0]).toMatchObject({ requestStatus: "CUSTOMER_ERROR" });
+});
+
+it("settles a stream that fails or is aborted mid-read as sent", async () => {
+  const { model, doStream, commit } = setup();
+  for (const failure of [new Error("reset"), new DOMException("aborted", "AbortError")]) {
+    doStream.mockResolvedValueOnce({
+      stream: new ReadableStream({
+        start(c) {
+          c.enqueue({ type: "text-start", id: "s" });
+        },
+        pull(c) {
+          c.error(failure);
+        },
+      }),
+    } as any);
+    const result = await model.doStream(params);
+    const reader = result.stream.getReader();
+    await expect(
+      (async () => {
+        while (!(await reader.read()).done) {}
+      })(),
+    ).rejects.toBe(failure);
+  }
+  expect(commit.mock.calls[0]![0]).toMatchObject({ requestStatus: "PROVIDER_ERROR" });
+  expect(commit.mock.calls[1]![0]).toMatchObject({ requestStatus: "CUSTOMER_ERROR" });
+});
+
+it("hands a failed commit to onCommitError", async () => {
+  const onCommitError = vi.fn();
+  const { model, commit } = withOptions({ onCommitError });
+  commit.mockRejectedValueOnce(new Error("synthetic commit failure"));
+  await expect(model.doGenerate(params)).resolves.toBeDefined();
+  expect(onCommitError).toHaveBeenCalledOnce();
+  expect(onCommitError.mock.calls[0]![1]).toMatchObject({ transactionId: "t" });
 });

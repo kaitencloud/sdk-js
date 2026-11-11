@@ -5,12 +5,33 @@
 export type {
   BooleanEntitlementValue,
   ConfigEntitlementValue,
-  EntitlementUsage,
   EvaluationFailure,
   EvaluationSuccess,
   NumberEntitlementValue,
   User,
 } from "../core/index.ts";
+
+import type { EntitlementUsage as ApiEntitlementUsage } from "../core/index.ts";
+
+/**
+ * One entitlement's usage row, as the usage routes answer it.
+ *
+ * The contract marks `source` required on reads, and `source` and `provenance`
+ * nullable on the answer to a report. Both stay optional and nullable here, with
+ * the overage percent: a server that predates them sends neither, a row built
+ * against the 1.0 shape (a test double, the GraphQL mapping) must keep
+ * compiling, and a report's answer is assignable to it. `main` carries the same
+ * relaxation, with richer documentation; take `main`'s definition at rebase.
+ */
+export type EntitlementUsage = Omit<
+  ApiEntitlementUsage,
+  "source" | "provenance" | "limitCapExceededOveragePercent"
+> & {
+  /** The layer that grants the entitlement. Open: more may come. Absent on an older server. */
+  source?: "license" | "addon" | (string & {}) | null;
+  provenance?: ApiEntitlementUsage["provenance"] | null;
+  limitCapExceededOveragePercent?: number | null;
+};
 
 // The backend renamed this component from the transport name to the domain name
 // (`EntitlementGroupUsageItem` -> `EntitlementGroupUsage`). The old name is part

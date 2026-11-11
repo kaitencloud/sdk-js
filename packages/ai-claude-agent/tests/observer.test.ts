@@ -62,3 +62,38 @@ it("accounts three distinct model responses, final output and subagent model wit
     usage: { inputTokens: 10, outputTokens: 7 },
   });
 });
+
+it("settles an open response as the provider's when the agent stream throws, and surfaces a failed commit", async () => {
+  const commit = vi.fn(async (_input: unknown) => ({}));
+  const onCommitError = vi.fn();
+  async function* source(): AsyncGenerator<SDKMessage> {
+    yield {
+      type: "stream_event",
+      parent_tool_use_id: null,
+      event: {
+        type: "message_start",
+        message: { id: "s0", model: "synthetic", usage: { input_tokens: 4, output_tokens: 1 } },
+      },
+    } as SDKMessage;
+    throw new Error("agent crashed");
+  }
+  commit.mockRejectedValueOnce(new Error("synthetic commit failure"));
+  await expect(
+    (async () => {
+      for await (const _ of observeClaudeAgent(source(), {
+        kaiten: { ai: { commit, reserve: vi.fn() } } as any,
+        instance: "i",
+        entitlement: "p",
+        runId: "run",
+        onCommitError,
+      })) {
+      }
+    })(),
+  ).rejects.toThrow("agent crashed");
+  expect(commit).toHaveBeenCalledOnce();
+  expect(commit.mock.calls[0]![0]).toMatchObject({
+    transactionId: "run:0",
+    requestStatus: "PROVIDER_ERROR",
+  });
+  expect(onCommitError).toHaveBeenCalledOnce();
+});

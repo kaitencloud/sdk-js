@@ -87,6 +87,15 @@ Every `KaitenError` also carries the problem's `code`, a stable machine-readable
 such as `License.NotFound`, and its `errorId`, the correlation id of the API's log entry for
 the failure: quote it when you report a problem.
 
+## AI credits (preview)
+
+The generated `Instances` operations cover the AI credit routes: usage reports with
+`value.type: "ai_usage"` (with `vendorCost` on a commit), `listAiInferences`,
+`listOrganizationAiInferences` and `refundAiInference`. `refundAiInference` requires an
+`Idempotency-Key` header: generate one per refund and reuse it when you retry that
+refund. For the reserve/commit flow, retries and typed refusals, use `kaiten.ai` in
+[`@kaitencloud/client`](../client) with a `ksh_` token on your backend.
+
 ## Webhooks
 
 The contract declares 55 `com.kaiten.*` events and this package ships a typed payload for

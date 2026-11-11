@@ -15,8 +15,10 @@ peers, not imported or re-exported at runtime.
 
 Streaming chat forces usage reporting and hides the extra final usage chunk unless
 the caller requested it. Streams commit on completion; breaking iteration commits
-`CUSTOMER_ERROR` with known usage (or `NOT_SENT` if no event arrived). Consume or
-cancel streams: an untouched stream retains its reservation until expiry.
+`CUSTOMER_ERROR` with known usage, even when no event arrived: the provider has
+accepted the request. A cancellation is `CUSTOMER_ERROR` and a timeout
+`PROVIDER_ERROR`, never `NOT_SENT`. Consume or cancel streams: an untouched stream
+retains its reservation until expiry.
 
 `estimator` overrides the bytes/4 heuristic and declared output maximum. Timeout
 sets the reservation TTL, capped at one hour. Transcriptions with no estimate and
@@ -24,8 +26,18 @@ speech responses without usage report only what is known; the server may charge
 its configured minimum. No local pricing or inferred audio duration is supplied.
 
 Reserve refusals propagate before the provider is called. An unsupported AI server
-logs once and degrades to unreported calls; failed commits are logged and do not
-replace a successful result. Metadata must never contain prompts or personal data.
+logs once and degrades to unreported calls; failed commits do not replace a
+successful result. Metadata must never contain prompts or personal data.
+
+`vendorCost` (optional) reads what the provider charged for a call off its answer
+and returns an exact decimal string in USD, committed beside the cost Kaiten
+computes; it never changes the credits charged. The package never computes one:
+pass only a figure the provider or a gateway reports. A reader that throws or
+returns anything but a decimal string is logged, and the commit goes on without
+it. `onCommitError(error, failed)` receives a commit that failed after its
+retries; `failed.retry()` resends it byte for byte. Without it the failure is
+logged. A pool that is not an AI credit pool throws `NotAnAiCreditPoolError` on
+every call; only an API that predates AI credits degrades.
 
 Compatibility tests use OpenAI 7.38.0 with synthetic custom-fetch responses, never
 live API calls or credentials.
