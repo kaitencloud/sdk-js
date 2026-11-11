@@ -44,3 +44,36 @@ it("observes usage without pretending async event listeners gate model calls", a
     usage: { inputTokens: 10, outputTokens: 7 },
   });
 });
+
+it("surfaces a failed commit with a retry and commits a reader's vendor cost", async () => {
+  let listener: SessionEventHandler = () => {};
+  const on = ((handler: SessionEventHandler) => {
+    listener = handler;
+    return () => {};
+  }) as any;
+  const commit = vi.fn(async (_input: unknown) => ({}));
+  const onCommitError = vi.fn();
+  const observer = observeCopilotSession(
+    { on },
+    {
+      kaiten: { ai: { reserve: vi.fn(), commit } } as any,
+      instance: "i",
+      entitlement: "p",
+      runId: "run",
+      onCommitError,
+      vendorCost: () => "0.25",
+    },
+  );
+  commit.mockRejectedValueOnce(new Error("synthetic commit failure"));
+  listener({
+    type: "assistant.usage",
+    id: "e0",
+    data: { model: "synthetic", inputTokens: 1, outputTokens: 1 },
+  } as SessionEvent);
+  await observer.flush();
+  expect(onCommitError).toHaveBeenCalledOnce();
+  const failed = onCommitError.mock.calls[0]![1];
+  expect(failed.input).toMatchObject({ transactionId: "run:0", vendorCost: "0.25" });
+  await failed.retry();
+  expect(commit.mock.calls[1]![0]).toBe(failed.input);
+});

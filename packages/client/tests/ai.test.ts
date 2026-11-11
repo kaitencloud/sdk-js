@@ -9,6 +9,7 @@ import {
   KaitenClient,
   KaitenError,
   ModelNotAuthorizedError,
+  NotAnAiCreditPoolError,
   TransactionIdReusedError,
   UnknownModelError,
   classifyProviderError,
@@ -181,7 +182,8 @@ describe("ai.reserve and ai.commit", () => {
     [problem(409, "TransactionIdReused"), TransactionIdReusedError],
     [problem(422, "ModelNotAuthorized"), ModelNotAuthorizedError],
     [problem(422, "UnknownModel"), UnknownModelError],
-    [problem(422, "AiUsageUnsupportedEntitlement"), AiUsageUnsupportedError],
+    // A pool that is not an AI credit pool is a configuration error, never "unsupported".
+    [problem(422, "AiUsageUnsupportedEntitlement"), NotAnAiCreditPoolError],
     // An older server that does not know `ai_usage` answers huma's generic 422.
     [
       { status: 422, body: { title: "Unprocessable Entity", status: 422 } },

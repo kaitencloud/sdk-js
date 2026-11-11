@@ -20,8 +20,16 @@ import {
   meterCall,
   meterStream,
   isProviderStream,
+  readVendorCost,
 } from "@kaitencloud/client/ai";
-import type { AiLogger, AiRequestType, AiUsage, KaitenAiModule } from "@kaitencloud/client/ai";
+import type {
+  AiFailedCommit,
+  AiLogger,
+  AiRequestType,
+  AiUsage,
+  AiVendorCostReader,
+  KaitenAiModule,
+} from "@kaitencloud/client/ai";
 
 /** The methods that produce usage, and what each one is. */
 export const OPENAI_METHODS = {
@@ -57,6 +65,16 @@ export interface WrapOpenAIOptions {
   logger?: AiLogger;
   /** Sent with every report, never stored. No prompt, no personal data. */
   metadata?: Record<string, unknown>;
+  /**
+   * Reads what the provider charged for a call off its answer, as an exact
+   * decimal string in USD, committed as `vendorCost`. OpenAI's own API reports
+   * no cost; a gateway speaking its protocol may put one in `usage`
+   * (`rawUsage`). Never compute one from a price list. A throw or an invalid
+   * value is logged and the commit goes on without it.
+   */
+  vendorCost?: AiVendorCostReader;
+  /** A commit that failed after its retries, with `retry()`. Defaults to logging. */
+  onCommitError?: (error: unknown, failed: AiFailedCommit) => void;
 }
 
 /** Default output reservation of a completion that sets no maximum. */
@@ -131,7 +149,9 @@ export function wrapOpenAI<T extends object>(client: T, options: WrapOpenAIOptio
     entitlement: options.entitlement,
     metadata: options.metadata,
     logger: options.logger,
+    onCommitError: options.onCommitError,
   });
+  const logger = options.logger ?? console;
   const estimator = options.estimator ?? estimateOpenAI;
   const clientTimeout = (client as { timeout?: unknown }).timeout;
 
@@ -174,6 +194,18 @@ export function wrapOpenAI<T extends object>(client: T, options: WrapOpenAIOptio
                 const raw = streamUsageOf(event);
                 return raw ? fromOpenAI(raw) : undefined;
               },
+              vendorCostOf: (requestStatus, usage, event) =>
+                readVendorCost(
+                  options.vendorCost,
+                  {
+                    model: model ?? "",
+                    requestStatus,
+                    usage,
+                    rawUsage: streamUsageOf(event),
+                    response: event,
+                  },
+                  logger,
+                ),
               hide: hideUsageChunk
                 ? (event) => {
                     const chunk = event as { usage?: unknown; choices?: unknown[] };
@@ -184,7 +216,23 @@ export function wrapOpenAI<T extends object>(client: T, options: WrapOpenAIOptio
                 : undefined,
             });
           }
-          await call.settle("SUCCESS", usageOf(method, data));
+          const usage = usageOf(method, data);
+          const vendorCost = readVendorCost(
+            options.vendorCost,
+            {
+              model: model ?? "",
+              requestStatus: "SUCCESS",
+              usage,
+              rawUsage: (data as { usage?: unknown } | null)?.usage,
+              response: data,
+            },
+            logger,
+          );
+          await call.settle(
+            "SUCCESS",
+            usage,
+            vendorCost === undefined ? undefined : { vendorCost },
+          );
           return data;
         },
       );
@@ -192,4 +240,10 @@ export function wrapOpenAI<T extends object>(client: T, options: WrapOpenAIOptio
   });
 }
 
-export type { AiLogger, AiUsage } from "@kaitencloud/client/ai";
+export type {
+  AiFailedCommit,
+  AiLogger,
+  AiUsage,
+  AiVendorCostInput,
+  AiVendorCostReader,
+} from "@kaitencloud/client/ai";

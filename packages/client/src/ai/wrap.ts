@@ -129,7 +129,19 @@ export function meterCall<T>(
         await call.settle(classifyProviderError(error));
         throw error;
       }
-      return { ...result, data: await settleWith(result.data, call) };
+      try {
+        return { ...result, data: await settleWith(result.data, call) };
+      } catch (error) {
+        // The provider answered: a failure reading its answer must neither lose
+        // the answer nor leave the call unsettled. Commit it without usage (the
+        // rule's minimum applies) and hand the data back.
+        console.error(
+          "Kaiten: reading the provider's answer failed; committing without usage.",
+          error,
+        );
+        await call.settle("SUCCESS");
+        return result;
+      }
     })(),
   );
 }
@@ -150,14 +162,26 @@ export interface MeterStreamOptions {
   hide?: (event: unknown) => boolean;
   /** The model an event names, when it differs from the reservation's. */
   modelOf?: (event: unknown) => string | undefined;
+  /**
+   * The vendor cost to commit, read once the stream ends, from the last event
+   * that carried usage. Wrappers pass their `vendorCost` option through
+   * `readVendorCost` here, so a throwing reader never blocks the commit.
+   */
+  vendorCostOf?: (
+    status: AiRequestStatus,
+    usage: AiUsage | undefined,
+    usageEvent: unknown,
+  ) => string | undefined;
 }
 
 /**
  * Meters a provider stream and hands back one of the same class, built with
  * the provider's own constructor, so `tee()`, `toReadableStream()` and
  * `controller` keep working. The commit fires when the stream ends: `SUCCESS`
- * with the usage seen; abandoned by the caller, `CUSTOMER_ERROR` with the usage
- * so far, or `NOT_SENT` when nothing arrived.
+ * with the usage seen; abandoned or aborted by the caller, `CUSTOMER_ERROR`
+ * with the usage so far; failed mid-stream, `PROVIDER_ERROR`. Never `NOT_SENT`:
+ * a stream exists because the provider accepted the request, so it was sent,
+ * even when the caller closes it before the first event.
  */
 export function meterStream<S extends ProviderStream>(
   stream: S,
@@ -166,12 +190,15 @@ export function meterStream<S extends ProviderStream>(
 ): S {
   async function* metered(): AsyncGenerator<unknown> {
     let usage: AiUsage | undefined;
-    let received = false;
+    let usageEvent: unknown;
     let status: AiRequestStatus | undefined;
     try {
       for await (const event of stream) {
-        received = true;
-        usage = options.usageOf(event, usage) ?? usage;
+        const next = options.usageOf(event, usage);
+        if (next) {
+          usage = next;
+          usageEvent = event;
+        }
         if (!options.hide?.(event)) yield event;
       }
       // Stainless streams can finish iteration normally after controller.abort().
@@ -186,10 +213,32 @@ export function meterStream<S extends ProviderStream>(
     } finally {
       // No status: the caller stopped reading (a `break`, a `return()`).
       status ??= "CUSTOMER_ERROR";
-      if (status !== "SUCCESS" && !received) status = "NOT_SENT";
-      await call.settle(status, usage);
+      const vendorCost = options.vendorCostOf?.(status, usage, usageEvent);
+      await call.settle(status, usage, vendorCost === undefined ? undefined : { vendorCost });
     }
   }
+
+  // An async generator closed before its first `next()` never runs its body,
+  // so its `finally` never settles the call: the hold would lapse and a sent
+  // request go free. Settle that case here.
+  const iterate = (): AsyncIterator<unknown> => {
+    const inner = metered();
+    let started = false;
+    return {
+      next: (...args) => {
+        started = true;
+        return inner.next(...args);
+      },
+      throw: (error) => {
+        started = true;
+        return inner.throw(error);
+      },
+      async return(value) {
+        if (!started) await call.settle("CUSTOMER_ERROR");
+        return inner.return(value);
+      },
+    };
+  };
 
   const Stream = stream.constructor as new (
     iterator: () => AsyncIterator<unknown>,
@@ -197,10 +246,10 @@ export function meterStream<S extends ProviderStream>(
   ) => S;
   if (typeof Stream === "function" && stream.constructor !== Object && stream.controller) {
     try {
-      return new Stream(metered, stream.controller);
+      return new Stream(iterate, stream.controller);
     } catch {
       // A stream class with another constructor: fall through to a plain iterable.
     }
   }
-  return { controller: stream.controller, [Symbol.asyncIterator]: metered } as unknown as S;
+  return { controller: stream.controller, [Symbol.asyncIterator]: iterate } as unknown as S;
 }

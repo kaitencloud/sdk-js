@@ -188,3 +188,77 @@ describe("@kaitencloud/server", () => {
     });
   });
 });
+
+describe("AI credits: explainable charges", () => {
+  test("refundAiInference sends the caller's Idempotency-Key and returns the refund", async () => {
+    const refund = {
+      id: "rf",
+      credits: "1",
+      reportSeq: 3,
+      createdAt: "2026-11-11T00:00:00Z",
+      createdBy: { id: "u", name: "n" },
+    };
+    const { seen, fetch } = recordingFetch(
+      async () =>
+        new Response(JSON.stringify(refund), { headers: { "content-type": "application/json" } }),
+    );
+    const client = createKaitenClient({ token: "t", baseUrl: "https://example.test", fetch });
+    const { data } = await Instances.refundAiInference({
+      client,
+      path: { instanceSlug: "acme", entitlementSlug: "credits", transactionId: "req-1" },
+      headers: { "Idempotency-Key": "refund-1" },
+      body: { credits: "1", reason: "duplicate" },
+    });
+    expect(data).toEqual(refund);
+    expect(seen[0]?.method).toBe("POST");
+    expect(seen[0]?.url).toBe(
+      "https://example.test/api/instances/acme/entitlements/credits/usage/inferences/req-1/refund",
+    );
+    expect(seen[0]?.headers.get("Idempotency-Key")).toBe("refund-1");
+    expect(await seen[0]?.json()).toEqual({ credits: "1", reason: "duplicate" });
+  });
+
+  test("a refund refusal throws a KaitenError carrying its code", async () => {
+    const { fetch } = recordingFetch(
+      async () =>
+        new Response(
+          JSON.stringify({
+            title: "conflict",
+            status: 409,
+            code: "RefundAiInference.NothingToRefund",
+          }),
+          { status: 409, headers: { "content-type": "application/json" } },
+        ),
+    );
+    const client = createKaitenClient({ token: "t", baseUrl: "https://example.test", fetch });
+    const failure = await Instances.refundAiInference({
+      client,
+      path: { instanceSlug: "a", entitlementSlug: "c", transactionId: "t" },
+      headers: { "Idempotency-Key": "k" },
+      body: {},
+    }).catch((error: unknown) => error);
+    expect(failure).toBeInstanceOf(KaitenError);
+    expect((failure as KaitenError).code).toBe("RefundAiInference.NothingToRefund");
+  });
+
+  test("listOrganizationAiInferences sends its filters and passes unknown members through", async () => {
+    const page = { items: [{ transactionId: "t", futureMember: true }], hasMore: false };
+    const { seen, fetch } = recordingFetch(
+      async () =>
+        new Response(JSON.stringify(page), { headers: { "content-type": "application/json" } }),
+    );
+    const client = createKaitenClient({ token: "t", baseUrl: "https://example.test", fetch });
+    const { data } = await Instances.listOrganizationAiInferences({
+      client,
+      query: { instanceSlug: "acme", authorized: "false", cursor: "c" },
+    });
+    expect(data).toEqual(page);
+    const url = new URL(seen[0]!.url);
+    expect(url.pathname).toBe("/api/usage/inferences");
+    expect(Object.fromEntries(url.searchParams)).toEqual({
+      instanceSlug: "acme",
+      authorized: "false",
+      cursor: "c",
+    });
+  });
+});

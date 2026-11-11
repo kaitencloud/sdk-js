@@ -56,15 +56,29 @@ export class TransactionIdReusedError extends KaitenError {
 }
 
 /**
- * The server cannot take an AI report: the pool is not an AI credit pool
- * (`AiUsageUnsupportedEntitlement`), or the server predates the `ai_usage`
- * variant and refused the body with a 422 of its own. The provider wrappers
- * catch it once, log it, and keep calling the provider without reporting.
+ * The server cannot take an AI report: it predates the `ai_usage` variant and
+ * refused the body with a 422 of its own. The provider wrappers catch it once,
+ * log it, and keep calling the provider without reporting.
+ *
+ * A pool that is not an AI credit pool is NOT this error: that is a
+ * configuration mistake, refused on every call with {@link NotAnAiCreditPoolError}.
  */
 export class AiUsageUnsupportedError extends KaitenError {
   constructor(error: KaitenError) {
     super(apiErrorOf(error));
     this.name = "AiUsageUnsupportedError";
+  }
+}
+
+/**
+ * The entitlement is not an AI credit pool (422 `AiUsageUnsupportedEntitlement`).
+ * A configuration mistake, never a reason to run unmetered: the wrappers and
+ * `run` throw it on every call, before the provider is called.
+ */
+export class NotAnAiCreditPoolError extends KaitenError {
+  constructor(error: KaitenError) {
+    super(apiErrorOf(error));
+    this.name = "NotAnAiCreditPoolError";
   }
 }
 
@@ -99,8 +113,119 @@ export function toAiError(error: unknown): unknown {
   if (error.status === 422) {
     if (reason === "ModelNotAuthorized") return new ModelNotAuthorizedError(error);
     if (reason === "UnknownModel") return new UnknownModelError(error);
+    if (reason === "AiUsageUnsupportedEntitlement") return new NotAnAiCreditPoolError(error);
     if (reason && MALFORMED_AI_BODY.has(reason)) return error;
     return new AiUsageUnsupportedError(error);
   }
   return error;
+}
+
+/** The `RefundAiInference.*` reasons the refund operation defines. Open: more may come. */
+export type AiRefundErrorReason =
+  | "ContextNotFound"
+  | "InferenceNotFound"
+  | "NotCommitted"
+  | "NothingToRefund"
+  | "ExceedsRefundable"
+  | "IdempotencyKeyReused"
+  | "PoolNotGranted"
+  | "IdempotencyKeyRequired"
+  | "InvalidIdempotencyKey"
+  | "InvalidAmount"
+  | "InvalidReason"
+  | (string & {});
+
+/**
+ * A refused refund (`RefundAiInference.*`). `reason` names the refusal; the
+ * subclasses below are the ones a caller acts on. The 422 reasons
+ * (`InvalidAmount`, `InvalidReason`, `IdempotencyKeyRequired`,
+ * `InvalidIdempotencyKey`) are caller bugs and arrive as this class itself.
+ */
+export class AiRefundError extends KaitenError {
+  readonly reason: AiRefundErrorReason;
+  constructor(error: KaitenError, reason: AiRefundErrorReason) {
+    super(apiErrorOf(error));
+    this.name = "AiRefundError";
+    this.reason = reason;
+  }
+}
+
+/** 404 `ContextNotFound` (no such instance/pool) or `InferenceNotFound` (no such transaction on it). */
+export class AiInferenceNotFoundError extends AiRefundError {
+  constructor(error: KaitenError, reason: AiRefundErrorReason) {
+    super(error, reason);
+    this.name = "AiInferenceNotFoundError";
+  }
+}
+
+/** 409 `NotCommitted`: the inference is RESERVED, RELEASED (a tombstone included) or EXPIRED. */
+export class AiInferenceNotCommittedError extends AiRefundError {
+  constructor(error: KaitenError) {
+    super(error, "NotCommitted");
+    this.name = "AiInferenceNotCommittedError";
+  }
+}
+
+/** 409 `NothingToRefund`: the inference charged nothing, or is already refunded in full. */
+export class NothingToRefundError extends AiRefundError {
+  constructor(error: KaitenError) {
+    super(error, "NothingToRefund");
+    this.name = "NothingToRefundError";
+  }
+}
+
+/** 409 `ExceedsRefundable`: more credits than are left. `refundable` is what is left. */
+export class RefundExceedsRefundableError extends AiRefundError {
+  /** What the inference still has to give back, as the server's exact decimal string. */
+  readonly refundable: string | undefined;
+  constructor(error: KaitenError) {
+    super(error, "ExceedsRefundable");
+    this.name = "RefundExceedsRefundableError";
+    const value = error.errors?.[0]?.value;
+    this.refundable = typeof value === "string" ? value : undefined;
+  }
+}
+
+/**
+ * 409 `IdempotencyKeyReused`: the key already holds another refund, another
+ * body, or a numeric report of the pool. Never retried.
+ */
+export class RefundIdempotencyKeyReusedError extends AiRefundError {
+  constructor(error: KaitenError) {
+    super(error, "IdempotencyKeyReused");
+    this.name = "RefundIdempotencyKeyReusedError";
+  }
+}
+
+/** 409 `PoolNotGranted`: the instance no longer holds the pool, so nothing can be given back to it. */
+export class AiPoolNotGrantedError extends AiRefundError {
+  constructor(error: KaitenError) {
+    super(error, "PoolNotGranted");
+    this.name = "AiPoolNotGrantedError";
+  }
+}
+
+const REFUND_PREFIX = "RefundAiInference.";
+
+/** Maps a failed refund onto its typed error. Anything else is returned unchanged. */
+export function toAiRefundError(error: unknown): unknown {
+  if (!(error instanceof KaitenError) || !error.code?.startsWith(REFUND_PREFIX)) return error;
+  const reason = error.code.slice(REFUND_PREFIX.length);
+  switch (reason) {
+    case "ContextNotFound":
+    case "InferenceNotFound":
+      return new AiInferenceNotFoundError(error, reason);
+    case "NotCommitted":
+      return new AiInferenceNotCommittedError(error);
+    case "NothingToRefund":
+      return new NothingToRefundError(error);
+    case "ExceedsRefundable":
+      return new RefundExceedsRefundableError(error);
+    case "IdempotencyKeyReused":
+      return new RefundIdempotencyKeyReusedError(error);
+    case "PoolNotGranted":
+      return new AiPoolNotGrantedError(error);
+    default:
+      return new AiRefundError(error, reason);
+  }
 }

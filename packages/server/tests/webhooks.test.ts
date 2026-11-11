@@ -2,7 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { describe, expect, test } from "vite-plus/test";
-import type { KaitenWebhookEvent, KaitenWebhookType, SystemTokenIssuance } from "../src/index.ts";
+import type {
+  KaitenWebhookEvent,
+  KaitenWebhookType,
+  // The contract renamed the payload schema; the event and its members are unchanged.
+  SystemTokenIssuanceDelivered as SystemTokenIssuance,
+} from "../src/index.ts";
 import {
   isKaitenWebhookOfType,
   isWebhookVerificationError,

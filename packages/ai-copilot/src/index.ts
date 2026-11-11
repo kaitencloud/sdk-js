@@ -2,8 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { CopilotSession, SessionEvent } from "@github/copilot-sdk";
-import { uuidv7 } from "@kaitencloud/client/ai";
-import type { AiMeterOptions, AiUsage } from "@kaitencloud/client/ai";
+import { readVendorCost, reportCommitFailure, uuidv7 } from "@kaitencloud/client/ai";
+import type {
+  AiCommitInput,
+  AiMeterOptions,
+  AiUsage,
+  AiVendorCostReader,
+} from "@kaitencloud/client/ai";
 
 type UsageEvent = Extract<SessionEvent, { type: "assistant.usage" }>;
 export function fromCopilot(usage: UsageEvent["data"]): AiUsage {
@@ -26,8 +31,18 @@ export function fromCopilot(usage: UsageEvent["data"]): AiUsage {
 /** Post-call accounting only. Event listeners cannot block the runtime's model request. */
 export function observeCopilotSession(
   session: Pick<CopilotSession, "on">,
-  options: AiMeterOptions & { runId?: string },
+  options: AiMeterOptions & {
+    runId?: string;
+    /**
+     * Reads what the provider charged for a model call off its
+     * `assistant.usage` event (`response`), as an exact decimal string in USD.
+     * The event's `cost` is Copilot's billing multiplier, not a price: do not
+     * pass it. Never compute one from a price list.
+     */
+    vendorCost?: AiVendorCostReader;
+  },
 ): { dispose(): void; flush(): Promise<void> } {
+  const logger = options.logger ?? console;
   const runId = options.runId ?? uuidv7();
   let turn = 0;
   let pending = Promise.resolve();
@@ -37,8 +52,10 @@ export function observeCopilotSession(
     seen.add(event.id);
     const transactionId = `${runId}:${turn++}`;
     pending = pending.then(async () => {
+      let input: AiCommitInput | undefined;
       try {
-        await options.kaiten.ai.commit({
+        const usage = fromCopilot(event.data);
+        input = {
           instance: options.instance,
           entitlement: options.entitlement,
           metadata: options.metadata,
@@ -46,13 +63,24 @@ export function observeCopilotSession(
           model: event.data.model,
           requestType: "COMPLETION",
           requestStatus: "SUCCESS",
-          usage: fromCopilot(event.data),
-        });
-      } catch (error) {
-        (options.logger ?? console).error(
-          "Kaiten: Copilot usage commit failed; the call already ran.",
-          error,
+          usage,
+        };
+        const vendorCost = readVendorCost(
+          options.vendorCost,
+          {
+            model: event.data.model,
+            requestStatus: "SUCCESS",
+            usage,
+            rawUsage: event.data,
+            response: event,
+          },
+          logger,
         );
+        if (vendorCost !== undefined) input.vendorCost = vendorCost;
+        await options.kaiten.ai.commit(input);
+      } catch (error) {
+        if (input) reportCommitFailure(options.kaiten, logger, options.onCommitError, error, input);
+        else logger.error("Kaiten: Copilot usage could not be read; the call already ran.", error);
       }
     });
   });

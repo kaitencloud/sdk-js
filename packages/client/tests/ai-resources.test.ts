@@ -13,7 +13,7 @@ import type {
   AiUsageValue as WireValue,
   AiUsageOutcome as WireOutcome,
   AiUsage as WireUsage,
-  EntitlementUsage,
+  ReportedEntitlementUsage,
 } from "../src/core/index.ts";
 
 it("aliases the regenerated AI contract and preserves exact outcomes", async () => {
@@ -48,8 +48,22 @@ it("aliases the regenerated AI contract and preserves exact outcomes", async () 
     reserved: "9007199254740993.123456",
     ai: outcome,
   };
-  const wireResponse: EntitlementUsage = response;
-  expect(wireResponse).toBe(response);
+  // The wire answer of a report is assignable to the public type, which keeps
+  // the billing members optional for a server that predates them.
+  const wireResponse: ReportedEntitlementUsage = {
+    entitlementId: "e",
+    entitlementSlug: "p",
+    licenseId: "l",
+    licenseSlug: "l",
+    value: { type: "number", value: 0 },
+    reserved: "9007199254740993.123456",
+    ai: outcome,
+    source: "license",
+    provenance: null,
+    transactionId: null,
+  };
+  const publicResponse: AiEntitlementUsage = wireResponse;
+  expect(publicResponse).toBe(wireResponse);
   const fetch = vi.fn(
     async () =>
       new Response(JSON.stringify(response), { headers: { "content-type": "application/json" } }),
