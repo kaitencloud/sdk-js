@@ -51,7 +51,7 @@ jobs:
           # same one, so the baselines land on the code they were rendered from.
           ref: ${{ github.sha }}
           persist-credentials: false
-      - uses: pnpm/action-setup@v6.1.0
+      - uses: pnpm/action-setup@v6.1.1
       - uses: actions/setup-node@v7.1.0
         with:
           node-version-file: .node-version
