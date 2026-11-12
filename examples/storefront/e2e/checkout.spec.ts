@@ -67,17 +67,18 @@ test("the pricing table sells the catalogue's plans, and sends each to its check
   await page.goto("/");
 
   await expect(page.getByTestId("double-notice")).toBeVisible();
-  // Eight plans in the catalogue: six can be bought alone, one is priced on request, and one has no
-  // price a customer could pay.
+  // Eight plans in the catalogue, listed from the cheapest (src/plan-order.ts): six can be bought
+  // alone, the euros before the yen and the dinar; then one with no price a customer could pay, and
+  // one priced on request.
   await expect(page.locator('[data-slot="pricing-table"] [data-slot="card-title"]')).toHaveText([
     "Starter",
+    "Lite",
     "Pro",
     "Growth",
-    "Lite",
-    "Enterprise",
-    "Solo",
     "Japan",
     "Kuwait",
+    "Solo",
+    "Enterprise",
     "Feature comparison",
   ]);
   await expect(page.getByRole("button", { name: "Select plan" })).toHaveCount(6);
