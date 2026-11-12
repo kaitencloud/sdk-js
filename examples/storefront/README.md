@@ -6,7 +6,7 @@ signs up, and a checkout that a visitor with no account can buy from. It is the 
 managing it, and the code to read when you wire your own.
 
 ```
-/                     PricingTable    the plans of the catalogue, from a publishable key
+/                     PricingTable    the plans of the catalogue, from a publishable key, from the cheapest
 /checkout/:plan       CheckoutFlow    the choices, what is due today, the card, the outcome
                       AnonymousCheckoutFlow   the same for a visitor with no account: company, name, email, security check
 /portal               CustomerPortal  the plan, the limits, the invoices, cancellation, Change plan
@@ -532,6 +532,7 @@ this example's build for a token, the name of a secret variable and code of `@ka
 | [`server/plugin.ts`](server/plugin.ts)                 | mounts the backend on `vp dev` and `vp preview`; nothing in `src/` imports it                                                                    |
 | [`server/vendor-route.ts`](server/vendor-route.ts)     | the vendor's scheduled plan change, for the journey page; the stand-in only                                                                      |
 | [`src/visitor-checkout.tsx`](src/visitor-checkout.tsx) | a visitor's checkout with no account, and the choice between it and the sign-up step                                                             |
+| [`src/plan-order.ts`](src/plan-order.ts)               | the pricing table's order, from the cheapest: the catalogue has no order between plans, so the page chooses one                                  |
 | [`server/environment.ts`](server/environment.ts)       | which Kaiten to talk to, read from the environment                                                                                               |
 | [`server/double/`](server/double)                      | the stand-in for Kaiten                                                                                                                          |
 | [`tests/`](tests)                                      | unit tests of the backend, of the stand-in and of the themes                                                                                     |
