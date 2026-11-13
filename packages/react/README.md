@@ -585,9 +585,11 @@ request, which means a refreshed credential is used from the next request on —
 no remount, no cache reset. Passing an inline arrow is safe: the provider reads
 the latest one through a ref instead of rebuilding its client each render.
 
-`onAuthError` fires when the API rejects the credential (401/403). The request is
-not retried — the SDK cannot mint a new token — so use it to refresh the host
-session or send the user to sign in; the next poll picks the new token up.
+`onAuthError` fires when the API rejects the credential (401/403). The SDK cannot
+mint a new token, so use it to refresh the host session or send the user to sign
+in; the next read picks the new token up. The provider makes that read on its own
+about five minutes later, and what it last read keeps deciding until then
+([When a read fails](#when-a-read-fails)); `refetch` makes it at once.
 
 ```tsx
 import { useAuth } from "@clerk/react";
@@ -630,13 +632,18 @@ The three live modes take:
   the portal carry usage that other actors move; the catalog changes on a
   release, so a public provider polls only when asked, and a customer session
   never re-reads its catalog on that schedule. A read happens on mount, on that
-  schedule and on `refetch` — never on focus or reconnect.
+  schedule, on `refetch` and after a read that failed
+  ([When a read fails](#when-a-read-fails)) — never on focus or reconnect.
 - `client?: KaitenClientLike` — a client of your own, such as the fake from
   [`@kaitencloud/client/testing`](../client/README.md#bringing-your-own-client).
   Under `customer-session`, it reads the catalog.
 - `initialData?: { snapshot?, catalog?, portal? }` — data fetched server-side,
   rendered on the first paint without a skeleton; the provider then revalidates
   it on its polling schedule.
+- `staleIfErrorMs?: number` — how long the data last read keeps deciding once
+  reads fail, in milliseconds. An hour by default; `0` for no time at all,
+  `Infinity` for as long as the tab lives. See
+  [When a read fails](#when-a-read-fails).
 
 All four modes take:
 
@@ -825,6 +832,46 @@ function NewProjectButton() {
 }
 ```
 
+### When a read fails
+
+The provider reads on mount, then on its polling schedule, and a read can fail: the API
+restarts, a gateway answers 502, a token has expired. What a customer sees then depends on
+whether an earlier read succeeded.
+
+- **One did.** Its data is kept, with `error` set beside it, and `Show`, `Gate`, `Paywall`
+  and `KaitenLoaded` keep answering from it. A customer is not locked out of what the last
+  read granted because the next one failed, and the server still enforces. `state.error` on a
+  gate, and `error` on every hook, say that the data is not fresh, and why.
+- **None did.** There is nothing to decide on. `KaitenFailed` renders, and each gate applies
+  its `onError`: `"block"` by default, which renders the fallback or the wall with the reason
+  `error`, or `"allow"`.
+
+Either way the provider reads again on its own, one read per provider whatever the number of
+gates under it:
+
+| The read failed with                    | It is made again                                      |
+| --------------------------------------- | ----------------------------------------------------- |
+| no answer, a timeout, a 5xx, 408 or 429 | after 5 seconds, then 10, 20, up to every 5 minutes   |
+| a refusal: 401, 403, 404, any other 4xx | after 5 minutes, the pace of a poll                   |
+| a `Retry-After`                         | no sooner than it says                                |
+| a hidden tab, or an offline browser     | when the tab is shown again and the browser is online |
+
+Each wait moves by up to a fifth either way, so that the tabs an outage failed together do not
+all come back in the same second. `refetch`, and the `retry` of `KaitenFailed`, read at once.
+While the provider reads again on its own, nothing shows as loading: a gate that had closed
+stays closed until the read succeeds.
+
+Data that a failed read left does not decide for ever. Once reads have failed for longer than
+`staleIfErrorMs`, an hour by default, the gates treat it as no data at all: `KaitenFailed`
+renders and `onError` applies, until a read succeeds. The hour is counted from the first read
+that failed, and checked when a read fails: a hidden tab makes none, so it closes nothing
+until it is shown again and the read it then makes fails too.
+
+```tsx
+// Fifteen minutes of the last data, then the fail policy.
+<KaitenProvider mode="authenticated" accessToken={token} customerId="cust_123" staleIfErrorMs={900_000}>
+```
+
 ### Errors
 
 Every error a hook hands you, in `error`, in `onError` or by rejection, is the one the
@@ -840,20 +887,21 @@ client threw, with its class and its fields: narrow it with `instanceof`.
 
 All are a `KaitenError`, so `error.status` and `error.code` keep working. The three refusals
 made to be waited out always carry `retryAfterSeconds`: the API's `Retry-After`, or 60 when the
-response had none the browser could read. The hooks do not wait for you and do not send a call
-again: a read that fails keeps the data it last had, with `error` set, and the next read is the
-polling schedule's or `refetch`'s.
+response had none the browser could read. A hook that writes does not wait for you and does not
+send its call again, and neither does `useInvoices`. The provider's own reads (the catalog, the
+snapshot, the portal) keep the data they last had, with `error` set, and are made again once that
+delay has passed ([When a read fails](#when-a-read-fails)).
 
 ## Control primitives
 
-| Component                 | Description                                       |
-| ------------------------- | ------------------------------------------------- |
-| `<Gate />`                | Render-prop gate reporting entitlement state      |
-| `<Show />`                | Minimal declarative entitlement switch            |
-| `<KaitenLoaded />`        | Render children when provider data is loaded      |
-| `<KaitenLoading />`       | Render children while provider data is loading    |
-| `<KaitenFailed />`        | Render children when provider data failed to load |
-| `<KaitenErrorBoundary />` | Error boundary for embedded trees                 |
+| Component                 | Description                                      |
+| ------------------------- | ------------------------------------------------ |
+| `<Gate />`                | Render-prop gate reporting entitlement state     |
+| `<Show />`                | Minimal declarative entitlement switch           |
+| `<KaitenLoaded />`        | Render children when provider data is there      |
+| `<KaitenLoading />`       | Render children while provider data is loading   |
+| `<KaitenFailed />`        | Render children when it failed, and none is held |
+| `<KaitenErrorBoundary />` | Error boundary for embedded trees                |
 
 Each renders only what you give it — no markup of Kaiten's own, so none of them
 needs a stylesheet or a style root.
