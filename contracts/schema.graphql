@@ -1079,6 +1079,12 @@ type Query {
     after: Time
     before: Time
 
+    """
+    Leave out the reads, evaluations and reports that make up the bulk of a busy
+    trail, for a page that wants the changes behind them. False when absent.
+    """
+    changesOnly: Boolean
+
     """Opaque cursor from a previous response's nextCursor"""
     cursor: String
     eventName: String

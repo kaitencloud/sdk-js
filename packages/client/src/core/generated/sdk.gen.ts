@@ -285,6 +285,9 @@ import type {
   GetCustomerIntegrationErrors,
   GetCustomerIntegrationResponses,
   GetCustomerResponses,
+  GetDashboardSummaryData,
+  GetDashboardSummaryErrors,
+  GetDashboardSummaryResponses,
   GetDeploymentZoneBySlugData,
   GetDeploymentZoneBySlugErrors,
   GetDeploymentZoneBySlugResponses,
@@ -2232,6 +2235,30 @@ export const updateCustomerIntegration = <ThrowOnError extends boolean = false>(
       "Content-Type": "application/json",
       ...options.headers,
     },
+  });
+
+/**
+ * Get the dashboard summary
+ *
+ * The console's home in one response, computed in the database over the whole organization: what needs attention (limits reached, refused reports, silent instances, Licenses ending, archived versions, expiring tokens, zones behind), the figures of the period, the meters closest to their limits, usage reports per day and per instance, evaluations per flag, who runs which License version, what runs where, and who talks to Kaiten. The operation needs read:customers, read:instances and read:licenses. Blocks about a module the caller cannot read are absent; billing figures say nothing about whether billing is enabled, which GET /billing/capabilities does.
+ */
+export const getDashboardSummary = <ThrowOnError extends boolean = false>(
+  options?: Options<GetDashboardSummaryData, ThrowOnError>,
+): RequestResult<GetDashboardSummaryResponses, GetDashboardSummaryErrors, ThrowOnError> =>
+  (options?.client ?? client).get<
+    GetDashboardSummaryResponses,
+    GetDashboardSummaryErrors,
+    ThrowOnError
+  >({
+    security: [
+      {
+        key: "bearerAuth",
+        scheme: "bearer",
+        type: "http",
+      },
+    ],
+    url: "/dashboard/summary",
+    ...options,
   });
 
 /**
