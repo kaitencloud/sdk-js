@@ -473,7 +473,7 @@ Generated and grouped by tag. The Core API:
 
 `Customers`, `Instances`, `LicenseFamilies`, `Licenses`, `Entitlements`, `EntitlementGroups`,
 `Components`, `DeploymentZones`, `MetadataFields`, `Releases`, `ServiceAccounts`, `Connectors`,
-`Integrations`, `Featureflags`, `OpenFeature` and `Notifications`.
+`Integrations`, `Featureflags`, `OpenFeature`, `Notifications` and `Dashboard`.
 
 `Featureflags` manages definitions; no SDK resource evaluates them. Flag decisions
 require OpenFeature + its official OFREP provider. See [the 2.0 migration](../../MIGRATION-2.md).

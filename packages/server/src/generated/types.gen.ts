@@ -552,7 +552,11 @@ export type BillingCapabilities = {
    */
   enabled: boolean;
   /**
-   * Which parts of billing this release ships
+   * Capabilities whose plan grant is temporarily unknown; their feature flag stays false, but clients can retry instead of treating it as a known denial
+   */
+  featureCheckUnavailable?: Array<string>;
+  /**
+   * Which shipped billing capabilities this organization may use
    */
   features: BillingFeatures;
   /**
@@ -1783,6 +1787,463 @@ export type CustomerSessionDraft = {
    * How long the session lives, in seconds: 300 to 3600 (CreateCustomerSession.InvalidTtl otherwise). Default 30 minutes; mint a new one before it ends.
    */
   ttlSeconds?: number;
+};
+
+export type DashboardArchivedVersion = {
+  customerName: string;
+  customerSlug: string;
+  /**
+   * The version the family serves instead, when it has a published default
+   */
+  defaultLicenseName: string | null;
+  familySlug: string;
+  instanceName: string;
+  instanceSlug: string;
+  licenseName: string;
+  version: number;
+};
+
+export type DashboardAttention = {
+  /**
+   * Instances pinned to a License version withdrawn from sale
+   */
+  archivedVersions: DashboardAttentionArchived;
+  /**
+   * The checks that ran; one the caller's scopes exclude is absent
+   */
+  checked: Array<string>;
+  /**
+   * Instances whose status is not HEALTHY
+   */
+  instancesNotHealthy: DashboardAttentionInstances;
+  /**
+   * Instances whose License ends within 30 days
+   */
+  licensesEnding30d: DashboardAttentionLicenses;
+  /**
+   * Meters at the most their grant allows, a hard limit or an allowance used up: the next report is refused
+   */
+  limitsReached: DashboardAttentionMeters;
+  /**
+   * Meters at or above the warning threshold of their grant, below the limit; an entitlement with no threshold never is
+   */
+  nearThreshold: DashboardAttentionMeters;
+  /**
+   * Usage reports refused in the last 24 hours, by instance
+   */
+  rejectedReports24h: DashboardAttentionReports;
+  /**
+   * Instances with no report, accepted or refused, and no entitlement read in the range
+   */
+  silentInstances: DashboardAttentionInstances;
+  /**
+   * Service account tokens that expire within 30 days
+   */
+  tokensExpiring30d: DashboardAttentionTokens;
+  /**
+   * Deployment zones running a release older than the newest one
+   */
+  zonesBehind: DashboardAttentionZones;
+};
+
+export type DashboardAttentionArchived = {
+  count: number;
+  items: Array<DashboardArchivedVersion>;
+};
+
+export type DashboardAttentionInstances = {
+  count: number;
+  items: Array<DashboardInstance>;
+};
+
+export type DashboardAttentionLicenses = {
+  count: number;
+  items: Array<DashboardLicenseEnding>;
+};
+
+export type DashboardAttentionMeters = {
+  count: number;
+  items: Array<DashboardMeter>;
+};
+
+export type DashboardAttentionReports = {
+  count: number;
+  items: Array<DashboardInstanceReports>;
+};
+
+export type DashboardAttentionTokens = {
+  count: number;
+  items: Array<DashboardTokenExpiring>;
+};
+
+export type DashboardAttentionZones = {
+  count: number;
+  items: Array<DashboardZone>;
+};
+
+export type DashboardBilling = {
+  /**
+   * Since the start of the calendar month, per currency, largest first
+   */
+  invoicedThisMonth: Array<DashboardInvoicedCurrency>;
+  subscriptions: DashboardSubscriptions;
+};
+
+export type DashboardConnector = {
+  activated: boolean;
+  activatedAt: string | null;
+  name: string;
+};
+
+export type DashboardConnectors = {
+  items: Array<DashboardConnector>;
+};
+
+export type DashboardCustomerFigures = {
+  createdInRange: number;
+  total: number;
+};
+
+export type DashboardDayReports = {
+  accepted: number;
+  day: string;
+  rejected: number;
+};
+
+export type DashboardFeatureFlags = {
+  enabled: number;
+  /**
+   * Evaluations recorded in the range; a floor, the evaluation publisher drops under pressure
+   */
+  evaluations: number;
+  /**
+   * Flags with no evaluation in the range
+   */
+  notEvaluated: number;
+  /**
+   * Every flag, most evaluated first
+   */
+  perFlag: Array<DashboardFlagEvaluations>;
+  total: number;
+};
+
+export type DashboardFigures = {
+  customers: DashboardCustomerFigures;
+  instances: DashboardInstanceFigures;
+  usageReports: DashboardUsageReportFigures;
+};
+
+export type DashboardFlagEvaluations = {
+  enabled: boolean;
+  evaluations: number;
+  name: string;
+  slug: string;
+};
+
+export type DashboardInstance = {
+  customerName: string;
+  customerSlug: string;
+  instanceName: string;
+  instanceSlug: string;
+  /**
+   * The last accepted report or entitlement read in the range; null when silent
+   */
+  lastActivityAt: string | null;
+  /**
+   * The instance's status, on the status check
+   */
+  status?: string;
+};
+
+export type DashboardInstanceFigures = {
+  /**
+   * Instances with at least one report, accepted or refused, or one entitlement read in the range
+   */
+  activeInRange: number;
+  /**
+   * Instances by standing, over the whole organization
+   */
+  byStanding: DashboardStandingCounts;
+  /**
+   * HEALTHY, DEGRADED, INCIDENT, MAINTENANCE
+   */
+  byStatus: {
+    [key: string]: number;
+  };
+  createdInRange: number;
+  silentInRange: number;
+  total: number;
+};
+
+export type DashboardInstanceReports = {
+  accepted: number;
+  customerName: string;
+  customerSlug: string;
+  /**
+   * The meter that decides the standing, when one does: a meter at its limit before one above its threshold, the higher ratio first
+   */
+  headline?: DashboardMeter;
+  instanceName: string;
+  instanceSlug: string;
+  /**
+   * The last entitlement value read in the range
+   */
+  lastReadAt: string | null;
+  lastReportAt: string | null;
+  licenseName: string;
+  licenseState: "DRAFT" | "PUBLISHED" | "ARCHIVED";
+  rejected: number;
+  rejected24h: number;
+  /**
+   * No report, accepted or refused, and no entitlement read in the range
+   */
+  silent: boolean;
+  /**
+   * The one word for the instance: atLimit when a meter refuses, watch when one is above its warning threshold, silent when nothing reported or read in the range, healthy otherwise; computed over every meter of the instance
+   */
+  standing: "atLimit" | "watch" | "silent" | "healthy";
+};
+
+export type DashboardIntegrations = {
+  /**
+   * Absent when the caller cannot read the organization's connectors
+   */
+  connectors?: DashboardConnectors;
+  /**
+   * Absent when the caller cannot read publishable keys
+   */
+  publishableKeys?: DashboardPublishableKeys;
+  /**
+   * Service accounts and their tokens; absent when the caller cannot read tokens
+   */
+  tokens?: DashboardTokens;
+};
+
+export type DashboardInvoicedCurrency = {
+  currency: string;
+  invoices: number;
+  overdue: number;
+  paid: number;
+  totalMinor: number;
+};
+
+export type DashboardLicenseEnding = {
+  /**
+   * The instance's subscription status, when it has one; null too when the caller cannot read billing (the billing block says which)
+   */
+  billingStatus: string | null;
+  /**
+   * The subscription ends with its period rather than renewing; false without one, and when the caller cannot read billing
+   */
+  cancelAtPeriodEnd: boolean;
+  customerName: string;
+  customerSlug: string;
+  endsAt: string;
+  instanceName: string;
+  instanceSlug: string;
+  licenseName: string;
+};
+
+export type DashboardLicenseFamilyMix = {
+  familySlug: string;
+  instances: number;
+  versions: Array<DashboardLicenseVersionMix>;
+};
+
+export type DashboardLicenseVersionMix = {
+  instances: number;
+  isDefault: boolean;
+  lifecycleState: "DRAFT" | "PUBLISHED" | "ARCHIVED";
+  name: string;
+  slug: string;
+  version: number;
+};
+
+export type DashboardLicenses = {
+  archived: Array<DashboardArchivedVersion>;
+  ending: DashboardLicensesEnding;
+  mix: Array<DashboardLicenseFamilyMix>;
+};
+
+export type DashboardLicensesEnding = {
+  /**
+   * The next five to end
+   */
+  items: Array<DashboardLicenseEnding>;
+  within180Days: number;
+  within30Days: number;
+};
+
+export type DashboardMeter = {
+  /**
+   * Usage is at or past the warning threshold of the grant, below the limit, as the report path warns; never without a threshold
+   */
+  aboveWarning: boolean;
+  /**
+   * 0 is a hard limit, -1 an unlimited allowance
+   */
+  allowancePercent: number;
+  customerName: string;
+  customerSlug: string;
+  entitlementName: string;
+  entitlementSlug: string;
+  /**
+   * The grant; null when it is unlimited
+   */
+  granted: number | null;
+  /**
+   * The grant allows nothing past itself
+   */
+  hardLimit: boolean;
+  instanceName: string;
+  instanceSlug: string;
+  licenseName: string;
+  licenseState: "DRAFT" | "PUBLISHED" | "ARCHIVED";
+  /**
+   * Usage is at or past maxAllowed: the next report is refused
+   */
+  limitReached: boolean;
+  /**
+   * The grant plus its allowance, the most a report is accepted up to; null when nothing refuses
+   */
+  maxAllowed: number | null;
+  /**
+   * used over maxAllowed, or over the grant when nothing refuses; null when there is no grant to measure against
+   */
+  ratio: number | null;
+  unit: string | null;
+  /**
+   * Usage in the current window
+   */
+  used: number;
+  /**
+   * The entitlement's early-warning threshold, a percentage of the grant; 0 when none is configured
+   */
+  warningThresholdPercent: number;
+  /**
+   * Start of the current window of a periodic entitlement; null for a lifetime one
+   */
+  windowStart: string | null;
+};
+
+export type DashboardPublishableKeys = {
+  /**
+   * Keys not revoked
+   */
+  count: number;
+  /**
+   * The last use of any of them
+   */
+  lastUsedAt: string | null;
+};
+
+export type DashboardRangeWindow = {
+  days: number;
+  from: string;
+  range: "7d" | "30d" | "90d";
+  to: string;
+};
+
+export type DashboardStandingCounts = {
+  atLimit: number;
+  healthy: number;
+  silent: number;
+  watch: number;
+};
+
+export type DashboardSubscriptions = {
+  active: number;
+  canceled: number;
+  pastDue: number;
+  trial: number;
+};
+
+export type DashboardSummary = {
+  /**
+   * When the figures were computed
+   */
+  asOf: string;
+  attention: DashboardAttention;
+  /**
+   * Subscriptions and this month's invoices; absent when the caller cannot read billing. Whether billing is enabled for the organization is GET /billing/capabilities' answer, not this one's
+   */
+  billing?: DashboardBilling;
+  /**
+   * Absent when the caller cannot read feature flags
+   */
+  featureFlags?: DashboardFeatureFlags;
+  figures: DashboardFigures;
+  /**
+   * Who talks to Kaiten; absent when the caller can read none of tokens, publishable keys and connectors
+   */
+  integrations?: DashboardIntegrations;
+  licenses: DashboardLicenses;
+  range: DashboardRangeWindow;
+  /**
+   * The meters closest to the most their grant allows, highest ratio first, at most eight
+   */
+  saturation: Array<DashboardMeter>;
+  usageReports: DashboardUsageReports;
+  /**
+   * Empty when the caller cannot read deployment zones and releases
+   */
+  zones: Array<DashboardZone>;
+};
+
+export type DashboardTokenExpiring = {
+  expiresAt: string;
+  name: string;
+  serviceAccountName: string;
+  serviceAccountSlug: string;
+  slug: string;
+};
+
+export type DashboardTokens = {
+  activeTokens: number;
+  serviceAccounts: number;
+  /**
+   * The next five to expire
+   */
+  tokensExpiring: Array<DashboardTokenExpiring>;
+  tokensExpiring30Days: number;
+  tokensWithoutExpiry: number;
+};
+
+export type DashboardUsageReportFigures = {
+  /**
+   * Reports journalled in the range
+   */
+  accepted: number;
+  /**
+   * Reports refused in the range, from the audit trail
+   */
+  rejected: number;
+  rejected24h: number;
+};
+
+export type DashboardUsageReports = {
+  /**
+   * Every instance, most reports first
+   */
+  byInstance: Array<DashboardInstanceReports>;
+  perDay: Array<DashboardDayReports>;
+};
+
+export type DashboardZone = {
+  deployedAt: string | null;
+  deployedBy: string | null;
+  instances: number;
+  name: string;
+  /**
+   * Null when nothing was deployed there
+   */
+  releaseVersion: string | null;
+  /**
+   * Releases created after the one the zone runs
+   */
+  releasesBehind: number;
+  slug: string;
+  type: string;
 };
 
 export type DefaultVariant =
@@ -16659,6 +17120,53 @@ export type UpdateCustomerIntegrationResponses = {
 
 export type UpdateCustomerIntegrationResponse =
   UpdateCustomerIntegrationResponses[keyof UpdateCustomerIntegrationResponses];
+
+export type GetDashboardSummaryData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * The period the rates and the lists cover
+     */
+    range?: "7d" | "30d" | "90d";
+  };
+  url: "/dashboard/summary";
+};
+
+export type GetDashboardSummaryErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+};
+
+export type GetDashboardSummaryError = GetDashboardSummaryErrors[keyof GetDashboardSummaryErrors];
+
+export type GetDashboardSummaryResponses = {
+  /**
+   * OK
+   */
+  200: DashboardSummary;
+};
+
+export type GetDashboardSummaryResponse =
+  GetDashboardSummaryResponses[keyof GetDashboardSummaryResponses];
 
 export type ListDeploymentZonesData = {
   body?: never;
