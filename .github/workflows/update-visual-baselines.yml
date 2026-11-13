@@ -94,7 +94,7 @@ jobs:
         # if the push in `commit` is rejected (e.g. a protected branch). `commit`
         # only runs when this whole job, verification included, succeeded.
         if: always()
-        uses: actions/upload-artifact@v7.0.1
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: visual-baselines-linux
           path: packages/react-ui/tests/visual/__screenshots__/*-linux.png
