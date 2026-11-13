@@ -172,13 +172,19 @@ vp run sync-openapi
 (cd packages/client && vp run generate)
 (cd packages/server && vp run generate)
 (cd packages/client && vp run generate-graphql)
-vp check --fix packages/client/src/core/generated packages/server/src/generated
+vp check --fix packages/client/src/core/generated packages/server/src/generated packages/client/src/graphql/generated
 ```
+
+The generators write unformatted code, and the `generated-sdk` job of CI formats all
+three folders before it checks that they match what is committed. Format all three
+too: with only the REST ones formatted, the regenerated GraphQL files show as modified
+when nothing in them changed.
 
 Never edit a snapshot or generated code by hand. The contract-drift workflow
 compares both snapshots with the published contracts. A drift is fixed with the
 commands above for the OpenAPI contract, and with `vp run sync-graphql-schema`, then
-`vp run generate-graphql` in `packages/client`, for the GraphQL schema.
+`vp run generate-graphql` in `packages/client` and the same formatting of
+`packages/client/src/graphql/generated`, for the GraphQL schema.
 Both contracts are required: a drift check that cannot read one fails. Locally, both
 checks fetch the published contract from npm, with no token. To sync from a contract
 you already hold, set `KAITEN_OPENAPI` to its path and run `pnpm run sync-openapi`, or

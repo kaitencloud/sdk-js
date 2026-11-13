@@ -121,8 +121,9 @@ for (const [name, cls] of CLASSES) {
 
 describe("the contract and the generated classes", () => {
   test("the snapshot is read whole", () => {
-    // 206 REST operations at the snapshot; a read that finds far fewer has lost
-    // its footing in the file, and every test below would pass on what is left.
+    // The bound is a floor, not the count, so a sync that adds operations leaves it
+    // alone: a read that finds far fewer than the snapshot holds has lost its
+    // footing in the file, and every test below would pass on what is left.
     expect(PROTOCOL.length).toBeGreaterThan(200);
     expect(new Set(PROTOCOL.map((operation) => operation.operationId)).size).toBe(PROTOCOL.length);
   });

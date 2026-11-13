@@ -80,7 +80,8 @@ console.error(
     `  Fix:\n` +
     `    vp run sync-openapi\n` +
     `    (cd packages/client && vp run generate)\n` +
-    `    vp check --fix packages/client/src/core/generated\n` +
+    `    (cd packages/server && vp run generate)\n` +
+    `    vp check --fix packages/client/src/core/generated packages/server/src/generated\n` +
     `  Then add changesets for @kaitencloud/client and @kaitencloud/server.`,
 );
 process.exit(1);
