@@ -4,7 +4,7 @@
 import * as React from "react";
 
 import { useTrackHook } from "../telemetry/context.tsx";
-import { useKaitenContext } from "../providers/kaiten-provider.tsx";
+import { useKaitenContext, useKaitenDataContext } from "../providers/kaiten-provider.tsx";
 import { useEntitlementCheck } from "./use-entitlement-check.ts";
 import { useEntitlements } from "./use-kaiten-entitlements.ts";
 import { useLicensingSnapshot } from "./use-licensing-snapshot.ts";
@@ -17,10 +17,15 @@ export interface PaywallTriggerOptions {
   /** Minimum remaining numeric units required (R-?): denies when `remaining < min`. */
   min?: number;
   /**
-   * What to do when the entitlement data fails to load. `"block"`
-   * (default, fail-closed) shows the paywall so paid content is never revealed
-   * during an outage; `"allow"` (fail-open) hides the paywall and reveals the
-   * content. The error stays available on `error` either way.
+   * What to do when there is no entitlement data to decide on: no read ever
+   * succeeded, or reads have been failing for longer than the provider's
+   * `staleIfErrorMs`. `"block"` (default, fail-closed) shows the paywall, so
+   * paid content is never revealed to a customer nothing was read for;
+   * `"allow"` (fail-open) hides the paywall and reveals the content. The error
+   * stays available on `error` either way.
+   *
+   * A read that fails after one that succeeded is not that case: the paywall
+   * is decided on the data that read left, with the failure on `error`.
    */
   onError?: "block" | "allow";
 }
@@ -31,7 +36,7 @@ export interface PaywallTriggerOptions {
  * - `over_limit`: the quota is used up.
  * - `near_limit`: past the threshold, still allowed.
  * - `not_entitled`: the plan does not include it.
- * - `error`: the entitlement could not be read, and the policy is to block.
+ * - `error`: there is no entitlement data to decide on, and the policy is to block.
  *
  * The union is open: a minor release may name more, for instance when Kaiten
  * restricts or suspends an instance for non-payment. Handle a reason you do not know
@@ -65,6 +70,11 @@ export interface PaywallTriggerResult {
    */
   usageWindow: string | null;
   isLoading: boolean;
+  /**
+   * The error of the last read of the entitlements, when it failed. With
+   * `reason: "error"`, there was nothing to decide on. With any other reason, or
+   * none, the decision was made on the data an earlier read left.
+   */
   error: Error | null;
   recommendedAction?: PortalAction;
 }
@@ -83,6 +93,9 @@ export function usePaywallTrigger(
   const entitlements = useEntitlements();
   const snapshot = useLicensingSnapshot();
   const { mode } = useKaitenContext();
+  // The entitlements come from the read a customer's scope lives on: its
+  // `failed` says whether there is anything to decide them on.
+  const { failed } = useKaitenDataContext();
   // A customer's scope: an authenticated provider's snapshot, or a customer
   // session's portal, whose entitlements are already effective (add-ons and
   // voucher boosts applied), so the wall gates on what the server enforces.
@@ -139,11 +152,13 @@ export function usePaywallTrigger(
       };
     }
 
-    // Fail policy: on a data error, default to fail-closed (show the paywall
-    // so paid content is never revealed during an outage). `onError: "allow"`
-    // opts back into fail-open. `reason: "error"` is distinct from a legitimate
-    // `not_entitled` so consumers can tell an outage from a real denial.
-    if (check.error) {
+    // Fail policy: on an error with nothing to decide on, default to
+    // fail-closed (show the paywall so paid content is never revealed during an
+    // outage). `onError: "allow"` opts back into fail-open. `reason: "error"` is
+    // distinct from a legitimate `not_entitled` so consumers can tell an outage
+    // from a real denial. An error beside data a read left is not this case:
+    // the branches below decide on that data, and report the error with it.
+    if (check.error && failed) {
       const failClosed = (options.onError ?? "block") === "block";
       return {
         shouldShow: failClosed,
@@ -183,7 +198,7 @@ export function usePaywallTrigger(
         metered,
         usageWindow,
         isLoading: false,
-        error: null,
+        error: check.error,
         recommendedAction: pickAction(reason),
       };
     }
@@ -198,7 +213,7 @@ export function usePaywallTrigger(
         metered,
         usageWindow,
         isLoading: false,
-        error: null,
+        error: check.error,
         recommendedAction: pickAction("near_limit"),
       };
     }
@@ -212,13 +227,14 @@ export function usePaywallTrigger(
       metered,
       usageWindow,
       isLoading: false,
-      error: null,
+      error: check.error,
       recommendedAction: pickAction(null),
     };
   }, [
     check,
     entitlements.data,
     entitlementSlug,
+    failed,
     metered,
     usageWindow,
     gates,

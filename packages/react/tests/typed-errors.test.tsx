@@ -103,10 +103,10 @@ afterEach(() => {
 // Reads: the portal, refused after it was read once
 // ---------------------------------------------------------------------------
 
-/** A session client whose portal is read once, then refused as `refusal` says. */
-function sessionClientRefusing(refusal: () => Response) {
+/** A session client whose portal is read once, or `answered` times, then refused as `refusal` says. */
+function sessionClientRefusing(refusal: () => Response, answered = 1) {
   let reads = 0;
-  const fetch = vi.fn(async () => (++reads === 1 ? portalBody() : refusal()));
+  const fetch = vi.fn(async () => (++reads <= answered ? portalBody() : refusal()));
   const sessionClient = new KaitenSessionClient({
     apiUrl: API,
     fetch,
@@ -156,7 +156,8 @@ test("a read refused for too many calls keeps what it had, with the class and th
     code: "PublicAuth.RateLimited",
     retryAfterSeconds: 17,
   });
-  // Nothing was sent again behind the host's back: the read, and the refetch.
+  // Nothing was sent again at once: the read, and the refetch. The provider reads again on its
+  // own once the delay the API asked for has passed (read-recovery.test.tsx).
   expect(fetch).toHaveBeenCalledTimes(2);
   // The data it had stays, and nothing is loading: a refusal is not a reason to blank a screen.
   expect(result.current.portal).toMatchObject({ data: first, isLoading: false });
@@ -178,9 +179,9 @@ test("a read refused with no Retry-After it can read is asked to wait a minute",
   expect((result.current.error as RateLimitedError).retryAfterSeconds).toBe(60);
 });
 
-test("the gate is closed on an error unless the host says to allow it, and says which error", async () => {
-  const { sessionClient } = sessionClientRefusing(() => refused(readRateLimited(17)));
-  const { result } = renderHook(
+/** The wall of one entitlement under each fail policy, beside the portal it is decided on. */
+function gates(sessionClient: KaitenSessionClientLike) {
+  return renderHook(
     () => ({
       portal: usePortal(),
       blocking: usePaywallTrigger("api-calls"),
@@ -188,11 +189,31 @@ test("the gate is closed on an error unless the host says to allow it, and says 
     }),
     { wrapper: sessionWrapper(sessionClient) },
   );
+}
+
+test("a gate decided on a portal that was read keeps its decision when the next read is refused, and says which error", async () => {
+  const { sessionClient } = sessionClientRefusing(() => refused(readRateLimited(17)));
+  const { result } = gates(sessionClient);
   await waitFor(() => expect(result.current.portal.data).toBeDefined());
   expect(result.current.blocking).toMatchObject({ shouldShow: false, error: null });
 
   result.current.portal.refetch();
   await waitFor(() => expect(result.current.portal.error).not.toBeNull());
+
+  // The portal that was read still decides, whatever the fail policy: no wall. The API's own
+  // error is beside the decision, delay included.
+  for (const gate of [result.current.blocking, result.current.allowing]) {
+    expect(gate).toMatchObject({ shouldShow: false, reason: null });
+    expect(gate.error).toBeInstanceOf(RateLimitedError);
+    expect((gate.error as RateLimitedError).retryAfterSeconds).toBe(17);
+  }
+});
+
+test("the gate is closed when no read succeeded unless the host says to allow it, and says which error", async () => {
+  const { sessionClient } = sessionClientRefusing(() => refused(readRateLimited(17)), 0);
+  const { result } = gates(sessionClient);
+  await waitFor(() => expect(result.current.portal.error).not.toBeNull());
+  expect(result.current.portal.data).toBeUndefined();
 
   // Fail-closed by default, as documented: the wall is up with the reason "error" and
   // the API's own error on it, delay included.
