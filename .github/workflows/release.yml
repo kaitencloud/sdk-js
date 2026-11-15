@@ -1,6 +1,13 @@
 name: Release
 
-# Versions and publishes @kaitencloud/client and @kaitencloud/server to npm.
+# Versions and publishes @kaitencloud/client, @kaitencloud/server, @kaitencloud/react
+# and @kaitencloud/react-ui to npm.
+#
+# npm accepts a trusted publisher only on a package that already exists, so the
+# first version of a package is published by hand, from its packed tarball, and
+# its trusted publisher configured on npmjs.com before this workflow can publish
+# the next one. @kaitencloud/react and @kaitencloud/react-ui started that way, at
+# 1.0.0 (CONTRIBUTING.md, "The first version of a package").
 #
 # On every push to main, Changesets picks what the run does:
 #   version  a changeset that bumps something is pending: open or refresh the
@@ -17,6 +24,11 @@ name: Release
 # there, as in any repository but kaitencloud/sdk-js. The permission sits on the
 # one job that publishes, which installs without running scripts and builds
 # nothing. npm adds provenance on its own once the repository is public.
+#
+# Changesets v3 packs a dependency-ordered publish plan and publishes its groups
+# sequentially: client/server, then react, then react-ui. A failed group stops
+# publication. The floor check verifies React -> client and React UI -> React
+# against npm's versions, or the exact public same-release tarballs when missing.
 #
 # No job restores a dependency cache: a poisoned cache entry would reach the
 # tarballs.
@@ -45,7 +57,7 @@ jobs:
         with:
           persist-credentials: false
       - uses: pnpm/action-setup@v6.1.0
-      - uses: actions/setup-node@v7.0.0
+      - uses: actions/setup-node@v7.1.0
         with:
           node-version-file: .node-version
           package-manager-cache: false
@@ -70,11 +82,11 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - uses: pnpm/action-setup@v6.1.0
-      - uses: actions/setup-node@v7.0.0
+      - uses: actions/setup-node@v7.1.0
         with:
           node-version-file: .node-version
           package-manager-cache: false
-      - uses: voidzero-dev/setup-vp@v1.21.1
+      - uses: voidzero-dev/setup-vp@v1.22.0
         with:
           # actions/setup-node and pnpm/action-setup own Node.js and pnpm. Vite+
           # only provides vp, for the `vp fmt` in version-packages.
@@ -107,11 +119,11 @@ jobs:
         with:
           persist-credentials: false
       - uses: pnpm/action-setup@v6.1.0
-      - uses: actions/setup-node@v7.0.0
+      - uses: actions/setup-node@v7.1.0
         with:
           node-version-file: .node-version
           package-manager-cache: false
-      - uses: voidzero-dev/setup-vp@v1.21.1
+      - uses: voidzero-dev/setup-vp@v1.22.0
         with:
           # actions/setup-node and pnpm/action-setup own Node.js and pnpm. Vite+
           # only provides vp, at the catalog's vite-plus version.
@@ -132,10 +144,19 @@ jobs:
         run: vp check
       - name: Check coupled dependency versions
         run: node scripts/check-version-invariants.mjs
+      # The visual regression is not repeated: it needs the Playwright container,
+      # and it guards pixels rather than whether a package works. For the same
+      # reason react-ui runs its unit project alone: its `test` script also runs
+      # the Storybook stories in a browser.
       - name: Run package tests
-        run: vp run -r test
+        run: vp run --filter '!@kaitencloud/react-ui' test
+      - name: Run React UI unit tests
+        working-directory: packages/react-ui
+        run: vp run test:unit
       - name: Check the published shape of every package
         run: node scripts/check-published-shape.mjs
+      - name: Check React and React UI imports against their minimum dependencies
+        run: node scripts/check-release-dependencies.mjs --step 1 --allow-unpublished-workspace
       # pnpm packs, so the tarballs carry the catalog's real ranges rather than
       # `catalog:`. The publish job below uploads these tarballs as they are.
       - name: Pack the packages npm does not have yet
@@ -155,7 +176,7 @@ jobs:
         with:
           persist-credentials: false
       - uses: pnpm/action-setup@v6.1.0
-      - uses: actions/setup-node@v7.0.0
+      - uses: actions/setup-node@v7.1.0
         with:
           node-version-file: .node-version
           package-manager-cache: false

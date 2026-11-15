@@ -15,8 +15,8 @@ import { graphql } from "./generated/gql.ts";
  * with their live entitlement usage, plus the full plan catalog — replacing the
  * REST fan-out (customer + instances + N×license entitlements + usage). The
  * license selection is kept textually identical to LicensingCatalog's so both
- * map through the same catalog code path. Feature flags stay on OFREP (a REST
- * standard) and are fetched alongside.
+ * map through the same catalog code path. Flag decisions use OpenFeature
+ * separately; this management query never evaluates flags.
  *
  * `entitlementUsage` selects the window bounds (`currentPeriodStart` /
  * `currentPeriodEnd`) and the `limit` the usage is measured against. The bounds
@@ -24,6 +24,14 @@ import { graphql } from "./generated/gql.ts";
  * exactly when a reset period is configured, so an absent pair on a successful
  * read means "lifetime counter" and never "nobody asked". Dropping them is what
  * forced the snapshot to mark every window unknown.
+ *
+ * It does not select `source`, `provenance` or `limitCapExceededOveragePercent`,
+ * the effective members the REST usage reads carry on a current server.
+ * `contracts/schema.graphql` declares them since kaiten's billing schema, but a
+ * server released before that schema does not serve them, and a query that
+ * names a field the server does not know fails whole, which sends the snapshot
+ * to its REST fallback. They are selected once a released server serves them;
+ * until then this path measures against the grant's overage percent.
  *
  * `licenses` is cursor-paginated (`LicensePage`), so the page size is pinned to
  * the server's `MaxLimit` (200 — see internal/shared/pagination) and both

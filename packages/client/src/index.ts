@@ -16,34 +16,67 @@ export * as KaitenApi from "./core/index.ts";
 
 // Curated runtime + config surface, promoted back to the top level:
 export {
+  BoundaryPendingError,
+  CHECKOUT_SESSION_TOKEN_PREFIX,
+  CheckoutSessionClosedError,
+  CheckoutTokenMissingError,
   client,
+  DueTodayChangedError,
+  InvalidTransactionIdError,
   KaitenError,
   KaitenNetworkError,
   KaitenTransport,
+  ProviderUnavailableError,
+  QuotaExceededError,
+  RateLimitedError,
+  TransactionIdReusedError,
+  TurnstileFailedError,
+  TurnstileUnavailableError,
   assertPublishableKey,
+  assertPublishableKeyShape,
+  isCheckoutSessionToken,
   isPublishableKey,
+  isPublishableKeyShape,
   retry,
 } from "./core/index.ts";
 export type {
   AuthenticatedKaitenProviderConfig,
   CreateClientConfig,
+  KaitenAnonymousCheckoutClientConfig,
   KaitenApiError,
   KaitenAuthScheme,
+  KaitenCheckoutTokenStorage,
   KaitenClientConfig,
+  KaitenCustomerSession,
+  KaitenCustomerSessionProvider,
   KaitenFetch,
   KaitenPollingConfig,
   KaitenProviderConfig,
   KaitenThrownError,
+  KaitenSessionClientConfig,
   PublicKaitenProviderConfig,
   RetryOptions,
+  TransactionIdReusedOriginal,
 } from "./core/index.ts";
 
+export { majorUnitAmount } from "./client/money.ts";
+export type { MinorUnitPrice } from "./client/money.ts";
+
 export { KaitenClient } from "./client/client.ts";
+export { KaitenSessionClient } from "./client/session-client.ts";
+export {
+  CHECKOUT_RETURN_PARAM,
+  KaitenAnonymousCheckoutClient,
+  clearCheckoutReturn,
+  readCheckoutReturn,
+} from "./client/anonymous-checkout-client.ts";
+export type { KaitenAnonymousCheckoutClientLike } from "./client/anonymous-checkout-client.ts";
+export { checkStartCheckoutInput } from "./client/anonymous-checkout-input.ts";
+export type { KaitenSessionClientLike } from "./client/session-client.ts";
 export type {
   KaitenClientLike,
   KaitenComponentsModule,
   KaitenCustomersModule,
-  KaitenFlagsModule,
   KaitenInstancesModule,
   KaitenLicensesModule,
   KaitenUsageModule,
@@ -76,7 +109,6 @@ export {
   AiUsageUnsupportedError,
   InsufficientCreditsError,
   ModelNotAuthorizedError,
-  TransactionIdReusedError,
   UnknownModelError,
 } from "./ai/errors.ts";
 export { fromAnthropic, fromOpenAI } from "./ai/normalize.ts";
@@ -91,8 +123,6 @@ export type {
   AiUsagePhase,
   AiUsageWarning,
 } from "./ai/contract.ts";
-export { isEvaluationFailure, isEvaluationSuccess } from "./client/feature-flags.ts";
-export type { FeatureFlagEvaluation } from "./client/feature-flags.ts";
 // An entitlement business rule shared by every usage surface, not infrastructure
 // — hence a domain module rather than a `lib/` helper. Exported because a host
 // rendering its own meters needs the same rule the SDK's components use, and the
@@ -118,5 +148,7 @@ export type {
 // are the curated subset that stays top-level; the rest of the generated surface
 // is under `KaitenApi`. Some names intentionally override the generated ones.
 export type * from "./client/types.ts";
+export type * from "./client/session-types.ts";
+export type * from "./client/anonymous-checkout-types.ts";
 
 export type { KaitenModelsModule, KaitenConversionRulesModule } from "./ai/catalog.ts";

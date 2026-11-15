@@ -132,8 +132,11 @@ export function createAiModule(transport: KaitenTransport): KaitenAiModule {
             path: { instanceSlug: target.instance, entitlementSlug: target.entitlement },
             body,
             // AI phase replay uses transactionId, never the numeric-report
-            // header. Also remove a key inherited from transport defaults.
-            headers: { "Idempotency-Key": null },
+            // header. `null` is how the generated client's header merge deletes
+            // a header, here one inherited from the transport's defaults; the
+            // generated type describes the value it sends, a string, so the
+            // deletion is spelled out with a cast.
+            headers: { "Idempotency-Key": null } as unknown as { "Idempotency-Key"?: string },
           }),
         `ai.${value.phase}(${target.instance}, ${target.entitlement}, ${value.transactionId})`,
         // Keyed by `transactionId`, so a replay is answered from the first

@@ -5,7 +5,7 @@
 import type {
   AiUsageValue as GeneratedAiUsageValue,
   AiUsageOutcome as GeneratedAiUsageOutcome,
-  EntitlementUsage,
+  ReportedEntitlementUsage,
   ReportEntitlementUsageBody,
 } from "../core/index.ts";
 
@@ -19,4 +19,6 @@ export type AiUsageValue = GeneratedAiUsageValue & { transactionId: string };
 export type AiReportBody = Omit<ReportEntitlementUsageBody, "value"> & { value: AiUsageValue };
 export type AiOperationStatus = GeneratedAiUsageOutcome["status"];
 export type AiUsageWarning = GeneratedAiUsageOutcome["warnings"][number];
-export type AiEntitlementUsage = EntitlementUsage;
+// The answer to a report, not a read: it carries the `ai` outcome of this very
+// report, and no `source` — the regenerated contract tells the two apart.
+export type AiEntitlementUsage = ReportedEntitlementUsage;

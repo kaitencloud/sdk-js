@@ -1,0 +1,92 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
+"use client";
+
+/**
+ * `@kaitencloud/react/billing` — the headless hooks of a customer's billing.
+ *
+ * What a checkout, an invoice list and a customer portal do, under `mode="customer-session"`, and
+ * what an anonymous checkout does for a visitor with no account, under `mode="public"`, without a
+ * line of markup: the selection and what it costs, the provider's page for a
+ * payment method and the return from it, the invoices of a payment that is still open, and
+ * the changes a customer makes to their subscription. The server computes every amount, and
+ * nothing here adds a price up.
+ *
+ * Its own entry rather than part of the root so that a host that gates its UI and offers no
+ * checkout bundles none of it: `scripts/check-bundle-size.mjs` holds the root to that.
+ * `@kaitencloud/react-ui`'s `CheckoutFlow` is these hooks, drawn.
+ *
+ * Needs the first Kaiten release with billing (see STABILITY.md).
+ */
+
+export { isPlausibleEmail } from "./hooks/billing/checkout-selection.ts";
+export type { AnonymousCheckoutProblem } from "./hooks/billing/anonymous-refusals.ts";
+export {
+  useAnonymousCheckout,
+  type AnonymousCheckoutChange,
+  type AnonymousCheckoutOutcome,
+  type AnonymousCheckoutPayment,
+  type AnonymousCheckoutQuote,
+  type AnonymousCheckoutSelection,
+  type AnonymousCheckoutSetup,
+  type AnonymousCheckoutStep,
+  type UseAnonymousCheckoutOptions,
+  type UseAnonymousCheckoutResult,
+} from "./hooks/billing/use-anonymous-checkout.ts";
+export type {
+  TurnstileOptions,
+  TurnstileStatus,
+  TurnstileWidget,
+} from "./hooks/billing/use-turnstile.ts";
+export type {
+  CheckoutPreviewSelection,
+  CheckoutSelection,
+} from "./hooks/billing/checkout-selection.ts";
+export type {
+  AddonQuantityProblem,
+  CheckoutAddonRefusal,
+  CheckoutProblem,
+} from "./hooks/billing/refusals.ts";
+export {
+  useCheckoutPreview,
+  type CheckoutPreviewState,
+  type CheckoutVoucherState,
+} from "./hooks/billing/use-checkout-preview.ts";
+export {
+  useCheckout,
+  type CheckoutPayment,
+  type CheckoutSetup,
+  type CheckoutStep,
+  type UseCheckoutOptions,
+  type UseCheckoutResult,
+} from "./hooks/billing/use-checkout.ts";
+export {
+  useInvoices,
+  useInvoiceSettlement,
+  type InvoiceSettlement,
+  type UseInvoiceSettlementOptions,
+  type UseInvoicesOptions,
+  type UseInvoicesResult,
+} from "./hooks/billing/use-invoices.ts";
+export type {
+  RedeemVoucherProblem,
+  RedeemVoucherState,
+  RedeemVoucherStatus,
+} from "./hooks/billing/redeem-voucher-state.ts";
+export {
+  useBillingPortal,
+  useCancelSubscription,
+  usePaymentMethodSession,
+  useReactivateSubscription,
+  useRedeemVoucher,
+  useSetAddonQuantity,
+  useValidateVoucher,
+  type UseBillingPortalOptions,
+  type UseBillingPortalResult,
+  type UsePaymentMethodSessionOptions,
+  type UsePaymentMethodSessionResult,
+  type UsePortalActionResult,
+  type UseRedeemVoucherResult,
+  type UseSetAddonQuantityResult,
+} from "./hooks/billing/use-portal-actions.ts";

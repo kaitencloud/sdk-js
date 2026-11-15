@@ -1,0 +1,7 @@
+# macOS dev baselines are local-only: sub-pixel AA drifts per machine/version,
+# and CI (ubuntu-latest) never validates them — it owns the authoritative
+# `*-linux.png` set. Keeping `*-darwin.png` out of git avoids per-machine churn.
+# macOS devs regenerate their own with `vp test --project visual --update-snapshots`.
+# (The one-time `git rm --cached` this note used to ask for was done when the
+# suite moved to packages/react-ui.)
+*-darwin.png
