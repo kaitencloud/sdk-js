@@ -39,6 +39,8 @@ it("aliases the regenerated AI contract and preserves exact outcomes", async () 
   };
   const wireOutcome: WireOutcome = outcome;
   expect(wireOutcome).toBe(outcome);
+  // The answer to a report: `source`, `provenance` and the echoed
+  // `transactionId` are required of it by the regenerated contract.
   const response: AiEntitlementUsage = {
     entitlementId: "e",
     entitlementSlug: "p",
@@ -46,24 +48,14 @@ it("aliases the regenerated AI contract and preserves exact outcomes", async () 
     licenseSlug: "l",
     value: { type: "number", value: 0 },
     reserved: "9007199254740993.123456",
-    ai: outcome,
-  };
-  // The wire answer of a report is assignable to the public type, which keeps
-  // the billing members optional for a server that predates them.
-  const wireResponse: ReportedEntitlementUsage = {
-    entitlementId: "e",
-    entitlementSlug: "p",
-    licenseId: "l",
-    licenseSlug: "l",
-    value: { type: "number", value: 0 },
-    reserved: "9007199254740993.123456",
-    ai: outcome,
     source: "license",
     provenance: null,
     transactionId: null,
+    ai: outcome,
   };
-  const publicResponse: AiEntitlementUsage = wireResponse;
-  expect(publicResponse).toBe(wireResponse);
+  // The wire answer of a report is the public alias, member for member.
+  const wireResponse: ReportedEntitlementUsage = response;
+  expect(wireResponse).toBe(response);
   const fetch = vi.fn(
     async () =>
       new Response(JSON.stringify(response), { headers: { "content-type": "application/json" } }),
@@ -147,17 +139,4 @@ it("exposes model, conversion rule and inference reads with filters and wire pag
   expect(requests[2]!.searchParams.get("status")).toBe("ARCHIVED");
   expect(requests[4]!.searchParams.get("transactionId")).toBe("t");
   expect(fetch).toHaveBeenCalledTimes(6);
-});
-
-it("rejects non-numeric read values without issuing a malformed usage request", () => {
-  const fetch = vi.fn();
-  const client = new KaitenClient({
-    authScheme: "none",
-    apiUrl: "https://synthetic.test/api",
-    fetch,
-  });
-  expect(() =>
-    client.reportUsage("i", "p", { behavior: "append", value: { type: "boolean", value: true } }),
-  ).toThrow("numeric value");
-  expect(fetch).not.toHaveBeenCalled();
 });

@@ -16,6 +16,10 @@
 //   - else the published contract is fetched here (npm pack
 //     @kaitencloud/openapi@latest), so the check needs no local kaiten.
 //
+// Set $KAITEN_OPENAPI for `node scripts/check-openapi-drift.mjs` or `pnpm run`, not
+// for `vp run`: `vp run` hides the shell's variables from a script, so the variable
+// is ignored and the published contract is fetched in its place, without a word.
+//
 // The published contract is required. If it can't be resolved (nothing is
 // published, or the registry is unreachable) the check fails rather than skip: a skip
 // renders as a green tick, indistinguishable from "compared, no drift".

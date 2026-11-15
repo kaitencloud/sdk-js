@@ -6,9 +6,9 @@ import type {
   AiInference as GeneratedAiInference,
   AiUsageValue as GeneratedAiUsageValue,
   AiUsageOutcome as GeneratedAiUsageOutcome,
+  ReportedEntitlementUsage,
   ReportEntitlementUsageBody,
 } from "../core/index.ts";
-import type { EntitlementUsage } from "../client/types.ts";
 
 export type {
   AiInferencePricing,
@@ -61,14 +61,11 @@ export type AiUsageWarning =
 
 /**
  * What a report answers: the pool's usage after the call, and its `ai` outcome.
- * The usage members the billing contract added (`source`, `provenance`,
- * `transactionId`) are optional here, as on {@link EntitlementUsage}: an older
- * server does not send them.
+ * The contract now has a type of its own for it, apart from the answer to a
+ * read: it requires `source`, `provenance` and the `transactionId` the report
+ * was accepted under, which is always `null` for AI usage.
  */
-export type AiEntitlementUsage = EntitlementUsage & {
-  /** The numeric-report key the answer was accepted under: always `null` for AI usage. */
-  transactionId?: string | null;
-};
+export type AiEntitlementUsage = ReportedEntitlementUsage;
 
 /** One row of an instance pool's inference history. */
 export type AiInference = GeneratedAiInference;

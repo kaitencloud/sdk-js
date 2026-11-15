@@ -14,7 +14,8 @@ export function createCatalogClient(apiUrl: string, token: string): KaitenClient
 }
 
 /**
- * The catalog a pricing page renders, as plain data the page can embed as it is.
+ * The catalog a pricing page renders. Pass the plain result to
+ * `<KaitenProvider mode="static" catalog={catalog}>` in the page.
  */
 export async function readCatalog(
   client: Pick<KaitenClientLike, "getCatalog">,

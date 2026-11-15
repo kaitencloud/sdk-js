@@ -1,0 +1,1035 @@
+/* The storefront's own look. Plain CSS: tokens on :root, redefined for dark. The Kaiten
+   components bring their own stylesheet, scoped under `.kaiten`, and follow the same colour mode
+   (see theme.ts); nothing here restyles them, except under the themes a visitor can pick (see
+   palette.ts): their tokens come from a <style> that vite.config.ts puts in the <head>, generated
+   from src/themes, and the `.themed-*` rules at the end of this file dress the components. */
+
+:root {
+  color-scheme: light;
+
+  --bg: #f6f6f9;
+  --surface: #ffffff;
+  --text: #14151a;
+  --text-muted: #5b5e6b;
+  --border: #e3e4ea;
+  /* Fill and label of a primary control: the Kaiten theme's own primary pair, so the
+     storefront's buttons match the components'. Text in the brand colour uses --brand-text. */
+  --brand: #8f52ea;
+  --brand-hover: #7e48ce;
+  --brand-contrast: #ffffff;
+  --brand-text: #7c3fd6;
+  --brand-soft: #efe8fb;
+  --notice-bg: #eef1fb;
+  --error-bg: #fdecec;
+  --error-text: #8c1d21;
+  --ok-bg: #e4f5ea;
+  --ok-text: #1b6b3a;
+  --warn-bg: #fdf1dc;
+  --warn-text: #8a5a00;
+  --focus: #7c3fd6;
+
+  --font:
+    system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+  /* The corners, all from the one radius: today's 0.25, 0.5 and 0.75rem at 0.5rem, and square at 0. */
+  --radius: 0.5rem;
+  --radius-sm: calc(var(--radius) * 0.5);
+  --radius-lg: calc(var(--radius) * 1.5);
+  --radius-pill: calc(var(--radius) * 100);
+  /* What a theme can change about a border: its width, and the colour of a button's. */
+  --btn-border: var(--brand);
+  --btn-border-hover: var(--brand-hover);
+  --container: 72rem;
+  --gutter: 1rem;
+  --header-height: 3.5rem;
+}
+
+:root.dark {
+  color-scheme: dark;
+
+  --bg: #131417;
+  --surface: #1a1b1e;
+  --text: #f3f4f6;
+  --text-muted: #a3a6b2;
+  --border: #2d2f36;
+  --brand: #8f52ea;
+  --brand-hover: #7e48ce;
+  --brand-contrast: #ffffff;
+  --brand-text: #b794f4;
+  --brand-soft: #2c2147;
+  --notice-bg: #1d2234;
+  --error-bg: #2b1718;
+  --error-text: #ea7073;
+  --ok-bg: #16281d;
+  --ok-text: #6fd28f;
+  --warn-bg: #2e2412;
+  --warn-text: #f0b95a;
+  --focus: #b794f4;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: var(--brand-text);
+  text-underline-offset: 0.2rem;
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* A page title takes the focus when the page opens (see `navigate`): it is not a control. */
+h1[tabindex="-1"]:focus {
+  outline: none;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Layout: one column width for the header, the page and the footer. */
+
+.container {
+  width: 100%;
+  max-width: var(--container);
+  margin: 0 auto;
+  padding-inline: var(--gutter);
+}
+
+.site {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.site-main {
+  flex: 1;
+  padding-block: 2rem 4rem;
+}
+
+.status {
+  padding-block: 3rem;
+}
+
+/* Header */
+
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--border);
+}
+
+.site-header-inner {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  column-gap: 1.5rem;
+  min-height: var(--header-height);
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text);
+  font-weight: 700;
+  font-size: 1.125rem;
+  letter-spacing: -0.01em;
+  text-decoration: none;
+}
+
+.brand-mark {
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: var(--radius);
+  background: var(--brand);
+  color: var(--brand-contrast);
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
+.site-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.site-nav a {
+  padding: 0.375rem 0.75rem;
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  font-size: 0.9375rem;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+/* "Sign out" is an action, not a page: a button, dressed like the links around it. */
+.site-nav-button {
+  padding: 0.375rem 0.75rem;
+  border: 0;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.9375rem;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.site-nav-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.site-nav a:hover,
+.site-nav-button:hover:not(:disabled) {
+  color: var(--text);
+  background: var(--bg);
+}
+
+.site-nav a[aria-current="page"] {
+  color: var(--text);
+  background: var(--brand-soft);
+  font-weight: 600;
+}
+
+/* The two choices of the header, side by side: the theme, then the colour mode. */
+
+.site-controls {
+  display: flex;
+  align-items: stretch;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+/* Theme picker: a native <select>, drawn like the switcher beside it. */
+
+.palette-picker {
+  position: relative;
+  display: inline-flex;
+  min-width: 0;
+}
+
+.palette-picker select {
+  appearance: none;
+  min-width: 0;
+  max-width: 100%;
+  margin: 0;
+  padding: 0.5rem 1.75rem 0.5rem 0.875rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.8125rem;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.palette-picker select:hover {
+  border-color: var(--text-muted);
+}
+
+.palette-picker select:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* The chevron: two borders of a square, turned. */
+.palette-picker::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: 0.8125rem;
+  width: 0.4375rem;
+  height: 0.4375rem;
+  border-right: 1.5px solid var(--text-muted);
+  border-bottom: 1.5px solid var(--text-muted);
+  transform: translateY(-70%) rotate(45deg);
+  pointer-events: none;
+}
+
+/* Theme switcher: three native radios in a segmented control. */
+
+.theme-switcher {
+  display: inline-flex;
+  gap: 0.125rem;
+  min-width: 0;
+  margin: 0;
+  padding: 0.1875rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--bg);
+}
+
+.theme-switcher label {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.3125rem 0.625rem;
+  border-radius: var(--radius-pill);
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+.theme-switcher label:hover {
+  color: var(--text);
+}
+
+.theme-switcher label:has(input:checked) {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow:
+    0 0 0 1px var(--border),
+    0 1px 2px rgb(0 0 0 / 0.12);
+}
+
+.theme-switcher label:has(input:focus-visible) {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+.theme-switcher input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+/* Page content */
+
+.hero {
+  max-width: 40rem;
+  margin: 0 auto 2.5rem;
+  text-align: center;
+}
+
+.eyebrow {
+  margin: 0 0 0.5rem;
+  color: var(--brand-text);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+h1 {
+  margin: 0 0 0.75rem;
+  font-size: clamp(1.625rem, 4vw, 2.25rem);
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+
+.lead {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 1.0625rem;
+}
+
+.page-heading {
+  margin-bottom: 1.5rem;
+  font-size: clamp(1.5rem, 3.5vw, 1.875rem);
+}
+
+/* The checkout is a form: one column, centred under the header. */
+.page-narrow {
+  max-width: 36rem;
+  margin-inline: auto;
+}
+
+.notice {
+  margin: 1rem 0 0;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius);
+  background: var(--notice-bg);
+  font-size: 0.875rem;
+}
+
+.notice.error {
+  background: var(--error-bg);
+  color: var(--error-text);
+}
+
+/* Panels, buttons and small parts shared by the sales page and the journey. */
+
+.panel {
+  padding: 1.25rem;
+  border: var(--theme-border-width, 1px) solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm, none);
+}
+
+.panel > :first-child {
+  margin-top: 0;
+}
+
+.panel > :last-child {
+  margin-bottom: 0;
+}
+
+.muted {
+  color: var(--text-muted);
+}
+
+.small {
+  font-size: 0.8125rem;
+}
+
+/* Under the visitor's checkout, once it is bought: a line for the buyer, and a note for the vendor who reads
+   this page, kept apart from it. */
+.visitor-done {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 1.25rem;
+}
+
+.visitor-done > p {
+  margin: 0;
+}
+
+.visitor-dev-note {
+  padding: 0.75rem 1rem;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+}
+
+.visitor-dev-note summary {
+  cursor: pointer;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.visitor-dev-note[open] summary {
+  margin-bottom: 0.375rem;
+}
+
+.visitor-dev-note p {
+  margin: 0;
+}
+
+code {
+  padding: 0.0625rem 0.3125rem;
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  font-size: 0.875em;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.4375rem 0.875rem;
+  border: var(--theme-border-width, 1px) solid var(--btn-border);
+  border-radius: var(--radius);
+  background: var(--brand);
+  color: var(--brand-contrast);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.3;
+  text-decoration: none;
+  box-shadow: var(--shadow-xs, none);
+  cursor: pointer;
+}
+
+.btn:hover:not(:disabled) {
+  border-color: var(--btn-border-hover);
+  background: var(--brand-hover);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  border-color: var(--border);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  border-color: var(--brand);
+  background: var(--surface);
+  color: var(--brand-text);
+}
+
+.badge {
+  display: inline-block;
+  padding: 0.0625rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.badge {
+  margin-left: 0.375rem;
+}
+
+.badge-ok {
+  border-color: transparent;
+  background: var(--ok-bg);
+  color: var(--ok-text);
+}
+
+.badge-warn {
+  border-color: transparent;
+  background: var(--warn-bg);
+  color: var(--warn-text);
+}
+
+.badge-error {
+  border-color: transparent;
+  background: var(--error-bg);
+  color: var(--error-text);
+}
+
+/* The sign-up step: a form of two fields in a panel. It is built from the page's own tokens, so that it
+   follows every theme in both colour modes. A field's border is the muted text colour, not the
+   decorative --border: a control's edge has to be seen against the card it sits on. */
+
+.signup-lead {
+  margin-bottom: 1.25rem;
+}
+
+.signup {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.signup-alert:empty {
+  display: none;
+}
+
+.signup-alert > * {
+  margin: 0;
+}
+
+/* The message that has the keyboard after a refusal: a ring around it, drawn off the notice's edge. */
+.signup-alert:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+/* A notice with two lines: the paragraphs are the notice's, and carry none of the browser's margins. */
+.signup-alert .notice p {
+  margin: 0;
+}
+
+.signup-alert .notice p + p {
+  margin-top: 0.375rem;
+}
+
+.signup-developer {
+  font-size: 0.8125rem;
+}
+
+/* A name in a sentence, not a chip: the padding of a code span would leave a gap before the stop. */
+.signup-developer code {
+  padding-inline: 0;
+  overflow-wrap: anywhere;
+}
+
+.signup-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.field {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.field label {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.field-hint,
+.field-error {
+  margin: 0;
+  font-size: 0.8125rem;
+}
+
+.field-hint,
+.field-required {
+  color: var(--text-muted);
+}
+
+.field-required {
+  font-weight: 400;
+}
+
+/* The error red, pulled toward the text colour: on a card of any theme it reads at 4.5:1 or more. */
+.field-error {
+  color: color-mix(in srgb, var(--error-text) 75%, var(--text));
+  font-weight: 500;
+}
+
+.field input {
+  width: 100%;
+  min-width: 0;
+  margin-top: 0.125rem;
+  padding: 0.5rem 0.75rem;
+  border: var(--theme-border-width, 1px) solid var(--text-muted);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 1rem;
+  line-height: 1.4;
+  box-shadow: var(--shadow-xs, none);
+}
+
+.field input::placeholder {
+  color: var(--text-muted);
+}
+
+.field input:hover {
+  border-color: var(--text);
+}
+
+.field input:focus-visible {
+  border-color: var(--focus);
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+.field input[aria-invalid="true"] {
+  border-color: var(--error-text);
+}
+
+/* The account page's heading, with who is signed in and the way out beside it. */
+
+.portal-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  column-gap: 1rem;
+}
+
+.portal-identity {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.portal-identity p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+/* The journey: the scenarios in a column, the stand-in's state beside them. */
+
+.journey-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.chapter-title {
+  margin: 2.25rem 0 0.75rem;
+  font-size: 1.25rem;
+  /* A fixed line box, so the state panel beside the first chapter can line up with its first card. */
+  line-height: 1.75rem;
+  letter-spacing: -0.01em;
+}
+
+.journey-scenarios > section:first-child .chapter-title {
+  margin-top: 0;
+}
+
+.scenario {
+  margin-bottom: 1rem;
+}
+
+.scenario h3,
+.coming h3 {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin: 0 0 0.25rem;
+  font-size: 1.0625rem;
+}
+
+.scenario-number {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: var(--radius-pill);
+  background: var(--brand-soft);
+  color: var(--brand-text);
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+.steps {
+  display: grid;
+  gap: 0.875rem;
+  margin: 1rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.step {
+  padding-left: 0.875rem;
+  border-left: 2px solid var(--border);
+}
+
+.step p {
+  margin: 0 0 0.5rem;
+}
+
+.step-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.step-outcome {
+  margin: 0.5rem 0 0;
+  color: var(--ok-text);
+  font-size: 0.875rem;
+}
+
+.step-outcome.error {
+  color: var(--error-text);
+}
+
+.coming-list {
+  display: grid;
+  gap: 0.75rem;
+  margin: 1rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.coming {
+  border-style: dashed;
+  background: transparent;
+}
+
+.coming p {
+  margin: 0.25rem 0 0;
+  font-size: 0.9375rem;
+}
+
+.panel-title {
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+}
+
+.panel-subtitle {
+  margin: 1.25rem 0 0.5rem;
+  font-size: 0.875rem;
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.375rem 1rem;
+  margin: 0;
+  font-size: 0.9375rem;
+}
+
+.facts dt {
+  color: var(--text-muted);
+}
+
+.facts dd {
+  margin: 0;
+  min-width: 0;
+}
+
+.invoice-list,
+.event-log {
+  display: grid;
+  gap: 0.375rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.875rem;
+}
+
+.invoice-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.25rem 0.75rem;
+}
+
+.invoice-label {
+  flex: 1 1 8rem;
+  min-width: 0;
+}
+
+.invoice-end {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+.invoice-list .badge {
+  margin-left: 0;
+}
+
+.event-log {
+  max-height: 16rem;
+  overflow-y: auto;
+}
+
+.event-log li {
+  display: grid;
+  gap: 0.0625rem;
+  overflow-wrap: anywhere;
+}
+
+.event-log code {
+  justify-self: start;
+}
+
+/* Below the width of two columns the state is under the scenarios: a link takes it to them. */
+.jump-link {
+  margin: 0.75rem 0 0;
+}
+
+.journey-aside,
+.journey .hero h1 {
+  /* The header is two rows high on a phone. */
+  scroll-margin-top: 7rem;
+}
+
+@media (min-width: 64rem) {
+  .jump-link {
+    display: none;
+  }
+
+  .journey-layout {
+    grid-template-columns: minmax(0, 1fr) 21rem;
+  }
+
+  .journey-aside {
+    /* Level with the first scenario card: the first chapter title is 1.75rem high, then 0.75rem. */
+    margin-top: 2.5rem;
+    position: sticky;
+    top: calc(var(--header-height) + 1rem);
+    max-height: calc(100vh - var(--header-height) - 2rem);
+    overflow-y: auto;
+  }
+
+  /* A theme may offset the panel's shadow by 4px, and the scrolling box would cut it: room inside the
+     box for it, and negative margins to give the room back to the layout. */
+  :root[data-palette]:not([data-palette="kaiten"]) .journey-aside {
+    padding: 0 0.5rem 0.5rem 0;
+    margin-right: -0.5rem;
+    margin-bottom: -0.5rem;
+  }
+}
+
+/* Footer */
+
+.site-footer {
+  border-top: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+}
+
+.site-footer-inner {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.25rem 1.5rem;
+  padding-block: 1rem;
+}
+
+/* Narrow screens: the nav takes a row of its own under the brand and the two controls. The header
+   needs about 750px for one row, with the theme picker and the labels of the colour mode. */
+
+@media (max-width: 48rem) {
+  .site-header-inner {
+    grid-template-columns: 1fr auto;
+    column-gap: 0.75rem;
+    row-gap: 0.25rem;
+    padding-block: 0.5rem 0.25rem;
+  }
+
+  .site-nav {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    margin-inline: -0.75rem;
+    overflow-x: auto;
+  }
+
+  /* Icons only: the labels stay for screen readers. */
+  .theme-switcher-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .theme-switcher label {
+    padding: 0.4375rem 0.5625rem;
+  }
+
+  .site-controls {
+    gap: 0.375rem;
+  }
+
+  .palette-picker select {
+    padding-inline: 0.75rem 1.625rem;
+  }
+
+  .palette-picker::after {
+    right: 0.6875rem;
+  }
+}
+
+@media (max-width: 40rem) {
+  .site-main {
+    padding-block: 1.5rem 3rem;
+  }
+
+  .hero {
+    margin-bottom: 1.75rem;
+  }
+}
+
+/* Under about 350px the brand, the theme and the colour mode do not fit in a row with the name of the
+   shop: the mark stays, and the link keeps its accessible name. */
+@media (max-width: 22rem) {
+  .brand-name {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  /* Four entries (Sign out, once there is an account) in 320px: tighter, so that none is cut. */
+  .site-nav {
+    gap: 0;
+    margin-inline: -1rem;
+    padding-inline: 0.25rem;
+  }
+
+  .site-nav a,
+  .site-nav-button {
+    padding-inline: 0.5rem;
+  }
+}
+
+/* The themes a visitor can pick (palette.ts). The page's own tokens come from the generated rules in
+   the <head>; what follows dresses the Kaiten components, which `variables` cannot reach: the shadow
+   and the width of a border. Their selectors start at :root so that they outrank the components'
+   own utilities (`.shadow-sm:is(.kaiten, .kaiten *)`) whatever the order of the two sheets. */
+
+/* Cards: through `appearance.elements` (see themes/to-appearance.ts). */
+:root .kaiten .themed-card {
+  border-width: var(--theme-border-width, 1px);
+  box-shadow: var(--shadow-sm);
+}
+
+/* The pricing table's corners are fixed in the components (1.5rem for the table, 1rem for a plan) and
+   ignore the radius. A plan takes the other cards' formula through the slot, and the table, which has
+   no slot, is found by its data-slot. */
+:root .kaiten .themed-pricing-card {
+  border-radius: calc(var(--radius) + 4px);
+}
+
+:root[data-palette]:not([data-palette="kaiten"]) .kaiten [data-slot="pricing-table"] {
+  border-radius: calc(var(--radius) + 4px);
+  border-width: var(--theme-border-width, 1px);
+}
+
+/* The highlighted plan keeps its 2px edge and the halo around it, now over the theme's shadow. */
+:root .kaiten .themed-card-highlight {
+  border-width: max(2px, var(--theme-border-width, 0px));
+  box-shadow:
+    0 0 0 4px color-mix(in srgb, var(--brand) 15%, transparent),
+    var(--shadow-sm);
+}
+
+/* Buttons: no `appearance.elements` slot reaches them (`button` is declared and never applied), so
+   they are found by what the components set on every one of them. The gradient of the highlighted
+   plan's button is the Kaiten brand's and has no `variables` key: a theme gets a flat fill. */
+:root[data-palette]:not([data-palette="kaiten"])
+  .kaiten
+  [data-slot="button"]:not([data-variant="ghost"], [data-variant="link"]) {
+  background-image: none;
+  border-style: solid;
+  box-shadow: var(--shadow-xs);
+}
+
+:root[data-palette]:not([data-palette="kaiten"])
+  .kaiten
+  [data-slot="button"]:not(
+    [data-variant="ghost"],
+    [data-variant="link"],
+    [data-variant="outline"]
+  ) {
+  border-width: var(--theme-border-width, 0px);
+}
+
+:root[data-palette]:not([data-palette="kaiten"])
+  .kaiten
+  [data-slot="button"][data-variant="outline"] {
+  border-width: var(--theme-border-width, 1px);
+}
+
+/* A shadow of its own would take the focus ring (a shadow too) with it: put it back. */
+:root[data-palette]:not([data-palette="kaiten"])
+  .kaiten
+  [data-slot="button"]:not([data-variant="ghost"], [data-variant="link"]):focus-visible {
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--focus) 50%, transparent),
+    var(--shadow-xs);
+}

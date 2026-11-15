@@ -5,8 +5,10 @@ import { afterEach, describe, expect, test, vi } from "vite-plus/test";
 
 import {
   assertPublishableKey,
+  assertPublishableKeyShape,
   isBrowserRuntime,
   isPublishableKey,
+  isPublishableKeyShape,
   secretKeyPrefix,
 } from "../../src/core/runtime/keys.ts";
 
@@ -49,6 +51,77 @@ describe("credential prefixes", () => {
 
   test("a missing key says where to get one", () => {
     expect(() => assertPublishableKey("")).toThrow(/publishableKey is missing/i);
+  });
+});
+
+// `assertPublishableKey` is frozen: 1.0 hosts pass it `pk_live_abc`, and it must
+// keep saying yes. The shape of a key Kaiten issues has its own functions, so a
+// caller that wants the strict reading opts into it.
+describe("the shape of a publishable key", () => {
+  const BODY = "AbCdEfGhIjKlMnOpQrStUvWxYz0123456789_-aBcDe".slice(0, 43);
+  const KEY = `pk_${BODY}`;
+
+  test("pk_ and 43 base64url characters pass, in every alphabet position", () => {
+    expect(BODY).toHaveLength(43);
+    for (const body of [BODY, "a".repeat(43), "_".repeat(43), "-".repeat(43), "9".repeat(43)]) {
+      expect(isPublishableKeyShape(`pk_${body}`)).toBe(true);
+      expect(() => assertPublishableKeyShape(`pk_${body}`)).not.toThrow();
+    }
+  });
+
+  test.for([
+    ["a key cut short", `pk_${"a".repeat(42)}`],
+    ["a key that runs on", `pk_${"a".repeat(44)}`],
+    ["a test key", "pk_live_abc"],
+    ["a space in it", `pk_${"a".repeat(42)} `],
+    ["a leading space", ` ${KEY}`],
+    ["a trailing newline", `${KEY}\n`],
+    ["quotes around it", `"${KEY}"`],
+    ["padding", `pk_${"a".repeat(42)}=`],
+    ["a character outside base64url", `pk_${"a".repeat(42)}+`],
+    ["a slash", `pk_${"a".repeat(42)}/`],
+    ["an accented letter", `pk_${"a".repeat(42)}é`],
+    ["capital PK_", KEY.replace("pk_", "PK_")],
+    ["no prefix", BODY],
+    ["the prefix alone", "pk_"],
+    ["nothing", ""],
+  ] as const)("%s is not the shape of a key", ([, key]) => {
+    expect(isPublishableKeyShape(key)).toBe(false);
+    expect(() => assertPublishableKeyShape(key)).toThrow();
+  });
+
+  test("a value that is not a string is not a key", () => {
+    for (const value of [undefined, null, 3, {}, [KEY], Symbol("pk")]) {
+      expect(isPublishableKeyShape(value)).toBe(false);
+    }
+  });
+
+  test("the lenient guard is unchanged: any pk_ string still passes it", () => {
+    for (const key of ["pk_live_abc", `pk_${"a".repeat(42)}`, `pk_${"a".repeat(44)}`, KEY]) {
+      expect(() => assertPublishableKey(key)).not.toThrow();
+      expect(isPublishableKey(key)).toBe(true);
+    }
+  });
+
+  test("a secret is named as one, not reported as a malformed key", () => {
+    for (const secret of [`sk_${BODY}`, `ksh_${BODY}`, `ksm_${BODY}`]) {
+      expect(() => assertPublishableKeyShape(secret)).toThrow(/secret key/i);
+      expect(() => assertPublishableKeyShape(secret)).not.toThrow(/malformed/i);
+    }
+  });
+
+  test("a missing key says where to get one, a wrong prefix says what a key starts with", () => {
+    expect(() => assertPublishableKeyShape("")).toThrow(/publishableKey is missing/i);
+    expect(() => assertPublishableKeyShape("ksx_live_abc")).toThrow(
+      /invalid publishable key format/i,
+    );
+  });
+
+  test("a malformed key is described, and never echoed", () => {
+    const short = `pk_${"s3cretish".repeat(3)}`;
+
+    expect(() => assertPublishableKeyShape(short)).toThrow(/malformed publishable key.*43/i);
+    expect(() => assertPublishableKeyShape(short)).not.toThrow(new RegExp(short));
   });
 });
 

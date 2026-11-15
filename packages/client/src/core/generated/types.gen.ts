@@ -128,6 +128,7 @@ export type Webhooks =
   | OnReleaseDeletedWebhookRequest
   | OnVoucherArchivedWebhookRequest
   | OnVoucherCreatedWebhookRequest
+  | OnVoucherDeletedWebhookRequest
   | OnVoucherExhaustedWebhookRequest
   | OnVoucherExpiredWebhookRequest
   | OnVoucherPublishedWebhookRequest
@@ -739,7 +740,11 @@ export type BillingCapabilities = {
    */
   enabled: boolean;
   /**
-   * Which parts of billing this release ships
+   * Capabilities whose plan grant is temporarily unknown; their feature flag stays false, but clients can retry instead of treating it as a known denial
+   */
+  featureCheckUnavailable?: Array<string>;
+  /**
+   * Which shipped billing capabilities this organization may use
    */
   features: BillingFeatures;
   /**
@@ -1264,6 +1269,10 @@ export type CheckoutSession = {
   completedAt: string | null;
   createdAt: string;
   /**
+   * As the start gave it; null when it gave none, and the completion names the customer after the e-mail
+   */
+  customerName: string | null;
+  /**
    * Set by the completion
    */
   customerSlug: string | null;
@@ -1300,6 +1309,10 @@ export type CheckoutSessionAdmin = {
   closedAt: string | null;
   completedAt: string | null;
   createdAt: string;
+  /**
+   * As the visitor gave it; null when they gave none. Personal data
+   */
+  customerName: string | null;
   /**
    * Set by the completion
    */
@@ -1339,6 +1352,10 @@ export type CheckoutSessionDraft = {
    * The vendor's opaque reference, echoed on the checkout_session events
    */
   clientReferenceId?: string;
+  /**
+   * What the completion names the new customer and its instance: the buyer's company, typically. Leading and trailing spaces are dropped; absent or blank, both are named after the e-mail.
+   */
+  customerName?: string;
   /**
    * Compute what would be due today, and write nothing
    */
@@ -2067,6 +2084,482 @@ export type CustomerSessionDraft = {
    * How long the session lives, in seconds: 300 to 3600 (CreateCustomerSession.InvalidTtl otherwise). Default 30 minutes; mint a new one before it ends.
    */
   ttlSeconds?: number;
+};
+
+export type DashboardArchivedVersion = {
+  customerName: string;
+  customerSlug: string;
+  /**
+   * The version the family serves instead, when it has a published default
+   */
+  defaultLicenseName: string | null;
+  familySlug: string;
+  instanceName: string;
+  instanceSlug: string;
+  licenseName: string;
+  version: number;
+};
+
+export type DashboardAttention = {
+  /**
+   * Instances pinned to a License version withdrawn from sale
+   */
+  archivedVersions: DashboardAttentionArchived;
+  /**
+   * The checks that ran; one the caller's scopes exclude is absent
+   */
+  checked: Array<string>;
+  /**
+   * Instances whose status is not HEALTHY
+   */
+  instancesNotHealthy: DashboardAttentionInstances;
+  /**
+   * Instances whose License ends within 30 days
+   */
+  licensesEnding30d: DashboardAttentionLicenses;
+  /**
+   * Meters at the most their grant allows, a hard limit or an allowance used up: the next report is refused
+   */
+  limitsReached: DashboardAttentionMeters;
+  /**
+   * Meters at or above the warning threshold of their grant, below the limit; an entitlement with no threshold never is
+   */
+  nearThreshold: DashboardAttentionMeters;
+  /**
+   * Usage reports refused in the last 24 hours, by instance
+   */
+  rejectedReports24h: DashboardAttentionReports;
+  /**
+   * Instances with no report, accepted or refused, and no entitlement read in the range
+   */
+  silentInstances: DashboardAttentionInstances;
+  /**
+   * Service account tokens that expire within 30 days
+   */
+  tokensExpiring30d: DashboardAttentionTokens;
+  /**
+   * Deployment zones running a release older than the newest one
+   */
+  zonesBehind: DashboardAttentionZones;
+};
+
+export type DashboardAttentionArchived = {
+  count: number;
+  items: Array<DashboardArchivedVersion>;
+};
+
+export type DashboardAttentionInstances = {
+  count: number;
+  items: Array<DashboardInstance>;
+};
+
+export type DashboardAttentionLicenses = {
+  count: number;
+  items: Array<DashboardLicenseEnding>;
+};
+
+export type DashboardAttentionMeters = {
+  count: number;
+  items: Array<DashboardMeter>;
+};
+
+export type DashboardAttentionReports = {
+  count: number;
+  items: Array<DashboardInstanceReports>;
+};
+
+export type DashboardAttentionTokens = {
+  count: number;
+  items: Array<DashboardTokenExpiring>;
+};
+
+export type DashboardAttentionZones = {
+  count: number;
+  items: Array<DashboardZone>;
+};
+
+export type DashboardBilling = {
+  /**
+   * Since the start of the calendar month, per currency, largest first
+   */
+  invoicedThisMonth: Array<DashboardInvoicedCurrency>;
+  subscriptions: DashboardSubscriptions;
+};
+
+export type DashboardConnector = {
+  activated: boolean;
+  activatedAt: string | null;
+  name: string;
+};
+
+export type DashboardConnectors = {
+  items: Array<DashboardConnector>;
+};
+
+export type DashboardCustomerFigures = {
+  createdInRange: number;
+  total: number;
+};
+
+export type DashboardDayReports = {
+  accepted: number;
+  day: string;
+  rejected: number;
+};
+
+export type DashboardFeatureFlags = {
+  enabled: number;
+  /**
+   * Evaluations recorded since range.auditTrailFrom; a floor, the evaluation publisher drops under pressure
+   */
+  evaluations: number;
+  /**
+   * Flags with no evaluation since range.auditTrailFrom
+   */
+  notEvaluated: number;
+  /**
+   * Every flag, most evaluated first
+   */
+  perFlag: Array<DashboardFlagEvaluations>;
+  total: number;
+};
+
+export type DashboardFigures = {
+  customers: DashboardCustomerFigures;
+  instances: DashboardInstanceFigures;
+  usageReports: DashboardUsageReportFigures;
+};
+
+export type DashboardFlagEvaluations = {
+  enabled: boolean;
+  evaluations: number;
+  name: string;
+  slug: string;
+};
+
+export type DashboardInstance = {
+  customerName: string;
+  customerSlug: string;
+  instanceName: string;
+  instanceSlug: string;
+  /**
+   * The last accepted report or entitlement read in the range; null when silent
+   */
+  lastActivityAt: string | null;
+  /**
+   * The instance's status, on the status check
+   */
+  status?: string;
+};
+
+export type DashboardInstanceFigures = {
+  /**
+   * Instances with an accepted report since range.usageHistoryFrom, or a refused report or an entitlement read since range.auditTrailFrom
+   */
+  activeInRange: number;
+  /**
+   * Instances by standing, over the whole organization
+   */
+  byStanding: DashboardStandingCounts;
+  /**
+   * HEALTHY, DEGRADED, INCIDENT, MAINTENANCE
+   */
+  byStatus: {
+    [key: string]: number;
+  };
+  createdInRange: number;
+  silentInRange: number;
+  total: number;
+};
+
+export type DashboardInstanceReports = {
+  accepted: number;
+  customerName: string;
+  customerSlug: string;
+  /**
+   * The meter that decides the standing, when one does: a meter at its limit before one above its threshold, the higher ratio first
+   */
+  headline?: DashboardMeter;
+  instanceName: string;
+  instanceSlug: string;
+  /**
+   * The last entitlement value read since range.auditTrailFrom
+   */
+  lastReadAt: string | null;
+  lastReportAt: string | null;
+  licenseName: string;
+  licenseState: "DRAFT" | "PUBLISHED" | "ARCHIVED";
+  rejected: number;
+  rejected24h: number;
+  /**
+   * No accepted report since range.usageHistoryFrom, and no refused report nor entitlement read since range.auditTrailFrom
+   */
+  silent: boolean;
+  /**
+   * The one word for the instance: atLimit when a meter refuses, watch when one is above its warning threshold, silent when nothing was reported or read in either window, healthy otherwise; computed over every meter of the instance
+   */
+  standing: "atLimit" | "watch" | "silent" | "healthy";
+};
+
+export type DashboardIntegrations = {
+  /**
+   * Absent when the caller cannot read the organization's connectors
+   */
+  connectors?: DashboardConnectors;
+  /**
+   * Absent when the caller cannot read publishable keys
+   */
+  publishableKeys?: DashboardPublishableKeys;
+  /**
+   * Service accounts and their tokens; absent when the caller cannot read tokens
+   */
+  tokens?: DashboardTokens;
+};
+
+export type DashboardInvoicedCurrency = {
+  currency: string;
+  invoices: number;
+  overdue: number;
+  paid: number;
+  totalMinor: number;
+};
+
+export type DashboardLicenseEnding = {
+  /**
+   * The instance's subscription status, when it has one; null too when the caller cannot read billing (the billing block says which)
+   */
+  billingStatus: string | null;
+  /**
+   * The subscription ends with its period rather than renewing; false without one, and when the caller cannot read billing
+   */
+  cancelAtPeriodEnd: boolean;
+  customerName: string;
+  customerSlug: string;
+  endsAt: string;
+  instanceName: string;
+  instanceSlug: string;
+  licenseName: string;
+};
+
+export type DashboardLicenseFamilyMix = {
+  familySlug: string;
+  instances: number;
+  versions: Array<DashboardLicenseVersionMix>;
+};
+
+export type DashboardLicenseVersionMix = {
+  instances: number;
+  isDefault: boolean;
+  lifecycleState: "DRAFT" | "PUBLISHED" | "ARCHIVED";
+  name: string;
+  slug: string;
+  version: number;
+};
+
+export type DashboardLicenses = {
+  archived: Array<DashboardArchivedVersion>;
+  ending: DashboardLicensesEnding;
+  mix: Array<DashboardLicenseFamilyMix>;
+};
+
+export type DashboardLicensesEnding = {
+  /**
+   * The next five to end
+   */
+  items: Array<DashboardLicenseEnding>;
+  within180Days: number;
+  within30Days: number;
+};
+
+export type DashboardMeter = {
+  /**
+   * Usage is at or past the warning threshold of the grant, below the limit, as the report path warns; never without a threshold
+   */
+  aboveWarning: boolean;
+  /**
+   * 0 is a hard limit, -1 an unlimited allowance
+   */
+  allowancePercent: number;
+  customerName: string;
+  customerSlug: string;
+  entitlementName: string;
+  entitlementSlug: string;
+  /**
+   * The grant; null when it is unlimited
+   */
+  granted: number | null;
+  /**
+   * The grant allows nothing past itself
+   */
+  hardLimit: boolean;
+  instanceName: string;
+  instanceSlug: string;
+  licenseName: string;
+  licenseState: "DRAFT" | "PUBLISHED" | "ARCHIVED";
+  /**
+   * Usage is at or past maxAllowed: the next report is refused
+   */
+  limitReached: boolean;
+  /**
+   * The grant plus its allowance, the most a report is accepted up to; null when nothing refuses
+   */
+  maxAllowed: number | null;
+  /**
+   * used over maxAllowed, or over the grant when nothing refuses; null when there is no grant to measure against
+   */
+  ratio: number | null;
+  unit: string | null;
+  /**
+   * Usage in the current window
+   */
+  used: number;
+  /**
+   * The entitlement's early-warning threshold, a percentage of the grant; 0 when none is configured
+   */
+  warningThresholdPercent: number;
+  /**
+   * Start of the current window of a periodic entitlement; null for a lifetime one
+   */
+  windowStart: string | null;
+};
+
+export type DashboardPublishableKeys = {
+  /**
+   * Keys not revoked
+   */
+  count: number;
+  /**
+   * The last use of any of them
+   */
+  lastUsedAt: string | null;
+};
+
+export type DashboardRangeWindow = {
+  /**
+   * The calendar days from auditTrailFrom to To, today included; days when the audit trail covers the whole period
+   */
+  auditTrailDays: number;
+  /**
+   * Where refused reports, entitlement reads and flag evaluations are read from: the start of the period's first whole day, or later when the organization keeps its audit trail for less
+   */
+  auditTrailFrom: string;
+  days: number;
+  from: string;
+  range: "7d" | "30d" | "90d";
+  to: string;
+  /**
+   * The calendar days from usageHistoryFrom to To, today included; days when the usage history covers the whole period
+   */
+  usageHistoryDays: number;
+  /**
+   * Where the accepted usage reports are read from: the start of the period's first whole day, or later when the organization keeps its usage history for less
+   */
+  usageHistoryFrom: string;
+};
+
+export type DashboardStandingCounts = {
+  atLimit: number;
+  healthy: number;
+  silent: number;
+  watch: number;
+};
+
+export type DashboardSubscriptions = {
+  active: number;
+  canceled: number;
+  pastDue: number;
+  trial: number;
+};
+
+export type DashboardSummary = {
+  /**
+   * When the figures were computed
+   */
+  asOf: string;
+  attention: DashboardAttention;
+  /**
+   * Subscriptions and this month's invoices; absent when the caller cannot read billing. Whether billing is enabled for the organization is GET /billing/capabilities' answer, not this one's
+   */
+  billing?: DashboardBilling;
+  /**
+   * Absent when the caller cannot read feature flags
+   */
+  featureFlags?: DashboardFeatureFlags;
+  figures: DashboardFigures;
+  /**
+   * Who talks to Kaiten; absent when the caller can read none of tokens, publishable keys and connectors
+   */
+  integrations?: DashboardIntegrations;
+  licenses: DashboardLicenses;
+  range: DashboardRangeWindow;
+  /**
+   * The meters closest to the most their grant allows, highest ratio first, at most eight
+   */
+  saturation: Array<DashboardMeter>;
+  usageReports: DashboardUsageReports;
+  /**
+   * Empty when the caller cannot read deployment zones and releases
+   */
+  zones: Array<DashboardZone>;
+};
+
+export type DashboardTokenExpiring = {
+  expiresAt: string;
+  name: string;
+  serviceAccountName: string;
+  serviceAccountSlug: string;
+  slug: string;
+};
+
+export type DashboardTokens = {
+  activeTokens: number;
+  serviceAccounts: number;
+  /**
+   * The next five to expire
+   */
+  tokensExpiring: Array<DashboardTokenExpiring>;
+  tokensExpiring30Days: number;
+  tokensWithoutExpiry: number;
+};
+
+export type DashboardUsageReportFigures = {
+  /**
+   * Reports accepted on the days usageReports.perDay covers: from the later of range.usageHistoryFrom and range.auditTrailFrom
+   */
+  accepted: number;
+  /**
+   * Reports refused on the same days, from the audit trail
+   */
+  rejected: number;
+  rejected24h: number;
+};
+
+export type DashboardUsageReports = {
+  /**
+   * Every instance, most reports first
+   */
+  byInstance: Array<DashboardInstanceReports>;
+  /**
+   * One entry a calendar day, today last, from the later of range.usageHistoryFrom and range.auditTrailFrom: the days both the accepted and the refused reports are kept
+   */
+  perDay: Array<DashboardDayReports>;
+};
+
+export type DashboardZone = {
+  deployedAt: string | null;
+  deployedBy: string | null;
+  instances: number;
+  name: string;
+  /**
+   * Null when nothing was deployed there
+   */
+  releaseVersion: string | null;
+  /**
+   * Releases created after the one the zone runs
+   */
+  releasesBehind: number;
+  slug: string;
+  type: string;
 };
 
 export type DefaultVariant =
@@ -3326,7 +3819,7 @@ export type Instance = {
    */
   description: string;
   /**
-   * End date of the license for this instance
+   * UTC exclusive end of the assigned license term for this instance
    */
   endLicenseDate: string;
   /**
@@ -3348,6 +3841,10 @@ export type Instance = {
    */
   readonly licenseSlug: string;
   /**
+   * Assigned license term state at UTC database time. Always present on GET instance details; omitted from list, create and event representations.
+   */
+  readonly licenseTerm?: LicenseTerm;
+  /**
    * Commercial lifecycle stage of the instance (free-form; suggested: TRIAL, ACTIVE, AT_RISK, CHURNED)
    */
   readonly lifecycleStage?: string;
@@ -3366,7 +3863,7 @@ export type Instance = {
    */
   slug?: string;
   /**
-   * Start date of the license for this instance
+   * UTC inclusive start of the assigned license term for this instance
    */
   startLicenseDate: string;
   /**
@@ -3636,7 +4133,7 @@ export type InstanceDelivered = {
    */
   description: string;
   /**
-   * End date of the license for this instance
+   * UTC exclusive end of the assigned license term for this instance
    */
   endLicenseDate: string;
   /**
@@ -3658,6 +4155,10 @@ export type InstanceDelivered = {
    */
   readonly licenseSlug: string;
   /**
+   * Assigned license term state at UTC database time. Always present on GET instance details; omitted from list, create and event representations.
+   */
+  readonly licenseTerm?: LicenseTerm;
+  /**
    * Commercial lifecycle stage of the instance (free-form; suggested: TRIAL, ACTIVE, AT_RISK, CHURNED)
    */
   readonly lifecycleStage?: string;
@@ -3676,7 +4177,7 @@ export type InstanceDelivered = {
    */
   slug?: string;
   /**
-   * Start date of the license for this instance
+   * UTC inclusive start of the assigned license term for this instance
    */
   startLicenseDate: string;
   /**
@@ -4025,7 +4526,7 @@ export type InstanceUpdateDelivered = {
    */
   description: string;
   /**
-   * End date of the license for this instance
+   * UTC exclusive end of the assigned license term for this instance
    */
   endLicenseDate: string;
   /**
@@ -4051,6 +4552,10 @@ export type InstanceUpdateDelivered = {
    */
   readonly licenseSlug: string;
   /**
+   * Assigned license term state at UTC database time. Always present on GET instance details; omitted from list, create and event representations.
+   */
+  readonly licenseTerm?: LicenseTerm;
+  /**
    * Commercial lifecycle stage of the instance (free-form; suggested: TRIAL, ACTIVE, AT_RISK, CHURNED)
    */
   readonly lifecycleStage?: string;
@@ -4069,7 +4574,7 @@ export type InstanceUpdateDelivered = {
    */
   slug?: string;
   /**
-   * Start date of the license for this instance
+   * UTC inclusive start of the assigned license term for this instance
    */
   startLicenseDate: string;
   /**
@@ -5336,6 +5841,17 @@ export type LicensePriceUpdatedEventDelivered = {
    * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
    */
   via?: "customer_session" | "checkout_session";
+};
+
+export type LicenseTerm = {
+  /**
+   * UTC database instant used to determine the current term state
+   */
+  evaluatedAt: string;
+  /**
+   * State of the assigned license interval at evaluatedAt
+   */
+  status: "ACTIVE" | "NOT_STARTED" | "EXPIRED";
 };
 
 export type LineDifference = {
@@ -11443,7 +11959,7 @@ export type InstanceWritable = {
    */
   description: string;
   /**
-   * End date of the license for this instance
+   * UTC exclusive end of the assigned license term for this instance
    */
   endLicenseDate: string;
   /**
@@ -11471,7 +11987,7 @@ export type InstanceWritable = {
    */
   slug?: string;
   /**
-   * Start date of the license for this instance
+   * UTC inclusive start of the assigned license term for this instance
    */
   startLicenseDate: string;
 };
@@ -11637,7 +12153,7 @@ export type InstanceDeliveredWritable = {
    */
   description: string;
   /**
-   * End date of the license for this instance
+   * UTC exclusive end of the assigned license term for this instance
    */
   endLicenseDate: string;
   /**
@@ -11665,7 +12181,7 @@ export type InstanceDeliveredWritable = {
    */
   slug?: string;
   /**
-   * Start date of the license for this instance
+   * UTC inclusive start of the assigned license term for this instance
    */
   startLicenseDate: string;
   /**
@@ -11773,7 +12289,7 @@ export type InstanceUpdateDeliveredWritable = {
    */
   description: string;
   /**
-   * End date of the license for this instance
+   * UTC exclusive end of the assigned license term for this instance
    */
   endLicenseDate: string;
   /**
@@ -11805,7 +12321,7 @@ export type InstanceUpdateDeliveredWritable = {
    */
   slug?: string;
   /**
-   * Start date of the license for this instance
+   * UTC inclusive start of the assigned license term for this instance
    */
   startLicenseDate: string;
   /**
@@ -17371,6 +17887,53 @@ export type UpdateCustomerIntegrationResponses = {
 
 export type UpdateCustomerIntegrationResponse =
   UpdateCustomerIntegrationResponses[keyof UpdateCustomerIntegrationResponses];
+
+export type GetDashboardSummaryData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * The period the rates and the lists cover
+     */
+    range?: "7d" | "30d" | "90d";
+  };
+  url: "/dashboard/summary";
+};
+
+export type GetDashboardSummaryErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+};
+
+export type GetDashboardSummaryError = GetDashboardSummaryErrors[keyof GetDashboardSummaryErrors];
+
+export type GetDashboardSummaryResponses = {
+  /**
+   * OK
+   */
+  200: DashboardSummary;
+};
+
+export type GetDashboardSummaryResponse =
+  GetDashboardSummaryResponses[keyof GetDashboardSummaryResponses];
 
 export type ListDeploymentZonesData = {
   body?: never;
@@ -24043,98 +24606,6 @@ export type UpdateModelResponses = {
 
 export type UpdateModelResponse = UpdateModelResponses[keyof UpdateModelResponses];
 
-export type EvaluateFlagsBulkData = {
-  /**
-   * EvaluateVariant multiple flags in one request
-   */
-  body?: BulkEvaluationRequest;
-  headers?: {
-    /**
-     * The request will be processed only if ETag doesn't match any of the values listed.
-     */
-    "If-None-Match"?: string;
-  };
-  path?: never;
-  query?: never;
-  url: "/ofrep/v1/evaluate/flags";
-};
-
-export type EvaluateFlagsBulkErrors = {
-  /**
-   * Bad evaluation request
-   */
-  400: BulkEvaluationFailure;
-  /**
-   * Unauthorized - You need credentials to access the API
-   */
-  401: unknown;
-  /**
-   * Forbidden - You are not authorized to access the API
-   */
-  403: unknown;
-  /**
-   * Rate limit reached on the Flag Management System
-   */
-  429: unknown;
-  /**
-   * Internal server error
-   */
-  500: BulkEvaluationFailure;
-};
-
-export type EvaluateFlagsBulkError = EvaluateFlagsBulkErrors[keyof EvaluateFlagsBulkErrors];
-
-export type EvaluateFlagsBulkResponses = {
-  /**
-   * OFREP successful evaluation response
-   */
-  200:
-    | {
-        /**
-         * Array of evaluation results
-         */
-        flags?: Array<EvaluationSuccess | EvaluationFailure>;
-      }
-    | BulkEvaluationFailure;
-};
-
-export type EvaluateFlagsBulkResponse =
-  EvaluateFlagsBulkResponses[keyof EvaluateFlagsBulkResponses];
-
-export type EvaluateFlagData = {
-  /**
-   * Evaluation context
-   */
-  body: EvaluationRequest;
-  path: {
-    key: string;
-  };
-  query?: never;
-  url: "/ofrep/v1/evaluate/flags/{key}";
-};
-
-export type EvaluateFlagErrors = {
-  /**
-   * Evaluation failed
-   */
-  400: EvaluationFailure;
-  /**
-   * Internal error
-   */
-  500: EvaluationFailure;
-};
-
-export type EvaluateFlagError = EvaluateFlagErrors[keyof EvaluateFlagErrors];
-
-export type EvaluateFlagResponses = {
-  /**
-   * Flag evaluated successfully
-   */
-  200: EvaluationSuccess;
-};
-
-export type EvaluateFlagResponse = EvaluateFlagResponses[keyof EvaluateFlagResponses];
-
 export type GetOpenfeatureManifestData = {
   body?: never;
   path?: never;
@@ -26896,6 +27367,64 @@ export type ValidateVoucherResponses = {
 
 export type ValidateVoucherResponse = ValidateVoucherResponses[keyof ValidateVoucherResponses];
 
+export type DeleteVoucherData = {
+  body?: never;
+  path: {
+    /**
+     * Voucher id
+     */
+    voucherId: string;
+  };
+  query?: never;
+  url: "/vouchers/{voucherId}";
+};
+
+export type DeleteVoucherErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type DeleteVoucherError = DeleteVoucherErrors[keyof DeleteVoucherErrors];
+
+export type DeleteVoucherResponses = {
+  /**
+   * No Content
+   */
+  204: void;
+};
+
+export type DeleteVoucherResponse = DeleteVoucherResponses[keyof DeleteVoucherResponses];
+
 export type GetVoucherData = {
   body?: never;
   path: {
@@ -29585,6 +30114,26 @@ export type OnVoucherCreatedWebhookPayload = {
 export type OnVoucherCreatedWebhookRequest = {
   body: OnVoucherCreatedWebhookPayload;
   key: "com.kaiten.voucher.v1.created";
+  path?: never;
+  query?: never;
+};
+
+export type OnVoucherDeletedWebhookPayload = {
+  data: VoucherDeliveredWritable;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "VOUCHER_DELETED";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.voucher.v1.deleted";
+};
+
+export type OnVoucherDeletedWebhookRequest = {
+  body: OnVoucherDeletedWebhookPayload;
+  key: "com.kaiten.voucher.v1.deleted";
   path?: never;
   query?: never;
 };

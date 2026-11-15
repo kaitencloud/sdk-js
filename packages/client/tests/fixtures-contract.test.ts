@@ -1,0 +1,186 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
+import { readFileSync } from "node:fs";
+
+import { describe, expect, test } from "vite-plus/test";
+
+import { contractProblems, responseProblems } from "./support/contract-schema.ts";
+import { ADDON_ONLY_ROW, EFFECTIVE_TOKENS_ROW } from "./support/effective-usage.ts";
+import { QUOTA_EXCEEDED } from "./support/session-answers.ts";
+
+// The recorded answers are what the mapping tests read. They only mean something
+// while they are answers the contract allows, so each is checked against its
+// response schema in `contracts/openapi.yaml`. When the snapshot is synced and a
+// member becomes required, nullable or bounded, this file fails where the
+// fixtures no longer fit, and the fixtures are regenerated from Kaiten as
+// `fixtures/README.md` says.
+
+function fixture<T>(name: string): T {
+  return JSON.parse(readFileSync(new URL(`./fixtures/${name}`, import.meta.url), "utf8")) as T;
+}
+
+describe("the public catalogue fixture", () => {
+  const catalog = fixture<Record<string, unknown>>("public-catalog.acme.json");
+
+  test("is an answer the contract allows", () => {
+    expect(contractProblems("PublicCatalog", catalog)).toEqual([]);
+  });
+
+  test("is refused when it no longer fits, so the check can fail", () => {
+    const { plans: _plans, ...withoutPlans } = catalog;
+    expect(contractProblems("PublicCatalog", withoutPlans)).not.toEqual([]);
+    expect(contractProblems("PublicCatalog", { ...catalog, plans: [{ id: 7 }] })).not.toEqual([]);
+  });
+});
+
+/** The response schema each answer of `session.initech.json` is held to, by its key. */
+function sessionSchema(key: string): string {
+  if (key === "portalSession") return "PortalSession";
+  if (key.startsWith("portal")) return "SessionPortal";
+  if (key.startsWith("invoices")) return "PageSessionInvoice";
+  if (key.startsWith("checkout")) return "SessionCheckout";
+  if (key === "cancel" || key === "reactivate") return "SessionSubscription";
+  if (key === "paymentMethodSession") return "PaymentMethodSession";
+  if (key.startsWith("paymentMethodCompleted")) return "CompletedPaymentMethodSession";
+  if (key.startsWith("redemption")) return "SessionRedemption";
+  if (key.startsWith("voucher")) return "SessionVoucherValidity";
+  if (key.startsWith("addon")) return "SessionAddon";
+  throw new Error(`No response schema is named for the session answer ${key}`);
+}
+
+describe("the customer session fixture", () => {
+  const { errors, ...answers } = fixture<
+    Record<string, unknown> & { errors: Record<string, { status: number; body: unknown }> }
+  >("session.initech.json");
+
+  test.each(Object.keys(answers))("%s is an answer the contract allows", (key) => {
+    expect(contractProblems(sessionSchema(key), answers[key])).toEqual([]);
+  });
+
+  test.each(Object.keys(errors))("the refusal %s is a problem the contract allows", (key) => {
+    expect(contractProblems("Problem", errors[key]!.body)).toEqual([]);
+  });
+
+  test("the quota refusal the tests add is a problem the contract allows", () => {
+    expect(contractProblems("Problem", QUOTA_EXCEEDED.body)).toEqual([]);
+  });
+
+  test("is refused when it no longer fits, so the check can fail", () => {
+    const portal = answers.portal as Record<string, unknown>;
+    const { subscription: _subscription, ...withoutSubscription } = portal;
+    expect(contractProblems("SessionPortal", withoutSubscription)).not.toEqual([]);
+    expect(contractProblems("SessionPortal", { ...portal, unknown: true })).not.toEqual([]);
+    expect(contractProblems("SessionPortal", { ...portal, instances: "none" })).not.toEqual([]);
+  });
+});
+
+describe("the effective usage rows", () => {
+  test.each([
+    ["an entitlement the licence grants, with add-on and boost", EFFECTIVE_TOKENS_ROW],
+    ["an entitlement only an add-on grants", ADDON_ONLY_ROW],
+  ])("%s is an answer the contract allows", (_name, row) => {
+    expect(contractProblems("EntitlementUsage", row)).toEqual([]);
+  });
+
+  test("is refused when it no longer fits, so the check can fail", () => {
+    const { source: _source, ...withoutSource } = EFFECTIVE_TOKENS_ROW;
+    expect(contractProblems("EntitlementUsage", withoutSource)).not.toEqual([]);
+    expect(
+      contractProblems("EntitlementUsage", {
+        ...EFFECTIVE_TOKENS_ROW,
+        limitCapExceededOveragePercent: "50",
+      }),
+    ).not.toEqual([]);
+    expect(
+      contractProblems("EntitlementUsage", {
+        ...EFFECTIVE_TOKENS_ROW,
+        provenance: { ...EFFECTIVE_TOKENS_ROW.provenance, boosts: "none" },
+      }),
+    ).not.toEqual([]);
+  });
+});
+
+describe("the response of an operation", () => {
+  const { errors, ...answers } = fixture<
+    Record<string, unknown> & { errors: Record<string, { status: number; body: unknown }> }
+  >("session.initech.json");
+
+  test("is found by the operation and the status, and the answer is held to it", () => {
+    expect(responseProblems("GET", "/public/session/portal", 200, answers.portal)).toEqual([]);
+    expect(
+      responseProblems("get", "/public/session/invoices", 200, answers.invoicesFirstPage),
+    ).toEqual([]);
+    expect(
+      responseProblems("POST", "/public/session/checkout", 200, answers.checkoutPreview),
+    ).toEqual([]);
+    expect(
+      responseProblems("POST", "/public/session/vouchers/redeem", 201, answers.redemption),
+    ).toEqual([]);
+    for (const key of [
+      "redeemSubscriptionIncomplete",
+      "redeemNoLiveSubscription",
+      "redeemVoucherInvalid",
+      "redeemInstanceRequired",
+      "redeemRateLimited",
+    ]) {
+      const { status, body } = errors[key]!;
+      expect(responseProblems("POST", "/public/session/vouchers/redeem", status, body)).toEqual([]);
+    }
+    expect(
+      responseProblems("POST", "/public/session/checkout", 201, answers.checkoutSubscribed),
+    ).toEqual([]);
+    expect(
+      responseProblems(
+        "POST",
+        "/public/session/checkout",
+        409,
+        errors.checkoutAlreadySubscribed!.body,
+      ),
+    ).toEqual([]);
+  });
+
+  test("reads a parameter of the path, and a status with no body", () => {
+    expect(
+      responseProblems("PUT", "/public/session/addons/extra-seats", 200, answers.addon),
+    ).toEqual([]);
+    expect(
+      responseProblems(
+        "POST",
+        "/customer-sessions/00000000-0000-4000-8000-000000000001/revoke",
+        204,
+        undefined,
+      ),
+    ).toEqual([]);
+    expect(
+      responseProblems(
+        "POST",
+        "/customer-sessions/00000000-0000-4000-8000-000000000001/revoke",
+        204,
+        { a: 1 },
+      ),
+    ).not.toEqual([]);
+  });
+
+  test("is refused when the answer, the status or the operation is not the contract's", () => {
+    const { subscription: _subscription, ...withoutSubscription } = answers.portal as Record<
+      string,
+      unknown
+    >;
+    expect(responseProblems("GET", "/public/session/portal", 200, withoutSubscription)).not.toEqual(
+      [],
+    );
+    expect(responseProblems("GET", "/public/session/portal", 418, answers.portal)).toEqual([
+      "GET /public/session/portal answering 418: the contract declares no such answer",
+    ]);
+    expect(responseProblems("DELETE", "/public/session/portal", 200, answers.portal)).toEqual([
+      "DELETE /public/session/portal answering 200: the contract has no such operation",
+    ]);
+    expect(responseProblems("GET", "/public/nothing", 200, {})).toEqual([
+      "GET /public/nothing answering 200: the contract has no such operation",
+    ]);
+    expect(responseProblems("GET", "/public/session/portal", 200, undefined)).toEqual([
+      "GET /public/session/portal answering 200: the contract declares a body, and none was sent",
+    ]);
+  });
+});

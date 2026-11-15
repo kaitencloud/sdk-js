@@ -1,7 +1,7 @@
 // Copyright 2026 KAITEN INC
 // SPDX-License-Identifier: Apache-2.0
 
-import { KaitenError } from "../core/runtime/errors.ts";
+import { KaitenError, TransactionIdReusedError } from "../core/runtime/errors.ts";
 import type { KaitenApiError } from "../core/runtime/errors.ts";
 
 // Typed refusals of an AI usage report. Each extends `KaitenError`, so a host
@@ -40,18 +40,6 @@ export class UnknownModelError extends KaitenError {
   constructor(error: KaitenError) {
     super(apiErrorOf(error));
     this.name = "UnknownModelError";
-  }
-}
-
-/**
- * A `transactionId` already used for this phase with another body (409
- * `TransactionIdReused`). Never retried: it is a bug in the caller, not a
- * transient failure.
- */
-export class TransactionIdReusedError extends KaitenError {
-  constructor(error: KaitenError) {
-    super(apiErrorOf(error));
-    this.name = "TransactionIdReusedError";
   }
 }
 
@@ -107,7 +95,10 @@ export function toAiError(error: unknown): unknown {
   const reason = reasonOf(error.code);
   if (error.status === 409) {
     if (reason === "ThresholdExceeded") return new InsufficientCreditsError(error);
-    if (reason === "TransactionIdReused") return new TransactionIdReusedError(error);
+    // The core error of the same name, which carries the refused key and the
+    // report it was first accepted with: the AI phases send a `transactionId`
+    // through the same transport, so there is one type for the refusal.
+    if (reason === "TransactionIdReused") return new TransactionIdReusedError(apiErrorOf(error));
     return error;
   }
   if (error.status === 422) {

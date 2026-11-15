@@ -1,0 +1,512 @@
+// Copyright 2026 KAITEN INC
+// SPDX-License-Identifier: Apache-2.0
+
+import * as React from "react";
+
+import {
+  useCredits,
+  useLicense,
+  useLicensingSnapshot,
+  usePlans,
+  emitKaitenEvent,
+  resolveLicensePrice,
+  useLocalization,
+  DEFAULT_CURRENCY_CODE,
+  type LicenseType,
+} from "@kaitencloud/react";
+import { useIcons } from "../../../appearance/icons.tsx";
+import { useMergedAppearance } from "../../../appearance/context.tsx";
+import { cn } from "../../../lib/utils.ts";
+import { useAssertWrappedByKaitenProvider } from "../../../style-root/kaiten-style-root.tsx";
+import { kaitenPriceParts, useTrackComponent } from "@kaitencloud/react/internal";
+import { Card, CardContent, CardHeader, CardTitle } from "../../ui/card.tsx";
+import { Badge } from "../../ui/badge.tsx";
+import { Button } from "../../ui/button.tsx";
+import { Skeleton } from "../../ui/skeleton.tsx";
+import { KaitenBranding } from "../../shared/kaiten-branding.tsx";
+import { SectionError } from "../../shared/section-error.tsx";
+import { usePortalBillingWords, useSubscriptionWords } from "../../shared/billing-words.ts";
+import { billingTimingText } from "../../shared/grant-description.ts";
+import { PendingPayment } from "../../shared/pending-payment.tsx";
+import {
+  describeSubscription,
+  useSubscriptionState,
+  type StatusTone,
+} from "../../shared/subscription-state.ts";
+import type { KaitenAppearance } from "../../../appearance/types.ts";
+import { useAddOnsPanel } from "./addons-panel-state.ts";
+import { ManageAddOns } from "./manage-addons.tsx";
+import { useSessionAddOns } from "./session-addon-rows.ts";
+import { SubscriptionControls } from "./subscription-controls.tsx";
+
+function licenseTypeBadgeVariant(
+  type: LicenseType,
+): "default" | "secondary" | "success" | "outline" {
+  switch (type) {
+    case "PAID":
+      return "default";
+    case "TRIAL":
+      return "secondary";
+    case "COMMUNITY":
+      return "success";
+    case "DEVELOPMENT":
+      return "outline";
+  }
+
+  return "outline";
+}
+
+const STATUS_VARIANT: Record<
+  StatusTone,
+  "default" | "secondary" | "destructive" | "success" | "outline"
+> = {
+  neutral: "secondary",
+  warning: "destructive",
+  success: "success",
+};
+
+export interface CurrentPlanProps {
+  appearance?: KaitenAppearance;
+  unstyled?: boolean;
+  /**
+   * Under `mode="customer-session"`, adds the controls to cancel the subscription at the end of its
+   * period and to withdraw that cancellation, as the portal allows them, and the button that opens
+   * the add-ons panel when the instance holds an add-on or is offered one. Off unless asked for:
+   * `CustomerPortal` asks. A plan card on a page of the host's own does not change anything.
+   */
+  manage?: boolean;
+  onUpgradeVersion?: () => void | Promise<void>;
+  onAddQuota?: () => void | Promise<void>;
+  onAddAddOn?: () => void | Promise<void>;
+}
+
+async function runAction(
+  callback: (() => void | Promise<void>) | undefined,
+  eventName: "kaiten:plan-changed" | "kaiten:quota-added" | "kaiten:addon-added",
+  detail: Record<string, unknown> = {},
+): Promise<void> {
+  await callback?.();
+  // Carry the context the SDK actually has at click time. `plan-changed`
+  // gets the current plan; `quota-added`/`addon-added` are intent events — the
+  // specific credit/add-on is only known to the host's callback, which can emit
+  // a richer follow-up event after it completes the change.
+  emitKaitenEvent(eventName, detail);
+}
+
+// Memoized: guards against host-driven re-renders with unchanged props.
+export const CurrentPlan = /* @__PURE__ */ React.memo(CurrentPlanImpl);
+
+function CurrentPlanImpl({
+  appearance,
+  unstyled = false,
+  manage = false,
+  onUpgradeVersion,
+  onAddQuota,
+  onAddAddOn,
+}: CurrentPlanProps) {
+  useAssertWrappedByKaitenProvider("CurrentPlan");
+  useTrackComponent("CurrentPlan");
+
+  const merged = useMergedAppearance(appearance);
+  const license = useLicense();
+  const snapshot = useLicensingSnapshot();
+  const { isLoading, error, refetch } = license;
+  const credits = useCredits();
+  const plans = usePlans();
+  const icons = useIcons();
+  const localization = useLocalization();
+  const subscriptionWords = useSubscriptionWords();
+  const billingWords = usePortalBillingWords();
+  const subscriptionState = useSubscriptionState();
+
+  // What there is to say about the plan. A customer's licence says it all: version,
+  // type, renewal. A customer session has no licence, only what its portal names: the
+  // plan, and the subscription, whose period is when it renews, and whose price is what
+  // is paid for it. Nothing here is made up for the lack of one.
+  const subscription = snapshot.data?.subscription ?? null;
+  const plan = React.useMemo(() => {
+    if (license.data) {
+      return {
+        slug: license.data.slug,
+        name: license.data.name,
+        version: license.data.versionName ?? license.data.version,
+        type: license.data.type,
+        renewalDate: license.data.renewalDate,
+      };
+    }
+    const named = snapshot.data?.currentPlan;
+    if (!named) return null;
+    return {
+      slug: named.slug,
+      name: named.name,
+      version: undefined,
+      type: undefined,
+      renewalDate: undefined,
+    };
+  }, [license.data, snapshot.data?.currentPlan]);
+
+  // What the portal says of the subscription, in a customer session: its status, when it renews or
+  // ends, a plan change that is scheduled. A licence says its own renewal; nothing here reads it.
+  const described = React.useMemo(
+    () =>
+      license.data || !subscriptionState
+        ? null
+        : describeSubscription(subscriptionState, subscriptionWords, localization),
+    [license.data, subscriptionState, subscriptionWords, localization],
+  );
+  const renewal = plan?.renewalDate ? localization.currentPlan.renewsOn(plan.renewalDate) : null;
+  const detail = described ? described.detail : renewal;
+
+  // The portal shows what the customer holds, and until now that never included
+  // what they pay for it: the price lives on `Plan`, the section reads
+  // `License`, and nothing joined them. Both are in the same snapshot, so the
+  // join costs no request. A customer session has the subscription's own base price.
+  //
+  // `null` is the answer when the licence has no matching plan price, or when no
+  // subscription is live, and it renders nothing at all. Not a "0.00", not a
+  // placeholder: an invented amount on a billing screen is worse than an absent line.
+  // A subscription that waits for its first payment has the price of the plan it bought, and
+  // the plan named here is still the one the instance had: the two are not put side by side.
+  const price = React.useMemo(() => {
+    if (!license.data) {
+      return subscription &&
+        subscription.status !== "CANCELED" &&
+        subscription.status !== "INCOMPLETE"
+        ? subscription.basePrice
+        : null;
+    }
+    return resolveLicensePrice(license.data, plans.data);
+  }, [license.data, plans.data, subscription]);
+  const priceParts = price
+    ? kaitenPriceParts(price, localization, { currencyCode: DEFAULT_CURRENCY_CODE })
+    : null;
+  const formattedPrice = priceParts
+    ? `${priceParts.amount}${priceParts.suffix ? `${priceParts.attached ? "" : " "}${priceParts.suffix}` : ""}`
+    : null;
+
+  if (isLoading) {
+    return (
+      <Card className={cn(merged.elements?.card)}>
+        <CardHeader className={cn(merged.elements?.cardHeader)}>
+          <Skeleton className="h-5 w-32" />
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col gap-2">
+            <Skeleton className="h-4 w-48" />
+            <Skeleton className="h-4 w-36" />
+          </div>
+        </CardContent>
+        <KaitenBranding className="-mb-6" />
+      </Card>
+    );
+  }
+
+  if (error && !plan) {
+    return <SectionError onRetry={refetch} appearance={merged} unstyled={unstyled} />;
+  }
+  if (!plan) return null;
+
+  const ShieldIcon = icons.shield;
+  const actions: PlanActionsProps = {
+    plan,
+    unstyled,
+    rowClassName: merged.elements?.actionRow,
+    onUpgradeVersion,
+    onAddQuota,
+    onAddAddOn,
+    upgradeLabel: subscriptionState?.capabilities.checkout
+      ? subscriptionWords.subscribe
+      : undefined,
+  };
+
+  if (unstyled) {
+    return (
+      <section data-slot="current-plan" className="ktn-own">
+        <h3>{localization.currentPlan.title}</h3>
+        <p>{plan.name}</p>
+        {plan.version ? <p>{plan.version}</p> : null}
+        {plan.type ? <p>{plan.type}</p> : null}
+        {described?.status ? (
+          <p data-slot="current-plan-status" className="ktn-own">
+            {described.status.label}
+          </p>
+        ) : null}
+        {formattedPrice ? (
+          <p data-slot="current-plan-price" className="ktn-own">
+            {formattedPrice}
+          </p>
+        ) : null}
+        {detail ? <p>{detail}</p> : null}
+        {billingTimingText(price, billingWords) ? (
+          <p data-slot="current-plan-billing-timing" className="ktn-own">
+            {billingTimingText(price, billingWords)}
+          </p>
+        ) : null}
+        {described?.change ? <p>{described.change}</p> : null}
+        {described?.notice ? <p role="status">{described.notice}</p> : null}
+        {subscriptionState?.kind === "incomplete" && subscriptionState.capabilities.invoices ? (
+          <PendingPayment unstyled since={subscription!.currentPeriodStart} />
+        ) : null}
+        {credits.data?.length ? (
+          <ul>
+            {credits.data.map((credit) => (
+              <li key={credit.slug}>
+                {credit.name}: {credit.available} {credit.unit}
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        {/* The same actions as the styled rendering below, by the same rule: the two
+            branches are one component to a consumer, so a guard that holds in only one
+            of them is not a guard. */}
+        {manage ? <ManagedPlanActions {...actions} /> : <PlanActions {...actions} />}
+        {manage && subscriptionState ? (
+          <SubscriptionControls state={subscriptionState} unstyled />
+        ) : null}
+      </section>
+    );
+  }
+
+  return (
+    <Card className={cn(merged.elements?.card)}>
+      <CardHeader className={cn(merged.elements?.cardHeader)}>
+        <CardTitle className={cn("flex items-center gap-2", merged.elements?.cardTitle)}>
+          <ShieldIcon className="size-4 text-ktn-primary" />
+          {localization.currentPlan.title}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className={cn("flex flex-col gap-4", merged.elements?.cardContent)}>
+        <div className="flex items-start justify-between gap-3">
+          <div className="space-y-1">
+            <p className="text-base font-semibold">{plan.name}</p>
+            {plan.version ? (
+              <p className="text-sm text-ktn-muted-foreground">{plan.version}</p>
+            ) : null}
+            {priceParts ? (
+              <p data-slot="current-plan-price" className="ktn-own text-sm font-medium">
+                {priceParts.amount}
+                {priceParts.suffix ? (
+                  <span className="font-normal text-ktn-muted-foreground">
+                    {priceParts.attached ? "" : " "}
+                    {priceParts.suffix}
+                  </span>
+                ) : null}
+              </p>
+            ) : null}
+            {detail ? <p className="text-xs text-ktn-muted-foreground">{detail}</p> : null}
+            {described?.change ? (
+              <p className="text-xs text-ktn-muted-foreground">{described.change}</p>
+            ) : null}
+          </div>
+          {plan.type ? (
+            <Badge variant={licenseTypeBadgeVariant(plan.type)}>{plan.type}</Badge>
+          ) : described?.status ? (
+            <Badge
+              data-slot="current-plan-status"
+              className="ktn-own"
+              variant={STATUS_VARIANT[described.status.tone]}
+            >
+              {described.status.label}
+            </Badge>
+          ) : null}
+        </div>
+
+        {described?.notice ? (
+          <p
+            role="status"
+            className="rounded-ktn-lg border border-ktn-border bg-ktn-secondary/40 p-3 text-sm"
+          >
+            {described.notice}
+          </p>
+        ) : null}
+        {billingTimingText(price, billingWords) ? (
+          <p
+            data-slot="current-plan-billing-timing"
+            className="ktn-own text-xs text-ktn-muted-foreground"
+          >
+            {billingTimingText(price, billingWords)}
+          </p>
+        ) : null}
+        {subscriptionState?.kind === "incomplete" && subscriptionState.capabilities.invoices ? (
+          <PendingPayment unstyled={false} since={subscription!.currentPeriodStart} />
+        ) : null}
+
+        {credits.data?.length ? (
+          <div className="rounded-ktn-lg border border-ktn-border bg-ktn-secondary/40 p-3">
+            <p className="mb-2 text-sm font-medium">{localization.currentPlan.credits}</p>
+            <div className="grid gap-2">
+              {credits.data.map((credit) => (
+                <div key={credit.slug} className="flex items-center justify-between gap-3 text-sm">
+                  <span>{credit.name}</span>
+                  <span className="font-mono text-ktn-muted-foreground">
+                    {credit.available.toLocaleString()} {credit.unit}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        {manage ? <ManagedPlanActions {...actions} /> : <PlanActions {...actions} />}
+
+        {manage && subscriptionState ? (
+          <SubscriptionControls state={subscriptionState} unstyled={false} />
+        ) : null}
+      </CardContent>
+      <KaitenBranding className="-mb-6" />
+    </Card>
+  );
+}
+
+export function LicenseSection(props: CurrentPlanProps) {
+  return <CurrentPlan {...props} />;
+}
+
+interface PlanActionsProps {
+  plan: { slug: string; name: string };
+  unstyled: boolean;
+  /** The appearance's class of the row of actions, styled. */
+  rowClassName?: string;
+  onUpgradeVersion?: () => void | Promise<void>;
+  onAddQuota?: () => void | Promise<void>;
+  onAddAddOn?: () => void | Promise<void>;
+  /** The way into the add-ons panel, beside the host's actions. */
+  addOns?: React.ReactNode;
+  upgradeLabel?: string;
+}
+
+/**
+ * The plan's row of actions. Each renders only when the host gave it a handler — same rule as
+ * `Paywall`, which shows its CTA only when `onUpgrade` exists. Rendering them unconditionally meant
+ * a host that passed no callbacks (the common case while billing is still being built) shipped
+ * three buttons that flicker `aria-busy` and do nothing. A component sold to third parties must not
+ * be able to display a dead CTA. The button of the add-ons panel is the SDK's own, offered by the
+ * portal of a customer session, and sits in the same row. With none of them, there is no row.
+ */
+function PlanActions({
+  plan,
+  unstyled,
+  rowClassName,
+  onUpgradeVersion,
+  onAddQuota,
+  onAddAddOn,
+  addOns,
+  upgradeLabel,
+}: PlanActionsProps) {
+  const localization = useLocalization();
+  const [pendingAction, setPendingAction] = React.useState<"upgrade" | "quota" | "addon" | null>(
+    null,
+  );
+
+  const trigger = React.useCallback(
+    async (
+      key: "upgrade" | "quota" | "addon",
+      callback: (() => void | Promise<void>) | undefined,
+      eventName: "kaiten:plan-changed" | "kaiten:quota-added" | "kaiten:addon-added",
+    ) => {
+      setPendingAction(key);
+      try {
+        const detail =
+          eventName === "kaiten:plan-changed" ? { planId: plan.slug, planName: plan.name } : {};
+        await runAction(callback, eventName, detail);
+      } finally {
+        setPendingAction(null);
+      }
+    },
+    [plan.slug, plan.name],
+  );
+
+  if (!(onUpgradeVersion || onAddQuota || onAddAddOn || addOns)) return null;
+
+  if (unstyled) {
+    return (
+      <div>
+        {onUpgradeVersion && (
+          <button
+            type="button"
+            onClick={() =>
+              void runAction(onUpgradeVersion, "kaiten:plan-changed", {
+                planId: plan.slug,
+                planName: plan.name,
+              })
+            }
+          >
+            {upgradeLabel ?? localization.currentPlan.upgradeVersion}
+          </button>
+        )}
+        {onAddQuota && (
+          <button type="button" onClick={() => void runAction(onAddQuota, "kaiten:quota-added")}>
+            {localization.currentPlan.addQuota}
+          </button>
+        )}
+        {onAddAddOn && (
+          <button type="button" onClick={() => void runAction(onAddAddOn, "kaiten:addon-added")}>
+            {localization.currentPlan.addAddOns}
+          </button>
+        )}
+        {addOns}
+      </div>
+    );
+  }
+
+  return (
+    <div className={cn("flex flex-wrap gap-2", rowClassName)}>
+      {onUpgradeVersion && (
+        <Button
+          size="sm"
+          disabled={pendingAction === "upgrade"}
+          aria-busy={pendingAction === "upgrade"}
+          onClick={() => void trigger("upgrade", onUpgradeVersion, "kaiten:plan-changed")}
+        >
+          {upgradeLabel ?? localization.currentPlan.upgradeVersion}
+        </Button>
+      )}
+      {onAddQuota && (
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={pendingAction === "quota"}
+          aria-busy={pendingAction === "quota"}
+          onClick={() => void trigger("quota", onAddQuota, "kaiten:quota-added")}
+        >
+          {localization.currentPlan.addQuota}
+        </Button>
+      )}
+      {onAddAddOn && (
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={pendingAction === "addon"}
+          aria-busy={pendingAction === "addon"}
+          onClick={() => void trigger("addon", onAddAddOn, "kaiten:addon-added")}
+        >
+          {localization.currentPlan.addAddOns}
+        </Button>
+      )}
+      {addOns}
+    </div>
+  );
+}
+
+/**
+ * The plan's actions in a portal that manages the subscription: the host's, and the way into the
+ * add-ons panel when there is something in it, or while its panel or its sentence is on screen.
+ * The add-ons are read here and only here, so that a plan card that manages nothing reads none.
+ */
+function ManagedPlanActions(props: PlanActionsProps) {
+  const addOns = useSessionAddOns();
+  const panel = useAddOnsPanel();
+  // A subscription that waits for its first payment opens no panel, and the plan above already
+  // says that it starts once the payment is confirmed: the add-ons card says the rest.
+  const waiting = addOns.live?.status === "INCOMPLETE";
+  return (
+    <PlanActions
+      {...props}
+      addOns={
+        !waiting && (addOns.rows.length > 0 || panel.active) ? (
+          <ManageAddOns addOns={addOns} panel={panel} unstyled={props.unstyled} inRow />
+        ) : null
+      }
+    />
+  );
+}

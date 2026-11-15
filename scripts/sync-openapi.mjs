@@ -22,7 +22,9 @@ const snapshotPath = resolve(repoRoot, "contracts/openapi.yaml");
 // $KAITEN_OPENAPI, when set, points at an ALREADY-FETCHED spec and this
 // script copies it instead of reaching for the registry itself. Same contract as
 // check-openapi-drift.mjs, deliberately: the two scripts consume the same input
-// and should be driven the same way.
+// and should be driven the same way. Run it with `node scripts/sync-openapi.mjs` or
+// `pnpm run sync-openapi` then: `vp run` hides the shell's variables from a script,
+// ignores the variable and overwrites the snapshot with the published contract.
 const prefetched = process.env.KAITEN_OPENAPI || "";
 const sourceLabel = prefetched ? prefetched : "@kaitencloud/openapi@latest";
 

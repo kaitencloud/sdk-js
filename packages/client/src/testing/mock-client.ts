@@ -3,14 +3,12 @@
 
 import type { KaitenClientLike } from "../client/client.ts";
 import type {
-  BulkEvaluationResponse,
   EntitlementUsage,
-  EvaluationSuccess,
   KaitenCatalog,
   LicensingSnapshot,
   ReportUsageInput,
+  ReportUsageResult,
   ResolvedEntitlement,
-  ResolvedFeatureFlag,
 } from "../client/types.ts";
 import { demoCatalog, demoSnapshot } from "./fixtures.ts";
 
@@ -46,16 +44,6 @@ export interface MockKaitenClient extends KaitenClientLike {
     entitlementSlug: string;
     input: ReportUsageInput;
   }[];
-}
-
-function flagToEvaluation(flag: ResolvedFeatureFlag): EvaluationSuccess {
-  return {
-    key: flag.key,
-    value: flag.value,
-    variant: flag.variant,
-    reason: flag.reason,
-    metadata: flag.metadata,
-  } as EvaluationSuccess;
 }
 
 // Re-derives the fields the snapshot normalizer computes, so a reported usage
@@ -145,6 +133,8 @@ export function createMockKaitenClient(options: MockKaitenClientOptions = {}): M
       catalog = next;
     },
 
+    // The catalog it holds, whatever options a caller narrows the read with: set
+    // the catalog a scenario needs with `setCatalog`.
     async getCatalog(): Promise<KaitenCatalog> {
       await settle();
       return catalog;
@@ -155,26 +145,11 @@ export function createMockKaitenClient(options: MockKaitenClientOptions = {}): M
       return snapshot;
     },
 
-    async evaluateFlag(key: string): Promise<EvaluationSuccess> {
-      await settle();
-      const flag = snapshot.flags.find((candidate) => candidate.key === key);
-      // Unknown flags evaluate to the off default rather than throwing — the
-      // same fail-closed answer OFREP gives for a flag the org never defined.
-      return flag
-        ? flagToEvaluation(flag)
-        : ({ key, value: false, reason: "DEFAULT" } as EvaluationSuccess);
-    },
-
-    async evaluateFlags(): Promise<BulkEvaluationResponse> {
-      await settle();
-      return { flags: snapshot.flags.map(flagToEvaluation) };
-    },
-
     async reportUsage(
       instanceSlug: string,
       entitlementSlug: string,
       input: ReportUsageInput,
-    ): Promise<EntitlementUsage> {
+    ): Promise<ReportUsageResult> {
       await settle();
       usageReports.push({ instanceSlug, entitlementSlug, input });
       options.onReportUsage?.(instanceSlug, entitlementSlug, input);
@@ -196,15 +171,23 @@ export function createMockKaitenClient(options: MockKaitenClientOptions = {}): M
       // boundary, and this fake does not simulate it — it has no clock and no
       // reset period to roll against. So: same window in, same window out.
       //
+      // The row carries no `source`, `provenance` or overage percent, which the
+      // type allows: a server that predates them sends none. It echoes the key
+      // the way a current server does, `transactionId` being the report's
+      // `transactionId` or `null` without one, but it does not remember keys: it
+      // never answers a replay or refuses a reused key, and counts every report
+      // it is given. A test of those builds the row, or the error.
+      //
       // `entitlementId` is the normalizer's composite `licenseSlug:slug`, not the
       // entitlement UUID the API returns. Anything asserting on that field
       // against this fake is asserting on the fake.
-      const usage: EntitlementUsage = {
+      const usage: ReportUsageResult = {
         entitlementId: updated?.id ?? entitlementSlug,
         entitlementSlug,
         licenseId: snapshot.license?.id ?? "",
         licenseSlug: snapshot.license?.slug ?? "",
         value: (updated?.currentValue ?? input.value) as EntitlementUsage["value"],
+        transactionId: input.transactionId ?? null,
         ...(updated?.currentPeriodStart ? { currentPeriodStart: updated.currentPeriodStart } : {}),
         ...(updated?.currentPeriodEnd ? { currentPeriodEnd: updated.currentPeriodEnd } : {}),
       };
