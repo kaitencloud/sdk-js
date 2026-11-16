@@ -53,6 +53,18 @@ describe("the shipped GraphQL operations", () => {
       expect(source).toContain(field);
     }
   });
+
+  // What makes the primary path as exact as its REST fallback: the layer that
+  // grants each entitlement, how the layers add up, and the allowance of the
+  // instance's limit rather than of the licence's grant. Pinned on the usage
+  // selection itself, since the licence grants select a percent of their own.
+  test("LicensingSnapshot selects the effective members of each usage row", () => {
+    const source = LICENSING_SNAPSHOT_QUERY.toString();
+    const usage = source.slice(source.indexOf("entitlementUsage"));
+    for (const field of ["source", "provenance", "limitCapExceededOveragePercent"]) {
+      expect(usage).toMatch(new RegExp(`\\b${field}\\b`));
+    }
+  });
 });
 
 describe("the conformance guard itself", () => {

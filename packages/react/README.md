@@ -26,7 +26,7 @@ Minimum Kaiten version for the billing features: **the first Kaiten release with
 `/public/session/*` routes) need it. A server without billing answers them with an error,
 which a hook returns in `error`. `mode="static"` renders a catalogue the host already holds and
 makes no request, and `mode="authenticated"` reads what the client composes from the licences
-endpoints, so neither asks the server for more than it serves today. What the client asks of
+endpoints, so neither needs more than the server serves today. What the client asks of
 the server is in [its README](../client/README.md#kaiten-version).
 
 ## Package status
@@ -925,7 +925,10 @@ window.addEventListener("kaiten:plan-changed", (event) => {
 
 In `authenticated` mode, components consume the licensing snapshot and plan catalog
 composed by `@kaitencloud/client` — GraphQL-first against the platform's `/graphql`
-aggregate, with a REST fan-out fallback for older APIs. Neither path evaluates flags. There are no dedicated `/api/components/*` endpoints.
+aggregate, with a REST fan-out fallback for older APIs, and for a Kaiten release that
+predates billing, whose schema lacks the usage members the snapshot reads. Either way the
+snapshot holds every entitlement the instance has, an add-on's or an exception's included,
+so `Show`, `Gate` and `Paywall` open on a feature bought as an add-on. Neither path evaluates flags. There are no dedicated `/api/components/*` endpoints.
 
 With Kaiten billing, `public` and `customer-session` modes read the public routes
 billing adds instead, and nothing else: `/public/catalog` with a publishable key,

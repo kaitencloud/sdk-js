@@ -25,13 +25,15 @@ import { graphql } from "./generated/gql.ts";
  * read means "lifetime counter" and never "nobody asked". Dropping them is what
  * forced the snapshot to mark every window unknown.
  *
- * It does not select `source`, `provenance` or `limitCapExceededOveragePercent`,
- * the effective members the REST usage reads carry on a current server.
- * `contracts/schema.graphql` declares them since kaiten's billing schema, but a
- * server released before that schema does not serve them, and a query that
- * names a field the server does not know fails whole, which sends the snapshot
- * to its REST fallback. They are selected once a released server serves them;
- * until then this path measures against the grant's overage percent.
+ * It also selects the effective members the REST usage read carries: `source`,
+ * the layer that grants the entitlement (the licence, an add-on, or only the
+ * instance's exception), `provenance`, how the layers add up, and
+ * `limitCapExceededOveragePercent`, the allowance of the instance's limit
+ * rather than of the licence's grant. One row per entitlement the instance has,
+ * so an entitlement an add-on grants on its own reaches the snapshot too. Every
+ * Kaiten release with billing serves them, from 26.10.7. An older one does not,
+ * and a query that names a field the server does not know fails whole: against
+ * it the snapshot is composed over REST, as against a server with no GraphQL.
  *
  * `licenses` is cursor-paginated (`LicensePage`), so the page size is pinned to
  * the server's `MaxLimit` (200 — see internal/shared/pagination) and both
@@ -135,6 +137,9 @@ export const LICENSING_SNAPSHOT_QUERY = graphql(`
           licenseSlug
           value
           limit
+          limitCapExceededOveragePercent
+          source
+          provenance
           currentPeriodStart
           currentPeriodEnd
         }

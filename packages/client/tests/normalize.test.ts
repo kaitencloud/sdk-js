@@ -10,11 +10,14 @@ import {
 } from "../src/client/normalize.ts";
 import { resolveUsageScope } from "../src/domain/entitlement-usage.ts";
 import type {
+  EntitlementProvenance,
   EntitlementType,
+  EntitlementUsage,
   Instance,
   License,
   LicenseEntitlement,
   LicenseEntitlementRow,
+  ResolvedEntitlement,
 } from "../src/client/types.ts";
 
 // Minimal LicenseEntitlement fixture — only the fields the normalizers read.
@@ -576,6 +579,231 @@ describe("effective limits", () => {
       currentValue: null,
       usageUnavailable: true,
     });
+  });
+});
+
+// The usage read answers one row per entitlement the instance has: the licence's
+// grants, and what an attached add-on or the instance's exception grants on its
+// own. Walking the licence's grants alone left those out, and with them every
+// gate on a feature bought as an add-on.
+describe("the instance's effective set", () => {
+  const usageRow = (over: Record<string, unknown>) =>
+    ({
+      entitlementId: "ent-x",
+      licenseId: "lic-1",
+      licenseSlug: "growth",
+      ...over,
+    }) as unknown as EntitlementUsage;
+
+  const customers = usageRow({
+    entitlementSlug: "customers",
+    value: { type: "number", value: 6 },
+    limit: { type: "number", value: 120 },
+    limitCapExceededOveragePercent: 0,
+    source: "license",
+  });
+
+  const ssoProvenance: EntitlementProvenance = {
+    license: null,
+    addons: [
+      {
+        instanceAddonId: "ia-1",
+        addonId: "addon-sso",
+        addonEntitlementId: "ae-1",
+        quantity: 1,
+        overrideBehavior: "OVERRIDE",
+        value: { type: "boolean", value: true },
+        limitCapExceededOveragePercent: null,
+        attachedAt: "2026-02-01T00:00:00Z",
+      },
+    ],
+    boosts: [],
+    exception: null,
+    number: null,
+  };
+
+  const sso = usageRow({
+    entitlementSlug: "sso",
+    value: { type: "boolean", value: true },
+    limit: { type: "boolean", value: true },
+    source: "addon",
+    provenance: ssoProvenance,
+  });
+
+  const exports = usageRow({
+    entitlementSlug: "exports",
+    value: { type: "number", value: 2 },
+    limit: { type: "number", value: 5 },
+    limitCapExceededOveragePercent: 0,
+    source: "exception",
+  });
+
+  const bySlug = (entitlements: ResolvedEntitlement[]) =>
+    new Map(entitlements.map((entitlement) => [entitlement.slug, entitlement]));
+
+  test("an entitlement only an add-on grants is in it", () => {
+    const resolved = normalizeResolvedEntitlements([licenseEntitlement({})], [customers, sso]);
+
+    expect(resolved.map((entitlement) => entitlement.slug).sort()).toEqual(["customers", "sso"]);
+    expect(bySlug(resolved).get("sso")).toMatchObject({
+      id: "growth:sso",
+      slug: "sso",
+      // Nothing names it but its slug: the instance's licence does not grant it.
+      name: "sso",
+      type: "BOOLEAN",
+      limitValue: { type: "boolean", value: true },
+      currentValue: { type: "boolean", value: true },
+      percentageUsed: 100,
+      status: "enabled",
+      source: "addon",
+      effectiveSource: "addon",
+      provenance: ssoProvenance,
+    });
+  });
+
+  test("an entitlement only an exception grants is in it, with its layer", () => {
+    const resolved = normalizeResolvedEntitlements([licenseEntitlement({})], [customers, exports]);
+
+    expect(bySlug(resolved).get("exports")).toMatchObject({
+      id: "growth:exports",
+      name: "exports",
+      type: "NUMBER",
+      limitValue: { type: "number", value: 5 },
+      currentValue: { type: "number", value: 2 },
+      unlimited: false,
+      limitCapExceededOveragePercent: 0,
+      maximumAllowedUsage: 5,
+      remaining: 3,
+      status: "enabled",
+      // The 1.0 union has no `exception`: it reads as `license` there, as on the portal.
+      source: "license",
+      effectiveSource: "exception",
+    });
+  });
+
+  test("the layer is read from the row, not written", () => {
+    const raised = usageRow({
+      entitlementSlug: "customers",
+      value: { type: "number", value: 6 },
+      limit: { type: "number", value: 240 },
+      source: "license",
+      provenance: { ...ssoProvenance, license: null },
+    });
+    const [granted] = normalizeResolvedEntitlements([licenseEntitlement({})], [raised]);
+
+    expect(granted).toMatchObject({
+      source: "license",
+      effectiveSource: "license",
+      limitValue: { type: "number", value: 240 },
+      provenance: { ...ssoProvenance, license: null },
+    });
+  });
+
+  // The name, type and presentation of an entitlement belong to its definition,
+  // which any licence that grants it carries. Its value does not: that is the row's.
+  test("an entitlement the licence does not grant takes its definition from another licence", () => {
+    const enterpriseSso = {
+      ...licenseEntitlement({
+        licenseSlug: "enterprise",
+        entitlementSlug: "sso",
+        entitlementName: "Single sign-on",
+        entitlementType: "BOOLEAN",
+        value: { type: "boolean", value: false },
+      }),
+      entitlement: {
+        slug: "sso",
+        name: "Single sign-on",
+        icon: "key",
+        displayOrder: 3,
+        entitlementGroups: [{ id: "g-1", slug: "security", name: "Security" }],
+      },
+    } as unknown as LicenseEntitlementRow;
+
+    const resolved = normalizeResolvedEntitlements([licenseEntitlement({})], [customers, sso], {
+      definitions: [enterpriseSso],
+    });
+
+    expect(bySlug(resolved).get("sso")).toMatchObject({
+      id: "growth:sso",
+      name: "Single sign-on",
+      type: "BOOLEAN",
+      icon: "key",
+      displayOrder: 3,
+      category: "Security",
+      tags: ["security"],
+      limitValue: { type: "boolean", value: true },
+      status: "enabled",
+    });
+    // Sorted by the borrowed display order, ahead of the unordered grant.
+    expect(resolved.map((entitlement) => entitlement.slug)).toEqual(["sso", "customers"]);
+  });
+
+  // A server before the effective read answered one row per licence grant, and
+  // nothing else. A row that does not say which layer grants it adds nothing,
+  // which is also what keeps a hand-built fixture reading as it always has.
+  test("a row that does not name its layer adds nothing", () => {
+    const { source: _source, ...unmarked } = sso as EntitlementUsage & { source?: unknown };
+    const resolved = normalizeResolvedEntitlements(
+      [licenseEntitlement({})],
+      [customers, unmarked as EntitlementUsage],
+    );
+
+    expect(resolved.map((entitlement) => entitlement.slug)).toEqual(["customers"]);
+  });
+
+  test("a row that says nothing of the value adds nothing", () => {
+    const valueless = usageRow({
+      entitlementSlug: "tokens",
+      value: { type: "number", value: 0 },
+      source: "addon",
+    });
+    const resolved = normalizeResolvedEntitlements(
+      [licenseEntitlement({})],
+      [customers, valueless],
+    );
+
+    expect(resolved.map((entitlement) => entitlement.slug)).toEqual(["customers"]);
+  });
+
+  // An unlimited add-on pool: the row's own sentinel, nothing to borrow from.
+  test("an add-on's unlimited value is uncapped", () => {
+    const pool = usageRow({
+      entitlementSlug: "tokens",
+      value: { type: "number", value: 900 },
+      limit: { type: "number", value: -1 },
+      limitCapExceededOveragePercent: -1,
+      source: "addon",
+    });
+    const [tokens] = normalizeResolvedEntitlements([], [pool]);
+
+    expect(tokens).toMatchObject({
+      unlimited: true,
+      maximumAllowedUsage: null,
+      remaining: null,
+      status: "enabled",
+    });
+  });
+
+  // A licence grant the read did not return keeps reading as nothing consumed:
+  // `normalizeResolvedEntitlements([...grants], [])` is how a host builds a
+  // fixture, and what a stale catalog against a fresh read looks like.
+  test("a licence grant without a row stays, with nothing consumed", () => {
+    const resolved = normalizeResolvedEntitlements([licenseEntitlement({})], [sso]);
+
+    expect(bySlug(resolved).get("customers")).toMatchObject({
+      currentValue: { type: "number", value: 0 },
+      source: "license",
+    });
+    expect(bySlug(resolved).get("customers")?.effectiveSource).toBeUndefined();
+  });
+
+  test("a failed usage read leaves the licence's grants alone", () => {
+    const resolved = normalizeResolvedEntitlements([licenseEntitlement({})], null, {
+      usageUnavailable: true,
+    });
+
+    expect(resolved.map((entitlement) => entitlement.slug)).toEqual(["customers"]);
+    expect(resolved[0]?.effectiveSource).toBeUndefined();
   });
 });
 

@@ -142,10 +142,17 @@ release that ships them, on the terms above. What that fixes:
 
 ## The public portal's effective layers
 
-The 1.0 closed `ResolvedEntitlement.source` union stays closed. A portal's actual source is
+The 1.0 closed `ResolvedEntitlement.source` union stays closed. The actual source is
 `effectiveSource`, an optional open union (`license`, `addon`, `exception` today), copied without
-a fallback. The legacy `source` still maps a layer it cannot represent to `license`; components
-use `effectiveSource ?? source` for a truthful provenance label.
+a fallback from a portal entitlement, and from the usage row of a snapshot's. The legacy `source`
+still maps a layer it cannot represent to `license`; components use `effectiveSource ?? source`
+for a truthful provenance label.
+
+A snapshot's entitlements are the instance's effective set: every row its usage read answers with
+a layer, including an entitlement an add-on or the exception grants alone, and every licence grant.
+Such an entitlement's id is `licenseSlug:slug` of the instance's licence, its name, type and
+presentation are those of another licence of the catalog that grants it, else its slug and the
+type of its value (`NUMBER`, `BOOLEAN`, `CONFIG`), and its value is its row's alone.
 
 `EntitlementProvenance.exception` is the exception in force: `instanceEntitlementExceptionId`,
 open `kind` (`SET`, `ADD`, `UNLIMITED`), tagged `value` (`null` for `UNLIMITED`), `startsAt` and

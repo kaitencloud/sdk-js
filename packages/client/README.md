@@ -867,15 +867,25 @@ The allowance above it follows the same rule. `limitCapExceededOveragePercent` i
 read's when the read carries one (`-1` when the limit is unlimited), the grant's otherwise,
 and `maximumAllowedUsage`, `remaining` and `status` are measured against the pair. The REST
 usage reads (`usage.getByInstance`, `usage.getDetail`, `reportUsage`) also type what a
-current server says of a row: `source`, the layer that grants the entitlement (`license` or
-`addon`, and open: handle a value you do not know), and `provenance`, the licence's grant,
-the add-ons and the voucher boosts the limit is made of, with the identifiers of the rows
-they come from. All three are optional: an older server sends none. They also accept `null`:
-the answer to a replayed report (`idempotentReplayed: true`) is rebuilt from the report's
-journal entry, which keeps neither the layer nor its arithmetic, so its `source` and
-`provenance` are `null`, and the percent is `null` for a flag or a configuration, which has no
-value to cap. Check `row.source != null` before reading them. The GraphQL read does not select
-them yet, so on that path the percent stays the grant's.
+current server says of a row: `source`, the layer that grants the entitlement (`license`,
+`addon` or `exception`, and open: handle a value you do not know), and `provenance`, the
+licence's grant, the add-ons, the voucher boosts and the exception the limit is made of, with
+the identifiers of the rows they come from. All three are optional: an older server sends none.
+They also accept `null`: the answer to a replayed report (`idempotentReplayed: true`) is rebuilt
+from the report's journal entry, which keeps neither the layer nor its arithmetic, so its
+`source` and `provenance` are `null`, and the percent is `null` for a flag or a configuration,
+which has no value to cap. Check `row.source != null` before reading them. The snapshot reads
+all three on both paths: an entitlement's `effectiveSource` is its row's `source`, and its
+`provenance` its row's.
+
+A snapshot holds every entitlement the instance has, which is what its usage read answers: the
+licence's grants, and an entitlement an attached add-on or the instance's exception grants on
+its own. The licence does not describe such an entitlement, so its name, type and presentation
+come from another licence of the catalog that grants it, and otherwise its slug names it and
+its value types it. A row that names no layer adds nothing, and a failed usage read leaves the
+licence's grants alone. A Kaiten release that predates billing serves none of these members
+over GraphQL, and a query that names one fails whole: against such a release, the snapshot is
+composed over REST ([Kaiten version](#kaiten-version)).
 
 Commerce concepts the backend does not model — add-ons, credits, portal actions,
 billing capabilities, branding — are returned as client-side defaults.
