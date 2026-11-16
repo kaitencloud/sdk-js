@@ -1,6 +1,7 @@
 // Copyright 2026 KAITEN INC
 // SPDX-License-Identifier: Apache-2.0
 
+import { majorUnitAmount } from "@kaitencloud/client";
 import { expect, test } from "vite-plus/test";
 
 import { DEFAULT_CURRENCY_CODE, formatKaitenMoney } from "../src/index.ts";
@@ -139,6 +140,104 @@ test.each(EXPONENTS)(
     }
   },
 );
+
+// An amount in minor units means what the API says it means, so the exponent is the
+// API's, the one `majorUnitAmount` reads. The runtime's locale data disagrees with it
+// for sixteen currencies and counts no minor unit for any of them: the forint, the
+// Colombian peso, the rupiah and twelve others have two for the API, and the Iraqi
+// dinar three. Read with the runtime's exponent, 4900 fillér were 4,900 forints.
+
+/** Every currency both the runtime and the API know: about 160. */
+const API_CURRENCIES = Intl.supportedValuesOf("currency").filter(
+  (code) => majorUnitAmount({ amount: 1, currencyCode: code }) !== undefined,
+);
+
+/** The API's exponent of a currency: one minor unit is `"0.01"` major units for EUR. */
+const apiExponent = (code: string): number =>
+  majorUnitAmount({ amount: 1, currencyCode: code })?.split(".")[1]?.length ?? 0;
+
+/** With plain spaces: locales put a no-break one between the code or symbol and the amount. */
+const plain = (shown: string): string => shown.replace(/\s/g, " ");
+
+test.each([
+  // Exponent, currency, minor units, as shown in en-US.
+  [0, "JPY", 4900, "¥4,900"],
+  [2, "EUR", 4900, "€49.00"],
+  [2, "HUF", 4900, "HUF 49"],
+  [3, "KWD", 4900, "KWD 4.900"],
+  [3, "IQD", 4900, "IQD 4.9"],
+  [4, "CLF", 4900, "CLF 0.4900"],
+] as const)(
+  "exponent %i: %s %i minor units are shown as %s",
+  (exponent, currency, amount, shown) => {
+    expect(apiExponent(currency)).toBe(exponent);
+    expect(plain(formatKaitenMoney(amount, currency, { locale: "en-US" }))).toBe(shown);
+    expect(plain(formatKaitenMoney(String(amount), currency, { locale: "en-US" }))).toBe(shown);
+  },
+);
+
+test("HUF, COP, IDR and IQD read their minor units as the API counts them", () => {
+  const cases: [number, string, string, string][] = [
+    [4900, "HUF", "en-US", "HUF 49"],
+    [4900, "HUF", "hu-HU", "49 Ft"],
+    [4_900_000, "COP", "en-US", "COP 49,000"],
+    [4_900_000, "COP", "es-CO", "$ 49.000"],
+    [4_900_000, "IDR", "en-US", "IDR 49,000"],
+    [4_900_000, "IDR", "id-ID", "Rp 49.000"],
+    [4_900_000, "IQD", "en-US", "IQD 4,900"],
+    // Intl takes a code in any case, and so does the API's table here.
+    [4900, "huf", "en-US", "HUF 49"],
+  ];
+
+  for (const [amount, currency, locale, expected] of cases) {
+    const shown = plain(formatKaitenMoney(amount, currency, { locale }));
+    expect(shown, `${amount} ${currency} in ${locale}`).toBe(expected);
+  }
+});
+
+test("a minor unit is never rounded away where the locale shows whole units", () => {
+  // Intl writes forints whole: 4950 fillér are 49.50 forints, not 50.
+  expect(plain(formatKaitenMoney(4950, "HUF", { locale: "en-US" }))).toBe("HUF 49.5");
+  expect(plain(formatKaitenMoney(4950, "HUF", { locale: "hu-HU" }))).toBe("49,5 Ft");
+  expect(plain(formatKaitenMoney(1, "IQD", { locale: "en-US" }))).toBe("IQD 0.001");
+  expect(plain(formatKaitenMoney("0.5", "COP", { locale: "en-US" }))).toBe("COP 0.005");
+  // The caller's fraction digits still decide, as for any currency.
+  expect(plain(formatKaitenMoney(4950, "HUF", { locale: "en-US", maximumFractionDigits: 0 }))).toBe(
+    "HUF 50",
+  );
+  expect(formatKaitenMoney(7900, "USD", { locale: "en-US", minimumFractionDigits: 3 })).toBe(
+    "$79.000",
+  );
+});
+
+test("every currency the API knows is shown in its minor units, as majorUnitAmount reads them", () => {
+  expect(API_CURRENCIES.length).toBeGreaterThan(150);
+  // The code, not a symbol: "B/." or "S/." would add a point of their own.
+  const options = { locale: "en-US", currencyDisplay: "code" } as const;
+
+  for (const currency of API_CURRENCIES) {
+    const exponent = apiExponent(currency);
+    for (const amount of [1, 4900, 4950, 123_456_789]) {
+      const fromNumber = formatKaitenMoney(amount, currency, options);
+      expect(minorUnitsOf(fromNumber, ".", exponent), `${amount} ${currency}: ${fromNumber}`).toBe(
+        BigInt(amount),
+      );
+      expect(formatKaitenMoney(String(amount), currency, options), `"${amount}" ${currency}`).toBe(
+        fromNumber,
+      );
+    }
+  }
+});
+
+test("a currency the API does not know keeps the runtime's exponent", () => {
+  // The old leone, which the API replaced by SLE. Intl counts no minor unit for it.
+  expect(majorUnitAmount({ amount: 1, currencyCode: "SLL" })).toBeUndefined();
+  const intl = new Intl.NumberFormat("en-US", { style: "currency", currency: "SLL" });
+  const digits = intl.resolvedOptions().maximumFractionDigits ?? 2;
+  expect(formatKaitenMoney(4900, "SLL", { locale: "en-US" })).toBe(
+    intl.format(4900 / 10 ** digits),
+  );
+});
 
 // A price can be a fraction of a minor unit: two ten-thousandths of a cent a call. It
 // travels as an exact decimal string, and the formatter moves its digits instead of

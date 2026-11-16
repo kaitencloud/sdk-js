@@ -128,8 +128,11 @@ integration points:
   `resolveLicensePrice`. `formatKaitenMoney` and the `formatMoney` of a
   localization take an integer of minor units, or an exact decimal string for a
   price below one minor unit ("0.0002"): a `formatMoney` a host writes must accept
-  both. `KaitenLocalization.price` is a required section of a language pack, so a
-  pack built whole needs its six strings.
+  both. The minor units are the API's, whose exponent `majorUnitAmount` of
+  `@kaitencloud/client` reads: the runtime's `Intl` data differs for some
+  currencies (none for HUF, two for the API), so a host's `formatMoney` does not
+  take it from there. `KaitenLocalization.price` is a required section of a
+  language pack, so a pack built whole needs its six strings.
 - **The usage-window rule** — `isPeriodicEntitlement`, `getUsageScope`,
   `resolveUsageScope`, `usageWindowLabel`. An entitlement business rule, not a
   rendering detail: both window bounds present means a periodic counter, absent
