@@ -745,6 +745,12 @@ describe("this repository", () => {
       expect(results.filter((result) => result.status === "fail")).toEqual([]);
       const published = publishedPackages(repoRoot).map(({ name }) => name);
       expect(published.toSorted((a, b) => a.localeCompare(b))).toEqual([
+        "@kaitencloud/ai-anthropic",
+        "@kaitencloud/ai-claude-agent",
+        "@kaitencloud/ai-codex",
+        "@kaitencloud/ai-copilot",
+        "@kaitencloud/ai-openai",
+        "@kaitencloud/ai-vercel",
         "@kaitencloud/client",
         "@kaitencloud/react",
         "@kaitencloud/react-ui",
