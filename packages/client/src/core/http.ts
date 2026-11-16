@@ -82,6 +82,7 @@ export function retryable(
   error: unknown,
   iteration: number,
   statuses?: readonly number[],
+  maxAttempts = 3,
 ): boolean {
   // A non-idempotent call is never replayed. `KaitenNetworkError` covers the
   // client-side timeout abort, so a backend that committed the write and then
@@ -92,7 +93,7 @@ export function retryable(
   // under an `Idempotency-Key`, to a server that has echoed one) declares itself
   // idempotent.
   if (!idempotent) return false;
-  if (iteration >= 3) return false;
+  if (iteration >= maxAttempts) return false;
   if (error instanceof KaitenNetworkError) return true;
   if (error instanceof KaitenError) {
     return error.status >= 500 && (statuses === undefined || statuses.includes(error.status));

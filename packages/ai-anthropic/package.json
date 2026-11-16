@@ -1,0 +1,59 @@
+{
+  "name": "@kaitencloud/ai-anthropic",
+  "version": "0.0.0",
+  "description": "Kaiten AI credits for the Anthropic SDK: wrapAnthropic(client) reserves and commits messages.create and messages.stream. Server-side only.",
+  "homepage": "https://github.com/kaitencloud/sdk-js/tree/main/packages/ai-anthropic#readme",
+  "bugs": {
+    "url": "https://github.com/kaitencloud/sdk-js/issues"
+  },
+  "license": "Apache-2.0",
+  "author": "Kaiten",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kaitencloud/sdk-js.git",
+    "directory": "packages/ai-anthropic"
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "NOTICE",
+    "THIRD_PARTY_NOTICES.md"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "types": "./dist/index.d.mts",
+  "exports": {
+    ".": "./dist/index.mjs",
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "scripts": {
+    "build": "vp pack",
+    "dev": "vp pack --watch",
+    "test": "vp test",
+    "check": "vp check"
+  },
+  "devDependencies": {
+    "@anthropic-ai/sdk": ">=0.100.0 <1.0.0",
+    "@kaitencloud/client": "workspace:*",
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vite-plus": "catalog:"
+  },
+  "peerDependencies": {
+    "@anthropic-ai/sdk": ">=0.100.0 <1.0.0",
+    "@kaitencloud/client": "workspace:^"
+  },
+  "peerDependenciesMeta": {
+    "@anthropic-ai/sdk": {
+      "optional": true
+    }
+  },
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "packageManager": "pnpm@12.4.1"
+}

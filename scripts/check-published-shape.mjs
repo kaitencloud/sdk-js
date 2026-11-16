@@ -77,7 +77,19 @@ function isExpectedProblem(problem) {
 const VALIDATED_HERE = ["react", "react-ui"];
 
 /** Every package this repository ships. */
-const PUBLISHED = ["client", "server", "react", "react-ui"];
+const PUBLISHED = [
+  "client",
+  "server",
+  "react",
+  "react-ui",
+  // The AI credits wrapper packages ship too, and are held to the same shape.
+  "ai-openai",
+  "ai-anthropic",
+  "ai-vercel",
+  "ai-claude-agent",
+  "ai-codex",
+  "ai-copilot",
+];
 const NPM_REGISTRY = "https://registry.npmjs.org/";
 const LICENSE = "Apache-2.0";
 const LEGAL_FILES = ["LICENSE", "NOTICE", "THIRD_PARTY_NOTICES.md"];
