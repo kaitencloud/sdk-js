@@ -1,0 +1,59 @@
+{
+  "name": "@kaitencloud/ai-copilot",
+  "version": "0.0.0",
+  "description": "Explicit usage accounting for @github/copilot-sdk; see documented preflight limitations.",
+  "homepage": "https://github.com/kaitencloud/sdk-js/tree/main/packages/ai-copilot#readme",
+  "bugs": {
+    "url": "https://github.com/kaitencloud/sdk-js/issues"
+  },
+  "license": "Apache-2.0",
+  "author": "Kaiten",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kaitencloud/sdk-js.git",
+    "directory": "packages/ai-copilot"
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "NOTICE",
+    "THIRD_PARTY_NOTICES.md"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "types": "./dist/index.d.mts",
+  "exports": {
+    ".": "./dist/index.mjs",
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "scripts": {
+    "build": "vp pack",
+    "dev": "vp pack --watch",
+    "test": "vp test",
+    "check": "vp check"
+  },
+  "devDependencies": {
+    "@github/copilot-sdk": "1.0.22",
+    "@kaitencloud/client": "workspace:*",
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vite-plus": "catalog:"
+  },
+  "peerDependencies": {
+    "@github/copilot-sdk": "^1.0.22",
+    "@kaitencloud/client": "workspace:^"
+  },
+  "peerDependenciesMeta": {
+    "@github/copilot-sdk": {
+      "optional": true
+    }
+  },
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "packageManager": "pnpm@12.4.1"
+}

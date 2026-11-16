@@ -42,6 +42,13 @@ enum AddonLifecycleState {
   PUBLISHED
 }
 
+"""How a NUMBER grant of an add-on combines with the licence's own."""
+enum AddonOverrideBehavior {
+  ADD
+  MAX
+  OVERRIDE
+}
+
 """A cursor-paginated page of add-on versions."""
 type AddonPage {
   hasMore: Boolean!
@@ -81,6 +88,14 @@ type AddonPrice {
 
   """The amount in minor units, up to 12 decimal places."""
   unitAmountDecimal: String!
+}
+
+enum AiRequestType {
+  AUDIO
+  COMPLETION
+  EMBEDDING
+  IMAGE_GENERATION
+  VIDEO
 }
 
 """
@@ -129,6 +144,12 @@ type AuditTrailPage {
   nextCursor: String
 }
 
+enum ChargeOnErrorPolicy {
+  ALWAYS
+  NEVER
+  PROVIDER_ERROR_ONLY
+}
+
 """
 Component represents a software component, optionally included in releases.
 """
@@ -150,6 +171,55 @@ type ComponentPage {
 
   """Opaque cursor for the next page. Null when hasMore is false."""
   nextCursor: String
+}
+
+type ConversionRates {
+  perCacheWriteToken: String
+  perCachedInputToken: String
+  perInputToken: String
+  perOutputToken: String
+  perRequest: String
+  perSecond: String
+  perUnit: String
+}
+
+"""
+An immutable license/pool/model/request identity with mutable exact pricing.
+"""
+type ConversionRule {
+  chargeOnError: ChargeOnErrorPolicy!
+  createdAt: Time!
+
+  """Who created the rule. A service account is a user."""
+  createdBy: User!
+  entitlementSlug: String!
+
+  """
+  Whether an add-on version compatible with the licence's family grants the
+  pool, whatever its lifecycle state: instances of the licence can then hold
+  the pool without the licence granting it. License.addonGrants lists them.
+  """
+  grantedByAddons: Boolean!
+
+  """Whether the licence itself grants the pool."""
+  grantedByLicense: Boolean!
+  id: UUID!
+  licenseSlug: String!
+  maximumCreditsPerRequest: String
+  minimumCreditsPerRequest: String!
+  modelSlug: String
+  rates: ConversionRates!
+  requestType: AiRequestType
+  status: ConversionRuleStatus!
+  updatedAt: Time!
+
+  """Who last changed the rule: its pricing, or its archival."""
+  updatedBy: User!
+}
+
+enum ConversionRuleStatus {
+  ACTIVE
+  ARCHIVED
 }
 
 """Customer represents a client organization of a organization."""
@@ -598,6 +668,19 @@ enum InstanceStatus {
 License defines the commercial and functional rules for one or more instances.
 """
 type License {
+  """
+  What add-ons can grant on this licence: every entitlement of every add-on
+  version compatible with the licence's family, optionally one entitlement.
+  The licence's own grants are License.entitlements. Like the REST add-on
+  catalogue, it needs billing to be enabled for the organization, and
+  read:addons.
+  """
+  addonGrants(entitlementSlug: String): [LicenseAddonGrant!]!
+
+  """
+  All rules when status is omitted; an explicit status filters that relation.
+  """
+  conversionRules(status: ConversionRuleStatus): [ConversionRule!]!
   description: String!
 
   """Entitlements granted by this license"""
@@ -641,6 +724,71 @@ type License {
   type: LicenseType!
   version: String!
   versionName: String
+
+  """
+  version as a number: the order of the versions in their family, 1 being the
+  first. Assigned by the server and never reused within a family.
+  """
+  versionNumber: Int!
+}
+
+"""
+An entitlement an add-on version grants, on a licence it fits: one way an
+instance of that licence can come to hold the entitlement without the licence
+granting it.
+
+An add-on attaches to an instance, never to a licence. What ties it to a
+licence is compatibility, declared per add-on version against a licence
+FAMILY: the grants are therefore the same for every version of a family.
+Nothing here says an instance holds the add-on; Instance.addons does.
+"""
+type LicenseAddonGrant {
+  addonFamilySlug: String!
+  addonId: UUID!
+  addonName: String!
+
+  """The add-on version: what an attachment names."""
+  addonSlug: String!
+
+  """The version number in its add-on family."""
+  addonVersion: Int!
+  entitlementSlug: String!
+  entitlementType: String!
+
+  """The version its add-on family resolves to. Only a PUBLISHED version."""
+  isDefault: Boolean!
+
+  """
+  DRAFT: attachable to an instance with no live subscription only. PUBLISHED:
+  attachable. ARCHIVED: no new attachment, the instances that hold it keep it
+  and its grant.
+  """
+  lifecycleState: AddonLifecycleState!
+
+  """
+  The overage the add-on allows; null inherits the licence grant's (0 for an
+  entitlement only add-ons grant).
+  """
+  limitCapExceededOveragePercent: Int
+
+  """The most one instance may hold; null when unbounded."""
+  maxQuantity: Int
+
+  """
+  How a number grant combines with the licence's: ADD sums value x quantity,
+  OVERRIDE replaces it with the latest attached add-on's, MAX keeps the larger.
+  A boolean always ORs, a config always overrides.
+  """
+  overrideBehavior: AddonOverrideBehavior!
+
+  """True when the value is the unlimited sentinel."""
+  unlimited: Boolean!
+
+  """
+  The grant per unit of quantity, shaped like a licence grant:
+  {type:"number",value:N}, {type:"boolean",value:B}, {type:"object",value:{...}}.
+  """
+  value: Map!
 }
 
 """
@@ -690,6 +838,16 @@ family has a version: deleting its last version deletes the family and frees the
 slug.
 """
 type LicenseFamily {
+  """
+  The version this family currently serves: its default version, or its
+  highest-numbered PUBLISHED version. Null when every version is a draft or has
+  been archived. The same resolution as LicenseFamilyView.currentVersion, read
+  here so that a list of licenses can label each family (a family has no name
+  of its own: it is shown under its current version's) without one
+  licenseFamily query per family.
+  """
+  currentVersion: License
+
   """
   The FREE family an instance of this family moves to when its subscription
   ends; null without one.
@@ -871,6 +1029,37 @@ Mirrors the sqlc enum `metadata_field_resource_type`.
 enum MetadataFieldResourceType {
   DEPLOYMENT_ZONE
   INSTANCE
+}
+
+"""
+An organization-scoped model catalogue entry. Vendor costs are intentionally
+REST-only under read:models. Deprecated models keep existing pricing; archived
+models remain in the catalogue but authorize no usage.
+"""
+type Model {
+  externalIds: [String!]!
+  id: UUID!
+  metadata: Map
+  modality: ModelModality!
+  name: String!
+  slug: String!
+  status: ModelStatus!
+  vendor: String!
+}
+
+enum ModelModality {
+  AUDIO
+  EMBEDDING
+  IMAGE
+  MULTIMODAL
+  TEXT
+  VIDEO
+}
+
+enum ModelStatus {
+  ACTIVE
+  ARCHIVED
+  DEPRECATED
 }
 
 """
@@ -1070,6 +1259,11 @@ type Query {
     limit: Int
     resourceType: MetadataFieldResourceType!
   ): MetadataFieldPage!
+
+  """
+  All catalogue models in the current organization, optionally filtered by status.
+  """
+  models(status: ModelStatus): [Model!]!
 
   """
   List every audit trail entry of the current organization, newest first,

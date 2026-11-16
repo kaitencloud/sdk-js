@@ -93,23 +93,27 @@ const FROM_NODE = join(repoRoot, "examples/node/src");
  * whole core, so a host importing `Gate` through it must pay the core's price and
  * nothing of the components'.
  */
+// The client's `ai` namespace, which every KaitenClient holds, reaches every
+// scenario that builds a client: the budgets below were raised together in the
+// merge of main into feat/ai-credits, each about 3 % above what it then
+// measured. A host that wants none of it pays ~0.9 KB gzip for it today.
 const SCENARIOS = [
   {
     name: "core · Gate + KaitenProvider",
     code: `import { Gate, KaitenProvider } from "@kaitencloud/react"; console.log(Gate, KaitenProvider);`,
-    budgetGzip: 26_300,
+    budgetGzip: 27_950,
     unstyled: true,
   },
   {
     name: "core · useEntitlementCheck + KaitenProvider",
     code: `import { useEntitlementCheck, KaitenProvider } from "@kaitencloud/react"; console.log(useEntitlementCheck, KaitenProvider);`,
-    budgetGzip: 25_400,
+    budgetGzip: 27_100,
     unstyled: true,
   },
   {
     name: "core · Show + KaitenProvider",
     code: `import { Show, KaitenProvider } from "@kaitencloud/react"; console.log(Show, KaitenProvider);`,
-    budgetGzip: 25_600,
+    budgetGzip: 27_250,
     unstyled: true,
   },
   {
@@ -126,7 +130,7 @@ const SCENARIOS = [
     // budget leaves a margin of about 300 bytes.
     name: "core · everything",
     code: `import * as all from "@kaitencloud/react"; console.log(all);`,
-    budgetGzip: 30_450,
+    budgetGzip: 31_550,
     unstyled: true,
   },
   {
@@ -141,7 +145,7 @@ const SCENARIOS = [
     // set before the popup opens, which the three flows that open one share.
     name: "billing · useCheckout + KaitenProvider",
     code: `import { KaitenProvider } from "@kaitencloud/react"; import { useCheckout } from "@kaitencloud/react/billing"; console.log(KaitenProvider, useCheckout);`,
-    budgetGzip: 29_500,
+    budgetGzip: 31_400,
     unstyled: true,
   },
   {
@@ -157,7 +161,7 @@ const SCENARIOS = [
     // set before the popup opens, and the quote kept when an amount changed after the setup.
     name: "billing · useAnonymousCheckout + KaitenProvider",
     code: `import { KaitenProvider } from "@kaitencloud/react"; import { useAnonymousCheckout } from "@kaitencloud/react/billing"; console.log(KaitenProvider, useAnonymousCheckout);`,
-    budgetGzip: 31_300,
+    budgetGzip: 33_200,
     unstyled: true,
   },
   {
@@ -214,13 +218,13 @@ const SCENARIOS = [
   {
     name: "react-ui · Gate + KaitenProvider through the re-export",
     code: `import { Gate, KaitenProvider } from "@kaitencloud/react-ui"; console.log(Gate, KaitenProvider);`,
-    budgetGzip: 26_300,
+    budgetGzip: 27_950,
     unstyled: true,
   },
   {
     name: "react-ui · PlanBadge + KaitenProvider + KaitenStyleRoot",
     code: `import { PlanBadge, KaitenProvider, KaitenStyleRoot } from "@kaitencloud/react-ui"; console.log(PlanBadge, KaitenProvider, KaitenStyleRoot);`,
-    budgetGzip: 37_500,
+    budgetGzip: 38_700,
   },
   {
     name: "react-ui · PricingTable + KaitenProvider + KaitenStyleRoot",
@@ -230,7 +234,7 @@ const SCENARIOS = [
   {
     name: "react-ui · Paywall + KaitenProvider + KaitenStyleRoot",
     code: `import { Paywall, KaitenProvider, KaitenStyleRoot } from "@kaitencloud/react-ui"; console.log(Paywall, KaitenProvider, KaitenStyleRoot);`,
-    budgetGzip: 48_000,
+    budgetGzip: 50_200,
   },
   {
     // What a host that offers a checkout ships: the flow, the hooks it is made of, and the words
@@ -257,7 +261,7 @@ const SCENARIOS = [
     code: `import { CheckoutFlow, KaitenProvider, KaitenStyleRoot } from "@kaitencloud/react-ui"; console.log(CheckoutFlow, KaitenProvider, KaitenStyleRoot);`,
     // Measured at 67 100 bytes, up from 66 962: the listener that hears the setup popup say it is
     // done, set before the popup opens. The budget keeps a margin of about 300 bytes.
-    budgetGzip: 67_400,
+    budgetGzip: 70_500,
   },
   {
     // What a host that sells to visitors ships: the flow, the hook it is made of with the loader of
@@ -278,7 +282,7 @@ const SCENARIOS = [
     // field) and the hook's company beside its name.
     name: "react-ui · AnonymousCheckoutFlow + KaitenProvider + KaitenStyleRoot",
     code: `import { AnonymousCheckoutFlow, KaitenProvider, KaitenStyleRoot } from "@kaitencloud/react-ui"; console.log(AnonymousCheckoutFlow, KaitenProvider, KaitenStyleRoot);`,
-    budgetGzip: 70_600,
+    budgetGzip: 73_800,
   },
   {
     // What a host that shows a customer how they pay ships: the card, the billing hooks that add or
@@ -292,7 +296,7 @@ const SCENARIOS = [
     // Measured at 46 433 bytes: the listener of the payment method hook, set before the popup opens.
     name: "react-ui · PaymentMethodCard + KaitenProvider + KaitenStyleRoot",
     code: `import { PaymentMethodCard, KaitenProvider, KaitenStyleRoot } from "@kaitencloud/react-ui"; console.log(PaymentMethodCard, KaitenProvider, KaitenStyleRoot);`,
-    budgetGzip: 46_750,
+    budgetGzip: 49_100,
   },
   {
     // What a host that shows a customer their trial ships: the banner, the billing hooks that add a
@@ -301,7 +305,7 @@ const SCENARIOS = [
     // Measured at 47 131 bytes: the listener of the payment method hook, set before the popup opens.
     name: "react-ui · TrialBanner + KaitenProvider + KaitenStyleRoot",
     code: `import { TrialBanner, KaitenProvider, KaitenStyleRoot } from "@kaitencloud/react-ui"; console.log(TrialBanner, KaitenProvider, KaitenStyleRoot);`,
-    budgetGzip: 47_450,
+    budgetGzip: 49_800,
   },
   {
     // What a host that offers a customer portal ships: the sections, the billing hooks they
@@ -336,7 +340,7 @@ const SCENARIOS = [
     // Measured at 65 207 bytes, up from 65 068: the listener of the payment method hook, as above.
     name: "react-ui · CustomerPortal + KaitenProvider + KaitenStyleRoot",
     code: `import { CustomerPortal, KaitenProvider, KaitenStyleRoot } from "@kaitencloud/react-ui"; console.log(CustomerPortal, KaitenProvider, KaitenStyleRoot);`,
-    budgetGzip: 67_500,
+    budgetGzip: 70_700,
   },
   {
     // Measured at 93 302 bytes, up from 79 688: Base UI's radio group, as in the checkout (12.4 KB),
@@ -367,12 +371,15 @@ const SCENARIOS = [
     // Measured at 112 248 bytes, up from 111 694: the company field of the anonymous checkout, as above.
     name: "react-ui · everything",
     code: `import * as all from "@kaitencloud/react-ui"; console.log(all);`,
-    budgetGzip: 115_050,
+    budgetGzip: 118_950,
   },
   {
     name: "client · KaitenClient alone",
     code: `import { KaitenClient } from "@kaitencloud/client"; console.log(KaitenClient);`,
-    budgetGzip: 14_000,
+    // Measured at 14 935 bytes once the `ai` namespace (KTN-201), which every
+    // KaitenClient holds, met main's keyed usage reports and anonymous
+    // checkout: 12.0 KB when the namespace landed on its own branch.
+    budgetGzip: 15_600,
     headless: true,
     resolveDir: FROM_NODE,
   },

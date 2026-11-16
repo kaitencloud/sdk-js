@@ -49,6 +49,11 @@ export interface KaitenRunOptions {
    */
   idempotent?: boolean;
   /**
+   * Total attempts of an idempotent call, the first included. Defaults to 3.
+   * A keyed AI report asks for four.
+   */
+  maxAttempts?: number;
+  /**
    * The 5xx statuses worth another attempt, for a call that is replayed but not
    * after every server failure. Left out, every 5xx is replayed, as for a read. A
    * network failure is replayed either way.
@@ -145,6 +150,7 @@ export class KaitenTransport {
     // twice. Reads qualify; GraphQL queries are POSTs because their input
     // travels in a body.
     const idempotent = options.idempotent ?? true;
+    const maxAttempts = options.maxAttempts ?? 3;
 
     return retry(
       async () => {
@@ -185,7 +191,7 @@ export class KaitenTransport {
       {
         retryImmediately: true,
         shouldRetry: (error, iteration) =>
-          retryable(idempotent, error, iteration, options.retryStatuses),
+          retryable(idempotent, error, iteration, options.retryStatuses, maxAttempts),
         delayOf: retryAfterDelay,
       },
     );
