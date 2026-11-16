@@ -482,10 +482,19 @@ Generated and grouped by tag. The Core API:
 
 `Customers`, `Instances`, `LicenseFamilies`, `Licenses`, `Entitlements`, `EntitlementGroups`,
 `Components`, `DeploymentZones`, `MetadataFields`, `Releases`, `ServiceAccounts`, `Connectors`,
-`Integrations`, `Featureflags`, `OpenFeature` and `Notifications`.
+`Integrations`, `Featureflags`, `OpenFeature`, `Notifications`, `Dashboard`, `Identity` and
+`Users`.
 
 `Featureflags` manages definitions; no SDK resource evaluates them. Flag decisions
 require OpenFeature + its official OFREP provider. See [the 2.0 migration](../../MIGRATION-2.md).
+
+What the last three hold:
+
+| Class       | What it holds                                                                                                                                            |
+| ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Dashboard` | `getDashboardSummary`: an organization's figures in one response, over 7, 30 or 90 days                                                                  |
+| `Identity`  | `getAuthorization`: the grants stored for the caller, a person or a service token. It needs no permission                                                |
+| `Users`     | the organization's human users, their roles and their permissions, and `getMe`. The contract requires a human member of the organization on each of them |
 
 Billing:
 
@@ -495,11 +504,19 @@ Billing:
 | `Addons`           | add-on families and versions, their prices and entitlements                                        |
 | `Vouchers`         | vouchers, their redemptions, and redeeming one on an instance                                      |
 | `CustomerSessions` | minting a customer session for a customer's browser, and revoking it                               |
+| `CheckoutSessions` | the organization's anonymous checkouts, to list and to read as the vendor sees them                |
 | `PublishableKeys`  | issuing, listing, changing and revoking the `pk_` keys a web page reads the public catalog with    |
 | `Public`           | the operations of the browser surface, for which a secret token is the wrong credential: see below |
 
-Organization and user administration belongs to a separate API, under `/api/platform/**`,
-with its own credentials; this SDK does not model it (see
+AI credits (preview):
+
+| Class    | What it holds                                                                                                                         |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `Models` | the AI models that AI usage is reported against: their slug, the provider identifiers that name them, their modality and their status |
+| `Ai`     | `getAiUsageCapabilities`: whether AI credits are rolled out for the organization, which is not a grant to consume them                |
+
+The Platform API, under `/api/platform/**`, is a separate API with its own credentials, for
+Kaiten's own control plane; this SDK does not model it (see
 [ARCHITECTURE.md](../../ARCHITECTURE.md)).
 
 **`Public` is not called with the token of `createKaitenClient`.** Its operations, the public
