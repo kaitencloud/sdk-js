@@ -76,9 +76,9 @@ const HOST_SUBTREE = "ktn-host";
  * It is on every branch that renders a wall, the hard mode's `<dialog>`
  * included, and on the same element as `data-slot`. Analytics can segment on it,
  * CSS can style on it (`[data-reason="error"]`), and an E2E test can assert the
- * cause rather than the symptom. `error` is the one worth naming: it means the
- * entitlement could not be read, so the wall is the fail-closed policy talking,
- * not a decision about this customer.
+ * cause rather than the symptom. `error` is the one worth naming: it means
+ * there is no entitlement data to decide on, so the wall is the fail-closed
+ * policy talking, not a decision about this customer.
  */
 
 function ctaLabel(
@@ -107,9 +107,13 @@ export interface PaywallProps {
   min?: number;
   mode?: "soft" | "hard";
   /**
-   * Fail policy when access data can't be loaded. `"block"` (default,
-   * fail-closed) shows the paywall so paid content is never revealed during an
-   * outage; `"allow"` (fail-open) reveals the wrapped content.
+   * Fail policy when there is no access data to decide on: no read ever
+   * succeeded, or reads have been failing for longer than the provider's
+   * `staleIfErrorMs`. `"block"` (default, fail-closed) shows the paywall, so
+   * paid content is never revealed to a customer nothing was read for;
+   * `"allow"` (fail-open) reveals the wrapped content. A read that fails after
+   * one that succeeded is not that case: the wall is decided on the data that
+   * read left.
    *
    * It governs the *loading* window too: until access is known, `"block"`
    * renders {@link PaywallProps.loading} rather than the wrapped content.

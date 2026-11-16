@@ -9,11 +9,18 @@ import {
   useAssertWrappedByKaitenProvider,
 } from "../../providers/kaiten-provider.tsx";
 
+/**
+ * Renders its children once the Kaiten data is there to decide on.
+ *
+ * It keeps rendering them when a later read fails: the data that read left is
+ * still held, and the provider reads again on its own. It stops only when
+ * `KaitenFailed` takes over.
+ */
 export function KaitenLoaded({ children }: React.PropsWithChildren) {
   useAssertWrappedByKaitenProvider("KaitenLoaded");
 
   const state = useKaitenDataContext();
-  if (state.isLoading || state.error || !state.isLoaded) return null;
+  if (!state.isLoaded) return null;
 
   return children;
 }
@@ -29,13 +36,13 @@ export function KaitenLoading({ children }: React.PropsWithChildren) {
 
 export interface KaitenFailedRenderProps {
   /**
-   * Re-runs the read that failed.
+   * Re-runs the read that failed, now.
    *
-   * The provider sets `shouldRetryOnError: false` deliberately — a licensing
-   * outage should not turn every mounted gate into a retry loop against an API
-   * that is already struggling. The cost was that nothing retried at all: a
-   * failure screen with no way out, where the user's only recourse was to
-   * reload the page and lose whatever they were doing.
+   * The provider reads again on its own, but on a delay that grows to five
+   * minutes, so that an outage does not turn every open tab into a retry loop
+   * against an API that is already struggling. This is the way out for a user
+   * who will not wait for it, short of reloading the page and losing whatever
+   * they were doing.
    */
   retry: () => void;
   /** The error that failed the read, for hosts that want to show or report it. */
@@ -51,7 +58,10 @@ export type KaitenFailedProps = {
 };
 
 /**
- * Renders its children when the Kaiten data failed to load.
+ * Renders its children when the Kaiten data failed to load: no read ever
+ * succeeded, or reads have been failing for longer than the provider's
+ * `staleIfErrorMs`. A read that fails after one that succeeded does not bring
+ * it up: `KaitenLoaded` keeps rendering, on the data that read left.
  *
  * ```tsx
  * <KaitenFailed>
@@ -63,7 +73,7 @@ export function KaitenFailed({ children }: KaitenFailedProps) {
   useAssertWrappedByKaitenProvider("KaitenFailed");
 
   const state = useKaitenDataContext();
-  if (!state.error) return null;
+  if (!state.failed || !state.error) return null;
 
   // A plain node stays a plain node: this is blessed-path surface and every
   // existing `<KaitenFailed><Banner /></KaitenFailed>` must keep working.
@@ -76,10 +86,15 @@ interface ShowCommonProps {
   fallback?: React.ReactNode;
   loading?: React.ReactNode;
   /**
-   * Fail policy when the entitlement data can't be loaded. `"block"`
-   * (default, fail-closed) renders `fallback` so gated content is never revealed
-   * during an outage; `"allow"` (fail-open) renders `children`. Applied
-   * regardless of `when`, since the condition can't be evaluated on error.
+   * Fail policy when there is no entitlement data to decide on: no read ever
+   * succeeded, or reads have been failing for longer than the provider's
+   * `staleIfErrorMs`. `"block"` (default, fail-closed) renders `fallback`, so
+   * gated content is never revealed to a customer nothing was read for;
+   * `"allow"` (fail-open) renders `children`. Applied regardless of `when`,
+   * since the condition can't be evaluated without data.
+   *
+   * A read that fails after one that succeeded is not that case: the condition
+   * is evaluated on the data that read left, while the provider reads again.
    */
   onError?: "block" | "allow";
   children: React.ReactNode;
@@ -109,15 +124,18 @@ export function Show({
   useAssertWrappedByKaitenProvider("Show");
 
   const entitlementCheck = useEntitlementCheck(entitlement ?? "", { min });
+  // The entitlements come from the read a customer's scope lives on: its
+  // `failed` says whether there is anything to decide them on.
+  const { failed } = useKaitenDataContext();
   const isLoading = entitlementCheck.isLoading;
 
   if (isLoading) return <>{loading}</>;
 
-  // A data error can't be resolved into a condition result — apply the fail
-  // policy instead of letting `!allowed` accidentally reveal `not-entitled`
-  // content (fail-open) during an outage.
-  const error = entitlementCheck.error;
-  if (error) return <>{onError === "allow" ? children : fallback}</>;
+  // An error with nothing to decide on can't be resolved into a condition
+  // result — apply the fail policy instead of letting `!allowed` accidentally
+  // reveal `not-entitled` content (fail-open) during an outage. An error beside
+  // data a read left is decided on that data, below.
+  if (entitlementCheck.error && failed) return <>{onError === "allow" ? children : fallback}</>;
 
   const shouldRender = when === "entitled" ? entitlementCheck.allowed : !entitlementCheck.allowed;
 
