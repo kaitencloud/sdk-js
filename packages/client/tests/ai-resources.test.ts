@@ -53,6 +53,7 @@ it("aliases the regenerated AI contract and preserves exact outcomes", async () 
     transactionId: null,
     ai: outcome,
   };
+  // The wire answer of a report is the public alias, member for member.
   const wireResponse: ReportedEntitlementUsage = response;
   expect(wireResponse).toBe(response);
   const fetch = vi.fn(

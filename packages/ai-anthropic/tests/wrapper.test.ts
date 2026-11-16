@@ -124,3 +124,46 @@ it("degrades unsupported reporting without changing the synchronous helper API",
     log.mockRestore();
   }
 });
+
+it("passes the vendor-cost reader the provider's usage, commits what it returns, survives a throw", async () => {
+  const { original, reserve, commit } = setup(false);
+  const vendorCost = vi.fn((_input: unknown) => "0.002");
+  const client = wrapAnthropic(original, {
+    kaiten: { ai: { reserve, commit } } as any,
+    instance: "i",
+    entitlement: "p",
+    vendorCost,
+  });
+  await client.messages.create({ model: "synthetic-model", max_tokens: 10, messages: [] });
+  expect(commit.mock.calls[0]![0]).toMatchObject({ requestStatus: "SUCCESS", vendorCost: "0.002" });
+  expect(vendorCost.mock.calls[0]![0]).toMatchObject({
+    model: "synthetic-model",
+    rawUsage: { input_tokens: 10 },
+  });
+  vendorCost.mockImplementationOnce(() => {
+    throw new Error("synthetic reader bug");
+  });
+  const log = vi.spyOn(console, "error").mockImplementation(() => {});
+  try {
+    await expect(
+      client.messages.create({ model: "synthetic-model", max_tokens: 10, messages: [] }),
+    ).resolves.toMatchObject({ id: "synthetic" });
+  } finally {
+    log.mockRestore();
+  }
+  expect(commit.mock.calls[1]![0]).toMatchObject({ requestStatus: "SUCCESS" });
+  expect(commit.mock.calls[1]![0]).not.toHaveProperty("vendorCost");
+});
+
+it("settles a stream abandoned before its first event as sent", async () => {
+  const { client, commit } = setup(true);
+  const stream = await client.messages.create({
+    model: "synthetic-model",
+    max_tokens: 10,
+    messages: [],
+    stream: true,
+  });
+  await (stream as any)[Symbol.asyncIterator]().return?.(undefined);
+  expect(commit).toHaveBeenCalledOnce();
+  expect(commit.mock.calls[0]![0]).toMatchObject({ requestStatus: "CUSTOMER_ERROR" });
+});

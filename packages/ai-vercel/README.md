@@ -21,3 +21,13 @@ Refused reserves prevent model execution; unsupported APIs degrade with a log;
 failed commits preserve provider results. No runtime `ai` import, pricing, prompt
 or completion reporting. Tested through AI 7.0.143's real `wrapLanguageModel` API
 with a synthetic V4 model; no network requests.
+
+`vendorCost` (optional) reads what the provider charged for a call off its answer
+and returns an exact decimal string in USD, committed beside the cost Kaiten
+computes; it never changes the credits charged. The package never computes one:
+pass only a figure the provider or a gateway reports. A reader that throws or
+returns anything but a decimal string is logged, and the commit goes on without
+it. `onCommitError(error, failed)` receives a commit that failed after its
+retries; `failed.retry()` resends it byte for byte. Without it the failure is
+logged. A pool that is not an AI credit pool throws `NotAnAiCreditPoolError` on
+every call; only an API that predates AI credits degrades.

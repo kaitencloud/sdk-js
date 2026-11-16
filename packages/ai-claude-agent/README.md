@@ -25,3 +25,14 @@ and [published SDK declarations](https://unpkg.com/@anthropic-ai/claude-agent-sd
 The optional dev SDK verifies the types; tests replay synthetic typed events and
 never start Claude. This is a documented partial fulfillment of D4's agent gate,
 not a transparent per-model-turn gating implementation.
+
+`vendorCost` (optional) reads what the provider charged for a call off its answer
+and returns an exact decimal string in USD, committed beside the cost Kaiten
+computes; it never changes the credits charged. The package never computes one:
+pass only a figure the provider or a gateway reports. A reader that throws or
+returns anything but a decimal string is logged, and the commit goes on without
+it. `onCommitError(error, failed)` receives a commit that failed after its
+retries; `failed.retry()` resends it byte for byte. Without it the failure is
+logged. This observer only commits, after the fact: a refused commit, a pool that
+is not an AI credit pool included, goes to `onCommitError`. The run's `total_cost_usd` covers every model request of the run and cannot be
+split per response: do not return it as `vendorCost`.

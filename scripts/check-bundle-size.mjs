@@ -95,25 +95,26 @@ const FROM_NODE = join(repoRoot, "examples/node/src");
  */
 // The client's `ai` namespace, which every KaitenClient holds, reaches every
 // scenario that builds a client: the budgets below were raised together in the
-// merge of main into feat/ai-credits, each about 3 % above what it then
-// measured. A host that wants none of it pays ~0.9 KB gzip for it today.
+// merge of main into feat/ai-credits, and again when the explainable charges
+// met it, each about 3 % above what it then measured. A host that wants none of
+// it pays ~1.9 KB gzip for it today.
 const SCENARIOS = [
   {
     name: "core · Gate + KaitenProvider",
     code: `import { Gate, KaitenProvider } from "@kaitencloud/react"; console.log(Gate, KaitenProvider);`,
-    budgetGzip: 27_950,
+    budgetGzip: 28_950,
     unstyled: true,
   },
   {
     name: "core · useEntitlementCheck + KaitenProvider",
     code: `import { useEntitlementCheck, KaitenProvider } from "@kaitencloud/react"; console.log(useEntitlementCheck, KaitenProvider);`,
-    budgetGzip: 27_100,
+    budgetGzip: 28_150,
     unstyled: true,
   },
   {
     name: "core · Show + KaitenProvider",
     code: `import { Show, KaitenProvider } from "@kaitencloud/react"; console.log(Show, KaitenProvider);`,
-    budgetGzip: 27_250,
+    budgetGzip: 28_300,
     unstyled: true,
   },
   {
@@ -130,7 +131,7 @@ const SCENARIOS = [
     // budget leaves a margin of about 300 bytes.
     name: "core · everything",
     code: `import * as all from "@kaitencloud/react"; console.log(all);`,
-    budgetGzip: 31_550,
+    budgetGzip: 32_550,
     unstyled: true,
   },
   {
@@ -145,7 +146,7 @@ const SCENARIOS = [
     // set before the popup opens, which the three flows that open one share.
     name: "billing · useCheckout + KaitenProvider",
     code: `import { KaitenProvider } from "@kaitencloud/react"; import { useCheckout } from "@kaitencloud/react/billing"; console.log(KaitenProvider, useCheckout);`,
-    budgetGzip: 31_400,
+    budgetGzip: 32_350,
     unstyled: true,
   },
   {
@@ -161,7 +162,7 @@ const SCENARIOS = [
     // set before the popup opens, and the quote kept when an amount changed after the setup.
     name: "billing · useAnonymousCheckout + KaitenProvider",
     code: `import { KaitenProvider } from "@kaitencloud/react"; import { useAnonymousCheckout } from "@kaitencloud/react/billing"; console.log(KaitenProvider, useAnonymousCheckout);`,
-    budgetGzip: 33_200,
+    budgetGzip: 34_250,
     unstyled: true,
   },
   {
@@ -218,7 +219,7 @@ const SCENARIOS = [
   {
     name: "react-ui · Gate + KaitenProvider through the re-export",
     code: `import { Gate, KaitenProvider } from "@kaitencloud/react-ui"; console.log(Gate, KaitenProvider);`,
-    budgetGzip: 27_950,
+    budgetGzip: 28_950,
     unstyled: true,
   },
   {
@@ -229,7 +230,7 @@ const SCENARIOS = [
   {
     name: "react-ui · PricingTable + KaitenProvider + KaitenStyleRoot",
     code: `import { PricingTable, KaitenProvider, KaitenStyleRoot } from "@kaitencloud/react-ui"; console.log(PricingTable, KaitenProvider, KaitenStyleRoot);`,
-    budgetGzip: 48_000,
+    budgetGzip: 50_150,
   },
   {
     name: "react-ui · Paywall + KaitenProvider + KaitenStyleRoot",
@@ -379,7 +380,7 @@ const SCENARIOS = [
     // Measured at 14 935 bytes once the `ai` namespace (KTN-201), which every
     // KaitenClient holds, met main's keyed usage reports and anonymous
     // checkout: 12.0 KB when the namespace landed on its own branch.
-    budgetGzip: 15_600,
+    budgetGzip: 16_400,
     headless: true,
     resolveDir: FROM_NODE,
   },
