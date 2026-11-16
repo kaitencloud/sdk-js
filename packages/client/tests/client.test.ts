@@ -78,7 +78,7 @@ describe("KaitenClient transport", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const request = getFetchRequest(fetchMock);
     expect(new URL(request.url).pathname).toBe("/public/catalog");
-    expect(request.headers.get("X-Kaiten-Publishable-Key")).toBe("pk_test");
+    expect(request.headers.get("Kaiten-Publishable-Key")).toBe("pk_test");
   });
 
   test("maps HTTP errors to KaitenError", async () => {
@@ -997,7 +997,7 @@ describe("secret credentials never leave a browser", () => {
     });
 
     await expect(client.getCatalog()).resolves.toMatchObject({ plans: [] });
-    expect(getFetchRequest(fetchMock).headers.get("X-Kaiten-Publishable-Key")).toBe("pk_live_abc");
+    expect(getFetchRequest(fetchMock).headers.get("Kaiten-Publishable-Key")).toBe("pk_live_abc");
   });
 
   test("a secret key is fine on a server, which is where it belongs", async () => {

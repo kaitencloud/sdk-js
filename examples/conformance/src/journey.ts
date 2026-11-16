@@ -122,14 +122,14 @@ export class Journey {
       const authorization = requestHeaders.authorization;
       if (path === "/public/catalog") {
         expect(
-          requestHeaders["x-kaiten-publishable-key"],
+          requestHeaders["kaiten-publishable-key"],
           `${where} carries the publishable key`,
         ).toBe("pk_…");
         expect(authorization, `${where} carries no bearer credential`).toBeUndefined();
       } else if (path.startsWith("/public/session/")) {
         expect(authorization, `${where} carries the customer session`).toBe("Bearer kst_…");
         expect(
-          requestHeaders["x-kaiten-publishable-key"],
+          requestHeaders["kaiten-publishable-key"],
           `${where} carries no publishable key`,
         ).toBeUndefined();
       } else if (path.startsWith("/customer-sessions")) {

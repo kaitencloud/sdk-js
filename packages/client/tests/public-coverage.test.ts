@@ -185,7 +185,7 @@ describe("each is one method", () => {
     expect(requests.map((request) => [request.method, new URL(request.url).pathname])).toEqual([
       [contract.method, `/api${contract.path}`],
     ]);
-    expect(requests[0]!.headers.get("X-Kaiten-Publishable-Key")).toBe(`pk_${"a".repeat(43)}`);
+    expect(requests[0]!.headers.get("Kaiten-Publishable-Key")).toBe(`pk_${"a".repeat(43)}`);
     expect(requests[0]!.headers.get("Authorization")).toBeNull();
   });
 

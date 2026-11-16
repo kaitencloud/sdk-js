@@ -44,7 +44,7 @@ async function plansOf(request: APIRequestContext): Promise<Plan[]> {
   };
   expect(config.mode).toBe("live");
   const response = await request.get(`${config.apiUrl}/public/catalog`, {
-    headers: { "X-Kaiten-Publishable-Key": config.publishableKey },
+    headers: { "Kaiten-Publishable-Key": config.publishableKey },
   });
   expect(response.status(), "the publishable key reads the catalogue").toBe(200);
   return ((await response.json()) as { plans: Plan[] }).plans;
@@ -114,7 +114,7 @@ test("a customer subscribes to a free plan, and finds it in the portal", async (
     sent.push({
       url: new URL(outgoing.url()).pathname,
       authorization: (headers["authorization"] ?? "").slice(0, "Bearer kst_".length),
-      key: (headers["x-kaiten-publishable-key"] ?? "").slice(0, "pk_".length),
+      key: (headers["kaiten-publishable-key"] ?? "").slice(0, "pk_".length),
     });
   });
 

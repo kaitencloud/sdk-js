@@ -425,10 +425,11 @@ export interface ResolvedFeatureFlag {
 
 /**
  * ISO-4217 currency code, e.g. `"USD"`, `"EUR"`, `"JPY"`. Used by
- * `formatKaitenMoney` to drive `Intl.NumberFormat` (symbol, grouping, and the
- * currency's minor-unit exponent). Kept as a documented string alias rather than
- * a 150-member union to stay ergonomic; invalid codes degrade gracefully at
- * format time instead of failing to type-check.
+ * `formatKaitenMoney` to drive `Intl.NumberFormat` (symbol and grouping), and by
+ * `majorUnitAmount` to read the currency's minor-unit exponent as the API counts
+ * it, which `formatKaitenMoney` uses too. Kept as a documented string alias
+ * rather than a 150-member union to stay ergonomic; invalid codes degrade
+ * gracefully at format time instead of failing to type-check.
  */
 export type CurrencyCode = string;
 

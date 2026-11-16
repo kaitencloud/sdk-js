@@ -42,7 +42,7 @@ describe("KaitenTransport auth headers", () => {
 
     const request = getFetchRequest(fetchMock);
     expect(request.headers.get("Authorization")).toBeNull();
-    expect(request.headers.get("X-Kaiten-Publishable-Key")).toBeNull();
+    expect(request.headers.get("Kaiten-Publishable-Key")).toBeNull();
   });
 
   test("bearer and publishable schemes are mutually exclusive", async () => {
@@ -56,7 +56,7 @@ describe("KaitenTransport auth headers", () => {
     }).getCustomer("acme");
     const bearerReq = getFetchRequest(bearerFetch);
     expect(bearerReq.headers.get("Authorization")).toBe("Bearer tok");
-    expect(bearerReq.headers.get("X-Kaiten-Publishable-Key")).toBeNull();
+    expect(bearerReq.headers.get("Kaiten-Publishable-Key")).toBeNull();
 
     const pkFetch = vi.fn(async () => json([]));
     vi.stubGlobal("fetch", pkFetch);
@@ -67,7 +67,7 @@ describe("KaitenTransport auth headers", () => {
       fetch: pkFetch,
     }).getCatalog();
     const pkReq = getFetchRequest(pkFetch);
-    expect(pkReq.headers.get("X-Kaiten-Publishable-Key")).toBe("pk_1");
+    expect(pkReq.headers.get("Kaiten-Publishable-Key")).toBe("pk_1");
     expect(pkReq.headers.get("Authorization")).toBeNull();
   });
 
