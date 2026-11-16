@@ -54,6 +54,7 @@ export function KaitenBranding({
         aria-label={localization.branding.poweredBy}
         aria-describedby={newTabHint}
         className={cn(
+          "ktn-own",
           "flex w-full items-center justify-center gap-2 whitespace-nowrap text-sm font-medium text-ktn-muted-foreground transition-colors hover:text-ktn-foreground",
           className,
         )}

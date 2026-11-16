@@ -10,6 +10,7 @@ import {
   assertNoDroppedUtilities,
   classTokens,
   findDroppedUtilities,
+  shouldKeepToken,
 } from "../scripts/build-kaiten-css.ts";
 
 // The hand-rolled CSS scanner silently dropped valid utilities (decimal
@@ -226,4 +227,16 @@ test("the shipped stylesheet carries every guarded utility src uses", async () =
   const builtCss = await readFile(path.resolve(import.meta.dirname, "../dist/kaiten.css"), "utf8");
 
   expect(findDroppedUtilities(builtCss, tokens)).toEqual([]);
+});
+
+test("never hands Tailwind a custom property name as a candidate", () => {
+  // Tailwind reads a theme variable's name among its candidates as a use of that
+  // variable and declares it on the theme root, which is `.kaiten` in the published
+  // stylesheet: the element the host's own markup inherits from. A comment is enough.
+  const tokens = classTokens("the host's `p-4` computes from `--spacing`, not `--ktn-radius`");
+
+  expect(tokens).toEqual(expect.arrayContaining(["p-4", "--spacing", "--ktn-radius"]));
+  expect(shouldKeepToken("p-4")).toBe(true);
+  expect(shouldKeepToken("--spacing")).toBe(false);
+  expect(shouldKeepToken("--ktn-radius")).toBe(false);
 });

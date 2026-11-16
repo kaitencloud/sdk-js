@@ -7,6 +7,8 @@ import postcss from "postcss";
 import { describe, expect, it } from "vite-plus/test";
 
 import {
+  assertOwned,
+  assertOwnVariables,
   assertScoped,
   assertUnlayered,
   scopeKaitenCss,
@@ -14,7 +16,8 @@ import {
   splitSelectorList,
 } from "../scripts/scope-kaiten-css.ts";
 
-const SCOPE = ":is(.kaiten,.kaiten *)";
+/** Inside the boundary, and on markup the SDK rendered: what every generated rule carries. */
+const SCOPE = ":is(.kaiten,.kaiten *):where(.ktn-own,.ktn-own *,.ktn-shell)";
 
 describe("splitSelectorList", () => {
   it("splits on top-level commas only", () => {
@@ -30,10 +33,19 @@ describe("splitSelectorList", () => {
 });
 
 describe("scopeSelector", () => {
-  it("appends the scope so it also matches the root element", () => {
-    // Appended, not prepended: `.relative:is(.kaiten,…)` matches the `.kaiten`
-    // element itself, where a descendant scope would miss it.
+  it("appends the scope to the element the rule styles", () => {
+    // Appended, not prepended: both conditions are about the subject itself,
+    // where it is and who rendered it.
     expect(scopeSelector(".relative")).toBe(`.relative${SCOPE}`);
+  });
+
+  it("asks for the SDK's own markup, at no cost in specificity", () => {
+    // Inside the boundary is where the host's markup is too. The ownership half
+    // is a `:where()`, so the rule still weighs the two classes the README's
+    // arbitration counts on.
+    expect(scopeSelector(".bg-primary")).toBe(
+      ".bg-primary:is(.kaiten,.kaiten *):where(.ktn-own,.ktn-own *,.ktn-shell)",
+    );
   });
 
   it("keeps a type selector first in its compound", () => {
@@ -176,6 +188,25 @@ describe("the shipped stylesheet", () => {
     expect(() => postcss.parse(css)).not.toThrow();
   });
 
+  it("binds every rule to markup the SDK rendered", async () => {
+    // Scoped is not the whole guarantee: the host's markup is inside `.kaiten`
+    // too, and a host with its own Tailwind build has `.bg-primary` as well.
+    const css = await readFile(path.resolve(import.meta.dirname, "../dist/kaiten.css"), "utf8");
+
+    expect(() => assertOwned(css)).not.toThrow();
+    expect(css).toContain(`.bg-primary${SCOPE}`);
+    expect(css).not.toMatch(/\.bg-primary:is\(\.kaiten,\.kaiten \*\)\s*\{/);
+  });
+
+  it("declares no custom property but the SDK's own", async () => {
+    // A custom property is inherited: `--spacing` on the boundary is what the
+    // host's own `p-4` computes from inside it.
+    const css = await readFile(path.resolve(import.meta.dirname, "../dist/kaiten.css"), "utf8");
+
+    expect(() => assertOwnVariables(css)).not.toThrow();
+    expect(css).not.toMatch(/var\(--spacing\)/);
+  });
+
   it("ships nothing in a layer but Tailwind's `--tw-*` fallbacks", async () => {
     // A layered SDK is inert in exactly the hosts it is sold into — the failure is
     // invisible in Storybook and in any Tailwind v4 host, so it needs pinning here.
@@ -205,15 +236,10 @@ describe("the shipped stylesheet", () => {
 });
 
 describe("the boundary does not paint the host", () => {
-  // `.kaiten` wraps the HOST's children — the provider renders
+  // `.kaiten` wraps the HOST's children — the style root renders
   // `<div className="kaiten">{children}</div>` — so anything the boundary
-  // *declares* lands on the host's page, not just on SDK markup.
-  //
-  // It used to declare `background-color`, and the first consumer undid it by
-  // hand with `.kaiten { background-color: transparent }` and a comment
-  // describing the symptom ("reads as an extra column background over the
-  // page"). A workaround shipped by a consumer is the strongest evidence a
-  // default is wrong.
+  // *declares* lands on the host's page, not just on SDK markup: on its own box,
+  // and, for an inherited property, on every host element under it.
   async function boundaryDeclarations(): Promise<Map<string, string>> {
     const css = await readFile(path.join(import.meta.dirname, "../dist/kaiten.css"), "utf8");
     const declarations = new Map<string, string>();
@@ -239,13 +265,98 @@ describe("the boundary does not paint the host", () => {
     }
   });
 
-  it("declares nothing on the boundary beyond the token carrier's own needs", async () => {
+  it("declares nothing on the boundary beyond its own box", async () => {
     const declarations = await boundaryDeclarations();
 
-    // `color` is inherited rather than declared per element, so it carries no
-    // specificity and any host rule beats it — and moving it onto SDK elements
-    // would override the `text-card-foreground` a Card sets on its subtree.
-    // `position` is the portal host's containing block.
-    expect([...declarations.keys()].sort()).toEqual(["color", "position"]);
+    // `position` is the portal host's containing block, and `width` keeps a style
+    // scope from being what sizes the SDK. Neither is inherited. `color` is, so
+    // it is declared on the SDK's own outermost elements instead.
+    expect([...declarations.keys()].sort()).toEqual(["position", "width"]);
+  });
+
+  it("declares the SDK's text colour on the SDK's outermost elements", async () => {
+    const css = await readFile(path.join(import.meta.dirname, "../dist/kaiten.css"), "utf8");
+
+    // Wholly inside `:where()`: it weighs nothing, so a utility on the element
+    // and any host rule that targets it both win, as over an inherited value.
+    expect(css).toContain(":where(.kaiten .ktn-own:not(.ktn-own *))");
+  });
+});
+
+describe("assertOwned", () => {
+  it("throws on a utility scoped to the boundary alone", () => {
+    expect(() => assertOwned(".bg-primary:is(.kaiten,.kaiten *) { color: red; }")).toThrow(
+      /can match markup the SDK did not render/,
+    );
+  });
+
+  it("throws on a hand-written tag rule under the boundary", () => {
+    // Scoped, so `assertScoped` passes it, and still a rule about the host's `<code>`.
+    expect(() => assertScoped(".kaiten code { font-family: monospace; }")).not.toThrow();
+    expect(() => assertOwned(".kaiten code { font-family: monospace; }")).toThrow(/\.kaiten code/);
+  });
+
+  it("throws on one unbound selector in a list of bound ones", () => {
+    expect(() => assertOwned(`.a${SCOPE}, .b:is(.kaiten,.kaiten *) { color: red; }`)).toThrow(
+      /1 selector/,
+    );
+  });
+
+  it("does not take a container-variant utility for one of the SDK's own classes", () => {
+    // `.ktn-wide\:flex-row` begins like `.ktn-dialog` and is generated like `.flex`.
+    expect(() =>
+      assertOwned(String.raw`.ktn-wide\:flex-row:is(.kaiten,.kaiten *) { display: flex; }`),
+    ).toThrow(/can match markup the SDK did not render/);
+  });
+
+  it("passes what is bound to the SDK's markup, by either marker", () => {
+    expect(() =>
+      assertOwned(
+        [
+          scopeKaitenCss("@layer utilities { .flex { display: flex; } }"),
+          ".kaiten :where(.ktn-own, .ktn-own *, .ktn-shell) { border-color: red; }",
+          ":where(.kaiten .ktn-own:not(.ktn-own *)) { color: red; }",
+        ].join("\n"),
+      ),
+    ).not.toThrow();
+  });
+
+  it("passes the boundary itself, in either colour mode", () => {
+    expect(() =>
+      assertOwned(
+        ".kaiten { --ktn-primary: red; } .kaiten.dark, .dark .kaiten:not(.ktn-light) { --ktn-primary: blue; }",
+      ),
+    ).not.toThrow();
+  });
+
+  it("passes a rule keyed on one of the SDK's own class names", () => {
+    expect(() =>
+      assertOwned(
+        '.kaiten .ktn-badge-success { color: red; } .kaiten .ktn-paywall-card [data-slot="card-footer"] > div { width: auto; }',
+      ),
+    ).not.toThrow();
+  });
+
+  it("leaves keyframes and Tailwind's `--tw-*` fallbacks alone", () => {
+    expect(() =>
+      assertOwned(
+        "@keyframes spin { to { transform: rotate(360deg); } } @layer properties { *, ::before { --tw-shadow: 0 0 #0000; } }",
+      ),
+    ).not.toThrow();
+  });
+});
+
+describe("assertOwnVariables", () => {
+  it("throws on a Tailwind theme variable, wherever it is declared", () => {
+    expect(() => assertOwnVariables(".kaiten { --spacing: 0.25rem; }")).toThrow(/--spacing/);
+    expect(() => assertOwnVariables(`.x${SCOPE} { --text-sm: 0.875rem; }`)).toThrow(/--text-sm/);
+  });
+
+  it("passes the SDK's tokens and Tailwind's internals", () => {
+    expect(() =>
+      assertOwnVariables(
+        `.kaiten { --ktn-primary: red; } .shadow${SCOPE} { --tw-shadow: 0 1px #000; }`,
+      ),
+    ).not.toThrow();
   });
 });

@@ -52,18 +52,43 @@ async function probes(canvasElement: HTMLElement) {
   await expect(
     doc.querySelector("#sdk")!.textContent,
     "the harness must load the scoped stylesheet, not an empty string",
-  ).toContain(".bg-primary:is(.kaiten,.kaiten *)");
+  ).toContain(".bg-primary:is(.kaiten,.kaiten *):where(.ktn-own,.ktn-own *,.ktn-shell)");
 
   const styleOf = (id: string) =>
     doc.defaultView!.getComputedStyle(doc.querySelector<HTMLElement>(id)!);
-  return { themed: styleOf("#themed-probe"), host: styleOf("#host-probe") };
+  return {
+    themed: styleOf("#themed-probe"),
+    host: styleOf("#host-probe"),
+    embedded: styleOf("#embedded-host-probe"),
+    embeddedCode: styleOf("#embedded-host-code"),
+  };
+}
+
+/**
+ * The host's own markup inside the style root is still the host's.
+ *
+ * One root around the whole app puts every host element under `.kaiten`, and a
+ * Tailwind or shadcn host has the SDK's class names. Read against the twin outside the
+ * root: same classes, so the same result, down to the padding its `p-4` computes from
+ * the host's own `--spacing`.
+ */
+async function expectHostMarkupUntouched(styles: Awaited<ReturnType<typeof probes>>) {
+  const { embedded, embeddedCode, host } = styles;
+
+  await expect(embedded.backgroundColor).toBe(EXPECTED.hostPrimary);
+  await expect(embedded.borderRadius).toBe(EXPECTED.hostRadius);
+  await expect(embedded.fontSize).toBe(EXPECTED.hostFontSize);
+  await expect(embedded.paddingTop).toBe(EXPECTED.hostPadding);
+  await expect(embedded.color).toBe(host.color);
+  await expect(embeddedCode.fontFamily).toBe(EXPECTED.hostMono);
 }
 
 export const OverrideWinsOverTailwindV4Host: Story = {
   name: "Wins over a Tailwind v4 host",
   args: { hostCss: HOST_TAILWIND_V4 },
   play: async ({ canvasElement }) => {
-    const { themed, host } = await probes(canvasElement);
+    const styles = await probes(canvasElement);
+    const { themed, host } = styles;
 
     // The override reaches the component. Before `ac12ec3` the host's `.bg-primary`
     // won here whenever it loaded last, and this read as the host's red.
@@ -74,10 +99,19 @@ export const OverrideWinsOverTailwindV4Host: Story = {
     // a supported way to theme, so the playground must be free to emit a lone fill.
     await expect(themed.color).toBe(EXPECTED.primaryForeground);
 
+    // The SDK's spacing and type scale are its own too: the host's `--spacing` and
+    // `--text-sm` on `:root` do not resize a Kaiten button.
+    await expect(themed.fontSize).toBe(EXPECTED.fontSize);
+    await expect(themed.paddingTop).toBe(EXPECTED.padding);
+
     // The other half: SDK utilities stay inside their subtree, so the host's own button
     // keeps the host's colour rather than an undefined `--ktn-primary`.
     await expect(host.backgroundColor).toBe(EXPECTED.hostPrimary);
     await expect(host.borderRadius).toBe(EXPECTED.hostRadius);
+
+    // And the third: being unlayered must not hand the SDK the host's markup. Against a
+    // layered host the SDK's rule would win there however weak its selector.
+    await expectHostMarkupUntouched(styles);
   },
 };
 
@@ -85,7 +119,8 @@ export const UnlayeredHostOverridesTheSdk: Story = {
   name: "Wins over an unlayered host",
   args: { hostCss: HOST_UNLAYERED },
   play: async ({ canvasElement }) => {
-    const { themed, host } = await probes(canvasElement);
+    const styles = await probes(canvasElement);
+    const { themed, host } = styles;
 
     // This story used to assert the opposite, and the assertion was correct: while the
     // SDK shipped inside `@layer utilities`, an unlayered host rule outranked it however
@@ -96,11 +131,17 @@ export const UnlayeredHostOverridesTheSdk: Story = {
     await expect(themed.backgroundColor).toBe(EXPECTED.primary);
     await expect(themed.borderRadius).toBe(EXPECTED.radius);
     await expect(themed.color).toBe(EXPECTED.primaryForeground);
+    await expect(themed.fontSize).toBe(EXPECTED.fontSize);
+    await expect(themed.paddingTop).toBe(EXPECTED.padding);
 
     // Winning inside `.kaiten` must not mean reaching outside it: the scope is what
     // makes unlayering safe, so the host's own button is the other half of the claim.
     await expect(host.backgroundColor).toBe(EXPECTED.hostPrimary);
     await expect(host.borderRadius).toBe(EXPECTED.hostRadius);
+
+    // Nor reaching the host's markup inside it: two classes against the host's one is
+    // meant for the SDK's own elements.
+    await expectHostMarkupUntouched(styles);
   },
 };
 
@@ -117,10 +158,12 @@ export const HostCanTakeItBackWithALayer: Story = {
   name: "Host wins when it imports the SDK into a layer",
   args: { hostCss: HOST_UNLAYERED, sdkLayer: "kaiten" },
   play: async ({ canvasElement }) => {
-    const { themed, host } = await probes(canvasElement);
+    const styles = await probes(canvasElement);
+    const { themed, host } = styles;
 
     await expect(themed.backgroundColor).toBe(EXPECTED.hostPrimary);
     await expect(themed.borderRadius).toBe(EXPECTED.hostRadius);
     await expect(host.backgroundColor).toBe(EXPECTED.hostPrimary);
+    await expectHostMarkupUntouched(styles);
   },
 };

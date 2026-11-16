@@ -7,7 +7,13 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { compile } from "tailwindcss";
 
-import { assertScoped, assertUnlayered, scopeKaitenCss } from "./scope-kaiten-css.ts";
+import {
+  assertOwned,
+  assertOwnVariables,
+  assertScoped,
+  assertUnlayered,
+  scopeKaitenCss,
+} from "./scope-kaiten-css.ts";
 
 // A class token is a run of ordinary characters and bracketed groups. Outside brackets a
 // token stops at whitespace, a quote, a backtick or an angle bracket, which separate class
@@ -134,10 +140,21 @@ const SIMPLE_UTILITY_ALLOWLIST = new Set([
   "w-full",
 ]);
 
-function shouldKeepToken(token: string): boolean {
+/**
+ * Whether a token read from source goes to Tailwind as a candidate.
+ *
+ * A custom property name never does. It is not a utility, and it is not harmless
+ * noise either: Tailwind reads the name of a theme variable among its candidates as a
+ * use of that variable, and emits it on the theme root, `.kaiten` here, whether or not
+ * the theme is inlined. `--spacing` written in a comment is then enough for the host's
+ * own `p-4` to compute from the SDK's spacing inside the boundary. `assertOwnVariables`
+ * would stop that build; this keeps a comment from being what breaks it.
+ */
+export function shouldKeepToken(token: string): boolean {
   if (!token) return false;
   if (token.startsWith("http")) return false;
   if (token.includes("${")) return false;
+  if (token.startsWith("--")) return false;
   // Tokens with a `.`: keep arbitrary values (`bg-[#fff]`), variants, fractions —
   // AND decimal-step utilities (`py-1.5`). The old code dropped the last group,
   // which silently zeroed out padding/gap (the badge-padding bug). Being generous
@@ -337,11 +354,15 @@ export async function buildKaitenCss(outDir: string): Promise<void> {
 
   // Tailwind emits utilities and preflight at document scope, so the package
   // used to ship `.bg-primary` &c. straight into the host's cascade. Confine
-  // everything generated to the `.kaiten` subtree before writing — and, that done,
-  // dissolve the layers, which are what kept the scope from winning inside itself.
+  // everything generated to the SDK's own markup inside `.kaiten` before writing —
+  // and, that done, dissolve the layers, which are what kept the scope from winning
+  // on its own elements. Scoped is not enough to ship: the host's markup is inside
+  // the boundary too, so the last two checks ask what could reach it.
   const scopedCss = scopeKaitenCss(builtCss);
   assertScoped(scopedCss);
   assertUnlayered(scopedCss);
+  assertOwned(scopedCss);
+  assertOwnVariables(scopedCss);
 
   await mkdir(outDir, { recursive: true });
   await writeFile(path.join(outDir, "kaiten.css"), scopedCss, "utf8");

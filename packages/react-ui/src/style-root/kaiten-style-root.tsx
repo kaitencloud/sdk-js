@@ -86,23 +86,27 @@ function colorModeClass(mode: ResolvedColorMode): string | false {
 }
 
 /**
- * Classes on the scope root — the `<div class="kaiten">` that hosts the `--ktn-*`
+ * The class on the scope root — the `<div class="kaiten">` that hosts the `--ktn-*`
  * tokens and anchors every scoped style.
  *
- * `w-full` is there because this box is a style scope, not a layout participant, and it
- * must not be the thing that decides how wide the SDK is. In block flow it changes
- * nothing. In a flex or grid parent it does: with no width the wrapper shrink-to-fits,
- * so it asks its contents how wide they would like to be — and a
+ * It is the only one. The stylesheet's utilities apply to the markup the SDK renders
+ * (`.ktn-own`), and what is under this element is the host's, so its two declarations
+ * are written on `.kaiten` itself in src/styles/kaiten.css.
+ *
+ * One of them is `width: 100%`, because this box is a style scope, not a layout
+ * participant, and it must not be the thing that decides how wide the SDK is. In block
+ * flow it changes nothing. In a flex or grid parent it does: with no width the wrapper
+ * shrink-to-fits, so it asks its contents how wide they would like to be — and a
  * `repeat(auto-fit, …)` grid answers "one column", because auto-fit exists to read an
  * available width that shrink-to-fit has not decided yet. A host writing
  * `display: flex; justify-content: center` around the root therefore got a
  * one-column pricing table on a 1280px page. Measured on that exact story: 512px
- * wrapper and one column without this class, 1200px and three columns with it.
+ * wrapper and one column without the width, 1200px and three columns with it.
  *
  * Same rule as `@container/ktn` needing `w-full`, and the same reason — an element
  * sized by its contents cannot also tell those contents how much room they have.
  */
-const SCOPE_ROOT_CLASS = "kaiten w-full";
+const SCOPE_ROOT_CLASS = "kaiten";
 
 /** Warn once per component, so StrictMode's double render doesn't double the noise. */
 const warnedMissingStyleRoot = new Set<string>();

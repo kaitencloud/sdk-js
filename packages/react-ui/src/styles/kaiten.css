@@ -1,4 +1,20 @@
-@import "tailwindcss";
+/*
+ * Tailwind's theme is INLINED: a utility carries the value itself
+ * (`padding: calc(0.25rem * 4)`), not a reference (`calc(var(--spacing) * 4)`).
+ *
+ * A reference needs the variable declared above the element, and the published
+ * stylesheet can only declare it on `.kaiten` (see scripts/scope-kaiten-css.ts).
+ * That element is an ancestor of the host's own markup, and `--spacing`,
+ * `--text-sm` and `--radius-xs` are the names a Tailwind v4 host declares on `:root`
+ * for its own utilities: inside the boundary they would read the SDK's values, and
+ * the host's `p-4` would change size without a single SDK rule matching it.
+ *
+ * Nothing is lost by it. No SDK code reads these variables, and what a host may
+ * override is `--ktn-*`, which the theme keys below reference and which stays a
+ * variable in every utility (`background-color: var(--ktn-primary)`). The build
+ * fails if a variable outside that namespace is declared (`assertOwnVariables`).
+ */
+@import "tailwindcss" theme(inline);
 
 @source "../**/*.{js,ts,jsx,tsx,mdx}";
 
@@ -145,34 +161,52 @@
    * one class, which is what leaves the `border-ktn-*` utilities above this rule
    * rather than below it.
    */
-  .kaiten :where(.ktn-own, .ktn-own *):not(:where(.ktn-host, .ktn-host *)) {
+  .kaiten :where(.ktn-own, .ktn-own *, .ktn-shell) {
     @apply border-ktn-border outline-ktn-ring/50;
   }
 
   /*
-   * The boundary carries tokens and scopes styles. It does not paint a surface.
+   * The boundary carries tokens and scopes styles, and that is all it does to
+   * what is inside it: `<KaitenStyleRoot>` wraps the HOST's markup in this
+   * element, a whole app when one root is mounted around it.
    *
-   * `bg-ktn-background` used to be here, and the provider wraps the HOST's
-   * children in this element — so the SDK painted an opaque panel over whatever
-   * page it was mounted on. The first consumer undid it immediately, with a
-   * `.kaiten { background-color: transparent }` override and a comment
-   * describing the symptom.
-   *
-   * `color` stays, deliberately. It is INHERITED rather than declared on each
-   * element, so it has no specificity and any host `color` rule beats it; moving
-   * it onto the SDK's own elements would instead declare it on each one and
-   * override the `text-card-foreground` a Card sets on its subtree — the exact
-   * contrast bug documented in ui/card.tsx.
-   *
-   * `position: relative` moved here from the provider's className, which used to
-   * spell it `clsx("kaiten relative", …)`.
+   * So it paints no surface (a `background` here is an opaque panel over the
+   * host's page) and it declares nothing its subtree inherits but the `--ktn-*`
+   * tokens: no `color`, no font. Both of its declarations are about its own box.
+   * `position: relative` makes it the containing block of the portal host.
+   * `width: 100%` is there because a style scope must not be what decides how
+   * wide the SDK is: see `KaitenStyleRoot`.
    */
   .kaiten {
-    @apply relative text-ktn-foreground;
+    @apply relative w-full;
   }
 
-  .kaiten code {
-    font-family: var(--ktn-font-mono);
+  /*
+   * The SDK's text colour, declared on the outermost element of each thing the
+   * SDK renders and inherited from there.
+   *
+   * Outermost only (`:not(.ktn-own *)`), because a colour declared on every
+   * marked element would override the `text-card-foreground` a Card sets for
+   * its subtree: the contrast bug documented in ui/card.tsx.
+   *
+   * `:where()` around all of it, so the rule weighs nothing. It decides the
+   * colour only where no other rule does, as an inherited value would: any
+   * utility on the element wins (`text-card-foreground` on a Card that is itself
+   * outermost), and so does any rule of the host's that targets it.
+   */
+  :where(.kaiten .ktn-own:not(.ktn-own *)) {
+    @apply text-ktn-foreground;
+  }
+
+  /*
+   * The same, for the elements the preflight tells to inherit their colour:
+   * links and form controls. An outline `Button` a host places by itself pins no
+   * colour, and `color: inherit` would hand it the host's. One class and one
+   * type, which is the preflight's own weight, and this block comes later; the
+   * utilities stay above it, so `text-primary-foreground` on a Button holds.
+   */
+  .kaiten :is(a, button, input, optgroup, select, textarea):where(.ktn-own:not(.ktn-own *)) {
+    @apply text-ktn-foreground;
   }
 }
 

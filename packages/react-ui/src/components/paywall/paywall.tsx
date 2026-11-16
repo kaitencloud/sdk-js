@@ -47,16 +47,18 @@ import type { KaitenAppearance } from "../../appearance/types.ts";
 const INERT = { inert: "inert" } as unknown as { inert?: boolean };
 
 /**
- * Marks a subtree the SDK MOUNTS but did not WRITE.
+ * `ktn-shell`, on the wall's root: an element the SDK renders AROUND markup it
+ * did not write.
  *
- * The stylesheet's preflight is scoped to SDK-rendered markup via `.ktn-own`,
- * and `.ktn-own *` covers everything inside a component — including, here, the
- * host's own children, which Paywall renders inside its `data-slot="paywall"`
- * root. This class takes them back out: it is the one place in the SDK where
- * host markup sits under an SDK element, so it is the one place that needs to
- * say so. See scope-kaiten-css.ts.
+ * The stylesheet applies to SDK-rendered markup, which `ktn-own` marks along
+ * with everything under it. The wall's root cannot carry that: the host's own
+ * children are under it, and they would take the SDK's reset and utilities for
+ * their class names. `ktn-shell` covers the element that carries it and nothing
+ * below, so the root keeps its own layout classes, the content it gates stays
+ * the host's, and an SDK component the host placed in that content is marked by
+ * its own `ktn-own` as anywhere else. The wall itself, beside the content, is
+ * an ordinary `ktn-own` subtree. See scripts/scope-kaiten-css.ts.
  */
-const HOST_SUBTREE = "ktn-host";
 
 /**
  * The wrappers with no wall up: there, but out of the layout.
@@ -391,7 +393,7 @@ function PaywallRoot({
       );
   } else if (inlineWall && unstyled) {
     overlay = (
-      <div ref={overlayRef} role="group" aria-label={reasonLabel}>
+      <div ref={overlayRef} role="group" aria-label={reasonLabel} className="ktn-own">
         <p>{reasonLabel}</p>
         <p>{description}</p>
         {note ? <p>{note}</p> : null}
@@ -419,7 +421,7 @@ function PaywallRoot({
         ref={overlayRef}
         role="group"
         aria-label={reasonLabel}
-        className="ktn-paywall-wall absolute inset-0 z-10 rounded-ktn-lg bg-ktn-background/80 backdrop-blur-sm"
+        className="ktn-own ktn-paywall-wall absolute inset-0 z-10 rounded-ktn-lg bg-ktn-background/80 backdrop-blur-sm"
       >
         {/* The frame carries the padding, not the wall: a container query cannot
             restyle its own container, and the compact wall tightens both. */}
@@ -466,19 +468,14 @@ function PaywallRoot({
       className={
         inlineWall
           ? unstyled
-            ? "ktn-own"
-            : cn("ktn-own", "relative min-h-20", merged.elements?.paywallOverlay)
+            ? "ktn-shell"
+            : cn("ktn-shell", "relative min-h-20", merged.elements?.paywallOverlay)
           : undefined
       }
       style={inlineWall ? undefined : CONTENTS}
     >
       {/* Masked content is inert: not focusable, not clickable, hidden from AT. */}
-      <div
-        ref={contentRef}
-        {...(wallUp ? INERT : null)}
-        className={HOST_SUBTREE}
-        style={wallUp ? undefined : CONTENTS}
-      >
+      <div ref={contentRef} {...(wallUp ? INERT : null)} style={wallUp ? undefined : CONTENTS}>
         {children}
       </div>
       {overlay}
