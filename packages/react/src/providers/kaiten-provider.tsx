@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import * as React from "react";
-import useSWR from "swr";
 
 import { KaitenClient } from "@kaitencloud/client";
 import type {
@@ -29,6 +28,7 @@ import type {
 import { kaitenKeys } from "../hooks/query-keys.ts";
 import type { UseKaitenQueryResult } from "../hooks/use-kaiten-query.ts";
 import { snapshotFromPortal } from "../lib/portal-snapshot.ts";
+import { DEFAULT_STALE_IF_ERROR_MS, useProviderRead } from "./provider-read.ts";
 import { createOfflineKaitenClient } from "./static-client.ts";
 
 const DEFAULT_API_URL = "/api";
@@ -67,7 +67,17 @@ interface KaitenDataContextValue {
   portal: UseKaitenQueryResult<KaitenPortal>;
   branding: KaitenBrandingCapability;
   isLoading: boolean;
+  /** The read this scope lives on holds data to decide on, fresh or not. */
   isLoaded: boolean;
+  /**
+   * The read this scope lives on failed and holds nothing to decide on: it never
+   * succeeded, or reads have been failing for longer than `staleIfErrorMs`. This
+   * is when `KaitenFailed` renders and when `Show`, `Gate` and `Paywall` apply
+   * their `onError`. Short of it, a failed read leaves `error` set beside the
+   * data it last had, and that data still decides.
+   */
+  failed: boolean;
+  /** The error of the last read, when it failed: set beside the data it left, too. */
   error: Error | null;
   refetch: () => void;
 }
@@ -85,55 +95,6 @@ function createDisabledQueryResult<T>(): UseKaitenQueryResult<T> {
     isLoading: false,
     error: null,
     refetch: () => {},
-  };
-}
-
-// Takes the SWR primitives (not the per-render SWR object) so callers can
-// memoize on stable values — see the `catalog`/`snapshot` useMemos.
-function toQueryResult<T>(
-  data: T | undefined,
-  isLoading: boolean,
-  error: Error | undefined,
-  // SWR's bound mutate returns a Promise; we fire-and-forget it in `refetch`.
-  mutate: () => unknown,
-): UseKaitenQueryResult<T> {
-  return {
-    data,
-    isLoading,
-    error: error ?? null,
-    refetch: () => {
-      void mutate();
-    },
-  };
-}
-
-/**
- * The policy of every read the provider makes: the catalog, the snapshot and a
- * customer session's portal.
- */
-function readOptions<T>(seed: T | undefined, refreshInterval: number) {
-  return {
-    // Render server-fetched data immediately. SWR doesn't count
-    // fallbackData as "loaded" for `isLoading`, so also skip the mount
-    // revalidation when seeded — the server data is fresh and polling still
-    // refreshes it — otherwise `isLoading` stays true and components flash.
-    fallbackData: seed,
-    revalidateOnMount: seed ? false : undefined,
-    refreshInterval,
-    revalidateOnFocus: false,
-    // A reconnect used to revalidate too (SWR's default), which made "no
-    // request" impossible to promise: a page seeded with `initialData` and no
-    // polling still fired one fetch the moment the browser came back online —
-    // at the host's own origin when `apiUrl` was left at its default, so the
-    // answer was a 404 and a `KaitenFailed` state. A read happens on mount, on
-    // the polling schedule and on `refetch`; nowhere else.
-    revalidateOnReconnect: false,
-    // Don't poll a hidden tab or an offline browser (SWR defaults, made
-    // explicit) — a backgrounded dashboard stops hammering the API.
-    refreshWhenHidden: false,
-    refreshWhenOffline: false,
-    shouldRetryOnError: false,
-    dedupingInterval: 1_000,
   };
 }
 
@@ -378,6 +339,24 @@ interface KaitenProviderNetworkProps {
     /** Under `mode="customer-session"`: the portal your server read with the same session. */
     portal?: KaitenPortal;
   };
+  /**
+   * How long the data last read keeps deciding once reads fail, in milliseconds.
+   * Default one hour.
+   *
+   * A read that fails after one that succeeded keeps the data it last had, with
+   * `error` set, and the provider reads again on a growing delay: 5 seconds, 10,
+   * 20, up to 5 minutes. Meanwhile `Show`, `Gate`, `Paywall` and `KaitenLoaded`
+   * answer from that data, so an API that restarts does not lock a paying
+   * customer out of what the last read granted. Once reads have failed for
+   * longer than this, they apply their `onError` policy and `KaitenFailed`
+   * renders, as when nothing was ever read. The delay is counted from the first
+   * read that failed, and checked when a read fails: a hidden tab makes none, so
+   * it closes nothing until it is shown again and the read it then makes fails
+   * too.
+   *
+   * `0` applies `onError` at the first failed read. `Infinity` never does.
+   */
+  staleIfErrorMs?: number;
 }
 
 export type KaitenProviderProps =
@@ -412,6 +391,12 @@ export type KaitenScopeProviderProps = Pick<
     | AuthenticatedKaitenProviderConfig
     | CustomerSessionKaitenProviderConfig
     | null;
+  /**
+   * How long the data last read keeps deciding once reads fail, for whichever
+   * config is active: `staleIfErrorMs` of `KaitenProvider`. A static config
+   * reads nothing, and has nothing to keep.
+   */
+  staleIfErrorMs?: number;
 };
 
 // A session client has no identity a string could carry, so each one gets a
@@ -511,6 +496,8 @@ function KaitenProviderRoot(props: KaitenProviderProps) {
   const staticCatalog = props.mode === "static" ? props.catalog : undefined;
   const hostClient = props.mode === "static" ? undefined : props.client;
   const initialData = props.mode === "static" ? undefined : props.initialData;
+  const staleIfErrorMs =
+    (props.mode === "static" ? undefined : props.staleIfErrorMs) ?? DEFAULT_STALE_IF_ERROR_MS;
   const apiUrl = props.mode === "static" ? "" : (props.apiUrl ?? DEFAULT_API_URL);
   const sessionProps = props.mode === "customer-session" ? props : null;
   const sessionClient = sessionProps?.sessionClient ?? null;
@@ -619,70 +606,53 @@ function KaitenProviderRoot(props: KaitenProviderProps) {
   );
 
   const refreshInterval = pollingConfig.enabled ? pollingConfig.interval : 0;
-  const catalogSWR = useSWR<KaitenCatalog, Error>(
+  // Each read hands back one result object, the same until what it holds
+  // changes, so the context value below changes only when the data does, and
+  // not on every poll tick.
+  const catalogRead = useProviderRead<KaitenCatalog>(
     readsCatalog ? kaitenKeys.components.catalog(scopeKey) : null,
     () => client.getCatalog(),
-    // A customer session polls its portal; the catalog beside it does not move
-    // with the customer's usage.
-    readOptions(initialData?.catalog, sessionClient ? 0 : refreshInterval),
+    {
+      seed: initialData?.catalog,
+      // A customer session polls its portal; the catalog beside it does not move
+      // with the customer's usage.
+      refreshInterval: sessionClient ? 0 : refreshInterval,
+      staleIfErrorMs,
+    },
   );
 
-  const snapshotSWR = useSWR<LicensingSnapshot, Error>(
+  const snapshotRead = useProviderRead<LicensingSnapshot>(
     authenticatedProps ? kaitenKeys.components.snapshot(scopeKey) : null,
     () =>
       client.getLicensingSnapshot(authenticatedProps!.customerId, authenticatedProps!.instanceId),
-    readOptions(initialData?.snapshot, refreshInterval),
+    { seed: initialData?.snapshot, refreshInterval, staleIfErrorMs },
   );
 
   // A customer session's one read, in place of the snapshot.
-  const portalSWR = useSWR<KaitenPortal, Error>(
+  const portalRead = useProviderRead<KaitenPortal>(
     sessionClient ? kaitenKeys.components.portal(scopeKey) : null,
     () => sessionClient!.getPortal(),
-    readOptions(initialData?.portal, refreshInterval),
+    { seed: initialData?.portal, refreshInterval, staleIfErrorMs },
   );
 
-  // Stabilize the query-result wrappers: useSWR returns a fresh object
-  // every render, so building `catalog`/`snapshot` inline gave them a new
-  // identity each render — defeating the `dataValue` useMemo below and
-  // re-rendering every consumer on every poll tick. Memoize on the SWR
-  // primitives instead, so the context value only changes when data actually does.
-  const {
-    data: catalogData,
-    isLoading: catalogIsLoading,
-    error: catalogError,
-    mutate: catalogMutate,
-  } = catalogSWR;
+  const catalogResult = catalogRead.result;
   const catalog = React.useMemo<UseKaitenQueryResult<KaitenCatalog>>(() => {
     if (staticCatalog) {
       // Known before the first render, so it is never loading and cannot fail,
       // and `refetch` has nothing to re-read. The server renders the same answer.
       return { data: staticCatalog, isLoading: false, error: null, refetch: NOOP };
     }
-    return readsCatalog
-      ? toQueryResult(catalogData, catalogIsLoading, catalogError, catalogMutate)
-      : createDisabledQueryResult<KaitenCatalog>();
-  }, [readsCatalog, staticCatalog, catalogData, catalogError, catalogIsLoading, catalogMutate]);
+    return readsCatalog ? catalogResult : createDisabledQueryResult<KaitenCatalog>();
+  }, [readsCatalog, staticCatalog, catalogResult]);
 
-  const {
-    data: portalData,
-    isLoading: portalIsLoading,
-    error: portalError,
-    mutate: portalMutate,
-  } = portalSWR;
+  const portalResult = portalRead.result;
   const portal = React.useMemo<UseKaitenQueryResult<KaitenPortal>>(
-    () =>
-      sessionClient
-        ? toQueryResult(portalData, portalIsLoading, portalError, portalMutate)
-        : createDisabledQueryResult<KaitenPortal>(),
-    [sessionClient, portalData, portalError, portalIsLoading, portalMutate],
+    () => (sessionClient ? portalResult : createDisabledQueryResult<KaitenPortal>()),
+    [sessionClient, portalResult],
   );
 
-  const {
-    data: snapshotData,
-    isLoading: snapshotIsLoading,
-    error: snapshotError,
-    mutate: snapshotMutate,
-  } = snapshotSWR;
+  const catalogData = catalogResult.data;
+  const snapshotResult = snapshotRead.result;
   const snapshot = React.useMemo<
     UseKaitenQueryResult<LicensingSnapshot & SessionSnapshotMembers>
   >(() => {
@@ -691,23 +661,13 @@ function KaitenProviderRoot(props: KaitenProviderProps) {
       // of the catalog beside it.
       return {
         ...portal,
-        data: portalData && snapshotFromPortal(portalData, catalogData),
+        data: portal.data && snapshotFromPortal(portal.data, catalogData),
       };
     }
     return mode === "authenticated"
-      ? toQueryResult(snapshotData, snapshotIsLoading, snapshotError, snapshotMutate)
+      ? snapshotResult
       : createDisabledQueryResult<LicensingSnapshot>();
-  }, [
-    mode,
-    sessionClient,
-    portal,
-    portalData,
-    catalogData,
-    snapshotData,
-    snapshotError,
-    snapshotIsLoading,
-    snapshotMutate,
-  ]);
+  }, [mode, sessionClient, portal, catalogData, snapshotResult]);
 
   // The read this scope lives on: the snapshot for a customer — read, or built
   // from a customer session's portal — the catalog for everyone else: fetched
@@ -716,6 +676,13 @@ function KaitenProviderRoot(props: KaitenProviderProps) {
   const activeData = active.data;
   const activeError = active.error;
   const activeLoading = active.isLoading;
+  // A read the mode does not make has no key, never fails, and so is never
+  // `failed`: the catalog's answer is the one a static provider gets, too.
+  const activeFailed = sessionClient
+    ? portalRead.failed
+    : mode === "authenticated"
+      ? snapshotRead.failed
+      : catalogRead.failed;
 
   const ctxValue = React.useMemo<KaitenContextValue>(
     () => ({
@@ -751,11 +718,21 @@ function KaitenProviderRoot(props: KaitenProviderProps) {
       portal,
       branding: activeData?.branding ?? DEFAULT_BRANDING,
       isLoading: activeLoading,
-      isLoaded: !activeLoading && !activeError && activeData !== undefined,
+      isLoaded: !activeLoading && activeData !== undefined && !activeFailed,
+      failed: activeFailed,
       error: activeError,
       refetch: active.refetch,
     }),
-    [active.refetch, activeData, activeError, activeLoading, catalog, snapshot, portal],
+    [
+      active.refetch,
+      activeData,
+      activeError,
+      activeFailed,
+      activeLoading,
+      catalog,
+      snapshot,
+      portal,
+    ],
   );
 
   // Context only. The element every SDK style is scoped to — `<div class="kaiten">`

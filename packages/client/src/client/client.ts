@@ -15,7 +15,11 @@ import {
   listCustomers,
   reportEntitlementUsageMetric,
 } from "../core/index.ts";
-import type { KaitenClientConfig, PublicCatalog } from "../core/index.ts";
+import type {
+  KaitenClientConfig,
+  PublicCatalog,
+  ReportEntitlementUsageMetricData,
+} from "../core/index.ts";
 import {
   IDEMPOTENCY_KEY_LOCATION,
   INVALID_TRANSACTION_ID_CODE,
@@ -34,6 +38,10 @@ import {
 } from "./normalize.ts";
 import { catalogQuery, mapPublicCatalog } from "./billing.ts";
 import { KaitenTransport } from "../core/index.ts";
+import { createModelsModule, createConversionRulesModule } from "../ai/catalog.ts";
+import type { KaitenModelsModule, KaitenConversionRulesModule } from "../ai/catalog.ts";
+import { createAiModule } from "../ai/module.ts";
+import type { KaitenAiModule } from "../ai/module.ts";
 import { LICENSING_CATALOG_QUERY, LICENSING_SNAPSHOT_QUERY } from "../graphql/documents.ts";
 import type {
   LicensingCatalogQuery,
@@ -109,6 +117,7 @@ export interface KaitenInstancesModule {
 }
 
 export interface KaitenLicensesModule {
+  conversionRules: KaitenConversionRulesModule;
   get: (licenseSlug: string) => Promise<License>;
   list: () => Promise<License[] | null>;
   getEntitlement: (licenseSlug: string, entitlementSlug: string) => Promise<LicenseEntitlement>;
@@ -345,9 +354,22 @@ const REPORT_RETRY_STATUSES = [500, 502, 503, 504] as const;
 const IDEMPOTENCY_KEY_HEADER = "Idempotency-Key";
 
 /** The report as the body carries it: the key travels in a header, never here. */
-function reportBody(input: ReportUsageInput): Omit<ReportUsageInput, "transactionId"> {
+/**
+ * The body of a usage report: the input without its key, which travels in a
+ * header.
+ *
+ * The regenerated route takes a `number` or an `ai_usage` value, while
+ * `ReportUsageInput` still takes every `EntitlementValue`, boolean and object
+ * included. That is deliberate and checked by
+ * `tests/report-usage-transaction-id.test.ts`: a 1.0 caller's report is sent
+ * byte for byte, and a value the API does not take is refused by the API, with
+ * its own code, rather than by a client that would decide for it. An AI report
+ * is not sent through here at all — `ai.reserve` / `ai.commit` send the
+ * `ai_usage` variant — so the cast narrows nothing a caller can observe.
+ */
+function reportBody(input: ReportUsageInput): ReportEntitlementUsageMetricData["body"] {
   const { transactionId: _key, ...body } = input;
-  return body;
+  return body as ReportEntitlementUsageMetricData["body"];
 }
 
 /** What the API accepts as a `transactionId`: 1 to 128 characters of `[A-Za-z0-9._:-]`. */
@@ -426,6 +448,13 @@ export class KaitenClient implements KaitenClientLike {
   public readonly instances: KaitenInstancesModule;
   public readonly licenses: KaitenLicensesModule;
   public readonly usage: KaitenUsageModule;
+  /**
+   * AI credits: `reserve`, `commit` and `run` on an AI credit pool. The
+   * provider wrappers (`@kaitencloud/ai-openai`, `@kaitencloud/ai-anthropic`, …)
+   * drive it for you. Server-side: the report needs a `ksh_` token.
+   */
+  public readonly ai: KaitenAiModule;
+  public readonly models: KaitenModelsModule;
 
   constructor(config: KaitenClientConfig) {
     // No default scheme: a publishable key reads the public catalogue only, and a
@@ -455,7 +484,9 @@ export class KaitenClient implements KaitenClientLike {
       list: () => this.listInstances(),
     };
 
+    this.models = createModelsModule(this.transport);
     this.licenses = {
+      conversionRules: createConversionRulesModule(this.transport),
       get: (licenseSlug) => this.getLicense(licenseSlug),
       list: () => this.listLicenses(),
       getEntitlement: (licenseSlug, entitlementSlug) =>
@@ -472,6 +503,8 @@ export class KaitenClient implements KaitenClientLike {
       getByGroup: (groupSlug, instanceSlug) =>
         this.getEntitlementGroupUsage(groupSlug, instanceSlug),
     };
+
+    this.ai = createAiModule(this.transport);
   }
 
   getCustomer(customerSlug: string): Promise<Customer> {

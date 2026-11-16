@@ -116,8 +116,8 @@ test("KaitenFailed's render prop hands over the error and a working retry", asyn
   );
 
   const retry = await screen.findByText("licensing is down");
-  // The provider sets `shouldRetryOnError: false`, so this callback is the only
-  // way out of a failure state short of reloading the page.
+  // The provider reads again on its own, five seconds after the first failure at
+  // the soonest: this callback is the way out for a user who will not wait.
   expect(getLicensingSnapshot).toHaveBeenCalledTimes(1);
   fireEvent.click(retry);
   await waitFor(() => expect(getLicensingSnapshot).toHaveBeenCalledTimes(2));

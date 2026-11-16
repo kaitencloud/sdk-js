@@ -40,6 +40,11 @@ export interface GateState {
    */
   provenance?: EntitlementProvenance;
   isLoading: boolean;
+  /**
+   * The error of the last read of the entitlements, when it failed. Set beside
+   * a decision made on the data an earlier read left, too: only with
+   * `reason: "error"` was there nothing to decide on.
+   */
   error: Error | null;
 }
 
@@ -69,9 +74,14 @@ export interface GateProps {
   /** Fraction of the quota at which `warning` turns true. Defaults to `0.8`. */
   threshold?: number;
   /**
-   * What to do when entitlement data cannot be loaded. `"block"` (default) is
-   * fail-closed, so paid capacity is never handed out during an outage;
-   * `"allow"` is fail-open. Either way the error stays on `state.error`.
+   * What to do when there is no entitlement data to decide on: no read ever
+   * succeeded, or reads have been failing for longer than the provider's
+   * `staleIfErrorMs`. `"block"` (default) is fail-closed, so paid capacity is
+   * never handed out to a customer nothing was read for; `"allow"` is
+   * fail-open. Either way the error stays on `state.error`.
+   *
+   * A read that fails after one that succeeded is not that case: the gate
+   * reports the data that read left, with the failure on `state.error`.
    */
   onError?: "block" | "allow";
   children: (state: GateState) => React.ReactNode;

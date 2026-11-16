@@ -139,7 +139,8 @@ jobs:
       - name: Run workspace tests
         run: vp run -r test
       # The checks above are code too: each is tried on a tree that passes and on
-      # one that does not.
+      # one that does not. This covers scripts/contract-ci-source.test.ts, which
+      # the AI credits branch used to run as a step of its own.
       - name: Test the repository's own scripts
         run: vp test run scripts
       # A ratchet, not a bar: it fails when coverage drops. The thresholds live on

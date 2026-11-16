@@ -386,16 +386,18 @@ client waits its default of 60 seconds, twice as long as the API asked for the T
 The API checks a token's scopes on every call. Give the token the scopes of the calls
 you make:
 
-| Call                                         | Scopes                                                                   |
-| -------------------------------------------- | ------------------------------------------------------------------------ |
-| `components.getCatalog()`                    | `read:licenses`, `read:entitlements`                                     |
-| `components.getSnapshot()`                   | `read:licenses`, `read:entitlements`, `read:customers`, `read:instances` |
-| `customers.*`                                | `read:customers`                                                         |
-| `instances.*`                                | `read:instances`                                                         |
-| `licenses.*`                                 | `read:licenses`                                                          |
-| `usage.getByInstance()`, `usage.getDetail()` | `read:instances`                                                         |
-| `usage.getByGroup()`                         | `read:entitlements`                                                      |
-| `usage.report()`                             | `write:instances`                                                        |
+| Call                                                                  | Scopes                                                                   |
+| --------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `components.getCatalog()`                                             | `read:licenses`, `read:entitlements`                                     |
+| `components.getSnapshot()`                                            | `read:licenses`, `read:entitlements`, `read:customers`, `read:instances` |
+| `customers.*`                                                         | `read:customers`                                                         |
+| `instances.*`                                                         | `read:instances`                                                         |
+| `licenses.*`                                                          | `read:licenses`                                                          |
+| `usage.getByInstance()`, `usage.getDetail()`                          | `read:instances`                                                         |
+| `usage.getByGroup()`                                                  | `read:entitlements`                                                      |
+| `usage.report()`                                                      | `write:instances`                                                        |
+| `ai.reserve`, `commit`, `release`, `run`, `refund`                    | `write:instances`                                                        |
+| `ai.listInferences`, `listOrganizationInferences`, `listReservations` | `read:instances`                                                         |
 
 A call that needs a scope the token lacks is refused with `403` and the code
 `Auth.MissingScope`. The two composed reads degrade instead of failing: when the API
@@ -425,6 +427,88 @@ const snapshot = await kaiten.components.getSnapshot("acme-corp");
 - `kaiten.components` — embedded monetization: `getCatalog()`, `getSnapshot(customerId, instanceId?)`
 - `kaiten.customers` / `kaiten.instances` / `kaiten.licenses` — curated reads
 - `kaiten.usage` — entitlement usage (read + report)
+- `kaiten.ai` — AI credits on a credit entitlement: `reserve`, `commit`, `run` (below)
+
+### AI credits
+
+A call to a model reserves its estimate on an AI credit entitlement, runs, and commits
+what it really used, under one `transactionId`. Kaiten prices it; the SDK never
+carries credits, and Kaiten never sees a prompt or a completion.
+
+```ts
+import { fromOpenAI } from "@kaitencloud/client";
+
+const completion = await kaiten.ai.run(
+  {
+    instance: "acme-prod",
+    entitlement: "chat-credits",
+    model: "gpt-4o",
+    requestType: "COMPLETION",
+    estimate: { inputTokens: 1000, outputTokens: 800 },
+    usage: (result) => fromOpenAI(result.usage),
+  },
+  () => openai.chat.completions.create({ model: "gpt-4o", messages, max_tokens: 800 }),
+);
+```
+
+A refused reservation throws before the provider is called:
+`InsufficientCreditsError`, `ModelNotAuthorizedError`, `UnknownModelError`.
+`TransactionIdReusedError` is a caller bug and is never retried,
+`NotAnAiCreditPoolError` means the entitlement is not an AI credit pool (a
+configuration error, thrown on every call, never a reason to run unmetered), and
+`AiUsageUnsupportedError` means the server predates AI reports.
+Both phases are retried three times on network errors and 500/502/503/504 under
+the same `transactionId` and identical phase/body. AI reports do not send
+`Idempotency-Key`, even when it is configured in transport defaults: that header
+belongs to numeric usage adjustments and the API rejects it on `ai_usage` reports.
+`fromOpenAI` and `fromAnthropic` map a provider's usage onto the disjoint token
+fields; omitted usage remains unknown, not zero. Credit amounts, remaining credits
+and non-token units retain the API's exact decimal strings; ordinary AI pool reads
+still carry `{ type: "number", value: ... }`.
+
+#### Vendor cost, release and failed commits
+
+`commit` takes an optional `vendorCost`: what the provider charged for the call, in
+USD, as an exact decimal string such as `"0.0125"`. Kaiten records it beside the cost
+it computes from the model catalogue; it never changes the credits charged. It is a
+string, never a number, because it is part of the commit's identity: a retry sends
+the byte-identical value, and `"0.01"` and `"0.010"` are two different commits. It is
+refused on `reserve` and on a `NOT_SENT` commit, validated before anything is sent,
+and, when the API predates it, dropped with a warning while the commit goes on. The
+SDK never computes a cost: pass the provider's own figure, unchanged. `run` takes a
+`vendorCost(result)` reader for the same purpose.
+
+```ts
+await kaiten.ai.commit({
+  instance: "acme-prod",
+  entitlement: "chat-credits",
+  transactionId,
+  requestStatus: "SUCCESS",
+  usage: fromOpenAI(completion.usage),
+  vendorCost: costReportedByYourGateway, // a decimal string, or omit it
+});
+```
+
+The answer's `outcome.rule` names the conversion rule that priced the phase, and its
+`specificity`. `outcome.warnings` is an open list of strings (`AiUsageWarning`):
+`NO_RESERVATION`, `COUNTER_PRECISION_DEGRADED` and others, plus any the API adds later.
+
+`ai.release({ instance, entitlement, transactionId })` is a `NOT_SENT` commit. For a
+transaction that never reserved, the API answers `RELEASED` with `NO_RESERVATION`
+and keeps a tombstone: a reserve or commit that arrives later under the same
+`transactionId` throws `TransactionIdReusedError`. Release a reserve whose answer
+was lost to close it.
+
+A commit that still fails after its retries never fails the call that ran. `run`
+hands it to `onCommitError(error, failed)`; `failed.retry()` resends the same commit,
+byte for byte, so it can be persisted and settled later. Without the hook it is
+logged, and the reservation expires on its own.
+
+You rarely write this by hand: `@kaitencloud/ai-openai`, `@kaitencloud/ai-anthropic`
+and `@kaitencloud/ai-vercel` reserve before each bounded provider call.
+`@kaitencloud/ai-claude-agent` and `@kaitencloud/ai-copilot` observe post-call usage
+only; they cannot stop a model request before it runs. `@kaitencloud/ai-codex`
+gates submitted prompts, not each internal model inference.
 
 ## Reporting usage
 
@@ -833,3 +917,69 @@ Apache-2.0. See `LICENSE` and `NOTICE`, and `THIRD_PARTY_NOTICES.md` for the
 third-party code this package bundles. The license does not grant permission to use
 the Kaiten name or logos: see the
 [trademark policy](https://github.com/kaitencloud/sdk-js/blob/main/TRADEMARKS.md).
+
+### AI catalogue and history reads
+
+The regenerated KTN-201 contract provides explicit read namespaces:
+
+```ts
+const page = await kaiten.models.list({ status: "ACTIVE", limit: 50 });
+const model = await kaiten.models.get("model-slug");
+const rules = await kaiten.licenses.conversionRules.list("license-slug", {
+  entitlementSlug: "credits",
+});
+const rule = await kaiten.licenses.conversionRules.get("license-slug", "rule-id");
+const history = await kaiten.ai.listInferences(
+  { instance: "acme", entitlement: "credits" },
+  {
+    status: "COMMITTED",
+    cursor: undefined,
+    limit: 50,
+  },
+);
+const reservations = await kaiten.ai.listReservations({ instance: "acme", entitlement: "credits" });
+const organization = await kaiten.ai.listOrganizationInferences({
+  instanceSlug: "acme",
+  authorized: "false",
+  cursor: undefined,
+});
+```
+
+Inference rows explain a charge: `pricing` (the rule snapshot that priced it),
+`licenseId`/`licenseSlug`, `warnings`, `reportSeq` (the link to the usage journal),
+`vendorCost` (`reported`, `computed`, `currency`), `refunds` and `credits.refunded`.
+Both listings filter on `authorized`, `modelSlug`, `model`, `requestType`, `status`,
+`transactionId` and a `from`/`to` range; the organization listing also on
+`instanceSlug` and `entitlementSlug`. A release that closed no reservation is listed
+only with `status: "RELEASED"` or its `transactionId`. Against an older API, rows
+come without the new members, and `refunds` and `warnings` are filled with `[]`.
+
+```ts
+const refund = await kaiten.ai.refund({
+  instance: "acme",
+  entitlement: "credits",
+  transactionId: "req-42",
+  credits: "3.5", // omit it to refund everything left
+  reason: "duplicate call",
+});
+```
+
+`refund` generates its idempotency key when you pass none and reuses it on its own
+retries; pass `idempotencyKey` to keep a refund safe across restarts. Refusals throw
+`AiRefundError` (with its `reason`) or one of its subclasses:
+`AiInferenceNotFoundError`, `AiInferenceNotCommittedError`, `NothingToRefundError`,
+`RefundExceedsRefundableError` (whose `refundable` is what is left),
+`RefundIdempotencyKeyReusedError` and `AiPoolNotGrantedError`.
+
+Pages preserve the server's `nextCursor`, `hasMore` and nullable `items`; callers
+choose when to fetch the next page. Credit `reserved` and report `ai` outcomes
+are generated contract fields, including nullable unlimited `remaining`.
+The full server SDK exposes generated `Models`, `Licenses` and `Instances`
+operations for administration as well as reads.
+
+For this feature branch, the snapshots were synced from Kaiten's `main` at
+`9a49c2d5fab547ea5cb7ba17b11d595eaacdc07f` — the commit
+`.github/kaiten-contract-source.json` names — with
+`KAITEN_OPENAPI=/path/to/kaiten/app/openapi.yaml` and `KAITEN_PATH=/path/to/kaiten`,
+using the standard sync scripts. This does not add a product-to-workspace
+dependency; generation reads committed snapshots.
