@@ -53,6 +53,7 @@ export type Webhooks =
   | OnInstanceAddonAddedWebhookRequest
   | OnInstanceAddonQuantityChangedWebhookRequest
   | OnInstanceAddonRemovedWebhookRequest
+  | OnInstanceAiModelUsageUnauthorizedWebhookRequest
   | OnInstanceBillingCanceledWebhookRequest
   | OnInstanceBillingCancellationRevertedWebhookRequest
   | OnInstanceBillingCancellationScheduledWebhookRequest
@@ -64,6 +65,7 @@ export type Webhooks =
   | OnInstanceBillingStatusChangedWebhookRequest
   | OnInstanceBillingTrialWillEndWebhookRequest
   | OnInstanceEntitlementCapExceededWebhookRequest
+  | OnInstanceEntitlementMaximumExceededWebhookRequest
   | OnInstanceEntitlementUsagePeriodRolledOverWebhookRequest
   | OnInstanceEntitlementUsageReachedWebhookRequest
   | OnInstanceEntitlementUsageReportAcceptedWebhookRequest
@@ -94,6 +96,9 @@ export type Webhooks =
   | OnInstanceVoucherExpiredWebhookRequest
   | OnInstanceVoucherRedeemedWebhookRequest
   | OnInstanceVoucherRevokedWebhookRequest
+  | OnArchiveConversionRuleWebhookRequest
+  | OnCreateConversionRuleWebhookRequest
+  | OnUpdateConversionRuleWebhookRequest
   | OnLicenseEntitlementAssignedWebhookRequest
   | OnLicenseEntitlementUnassignedWebhookRequest
   | OnLicenseEntitlementUpdatedWebhookRequest
@@ -114,6 +119,9 @@ export type Webhooks =
   | OnMetadataFieldReorderedWebhookRequest
   | OnMetadataFieldUnarchivedWebhookRequest
   | OnMetadataFieldUpdatedWebhookRequest
+  | OnModelCreatedWebhookRequest
+  | OnModelDeletedWebhookRequest
+  | OnModelUpdatedWebhookRequest
   | OnPublishableKeyCreatedWebhookRequest
   | OnPublishableKeyRevokedWebhookRequest
   | OnReleaseCreatedWebhookRequest
@@ -471,6 +479,186 @@ export type AddonUpdateDelivered = {
   via?: "customer_session" | "checkout_session";
 };
 
+export type AiCredits = {
+  charged?: string;
+  computed?: string;
+  /**
+   * The sum of the operation's refunds. Absent when it has none, and on a report's own answer.
+   */
+  refunded?: string;
+  reserved?: string;
+};
+
+export type AiInference = {
+  authorized?: boolean;
+  committedAt?: string;
+  conversionRuleId?: string;
+  credits: AiCredits;
+  denialReason?: string;
+  expiresAt?: string;
+  /**
+   * The licence whose conversion rules were considered.
+   */
+  licenseId?: string;
+  /**
+   * Absent once the licence is deleted.
+   */
+  licenseSlug?: string;
+  model: string;
+  modelSlug?: string;
+  /**
+   * The rule snapshot that priced the operation. Absent when no rule applied, and on operations recorded before snapshots existed.
+   */
+  pricing?: AiInferencePricing;
+  /**
+   * The refunds of the operation's charge, oldest first. Their sum is credits.refunded.
+   */
+  refunds: Array<AiInferenceRefund>;
+  /**
+   * The pool's report counter when the operation was counted: the link to the usage journal.
+   */
+  reportSeq?: number;
+  reportedAt: string;
+  requestStatus?: string;
+  requestType: "COMPLETION" | "EMBEDDING" | "IMAGE_GENERATION" | "AUDIO" | "VIDEO";
+  status: "RESERVED" | "COMMITTED" | "RELEASED" | "EXPIRED";
+  transactionId: string;
+  usage: AiUsage;
+  valueAfter?: number;
+  valueBefore?: number;
+  vendorCost?: AiVendorCost;
+  /**
+   * The warnings of the phase that last wrote the operation.
+   */
+  warnings: Array<string>;
+  windowStart?: string;
+};
+
+export type AiInferencePage = {
+  hasMore: boolean;
+  items: Array<AiInference> | null;
+  nextCursor?: string;
+};
+
+export type AiInferencePricing = {
+  chargeOnError: "NEVER" | "ALWAYS" | "PROVIDER_ERROR_ONLY";
+  maximumCreditsPerRequest: string | null;
+  minimumCreditsPerRequest: string;
+  rates: AiInferenceRates;
+  ruleId: string;
+  /**
+   * How the rule matched: its own model and request type, its own model for every request type, any model for its request type, or any model and request type.
+   */
+  specificity: "EXACT_TYPED" | "EXACT_ALL" | "ANY_TYPED" | "ANY_ALL";
+};
+
+export type AiInferenceRates = {
+  perCacheWriteToken?: string;
+  perCachedInputToken?: string;
+  perInputToken?: string;
+  perOutputToken?: string;
+  perRequest?: string;
+  perSecond?: string;
+  perUnit?: string;
+};
+
+export type AiInferenceRefund = {
+  /**
+   * The instant the refund's report was dated by.
+   */
+  createdAt: string;
+  /**
+   * Who refunded; a service account is a user.
+   */
+  createdBy: User;
+  /**
+   * Credits given back, a positive decimal.
+   */
+  credits: string;
+  id: string;
+  /**
+   * Why, as the caller wrote it.
+   */
+  reason?: string;
+  /**
+   * The pool's report counter of the negative report that moved the counter: the link to the usage journal.
+   */
+  reportSeq: number;
+};
+
+export type AiReservations = {
+  items: Array<AiInference> | null;
+};
+
+export type AiUsage = {
+  cacheReadInputTokens?: number;
+  cacheWriteInputTokens?: number;
+  durationMs?: number;
+  inputTokens?: number;
+  outputTokens?: number;
+  unitType?: "image" | "second" | "frame";
+  units?: string;
+};
+
+export type AiUsageOutcome = {
+  authorized?: boolean;
+  credits: AiCredits;
+  expiresAt?: string;
+  phase: "reserve" | "commit";
+  remaining: string | null;
+  /**
+   * The conversion rule that priced this phase. Absent when no rule applied, and on the replay of a phase answered before the member existed.
+   */
+  rule?: AiUsageRule;
+  status: "RESERVED" | "COMMITTED" | "RELEASED";
+  transactionId: string;
+  warnings: Array<string>;
+};
+
+export type AiUsageRule = {
+  id: string;
+  /**
+   * How the rule matched: its own model and request type, its own model for every request type, any model for its request type, or any model and request type.
+   */
+  specificity: "EXACT_TYPED" | "EXACT_ALL" | "ANY_TYPED" | "ANY_ALL";
+};
+
+export type AiUsageValue = {
+  model?: string;
+  /**
+   * Reserve estimates and holds credits before a provider request; commit calculates actual credits or releases an unsent request. Reservations do not lock the calculation rates.
+   */
+  phase: "reserve" | "commit";
+  requestStatus?: "SUCCESS" | "PROVIDER_ERROR" | "CUSTOMER_ERROR" | "NOT_SENT";
+  requestType?: "COMPLETION" | "EMBEDDING" | "IMAGE_GENERATION" | "AUDIO" | "VIDEO";
+  /**
+   * Required call identity, scoped to the instance and entitlement. Use the same identity for reserve and commit, and the identical phase/body for a retry. AI reports use this identity rather than Idempotency-Key.
+   */
+  transactionId?: string;
+  ttlSeconds?: number;
+  /**
+   * Calculation input for a NUMBER_AI_CREDIT entitlement, not a separate read-value type.
+   */
+  type: "ai_usage";
+  usage?: AiUsage;
+  /**
+   * Commit only. What the provider charged for this request, in USD, as an exact decimal string. Recorded as evidence beside the cost computed from the model catalogue; it never changes the credits charged.
+   */
+  vendorCost?: string;
+};
+
+export type AiVendorCost = {
+  /**
+   * From the model's catalogue costs and the reported usage. Absent when the model is not in the catalogue or the request was never sent.
+   */
+  computed?: string;
+  currency: "USD";
+  /**
+   * As sent by the caller on the commit.
+   */
+  reported?: string;
+};
+
 export type AuditActor = {
   id: string;
   /**
@@ -552,7 +740,11 @@ export type BillingCapabilities = {
    */
   enabled: boolean;
   /**
-   * Which parts of billing this release ships
+   * Capabilities whose plan grant is temporarily unknown; their feature flag stays false, but clients can retry instead of treating it as a known denial
+   */
+  featureCheckUnavailable?: Array<string>;
+  /**
+   * Which shipped billing capabilities this organization may use
    */
   features: BillingFeatures;
   /**
@@ -1044,6 +1236,10 @@ export type CancellationDelivered = {
   via?: "customer_session" | "checkout_session";
 };
 
+export type Capabilities = {
+  enabled: boolean;
+};
+
 export type CheckoutConfirmation = {
   session: CheckoutSession;
   /**
@@ -1514,6 +1710,111 @@ export type ConnectorState = {
   version?: string;
 };
 
+export type ConversionRates = {
+  perCacheWriteToken?: string | null;
+  perCachedInputToken?: string | null;
+  perInputToken?: string | null;
+  perOutputToken?: string | null;
+  perRequest?: string | null;
+  perSecond?: string | null;
+  perUnit?: string | null;
+};
+
+export type ConversionRule = {
+  chargeOnError: "NEVER" | "ALWAYS" | "PROVIDER_ERROR_ONLY";
+  createdAt: string;
+  /**
+   * User who created this rule; a service account is a user
+   */
+  readonly createdBy: User;
+  entitlementSlug: string;
+  /**
+   * Whether an add-on version compatible with the licence's family grants the pool, whatever its lifecycle state: instances of the licence can then hold the pool without the licence granting it. It says nothing of what any instance holds.
+   */
+  grantedByAddons: boolean;
+  grantedByLicense: boolean;
+  id: string;
+  licenseSlug: string;
+  maximumCreditsPerRequest: string | null;
+  minimumCreditsPerRequest: string;
+  modelSlug: string | null;
+  rates: ConversionRates;
+  requestType: "COMPLETION" | "EMBEDDING" | "IMAGE_GENERATION" | "AUDIO" | "VIDEO" | null;
+  status: "ACTIVE" | "ARCHIVED";
+  updatedAt: string;
+  /**
+   * User who last changed this rule: its pricing, or its archival
+   */
+  readonly updatedBy: User;
+};
+
+export type ConversionRuleDelivered = {
+  chargeOnError: "NEVER" | "ALWAYS" | "PROVIDER_ERROR_ONLY";
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  createdAt: string;
+  /**
+   * User who created this rule; a service account is a user
+   */
+  readonly createdBy: User;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  entitlementSlug: string;
+  /**
+   * Whether an add-on version compatible with the licence's family grants the pool, whatever its lifecycle state: instances of the licence can then hold the pool without the licence granting it. It says nothing of what any instance holds.
+   */
+  grantedByAddons: boolean;
+  grantedByLicense: boolean;
+  id: string;
+  licenseSlug: string;
+  maximumCreditsPerRequest: string | null;
+  minimumCreditsPerRequest: string;
+  modelSlug: string | null;
+  rates: ConversionRates;
+  requestType: "COMPLETION" | "EMBEDDING" | "IMAGE_GENERATION" | "AUDIO" | "VIDEO" | null;
+  status: "ACTIVE" | "ARCHIVED";
+  updatedAt: string;
+  /**
+   * User who last changed this rule: its pricing, or its archival
+   */
+  readonly updatedBy: User;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
+export type ConversionRuleUpdatedDelivered = {
+  after: ConversionRule;
+  before: ConversionRule;
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
+export type CreateConversionRule = {
+  chargeOnError?: "NEVER" | "ALWAYS" | "PROVIDER_ERROR_ONLY";
+  entitlementSlug: string;
+  maximumCreditsPerRequest?: string | null;
+  minimumCreditsPerRequest?: string;
+  modelSlug?: string | null;
+  rates: ConversionRates;
+  requestType?: "COMPLETION" | "EMBEDDING" | "IMAGE_GENERATION" | "AUDIO" | "VIDEO" | null;
+};
+
 export type CreateRole = {
   description: string;
   name: string;
@@ -1783,6 +2084,482 @@ export type CustomerSessionDraft = {
    * How long the session lives, in seconds: 300 to 3600 (CreateCustomerSession.InvalidTtl otherwise). Default 30 minutes; mint a new one before it ends.
    */
   ttlSeconds?: number;
+};
+
+export type DashboardArchivedVersion = {
+  customerName: string;
+  customerSlug: string;
+  /**
+   * The version the family serves instead, when it has a published default
+   */
+  defaultLicenseName: string | null;
+  familySlug: string;
+  instanceName: string;
+  instanceSlug: string;
+  licenseName: string;
+  version: number;
+};
+
+export type DashboardAttention = {
+  /**
+   * Instances pinned to a License version withdrawn from sale
+   */
+  archivedVersions: DashboardAttentionArchived;
+  /**
+   * The checks that ran; one the caller's scopes exclude is absent
+   */
+  checked: Array<string>;
+  /**
+   * Instances whose status is not HEALTHY
+   */
+  instancesNotHealthy: DashboardAttentionInstances;
+  /**
+   * Instances whose License ends within 30 days
+   */
+  licensesEnding30d: DashboardAttentionLicenses;
+  /**
+   * Meters at the most their grant allows, a hard limit or an allowance used up: the next report is refused
+   */
+  limitsReached: DashboardAttentionMeters;
+  /**
+   * Meters at or above the warning threshold of their grant, below the limit; an entitlement with no threshold never is
+   */
+  nearThreshold: DashboardAttentionMeters;
+  /**
+   * Usage reports refused in the last 24 hours, by instance
+   */
+  rejectedReports24h: DashboardAttentionReports;
+  /**
+   * Instances with no report, accepted or refused, and no entitlement read in the range
+   */
+  silentInstances: DashboardAttentionInstances;
+  /**
+   * Service account tokens that expire within 30 days
+   */
+  tokensExpiring30d: DashboardAttentionTokens;
+  /**
+   * Deployment zones running a release older than the newest one
+   */
+  zonesBehind: DashboardAttentionZones;
+};
+
+export type DashboardAttentionArchived = {
+  count: number;
+  items: Array<DashboardArchivedVersion>;
+};
+
+export type DashboardAttentionInstances = {
+  count: number;
+  items: Array<DashboardInstance>;
+};
+
+export type DashboardAttentionLicenses = {
+  count: number;
+  items: Array<DashboardLicenseEnding>;
+};
+
+export type DashboardAttentionMeters = {
+  count: number;
+  items: Array<DashboardMeter>;
+};
+
+export type DashboardAttentionReports = {
+  count: number;
+  items: Array<DashboardInstanceReports>;
+};
+
+export type DashboardAttentionTokens = {
+  count: number;
+  items: Array<DashboardTokenExpiring>;
+};
+
+export type DashboardAttentionZones = {
+  count: number;
+  items: Array<DashboardZone>;
+};
+
+export type DashboardBilling = {
+  /**
+   * Since the start of the calendar month, per currency, largest first
+   */
+  invoicedThisMonth: Array<DashboardInvoicedCurrency>;
+  subscriptions: DashboardSubscriptions;
+};
+
+export type DashboardConnector = {
+  activated: boolean;
+  activatedAt: string | null;
+  name: string;
+};
+
+export type DashboardConnectors = {
+  items: Array<DashboardConnector>;
+};
+
+export type DashboardCustomerFigures = {
+  createdInRange: number;
+  total: number;
+};
+
+export type DashboardDayReports = {
+  accepted: number;
+  day: string;
+  rejected: number;
+};
+
+export type DashboardFeatureFlags = {
+  enabled: number;
+  /**
+   * Evaluations recorded since range.auditTrailFrom; a floor, the evaluation publisher drops under pressure
+   */
+  evaluations: number;
+  /**
+   * Flags with no evaluation since range.auditTrailFrom
+   */
+  notEvaluated: number;
+  /**
+   * Every flag, most evaluated first
+   */
+  perFlag: Array<DashboardFlagEvaluations>;
+  total: number;
+};
+
+export type DashboardFigures = {
+  customers: DashboardCustomerFigures;
+  instances: DashboardInstanceFigures;
+  usageReports: DashboardUsageReportFigures;
+};
+
+export type DashboardFlagEvaluations = {
+  enabled: boolean;
+  evaluations: number;
+  name: string;
+  slug: string;
+};
+
+export type DashboardInstance = {
+  customerName: string;
+  customerSlug: string;
+  instanceName: string;
+  instanceSlug: string;
+  /**
+   * The last accepted report or entitlement read in the range; null when silent
+   */
+  lastActivityAt: string | null;
+  /**
+   * The instance's status, on the status check
+   */
+  status?: string;
+};
+
+export type DashboardInstanceFigures = {
+  /**
+   * Instances with an accepted report since range.usageHistoryFrom, or a refused report or an entitlement read since range.auditTrailFrom
+   */
+  activeInRange: number;
+  /**
+   * Instances by standing, over the whole organization
+   */
+  byStanding: DashboardStandingCounts;
+  /**
+   * HEALTHY, DEGRADED, INCIDENT, MAINTENANCE
+   */
+  byStatus: {
+    [key: string]: number;
+  };
+  createdInRange: number;
+  silentInRange: number;
+  total: number;
+};
+
+export type DashboardInstanceReports = {
+  accepted: number;
+  customerName: string;
+  customerSlug: string;
+  /**
+   * The meter that decides the standing, when one does: a meter at its limit before one above its threshold, the higher ratio first
+   */
+  headline?: DashboardMeter;
+  instanceName: string;
+  instanceSlug: string;
+  /**
+   * The last entitlement value read since range.auditTrailFrom
+   */
+  lastReadAt: string | null;
+  lastReportAt: string | null;
+  licenseName: string;
+  licenseState: "DRAFT" | "PUBLISHED" | "ARCHIVED";
+  rejected: number;
+  rejected24h: number;
+  /**
+   * No accepted report since range.usageHistoryFrom, and no refused report nor entitlement read since range.auditTrailFrom
+   */
+  silent: boolean;
+  /**
+   * The one word for the instance: atLimit when a meter refuses, watch when one is above its warning threshold, silent when nothing was reported or read in either window, healthy otherwise; computed over every meter of the instance
+   */
+  standing: "atLimit" | "watch" | "silent" | "healthy";
+};
+
+export type DashboardIntegrations = {
+  /**
+   * Absent when the caller cannot read the organization's connectors
+   */
+  connectors?: DashboardConnectors;
+  /**
+   * Absent when the caller cannot read publishable keys
+   */
+  publishableKeys?: DashboardPublishableKeys;
+  /**
+   * Service accounts and their tokens; absent when the caller cannot read tokens
+   */
+  tokens?: DashboardTokens;
+};
+
+export type DashboardInvoicedCurrency = {
+  currency: string;
+  invoices: number;
+  overdue: number;
+  paid: number;
+  totalMinor: number;
+};
+
+export type DashboardLicenseEnding = {
+  /**
+   * The instance's subscription status, when it has one; null too when the caller cannot read billing (the billing block says which)
+   */
+  billingStatus: string | null;
+  /**
+   * The subscription ends with its period rather than renewing; false without one, and when the caller cannot read billing
+   */
+  cancelAtPeriodEnd: boolean;
+  customerName: string;
+  customerSlug: string;
+  endsAt: string;
+  instanceName: string;
+  instanceSlug: string;
+  licenseName: string;
+};
+
+export type DashboardLicenseFamilyMix = {
+  familySlug: string;
+  instances: number;
+  versions: Array<DashboardLicenseVersionMix>;
+};
+
+export type DashboardLicenseVersionMix = {
+  instances: number;
+  isDefault: boolean;
+  lifecycleState: "DRAFT" | "PUBLISHED" | "ARCHIVED";
+  name: string;
+  slug: string;
+  version: number;
+};
+
+export type DashboardLicenses = {
+  archived: Array<DashboardArchivedVersion>;
+  ending: DashboardLicensesEnding;
+  mix: Array<DashboardLicenseFamilyMix>;
+};
+
+export type DashboardLicensesEnding = {
+  /**
+   * The next five to end
+   */
+  items: Array<DashboardLicenseEnding>;
+  within180Days: number;
+  within30Days: number;
+};
+
+export type DashboardMeter = {
+  /**
+   * Usage is at or past the warning threshold of the grant, below the limit, as the report path warns; never without a threshold
+   */
+  aboveWarning: boolean;
+  /**
+   * 0 is a hard limit, -1 an unlimited allowance
+   */
+  allowancePercent: number;
+  customerName: string;
+  customerSlug: string;
+  entitlementName: string;
+  entitlementSlug: string;
+  /**
+   * The grant; null when it is unlimited
+   */
+  granted: number | null;
+  /**
+   * The grant allows nothing past itself
+   */
+  hardLimit: boolean;
+  instanceName: string;
+  instanceSlug: string;
+  licenseName: string;
+  licenseState: "DRAFT" | "PUBLISHED" | "ARCHIVED";
+  /**
+   * Usage is at or past maxAllowed: the next report is refused
+   */
+  limitReached: boolean;
+  /**
+   * The grant plus its allowance, the most a report is accepted up to; null when nothing refuses
+   */
+  maxAllowed: number | null;
+  /**
+   * used over maxAllowed, or over the grant when nothing refuses; null when there is no grant to measure against
+   */
+  ratio: number | null;
+  unit: string | null;
+  /**
+   * Usage in the current window
+   */
+  used: number;
+  /**
+   * The entitlement's early-warning threshold, a percentage of the grant; 0 when none is configured
+   */
+  warningThresholdPercent: number;
+  /**
+   * Start of the current window of a periodic entitlement; null for a lifetime one
+   */
+  windowStart: string | null;
+};
+
+export type DashboardPublishableKeys = {
+  /**
+   * Keys not revoked
+   */
+  count: number;
+  /**
+   * The last use of any of them
+   */
+  lastUsedAt: string | null;
+};
+
+export type DashboardRangeWindow = {
+  /**
+   * The calendar days from auditTrailFrom to To, today included; days when the audit trail covers the whole period
+   */
+  auditTrailDays: number;
+  /**
+   * Where refused reports, entitlement reads and flag evaluations are read from: the start of the period's first whole day, or later when the organization keeps its audit trail for less
+   */
+  auditTrailFrom: string;
+  days: number;
+  from: string;
+  range: "7d" | "30d" | "90d";
+  to: string;
+  /**
+   * The calendar days from usageHistoryFrom to To, today included; days when the usage history covers the whole period
+   */
+  usageHistoryDays: number;
+  /**
+   * Where the accepted usage reports are read from: the start of the period's first whole day, or later when the organization keeps its usage history for less
+   */
+  usageHistoryFrom: string;
+};
+
+export type DashboardStandingCounts = {
+  atLimit: number;
+  healthy: number;
+  silent: number;
+  watch: number;
+};
+
+export type DashboardSubscriptions = {
+  active: number;
+  canceled: number;
+  pastDue: number;
+  trial: number;
+};
+
+export type DashboardSummary = {
+  /**
+   * When the figures were computed
+   */
+  asOf: string;
+  attention: DashboardAttention;
+  /**
+   * Subscriptions and this month's invoices; absent when the caller cannot read billing. Whether billing is enabled for the organization is GET /billing/capabilities' answer, not this one's
+   */
+  billing?: DashboardBilling;
+  /**
+   * Absent when the caller cannot read feature flags
+   */
+  featureFlags?: DashboardFeatureFlags;
+  figures: DashboardFigures;
+  /**
+   * Who talks to Kaiten; absent when the caller can read none of tokens, publishable keys and connectors
+   */
+  integrations?: DashboardIntegrations;
+  licenses: DashboardLicenses;
+  range: DashboardRangeWindow;
+  /**
+   * The meters closest to the most their grant allows, highest ratio first, at most eight
+   */
+  saturation: Array<DashboardMeter>;
+  usageReports: DashboardUsageReports;
+  /**
+   * Empty when the caller cannot read deployment zones and releases
+   */
+  zones: Array<DashboardZone>;
+};
+
+export type DashboardTokenExpiring = {
+  expiresAt: string;
+  name: string;
+  serviceAccountName: string;
+  serviceAccountSlug: string;
+  slug: string;
+};
+
+export type DashboardTokens = {
+  activeTokens: number;
+  serviceAccounts: number;
+  /**
+   * The next five to expire
+   */
+  tokensExpiring: Array<DashboardTokenExpiring>;
+  tokensExpiring30Days: number;
+  tokensWithoutExpiry: number;
+};
+
+export type DashboardUsageReportFigures = {
+  /**
+   * Reports accepted on the days usageReports.perDay covers: from the later of range.usageHistoryFrom and range.auditTrailFrom
+   */
+  accepted: number;
+  /**
+   * Reports refused on the same days, from the audit trail
+   */
+  rejected: number;
+  rejected24h: number;
+};
+
+export type DashboardUsageReports = {
+  /**
+   * Every instance, most reports first
+   */
+  byInstance: Array<DashboardInstanceReports>;
+  /**
+   * One entry a calendar day, today last, from the later of range.usageHistoryFrom and range.auditTrailFrom: the days both the accepted and the refused reports are kept
+   */
+  perDay: Array<DashboardDayReports>;
+};
+
+export type DashboardZone = {
+  deployedAt: string | null;
+  deployedBy: string | null;
+  instances: number;
+  name: string;
+  /**
+   * Null when nothing was deployed there
+   */
+  releaseVersion: string | null;
+  /**
+   * Releases created after the one the zone runs
+   */
+  releasesBehind: number;
+  slug: string;
+  type: string;
 };
 
 export type DefaultVariant =
@@ -2338,6 +3115,10 @@ export type EntitlementGroupUsage = {
 
 export type EntitlementUsage = {
   /**
+   * Outcome of this AI report; absent on ordinary reads
+   */
+  ai?: AiUsageOutcome;
+  /**
    * End of the current usage window (exclusive). Null for a lifetime entitlement (no configured reset period).
    */
   currentPeriodEnd?: string;
@@ -2383,6 +3164,10 @@ export type EntitlementUsage = {
    */
   provenance?: Provenance;
   /**
+   * Open, unexpired reserved credits; present only on AI credit pools
+   */
+  reserved?: string;
+  /**
    * license: the licence grants it (add-ons, boosts and an exception may change it); addon: an add-on attached does; exception: only the instance's exception does
    */
   source: "license" | "addon" | "exception";
@@ -2402,6 +3187,10 @@ export type EntitlementUsage = {
 };
 
 export type EntitlementUsageDelivered = {
+  /**
+   * Outcome of this AI report; absent on ordinary reads
+   */
+  ai?: AiUsageOutcome;
   /**
    * With via checkout_session: the session
    */
@@ -2455,6 +3244,10 @@ export type EntitlementUsageDelivered = {
    * What the licence, the add-ons and the boosts each contribute
    */
   provenance?: Provenance;
+  /**
+   * Open, unexpired reserved credits; present only on AI credit pools
+   */
+  reserved?: string;
   /**
    * license: the licence grants it (add-ons, boosts and an exception may change it); addon: an add-on attached does; exception: only the instance's exception does
    */
@@ -3085,6 +3878,25 @@ export type Instance = {
    * User who last updated this instance
    */
   readonly updatedBy: User;
+};
+
+export type InstanceAiModelUsageUnauthorizedDelivered = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  entitlement_slug: string;
+  model: string;
+  reason: string;
+  requestType: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
 };
 
 export type InstanceAddon = {
@@ -4616,9 +5428,9 @@ export type LicenseEntitlement = {
    */
   entitlementSlug?: string;
   /**
-   * Type of entitlement (BOOLEAN, NUMBER, or CONFIG)
+   * Definition type of the granted entitlement. NUMBER_AI_CREDIT is a calculated numeric entitlement; its granted allowance and usage value still use the number shape.
    */
-  readonly entitlementType?: "BOOLEAN" | "NUMBER" | "CONFIG";
+  readonly entitlementType?: "BOOLEAN" | "NUMBER" | "CONFIG" | "NUMBER_AI_CREDIT";
   /**
    * Unique identifier for the license this entitlement belongs to
    */
@@ -4628,7 +5440,7 @@ export type LicenseEntitlement = {
    */
   readonly licenseSlug: string;
   /**
-   * Derives this grant's enforcement from its own numeric value: -1 when the value is unlimited (no cap, no overage); otherwise 0 rejects usage above the value (hard limit) and a positive percentage allows usage to exceed it by that much before being rejected (soft limit). Null for non-numeric (BOOLEAN/CONFIG) grants.
+   * Enforcement derived from the numeric allowance: -1 is unlimited; otherwise 0 is a hard limit and a positive percentage permits overage. AI reservations and numeric adjustments use this bound; AI commits account actual usage even beyond it. Null for non-numeric (BOOLEAN/CONFIG) grants.
    */
   limitCapExceededOveragePercent?: number;
   /**
@@ -4684,9 +5496,9 @@ export type LicenseEntitlementDelivered = {
    */
   entitlementSlug?: string;
   /**
-   * Type of entitlement (BOOLEAN, NUMBER, or CONFIG)
+   * Definition type of the granted entitlement. NUMBER_AI_CREDIT is a calculated numeric entitlement; its granted allowance and usage value still use the number shape.
    */
-  readonly entitlementType?: "BOOLEAN" | "NUMBER" | "CONFIG";
+  readonly entitlementType?: "BOOLEAN" | "NUMBER" | "CONFIG" | "NUMBER_AI_CREDIT";
   /**
    * Unique identifier for the license this entitlement belongs to
    */
@@ -4696,7 +5508,7 @@ export type LicenseEntitlementDelivered = {
    */
   readonly licenseSlug: string;
   /**
-   * Derives this grant's enforcement from its own numeric value: -1 when the value is unlimited (no cap, no overage); otherwise 0 rejects usage above the value (hard limit) and a positive percentage allows usage to exceed it by that much before being rejected (soft limit). Null for non-numeric (BOOLEAN/CONFIG) grants.
+   * Enforcement derived from the numeric allowance: -1 is unlimited; otherwise 0 is a hard limit and a positive percentage permits overage. AI reservations and numeric adjustments use this bound; AI commits account actual usage even beyond it. Null for non-numeric (BOOLEAN/CONFIG) grants.
    */
   limitCapExceededOveragePercent?: number;
   /**
@@ -5362,6 +6174,87 @@ export type MismatchedInvoiceDelivered = {
   via?: "customer_session" | "checkout_session";
 };
 
+export type Model = {
+  readonly createdAt: string;
+  description?: string;
+  /**
+   * Exact provider identifiers, unique per organization; cannot shadow another model's slug
+   */
+  externalIds?: Array<string>;
+  readonly id: string;
+  metadata?: {
+    [key: string]: unknown;
+  };
+  modality: "TEXT" | "IMAGE" | "AUDIO" | "VIDEO" | "EMBEDDING" | "MULTIMODAL";
+  name: string;
+  /**
+   * Immutable URL-friendly identifier, unique per organization
+   */
+  slug: string;
+  /**
+   * ACTIVE authorizes usage; DEPRECATED keeps existing rules; ARCHIVED authorizes none. Reversible.
+   */
+  status: "ACTIVE" | "DEPRECATED" | "ARCHIVED";
+  readonly updatedAt: string;
+  vendor: string;
+  vendorCosts?: VendorCosts;
+};
+
+export type ModelDelivered = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  readonly createdAt: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  description?: string;
+  /**
+   * Exact provider identifiers, unique per organization; cannot shadow another model's slug
+   */
+  externalIds?: Array<string>;
+  readonly id: string;
+  metadata?: {
+    [key: string]: unknown;
+  };
+  modality: "TEXT" | "IMAGE" | "AUDIO" | "VIDEO" | "EMBEDDING" | "MULTIMODAL";
+  name: string;
+  /**
+   * Immutable URL-friendly identifier, unique per organization
+   */
+  slug: string;
+  /**
+   * ACTIVE authorizes usage; DEPRECATED keeps existing rules; ARCHIVED authorizes none. Reversible.
+   */
+  status: "ACTIVE" | "DEPRECATED" | "ARCHIVED";
+  readonly updatedAt: string;
+  vendor: string;
+  vendorCosts?: VendorCosts;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
+export type ModelUpdatedDelivered = {
+  after: Model;
+  before: Model;
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
 export type NewAddon = {
   description: string;
   /**
@@ -5443,6 +6336,17 @@ export type NewAddonPrice = {
    * Amount in minor units: per unit and period for FLAT_FEE, per sale unit for metered prices.
    */
   unitAmountDecimal: string;
+};
+
+export type NewAiInferenceRefund = {
+  /**
+   * Credits to give back, a positive decimal string. At most what the inference was charged minus what it was already refunded. Omit it to refund everything left.
+   */
+  credits?: string;
+  /**
+   * Why, kept with the refund and shown with it. Anyone who can read the organization's instances can read it.
+   */
+  reason?: string;
 };
 
 export type NewEntitlementException = {
@@ -5648,6 +6552,65 @@ export type NumberEntitlementValue = {
    * Numeric value
    */
   value: number;
+};
+
+export type OrganizationAiInference = {
+  authorized?: boolean;
+  committedAt?: string;
+  conversionRuleId?: string;
+  credits: AiCredits;
+  denialReason?: string;
+  /**
+   * Absent once the entitlement is deleted.
+   */
+  entitlementSlug?: string;
+  expiresAt?: string;
+  /**
+   * Absent once the instance is deleted.
+   */
+  instanceSlug?: string;
+  /**
+   * The licence whose conversion rules were considered.
+   */
+  licenseId?: string;
+  /**
+   * Absent once the licence is deleted.
+   */
+  licenseSlug?: string;
+  model: string;
+  modelSlug?: string;
+  /**
+   * The rule snapshot that priced the operation. Absent when no rule applied, and on operations recorded before snapshots existed.
+   */
+  pricing?: AiInferencePricing;
+  /**
+   * The refunds of the operation's charge, oldest first. Their sum is credits.refunded.
+   */
+  refunds: Array<AiInferenceRefund>;
+  /**
+   * The pool's report counter when the operation was counted: the link to the usage journal.
+   */
+  reportSeq?: number;
+  reportedAt: string;
+  requestStatus?: string;
+  requestType: "COMPLETION" | "EMBEDDING" | "IMAGE_GENERATION" | "AUDIO" | "VIDEO";
+  status: "RESERVED" | "COMMITTED" | "RELEASED" | "EXPIRED";
+  transactionId: string;
+  usage: AiUsage;
+  valueAfter?: number;
+  valueBefore?: number;
+  vendorCost?: AiVendorCost;
+  /**
+   * The warnings of the phase that last wrote the operation.
+   */
+  warnings: Array<string>;
+  windowStart?: string;
+};
+
+export type OrganizationAiInferencePage = {
+  hasMore: boolean;
+  items: Array<OrganizationAiInference> | null;
+  nextCursor?: string;
 };
 
 export type Outcome = {
@@ -5866,6 +6829,18 @@ export type PageMetadataField = {
    */
   hasMore: boolean;
   items: Array<MetadataField>;
+  /**
+   * Opaque cursor for the next page. Absent when hasMore is false.
+   */
+  nextCursor?: string;
+};
+
+export type PageModel = {
+  /**
+   * Whether more rows exist beyond this page.
+   */
+  hasMore: boolean;
+  items: Array<Model>;
   /**
    * Opaque cursor for the next page. Absent when hasMore is false.
    */
@@ -6906,7 +7881,10 @@ export type PublicAddOnEntitlement = {
    */
   overrideBehavior: "ADD" | "OVERRIDE" | "MAX";
   slug: string;
-  type: "BOOLEAN" | "NUMBER" | "NUMBER_AI_CREDIT" | "CONFIG";
+  /**
+   * Entitlement definition type. AI credit entitlements still carry numeric allowances.
+   */
+  type: "BOOLEAN" | "NUMBER" | "CONFIG" | "NUMBER_AI_CREDIT";
   value: unknown;
 };
 
@@ -7021,7 +7999,7 @@ export type PublicPlanEntitlement = {
   displayOrder: number;
   icon: string | null;
   /**
-   * How far usage may exceed a NUMBER grant before it is refused: 0 is a hard limit, -1 is unlimited; null for other types
+   * Overage policy for numeric-family grants: 0 is a hard limit and -1 is unlimited; null for non-numeric types. AI reservations use this bound, while commits account actual usage even beyond it.
    */
   limitCapExceededOveragePercent: number | null;
   name: string;
@@ -7029,11 +8007,14 @@ export type PublicPlanEntitlement = {
   saleUnitPlural: string | null;
   saleUnitSingular: string | null;
   slug: string;
-  type: "BOOLEAN" | "NUMBER" | "NUMBER_AI_CREDIT" | "CONFIG";
+  /**
+   * Entitlement definition type. AI credit entitlements still carry numeric allowances.
+   */
+  type: "BOOLEAN" | "NUMBER" | "CONFIG" | "NUMBER_AI_CREDIT";
   unitPlural: string | null;
   unitSingular: string | null;
   /**
-   * A NUMBER grant with no limit
+   * A numeric-family grant, including AI credits, with no limit
    */
   unlimited: boolean;
   /**
@@ -7856,7 +8837,7 @@ export type ReorderMetadataFieldsInput = {
 
 export type ReportEntitlementUsageBody = {
   /**
-   * Report behavior: append folds the value into the stored total through the aggregation method; set overwrites it
+   * Numeric behavior: append folds the value into the counter; set replaces it for ordinary NUMBER entitlements. AI credit entitlements accept only append adjustments. For ai_usage, omit behavior or use append; phase selects reserve or commit.
    */
   behavior?: "append" | "set";
   /**
@@ -7866,21 +8847,22 @@ export type ReportEntitlementUsageBody = {
     [key: string]: unknown;
   };
   /**
-   * Reported entitlement value, discriminated by the 'type' field. Usage reporting accepts the number variant only.
+   * Usage input for an entitlement, discriminated by type. Ordinary numeric entitlements accept number with append or set. NUMBER_AI_CREDIT is a numeric entitlement with model-usage calculation: send ai_usage to reserve or commit provider quantities, or number with append for credit adjustments/refunds. Read responses remain numeric credit counters.
    */
   value:
     | ({
         type: "number";
       } & NumberEntitlementValue)
     | ({
-        type: "boolean";
-      } & BooleanEntitlementValue)
-    | ({
-        type: "object";
-      } & ConfigEntitlementValue);
+        type: "ai_usage";
+      } & AiUsageValue);
 };
 
 export type ReportedEntitlementUsage = {
+  /**
+   * Outcome of this AI report; absent on ordinary reads
+   */
+  ai?: AiUsageOutcome;
   /**
    * End of the current usage window (exclusive). Null for a lifetime entitlement (no configured reset period).
    */
@@ -7923,15 +8905,19 @@ export type ReportedEntitlementUsage = {
    */
   limitCapExceededOveragePercent?: number;
   /**
-   * What the licence, the add-ons and the boosts each contribute. Null on a replay (Idempotent-Replayed): the journal does not store it.
+   * What the licence, the add-ons and the boosts each contribute. Null on numeric journal replay; AI phase replay preserves its original snapshot.
    */
   provenance: Provenance | null;
   /**
-   * license: the licence grants it (add-ons, boosts and an exception may change it); addon: an add-on attached does; exception: only the instance's exception does. Null on a replay (Idempotent-Replayed): the journal does not store it.
+   * Open, unexpired reserved credits; present only on AI credit pools
+   */
+  reserved?: string;
+  /**
+   * license: the licence grants it (add-ons, boosts and an exception may change it); addon: an add-on attached does; exception: only the instance's exception does. Null on numeric journal replay; AI phase replay preserves its original snapshot.
    */
   source: "license" | "addon" | "exception" | null;
   /**
-   * The Idempotency-Key this report was accepted under, echoed on the first answer and on every replay; null when the request carried none. A client can tell from it that the server honours the key.
+   * The Idempotency-Key this report was accepted under, echoed on the first answer and on every replay; null when the request carried none (always null for AI usage, whose phase key is ai.transactionId). A client can tell from it that the server honours the key.
    */
   transactionId: string | null;
   /**
@@ -8679,6 +9665,10 @@ export type TargetingContextNode = {
    */
   description?: string;
   /**
+   * Original catalogue type on a known entitlement entry only, not a metadata or CONFIG key
+   */
+  entitlementType?: string;
+  /**
    * Shape of each known key, for a map whose entries differ. Named after the key
    */
   entries?: Array<TargetingContextNode>;
@@ -8739,6 +9729,12 @@ export type TargetingRuleIssue = {
 };
 
 export type TargetingRuleRehearsal = {
+  /**
+   * Original catalogue types by known entitlement slug; classifies facts.entitlements without interpreting arbitrary CONFIG or metadata keys
+   */
+  entitlementTypes: {
+    [key: string]: string;
+  };
   /**
    * Why the engine could not answer, when it could not — e.g. the rule reads a host attribute this context does not carry. At a real evaluation the rule would simply not match
    */
@@ -9063,6 +10059,16 @@ export type UncollectibleInvoiceDelivered = {
   via?: "customer_session" | "checkout_session";
 };
 
+export type UpdateConversionRule = {
+  chargeOnError?: "NEVER" | "ALWAYS" | "PROVIDER_ERROR_ONLY";
+  entitlementSlug?: string | null;
+  maximumCreditsPerRequest?: string | null;
+  minimumCreditsPerRequest?: string;
+  modelSlug?: string | null;
+  rates: ConversionRates;
+  requestType?: string | null;
+};
+
 export type UsageLedger = {
   /**
    * How long usage reports are kept, in months; null when they are kept forever (ENV) or the retention is unknown (UNKNOWN)
@@ -9228,6 +10234,16 @@ export type Variant = {
   description: string;
   name: string;
   value: unknown;
+};
+
+export type VendorCosts = {
+  currency: "USD";
+  perCacheWriteToken?: string;
+  perCachedInputToken?: string;
+  perInputToken?: string;
+  perOutputToken?: string;
+  perRequest?: string;
+  perUnit?: string;
 };
 
 export type VoidedInvoiceDelivered = {
@@ -10219,6 +11235,75 @@ export type ConnectorSettingsWritable = {
   };
 };
 
+export type ConversionRuleWritable = {
+  chargeOnError: "NEVER" | "ALWAYS" | "PROVIDER_ERROR_ONLY";
+  createdAt: string;
+  entitlementSlug: string;
+  /**
+   * Whether an add-on version compatible with the licence's family grants the pool, whatever its lifecycle state: instances of the licence can then hold the pool without the licence granting it. It says nothing of what any instance holds.
+   */
+  grantedByAddons: boolean;
+  grantedByLicense: boolean;
+  id: string;
+  licenseSlug: string;
+  maximumCreditsPerRequest: string | null;
+  minimumCreditsPerRequest: string;
+  modelSlug: string | null;
+  rates: ConversionRates;
+  requestType: "COMPLETION" | "EMBEDDING" | "IMAGE_GENERATION" | "AUDIO" | "VIDEO" | null;
+  status: "ACTIVE" | "ARCHIVED";
+  updatedAt: string;
+};
+
+export type ConversionRuleDeliveredWritable = {
+  chargeOnError: "NEVER" | "ALWAYS" | "PROVIDER_ERROR_ONLY";
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  createdAt: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  entitlementSlug: string;
+  /**
+   * Whether an add-on version compatible with the licence's family grants the pool, whatever its lifecycle state: instances of the licence can then hold the pool without the licence granting it. It says nothing of what any instance holds.
+   */
+  grantedByAddons: boolean;
+  grantedByLicense: boolean;
+  id: string;
+  licenseSlug: string;
+  maximumCreditsPerRequest: string | null;
+  minimumCreditsPerRequest: string;
+  modelSlug: string | null;
+  rates: ConversionRates;
+  requestType: "COMPLETION" | "EMBEDDING" | "IMAGE_GENERATION" | "AUDIO" | "VIDEO" | null;
+  status: "ACTIVE" | "ARCHIVED";
+  updatedAt: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
+export type ConversionRuleUpdatedDeliveredWritable = {
+  after: ConversionRuleWritable;
+  before: ConversionRuleWritable;
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
 export type CustomerWritable = {
   /**
    * Where invoices sent to this customer are delivered, at most 254 characters (CreateCustomer.InvalidBillingEmail). Absent when there is none. On update, omit it or send null to keep the stored value, or send an empty string to remove it. Personal data: never included in event payloads.
@@ -10647,6 +11732,10 @@ export type EntitlementGroupUsageWritable = {
 
 export type EntitlementUsageWritable = {
   /**
+   * Outcome of this AI report; absent on ordinary reads
+   */
+  ai?: AiUsageOutcome;
+  /**
    * End of the current usage window (exclusive). Null for a lifetime entitlement (no configured reset period).
    */
   currentPeriodEnd?: string;
@@ -10692,6 +11781,10 @@ export type EntitlementUsageWritable = {
    */
   provenance?: ProvenanceWritable;
   /**
+   * Open, unexpired reserved credits; present only on AI credit pools
+   */
+  reserved?: string;
+  /**
    * license: the licence grants it (add-ons, boosts and an exception may change it); addon: an add-on attached does; exception: only the instance's exception does
    */
   source: "license" | "addon" | "exception";
@@ -10711,6 +11804,10 @@ export type EntitlementUsageWritable = {
 };
 
 export type EntitlementUsageDeliveredWritable = {
+  /**
+   * Outcome of this AI report; absent on ordinary reads
+   */
+  ai?: AiUsageOutcome;
   /**
    * With via checkout_session: the session
    */
@@ -10764,6 +11861,10 @@ export type EntitlementUsageDeliveredWritable = {
    * What the licence, the add-ons and the boosts each contribute
    */
   provenance?: ProvenanceWritable;
+  /**
+   * Open, unexpired reserved credits; present only on AI credit pools
+   */
+  reserved?: string;
   /**
    * license: the licence grants it (add-ons, boosts and an exception may change it); addon: an add-on attached does; exception: only the instance's exception does
    */
@@ -11765,7 +12866,7 @@ export type LicenseEntitlementWritable = {
    */
   entitlementSlug?: string;
   /**
-   * Derives this grant's enforcement from its own numeric value: -1 when the value is unlimited (no cap, no overage); otherwise 0 rejects usage above the value (hard limit) and a positive percentage allows usage to exceed it by that much before being rejected (soft limit). Null for non-numeric (BOOLEAN/CONFIG) grants.
+   * Enforcement derived from the numeric allowance: -1 is unlimited; otherwise 0 is a hard limit and a positive percentage permits overage. AI reservations and numeric adjustments use this bound; AI commits account actual usage even beyond it. Null for non-numeric (BOOLEAN/CONFIG) grants.
    */
   limitCapExceededOveragePercent?: number;
   /**
@@ -11797,7 +12898,7 @@ export type LicenseEntitlementDeliveredWritable = {
    */
   entitlementSlug?: string;
   /**
-   * Derives this grant's enforcement from its own numeric value: -1 when the value is unlimited (no cap, no overage); otherwise 0 rejects usage above the value (hard limit) and a positive percentage allows usage to exceed it by that much before being rejected (soft limit). Null for non-numeric (BOOLEAN/CONFIG) grants.
+   * Enforcement derived from the numeric allowance: -1 is unlimited; otherwise 0 is a hard limit and a positive percentage permits overage. AI reservations and numeric adjustments use this bound; AI commits account actual usage even beyond it. Null for non-numeric (BOOLEAN/CONFIG) grants.
    */
   limitCapExceededOveragePercent?: number;
   /**
@@ -12109,6 +13210,81 @@ export type MetadataFieldDeliveredWritable = {
   via?: "customer_session" | "checkout_session";
 };
 
+export type ModelWritable = {
+  description?: string;
+  /**
+   * Exact provider identifiers, unique per organization; cannot shadow another model's slug
+   */
+  externalIds?: Array<string>;
+  metadata?: {
+    [key: string]: unknown;
+  };
+  modality: "TEXT" | "IMAGE" | "AUDIO" | "VIDEO" | "EMBEDDING" | "MULTIMODAL";
+  name: string;
+  /**
+   * Immutable URL-friendly identifier, unique per organization
+   */
+  slug: string;
+  /**
+   * ACTIVE authorizes usage; DEPRECATED keeps existing rules; ARCHIVED authorizes none. Reversible.
+   */
+  status: "ACTIVE" | "DEPRECATED" | "ARCHIVED";
+  vendor: string;
+  vendorCosts?: VendorCosts;
+};
+
+export type ModelDeliveredWritable = {
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  description?: string;
+  /**
+   * Exact provider identifiers, unique per organization; cannot shadow another model's slug
+   */
+  externalIds?: Array<string>;
+  metadata?: {
+    [key: string]: unknown;
+  };
+  modality: "TEXT" | "IMAGE" | "AUDIO" | "VIDEO" | "EMBEDDING" | "MULTIMODAL";
+  name: string;
+  /**
+   * Immutable URL-friendly identifier, unique per organization
+   */
+  slug: string;
+  /**
+   * ACTIVE authorizes usage; DEPRECATED keeps existing rules; ARCHIVED authorizes none. Reversible.
+   */
+  status: "ACTIVE" | "DEPRECATED" | "ARCHIVED";
+  vendor: string;
+  vendorCosts?: VendorCosts;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
+export type ModelUpdatedDeliveredWritable = {
+  after: ModelWritable;
+  before: ModelWritable;
+  /**
+   * With via checkout_session: the session
+   */
+  checkoutSessionId?: string;
+  /**
+   * With via customer_session: the session
+   */
+  customerSessionId?: string;
+  /**
+   * customer_session: written through a kst_ customer session, under the vendor principal that minted it. checkout_session: written by an anonymous checkout, under system:kaiten. Absent otherwise
+   */
+  via?: "customer_session" | "checkout_session";
+};
+
 export type NumberEntitlementValueWritable = {
   /**
    * Value type discriminator
@@ -12258,6 +13434,18 @@ export type PageMetadataFieldWritable = {
    */
   hasMore: boolean;
   items: Array<MetadataFieldWritable>;
+  /**
+   * Opaque cursor for the next page. Absent when hasMore is false.
+   */
+  nextCursor?: string;
+};
+
+export type PageModelWritable = {
+  /**
+   * Whether more rows exist beyond this page.
+   */
+  hasMore: boolean;
+  items: Array<ModelWritable>;
   /**
    * Opaque cursor for the next page. Absent when hasMore is false.
    */
@@ -12688,7 +13876,7 @@ export type ReleaseDeliveredWritable = {
 
 export type ReportEntitlementUsageBodyWritable = {
   /**
-   * Report behavior: append folds the value into the stored total through the aggregation method; set overwrites it
+   * Numeric behavior: append folds the value into the counter; set replaces it for ordinary NUMBER entitlements. AI credit entitlements accept only append adjustments. For ai_usage, omit behavior or use append; phase selects reserve or commit.
    */
   behavior?: "append" | "set";
   /**
@@ -12698,21 +13886,22 @@ export type ReportEntitlementUsageBodyWritable = {
     [key: string]: unknown;
   };
   /**
-   * Reported entitlement value, discriminated by the 'type' field. Usage reporting accepts the number variant only.
+   * Usage input for an entitlement, discriminated by type. Ordinary numeric entitlements accept number with append or set. NUMBER_AI_CREDIT is a numeric entitlement with model-usage calculation: send ai_usage to reserve or commit provider quantities, or number with append for credit adjustments/refunds. Read responses remain numeric credit counters.
    */
   value:
     | ({
         type: "number";
       } & NumberEntitlementValueWritable)
     | ({
-        type: "boolean";
-      } & BooleanEntitlementValue)
-    | ({
-        type: "object";
-      } & ConfigEntitlementValue);
+        type: "ai_usage";
+      } & AiUsageValue);
 };
 
 export type ReportedEntitlementUsageWritable = {
+  /**
+   * Outcome of this AI report; absent on ordinary reads
+   */
+  ai?: AiUsageOutcome;
   /**
    * End of the current usage window (exclusive). Null for a lifetime entitlement (no configured reset period).
    */
@@ -12755,15 +13944,19 @@ export type ReportedEntitlementUsageWritable = {
    */
   limitCapExceededOveragePercent?: number;
   /**
-   * What the licence, the add-ons and the boosts each contribute. Null on a replay (Idempotent-Replayed): the journal does not store it.
+   * What the licence, the add-ons and the boosts each contribute. Null on numeric journal replay; AI phase replay preserves its original snapshot.
    */
   provenance: ProvenanceWritable | null;
   /**
-   * license: the licence grants it (add-ons, boosts and an exception may change it); addon: an add-on attached does; exception: only the instance's exception does. Null on a replay (Idempotent-Replayed): the journal does not store it.
+   * Open, unexpired reserved credits; present only on AI credit pools
+   */
+  reserved?: string;
+  /**
+   * license: the licence grants it (add-ons, boosts and an exception may change it); addon: an add-on attached does; exception: only the instance's exception does. Null on numeric journal replay; AI phase replay preserves its original snapshot.
    */
   source: "license" | "addon" | "exception" | null;
   /**
-   * The Idempotency-Key this report was accepted under, echoed on the first answer and on every replay; null when the request carried none. A client can tell from it that the server honours the key.
+   * The Idempotency-Key this report was accepted under, echoed on the first answer and on every replay; null when the request carried none (always null for AI usage, whose phase key is ai.transactionId). A client can tell from it that the server honours the key.
    */
   transactionId: string | null;
   /**
@@ -14493,6 +15686,41 @@ export type UnarchiveAddonResponses = {
 };
 
 export type UnarchiveAddonResponse = UnarchiveAddonResponses[keyof UnarchiveAddonResponses];
+
+export type GetAiUsageCapabilitiesData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/ai/capabilities";
+};
+
+export type GetAiUsageCapabilitiesErrors = {
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+};
+
+export type GetAiUsageCapabilitiesError =
+  GetAiUsageCapabilitiesErrors[keyof GetAiUsageCapabilitiesErrors];
+
+export type GetAiUsageCapabilitiesResponses = {
+  /**
+   * OK
+   */
+  200: Capabilities;
+};
+
+export type GetAiUsageCapabilitiesResponse =
+  GetAiUsageCapabilitiesResponses[keyof GetAiUsageCapabilitiesResponses];
 
 export type GetAuthorizationData = {
   body?: never;
@@ -16659,6 +17887,53 @@ export type UpdateCustomerIntegrationResponses = {
 
 export type UpdateCustomerIntegrationResponse =
   UpdateCustomerIntegrationResponses[keyof UpdateCustomerIntegrationResponses];
+
+export type GetDashboardSummaryData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * The period the rates and the lists cover
+     */
+    range?: "7d" | "30d" | "90d";
+  };
+  url: "/dashboard/summary";
+};
+
+export type GetDashboardSummaryErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+};
+
+export type GetDashboardSummaryError = GetDashboardSummaryErrors[keyof GetDashboardSummaryErrors];
+
+export type GetDashboardSummaryResponses = {
+  /**
+   * OK
+   */
+  200: DashboardSummary;
+};
+
+export type GetDashboardSummaryResponse =
+  GetDashboardSummaryResponses[keyof GetDashboardSummaryResponses];
 
 export type ListDeploymentZonesData = {
   body?: never;
@@ -19300,7 +20575,7 @@ export type ReportEntitlementUsageMetricData = {
   body: ReportEntitlementUsageBodyWritable;
   headers?: {
     /**
-     * Optional idempotency key: the id of the business event this report counts, 1 to 128 characters of [A-Za-z0-9._:-], matched exactly and case-sensitively. A report sent again with the same key and the same behavior and value within KAITEN_USAGE_IDEMPOTENCY_WINDOW (35 days by default) is applied once: the retry answers 200 with the original response and the Idempotent-Replayed header, and changes nothing. The same key with another behavior or value answers 409 ReportEntitlementUsageMetric.TransactionIdReused. A rejected report does not consume its key. Scoped to the instance and entitlement: one business event may feed two meters under one key. Stored and read back as transactionId.
+     * Numeric reports only; AI usage rejects this header and uses value.transactionId for immutable reserve/commit replay. Optional idempotency key: the id of the business event this report counts, 1 to 128 characters of [A-Za-z0-9._:-], matched exactly and case-sensitively. A report sent again with the same key and the same behavior and value within KAITEN_USAGE_IDEMPOTENCY_WINDOW (35 days by default) is applied once: the retry answers 200 with the original response and the Idempotent-Replayed header, and changes nothing. The same key with another behavior or value answers 409 ReportEntitlementUsageMetric.TransactionIdReused. A rejected report does not consume its key. Scoped to the instance and entitlement: one business event may feed two meters under one key. Stored and read back as transactionId.
      */
     "Idempotency-Key"?: string;
   };
@@ -19365,6 +20640,153 @@ export type ReportEntitlementUsageMetricResponses = {
 
 export type ReportEntitlementUsageMetricResponse =
   ReportEntitlementUsageMetricResponses[keyof ReportEntitlementUsageMetricResponses];
+
+export type ListAiInferencesData = {
+  body?: never;
+  path: {
+    instanceSlug: string;
+    entitlementSlug: string;
+  };
+  query?: {
+    from?: string;
+    to?: string;
+    /**
+     * Only the operations in this status. A release that closed no reservation (RELEASED with the NO_RESERVATION warning) is listed only when status is RELEASED or transactionId is given.
+     */
+    status?: "RESERVED" | "COMMITTED" | "RELEASED" | "EXPIRED";
+    /**
+     * Only the operation reported under this identifier, a release that closed no reservation included.
+     */
+    transactionId?: string;
+    /**
+     * Only the operations the commit authorized (true) or refused (false). An operation still RESERVED matches neither.
+     */
+    authorized?: "true" | "false";
+    /**
+     * Only the operations that resolved to this catalogue model.
+     */
+    modelSlug?: string;
+    /**
+     * Only the operations whose model, as sent, is exactly this one. Finds models the catalogue does not know.
+     */
+    model?: string;
+    requestType?: "COMPLETION" | "EMBEDDING" | "IMAGE_GENERATION" | "AUDIO" | "VIDEO";
+    cursor?: string;
+    limit?: number;
+  };
+  url: "/instances/{instanceSlug}/entitlements/{entitlementSlug}/usage/inferences";
+};
+
+export type ListAiInferencesErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+};
+
+export type ListAiInferencesError = ListAiInferencesErrors[keyof ListAiInferencesErrors];
+
+export type ListAiInferencesResponses = {
+  /**
+   * OK
+   */
+  200: AiInferencePage;
+};
+
+export type ListAiInferencesResponse = ListAiInferencesResponses[keyof ListAiInferencesResponses];
+
+export type RefundAiInferenceData = {
+  body: NewAiInferenceRefund;
+  headers?: {
+    /**
+     * Required. The refund's idempotency key, in the format of a numeric report's: 1 to 128 characters of [A-Za-z0-9._:-], matched exactly and case-sensitively, scoped to the instance and the pool. The same key with the same inference, credits and reason answers 200 with the original refund and Idempotent-Replayed: true, and moves nothing, for as long as the refund is kept. The same key with another body, or a key a numeric report of the pool already used, answers 409 RefundAiInference.IdempotencyKeyReused. It is the transactionId of the refund's row in the usage journal.
+     */
+    "Idempotency-Key"?: string;
+  };
+  path: {
+    /**
+     * Instance slug
+     */
+    instanceSlug: string;
+    /**
+     * Slug of the AI credit pool
+     */
+    entitlementSlug: string;
+    /**
+     * The transactionId the inference was reported under
+     */
+    transactionId: string;
+  };
+  query?: never;
+  url: "/instances/{instanceSlug}/entitlements/{entitlementSlug}/usage/inferences/{transactionId}/refund";
+};
+
+export type RefundAiInferenceErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
+};
+
+export type RefundAiInferenceError = RefundAiInferenceErrors[keyof RefundAiInferenceErrors];
+
+export type RefundAiInferenceResponses = {
+  /**
+   * OK
+   */
+  200: AiInferenceRefund;
+};
+
+export type RefundAiInferenceResponse =
+  RefundAiInferenceResponses[keyof RefundAiInferenceResponses];
 
 export type ListUsageReportsData = {
   body?: never;
@@ -19508,6 +20930,51 @@ export type ExportUsageReportsResponses = {
 
 export type ExportUsageReportsResponse =
   ExportUsageReportsResponses[keyof ExportUsageReportsResponses];
+
+export type ListAiReservationsData = {
+  body?: never;
+  path: {
+    instanceSlug: string;
+    entitlementSlug: string;
+  };
+  query?: never;
+  url: "/instances/{instanceSlug}/entitlements/{entitlementSlug}/usage/reservations";
+};
+
+export type ListAiReservationsErrors = {
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+};
+
+export type ListAiReservationsError = ListAiReservationsErrors[keyof ListAiReservationsErrors];
+
+export type ListAiReservationsResponses = {
+  /**
+   * OK
+   */
+  200: AiReservations;
+};
+
+export type ListAiReservationsResponse =
+  ListAiReservationsResponses[keyof ListAiReservationsResponses];
 
 export type DeleteInstanceIntegrationData = {
   body?: never;
@@ -21494,6 +22961,276 @@ export type ArchiveLicenseResponses = {
 
 export type ArchiveLicenseResponse = ArchiveLicenseResponses[keyof ArchiveLicenseResponses];
 
+export type ListConversionRulesData = {
+  body?: never;
+  path: {
+    licenseSlug: string;
+  };
+  query?: {
+    status?: "ACTIVE" | "ARCHIVED";
+    entitlementSlug?: string;
+    modelSlug?: string;
+  };
+  url: "/licenses/{licenseSlug}/conversion-rules";
+};
+
+export type ListConversionRulesErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+};
+
+export type ListConversionRulesError = ListConversionRulesErrors[keyof ListConversionRulesErrors];
+
+export type ListConversionRulesResponses = {
+  /**
+   * OK
+   */
+  200: Array<ConversionRule> | null;
+};
+
+export type ListConversionRulesResponse =
+  ListConversionRulesResponses[keyof ListConversionRulesResponses];
+
+export type CreateConversionRuleData = {
+  body: CreateConversionRule;
+  path: {
+    licenseSlug: string;
+  };
+  query?: never;
+  url: "/licenses/{licenseSlug}/conversion-rules";
+};
+
+export type CreateConversionRuleErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+};
+
+export type CreateConversionRuleError =
+  CreateConversionRuleErrors[keyof CreateConversionRuleErrors];
+
+export type CreateConversionRuleResponses = {
+  /**
+   * Created
+   */
+  201: ConversionRule;
+};
+
+export type CreateConversionRuleResponse =
+  CreateConversionRuleResponses[keyof CreateConversionRuleResponses];
+
+export type ArchiveConversionRuleData = {
+  body?: never;
+  path: {
+    licenseSlug: string;
+    ruleId: string;
+  };
+  query?: never;
+  url: "/licenses/{licenseSlug}/conversion-rules/{ruleId}";
+};
+
+export type ArchiveConversionRuleErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+};
+
+export type ArchiveConversionRuleError =
+  ArchiveConversionRuleErrors[keyof ArchiveConversionRuleErrors];
+
+export type ArchiveConversionRuleResponses = {
+  /**
+   * No Content
+   */
+  204: void;
+};
+
+export type ArchiveConversionRuleResponse =
+  ArchiveConversionRuleResponses[keyof ArchiveConversionRuleResponses];
+
+export type GetConversionRuleData = {
+  body?: never;
+  path: {
+    licenseSlug: string;
+    ruleId: string;
+  };
+  query?: never;
+  url: "/licenses/{licenseSlug}/conversion-rules/{ruleId}";
+};
+
+export type GetConversionRuleErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+};
+
+export type GetConversionRuleError = GetConversionRuleErrors[keyof GetConversionRuleErrors];
+
+export type GetConversionRuleResponses = {
+  /**
+   * OK
+   */
+  200: ConversionRule;
+};
+
+export type GetConversionRuleResponse =
+  GetConversionRuleResponses[keyof GetConversionRuleResponses];
+
+export type UpdateConversionRuleData = {
+  body: UpdateConversionRule;
+  path: {
+    licenseSlug: string;
+    ruleId: string;
+  };
+  query?: never;
+  url: "/licenses/{licenseSlug}/conversion-rules/{ruleId}";
+};
+
+export type UpdateConversionRuleErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+};
+
+export type UpdateConversionRuleError =
+  UpdateConversionRuleErrors[keyof UpdateConversionRuleErrors];
+
+export type UpdateConversionRuleResponses = {
+  /**
+   * OK
+   */
+  200: ConversionRule;
+};
+
+export type UpdateConversionRuleResponse =
+  UpdateConversionRuleResponses[keyof UpdateConversionRuleResponses];
+
 export type GetLicenseEntitlementsData = {
   body?: never;
   path: {
@@ -22640,6 +24377,234 @@ export type UnarchiveMetadataFieldResponses = {
 
 export type UnarchiveMetadataFieldResponse =
   UnarchiveMetadataFieldResponses[keyof UnarchiveMetadataFieldResponses];
+
+export type ListModelsData = {
+  body?: never;
+  path?: never;
+  query?: {
+    cursor?: string;
+    /**
+     * Page size (default 50, max 200)
+     */
+    limit?: number;
+    status?: "ACTIVE" | "DEPRECATED" | "ARCHIVED";
+    vendor?: string;
+    modality?: "TEXT" | "IMAGE" | "AUDIO" | "VIDEO" | "EMBEDDING" | "MULTIMODAL";
+  };
+  url: "/models";
+};
+
+export type ListModelsErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+};
+
+export type ListModelsError = ListModelsErrors[keyof ListModelsErrors];
+
+export type ListModelsResponses = {
+  /**
+   * OK
+   */
+  200: PageModel;
+};
+
+export type ListModelsResponse = ListModelsResponses[keyof ListModelsResponses];
+
+export type CreateModelData = {
+  body: ModelWritable;
+  path?: never;
+  query?: never;
+  url: "/models";
+};
+
+export type CreateModelErrors = {
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+};
+
+export type CreateModelError = CreateModelErrors[keyof CreateModelErrors];
+
+export type CreateModelResponses = {
+  /**
+   * Created
+   */
+  201: Model;
+};
+
+export type CreateModelResponse = CreateModelResponses[keyof CreateModelResponses];
+
+export type DeleteModelData = {
+  body?: never;
+  path: {
+    modelSlug: string;
+  };
+  query?: never;
+  url: "/models/{modelSlug}";
+};
+
+export type DeleteModelErrors = {
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+};
+
+export type DeleteModelError = DeleteModelErrors[keyof DeleteModelErrors];
+
+export type DeleteModelResponses = {
+  /**
+   * No Content
+   */
+  204: void;
+};
+
+export type DeleteModelResponse = DeleteModelResponses[keyof DeleteModelResponses];
+
+export type GetModelData = {
+  body?: never;
+  path: {
+    modelSlug: string;
+  };
+  query?: never;
+  url: "/models/{modelSlug}";
+};
+
+export type GetModelErrors = {
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+};
+
+export type GetModelError = GetModelErrors[keyof GetModelErrors];
+
+export type GetModelResponses = {
+  /**
+   * OK
+   */
+  200: Model;
+};
+
+export type GetModelResponse = GetModelResponses[keyof GetModelResponses];
+
+export type UpdateModelData = {
+  body: ModelWritable;
+  path: {
+    modelSlug: string;
+  };
+  query?: never;
+  url: "/models/{modelSlug}";
+};
+
+export type UpdateModelErrors = {
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Conflict
+   */
+  409: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+};
+
+export type UpdateModelError = UpdateModelErrors[keyof UpdateModelErrors];
+
+export type UpdateModelResponses = {
+  /**
+   * OK
+   */
+  200: Model;
+};
+
+export type UpdateModelResponse = UpdateModelResponses[keyof UpdateModelResponses];
 
 export type GetOpenfeatureManifestData = {
   body?: never;
@@ -24528,6 +26493,95 @@ export type DeleteServiceAccountTokenResponses = {
 
 export type DeleteServiceAccountTokenResponse =
   DeleteServiceAccountTokenResponses[keyof DeleteServiceAccountTokenResponses];
+
+export type ListOrganizationAiInferencesData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Start of the range, inclusive (RFC 3339). Defaults to 30 days before to.
+     */
+    from?: string;
+    /**
+     * End of the range, exclusive (RFC 3339). Defaults to now.
+     */
+    to?: string;
+    /**
+     * Only this instance's operations. A slug the organization does not have matches nothing.
+     */
+    instanceSlug?: string;
+    /**
+     * Only this credit pool's operations. A slug the organization does not have matches nothing.
+     */
+    entitlementSlug?: string;
+    /**
+     * Only the operations in this status. A release that closed no reservation (RELEASED with the NO_RESERVATION warning) is listed only when status is RELEASED or transactionId is given.
+     */
+    status?: "RESERVED" | "COMMITTED" | "RELEASED" | "EXPIRED";
+    /**
+     * Only the operation reported under this identifier, a release that closed no reservation included.
+     */
+    transactionId?: string;
+    /**
+     * Only the operations the commit authorized (true) or refused (false). An operation still RESERVED matches neither.
+     */
+    authorized?: "true" | "false";
+    /**
+     * Only the operations that resolved to this catalogue model.
+     */
+    modelSlug?: string;
+    /**
+     * Only the operations whose model, as sent, is exactly this one. Finds models the catalogue does not know.
+     */
+    model?: string;
+    requestType?: "COMPLETION" | "EMBEDDING" | "IMAGE_GENERATION" | "AUDIO" | "VIDEO";
+    /**
+     * The nextCursor of the previous page.
+     */
+    cursor?: string;
+    /**
+     * Maximum number of operations to return (default 50, max 500).
+     */
+    limit?: number;
+  };
+  url: "/usage/inferences";
+};
+
+export type ListOrganizationAiInferencesErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+};
+
+export type ListOrganizationAiInferencesError =
+  ListOrganizationAiInferencesErrors[keyof ListOrganizationAiInferencesErrors];
+
+export type ListOrganizationAiInferencesResponses = {
+  /**
+   * OK
+   */
+  200: OrganizationAiInferencePage;
+};
+
+export type ListOrganizationAiInferencesResponse =
+  ListOrganizationAiInferencesResponses[keyof ListOrganizationAiInferencesResponses];
 
 export type ExportOrganizationUsageReportsData = {
   body?: never;
@@ -26564,6 +28618,26 @@ export type OnInstanceAddonRemovedWebhookRequest = {
   query?: never;
 };
 
+export type OnInstanceAiModelUsageUnauthorizedWebhookPayload = {
+  data: InstanceAiModelUsageUnauthorizedDelivered;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "INSTANCE_AI_MODEL_USAGE_UNAUTHORIZED";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.instance.ai.v1.model_usage_unauthorized";
+};
+
+export type OnInstanceAiModelUsageUnauthorizedWebhookRequest = {
+  body: OnInstanceAiModelUsageUnauthorizedWebhookPayload;
+  key: "com.kaiten.instance.ai.v1.model_usage_unauthorized";
+  path?: never;
+  query?: never;
+};
+
 export type OnInstanceBillingCanceledWebhookPayload = {
   data: CancellationDeliveredWritable;
   headers?: EventHeaders;
@@ -26780,6 +28854,26 @@ export type OnInstanceEntitlementCapExceededWebhookPayload = {
 export type OnInstanceEntitlementCapExceededWebhookRequest = {
   body: OnInstanceEntitlementCapExceededWebhookPayload;
   key: "com.kaiten.instance.entitlement.v1.cap_exceeded";
+  path?: never;
+  query?: never;
+};
+
+export type OnInstanceEntitlementMaximumExceededWebhookPayload = {
+  data: InstanceEntitlementCapExceededDelivered;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "INSTANCE_ENTITLEMENT_MAXIMUM_EXCEEDED";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.instance.entitlement.v1.maximum_exceeded";
+};
+
+export type OnInstanceEntitlementMaximumExceededWebhookRequest = {
+  body: OnInstanceEntitlementMaximumExceededWebhookPayload;
+  key: "com.kaiten.instance.entitlement.v1.maximum_exceeded";
   path?: never;
   query?: never;
 };
@@ -27384,6 +29478,66 @@ export type OnInstanceVoucherRevokedWebhookRequest = {
   query?: never;
 };
 
+export type OnArchiveConversionRuleWebhookPayload = {
+  data: ConversionRuleDeliveredWritable;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "LICENSE_CONVERSION_RULE_ARCHIVED";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.license.conversion_rule.v1.archived";
+};
+
+export type OnArchiveConversionRuleWebhookRequest = {
+  body: OnArchiveConversionRuleWebhookPayload;
+  key: "com.kaiten.license.conversion_rule.v1.archived";
+  path?: never;
+  query?: never;
+};
+
+export type OnCreateConversionRuleWebhookPayload = {
+  data: ConversionRuleDeliveredWritable;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "LICENSE_CONVERSION_RULE_CREATED";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.license.conversion_rule.v1.created";
+};
+
+export type OnCreateConversionRuleWebhookRequest = {
+  body: OnCreateConversionRuleWebhookPayload;
+  key: "com.kaiten.license.conversion_rule.v1.created";
+  path?: never;
+  query?: never;
+};
+
+export type OnUpdateConversionRuleWebhookPayload = {
+  data: ConversionRuleUpdatedDeliveredWritable;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "LICENSE_CONVERSION_RULE_UPDATED";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.license.conversion_rule.v1.updated";
+};
+
+export type OnUpdateConversionRuleWebhookRequest = {
+  body: OnUpdateConversionRuleWebhookPayload;
+  key: "com.kaiten.license.conversion_rule.v1.updated";
+  path?: never;
+  query?: never;
+};
+
 export type OnLicenseEntitlementAssignedWebhookPayload = {
   data: LicenseEntitlementDeliveredWritable;
   headers?: EventHeaders;
@@ -27780,6 +29934,66 @@ export type OnMetadataFieldUpdatedWebhookPayload = {
 export type OnMetadataFieldUpdatedWebhookRequest = {
   body: OnMetadataFieldUpdatedWebhookPayload;
   key: "com.kaiten.metadata_field.v1.updated";
+  path?: never;
+  query?: never;
+};
+
+export type OnModelCreatedWebhookPayload = {
+  data: ModelDeliveredWritable;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "MODEL_CREATED";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.model.v1.created";
+};
+
+export type OnModelCreatedWebhookRequest = {
+  body: OnModelCreatedWebhookPayload;
+  key: "com.kaiten.model.v1.created";
+  path?: never;
+  query?: never;
+};
+
+export type OnModelDeletedWebhookPayload = {
+  data: ModelDeliveredWritable;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "MODEL_DELETED";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.model.v1.deleted";
+};
+
+export type OnModelDeletedWebhookRequest = {
+  body: OnModelDeletedWebhookPayload;
+  key: "com.kaiten.model.v1.deleted";
+  path?: never;
+  query?: never;
+};
+
+export type OnModelUpdatedWebhookPayload = {
+  data: ModelUpdatedDeliveredWritable;
+  headers?: EventHeaders;
+  /**
+   * Event name
+   */
+  name: "MODEL_UPDATED";
+  /**
+   * Event type
+   */
+  type: "com.kaiten.model.v1.updated";
+};
+
+export type OnModelUpdatedWebhookRequest = {
+  body: OnModelUpdatedWebhookPayload;
+  key: "com.kaiten.model.v1.updated";
   path?: never;
   query?: never;
 };

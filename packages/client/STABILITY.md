@@ -283,6 +283,25 @@ a call names.
 - **`BoundaryPendingError` is not replayed.** It reaches the host with its delay, and
   the host decides whether to send the call again.
 
+## AI credits
+
+`KaitenClient.ai` (`reserve`, `commit`, `run`, `listInferences`, `listReservations`),
+`KaitenClient.models` and `KaitenClient.licenses.conversionRules` are the AI credits
+surface, and `@kaitencloud/client/ai` its provider-free toolkit. They grow the way the
+other client interfaces do: a later minor release may add a member, never remove or
+retype one.
+
+Four refusals of an AI report are classes of their own, `KaitenError` subclasses like
+the ones above: `InsufficientCreditsError` (409 `*.ThresholdExceeded`),
+`ModelNotAuthorizedError` and `UnknownModelError` (422), and `AiUsageUnsupportedError`,
+which says the pool or the server cannot take an AI report. A reused `transactionId` is
+the `TransactionIdReusedError` of a usage report, the same class, and is never replayed.
+
+`fromOpenAI` and `fromAnthropic` map a provider's usage onto the contract's token
+fields, `estimateTokens` estimates a request's size, `uuidv7` makes a `transactionId`,
+and `classifyProviderError` says whether a failed provider call is the provider's or the
+caller's. All five are inside the guarantee; what a provider SDK hands them is not.
+
 ## Outside the guarantee
 
 - **`KaitenApi.*`** (client) and the **generated resource classes** (server:

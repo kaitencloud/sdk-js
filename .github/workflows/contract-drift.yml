@@ -5,9 +5,11 @@ name: Contract drift
 #   openapi   contracts/openapi.yaml    vs  @kaitencloud/openapi@latest
 #   graphql   contracts/schema.graphql  vs  @kaitencloud/graphql-schema@latest
 #
-# Both contracts are fetched from npm, where they are public: no token, so a pull
-# request from a fork runs this check too. Both are required: a fetch that fails
-# (nothing published, registry unreachable) fails its job.
+# By default both public contracts come from npm, with no token (forks work too).
+# Only the feature PR named in .github/kaiten-contract-source.json may instead
+# compare with a full, immutable kaitencloud/kaiten SHA. Main, scheduled checks
+# and other PR branches always compare with npm latest. See CONTRIBUTING.md.
+# Both contracts are required: failed fetches and real drift fail their jobs.
 #
 # The GraphQL schema is published as the concatenation of the API's schema
 # fragments, not as a printed SDL: printCanonicalSchema in
@@ -34,7 +36,23 @@ jobs:
       - uses: actions/setup-node@v7.1.0
         with:
           node-version-file: .node-version
+      - name: Select published or pinned companion contract source
+        id: source
+        run: node scripts/contract-ci-source.mjs
+      - name: Fetch immutable companion contract blobs (no checkout or execution)
+        if: steps.source.outputs.commit != ''
+        id: companion
+        env:
+          CONTRACT_COMMIT: ${{ steps.source.outputs.commit }}
+        run: |
+          set -euo pipefail
+          dir="$(mktemp -d)"
+          git init --bare "$dir/repo.git"
+          git --git-dir="$dir/repo.git" remote add origin https://github.com/kaitencloud/kaiten.git
+          git --git-dir="$dir/repo.git" fetch --depth=1 --filter=blob:none origin "$CONTRACT_COMMIT"
+          node scripts/prepare-companion-contracts.mjs "$dir/repo.git" "$CONTRACT_COMMIT" "$dir"
       - name: Fetch the published contract (@kaitencloud/openapi@latest)
+        if: steps.source.outputs.commit == ''
         id: contract
         run: |
           set -euo pipefail
@@ -42,9 +60,9 @@ jobs:
           npm pack @kaitencloud/openapi@latest --pack-destination "$dir"
           tar -xzf "$dir"/*.tgz -C "$dir"
           echo "spec=$dir/package/openapi.yaml" >> "$GITHUB_OUTPUT"
-      - name: Compare the committed snapshot with the published contract
+      - name: Compare the snapshot with the selected upstream contract
         env:
-          KAITEN_OPENAPI: ${{ steps.contract.outputs.spec }}
+          KAITEN_OPENAPI: ${{ steps.companion.outputs.spec || steps.contract.outputs.spec }}
         run: node scripts/check-openapi-drift.mjs
 
   graphql:
@@ -59,7 +77,23 @@ jobs:
       - name: Install dependencies
         # The drift script parses the operations and builds the schema with graphql.
         run: pnpm install --frozen-lockfile
+      - name: Select published or pinned companion contract source
+        id: source
+        run: node scripts/contract-ci-source.mjs
+      - name: Fetch immutable companion contract blobs (no checkout or execution)
+        if: steps.source.outputs.commit != ''
+        id: companion
+        env:
+          CONTRACT_COMMIT: ${{ steps.source.outputs.commit }}
+        run: |
+          set -euo pipefail
+          dir="$(mktemp -d)"
+          git init --bare "$dir/repo.git"
+          git --git-dir="$dir/repo.git" remote add origin https://github.com/kaitencloud/kaiten.git
+          git --git-dir="$dir/repo.git" fetch --depth=1 --filter=blob:none origin "$CONTRACT_COMMIT"
+          node scripts/prepare-companion-contracts.mjs "$dir/repo.git" "$CONTRACT_COMMIT" "$dir"
       - name: Fetch the published schema (@kaitencloud/graphql-schema@latest)
+        if: steps.source.outputs.commit == ''
         id: contract
         run: |
           set -euo pipefail
@@ -67,7 +101,7 @@ jobs:
           npm pack @kaitencloud/graphql-schema@latest --pack-destination "$dir"
           tar -xzf "$dir"/*.tgz -C "$dir"
           echo "schema=$dir/package/schema.graphqls" >> "$GITHUB_OUTPUT"
-      - name: Compare the committed snapshot with the published schema
+      - name: Compare schema AND validate shipped operations against the selected upstream
         env:
-          KAITEN_GRAPHQL_SCHEMA: ${{ steps.contract.outputs.schema }}
+          KAITEN_GRAPHQL_SCHEMA: ${{ steps.companion.outputs.schema || steps.contract.outputs.schema }}
         run: node scripts/check-graphql-drift.mjs

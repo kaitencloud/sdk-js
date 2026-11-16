@@ -24,6 +24,9 @@ import type {
   ArchiveAddonData,
   ArchiveAddonErrors,
   ArchiveAddonResponses,
+  ArchiveConversionRuleData,
+  ArchiveConversionRuleErrors,
+  ArchiveConversionRuleResponses,
   ArchiveLicenseData,
   ArchiveLicenseErrors,
   ArchiveLicenseResponses,
@@ -78,6 +81,9 @@ import type {
   CreateComponentData,
   CreateComponentErrors,
   CreateComponentResponses,
+  CreateConversionRuleData,
+  CreateConversionRuleErrors,
+  CreateConversionRuleResponses,
   CreateCustomerData,
   CreateCustomerErrors,
   CreateCustomerIntegrationData,
@@ -117,6 +123,9 @@ import type {
   CreateMetadataFieldData,
   CreateMetadataFieldErrors,
   CreateMetadataFieldResponses,
+  CreateModelData,
+  CreateModelErrors,
+  CreateModelResponses,
   CreatePaymentMethodSessionData,
   CreatePaymentMethodSessionErrors,
   CreatePaymentMethodSessionResponses,
@@ -192,6 +201,9 @@ import type {
   DeleteLicenseEntitlementResponses,
   DeleteLicenseErrors,
   DeleteLicenseResponses,
+  DeleteModelData,
+  DeleteModelErrors,
+  DeleteModelResponses,
   DeleteReleaseData,
   DeleteReleaseErrors,
   DeleteReleaseResponses,
@@ -237,6 +249,9 @@ import type {
   GetAddonFamilyErrors,
   GetAddonFamilyResponses,
   GetAddonResponses,
+  GetAiUsageCapabilitiesData,
+  GetAiUsageCapabilitiesErrors,
+  GetAiUsageCapabilitiesResponses,
   GetAuditTrailsData,
   GetAuditTrailsErrors,
   GetAuditTrailsResponses,
@@ -273,6 +288,9 @@ import type {
   GetConnectorStateData,
   GetConnectorStateErrors,
   GetConnectorStateResponses,
+  GetConversionRuleData,
+  GetConversionRuleErrors,
+  GetConversionRuleResponses,
   GetCustomerBillingData,
   GetCustomerBillingErrors,
   GetCustomerBillingResponses,
@@ -285,6 +303,9 @@ import type {
   GetCustomerIntegrationErrors,
   GetCustomerIntegrationResponses,
   GetCustomerResponses,
+  GetDashboardSummaryData,
+  GetDashboardSummaryErrors,
+  GetDashboardSummaryResponses,
   GetDeploymentZoneBySlugData,
   GetDeploymentZoneBySlugErrors,
   GetDeploymentZoneBySlugResponses,
@@ -348,6 +369,9 @@ import type {
   GetMeData,
   GetMeErrors,
   GetMeResponses,
+  GetModelData,
+  GetModelErrors,
+  GetModelResponses,
   GetNotificationPreferencesData,
   GetNotificationPreferencesErrors,
   GetNotificationPreferencesResponses,
@@ -402,6 +426,12 @@ import type {
   ListAddonsData,
   ListAddonsErrors,
   ListAddonsResponses,
+  ListAiInferencesData,
+  ListAiInferencesErrors,
+  ListAiInferencesResponses,
+  ListAiReservationsData,
+  ListAiReservationsErrors,
+  ListAiReservationsResponses,
   ListCheckoutSessionsData,
   ListCheckoutSessionsErrors,
   ListCheckoutSessionsResponses,
@@ -411,6 +441,9 @@ import type {
   ListConnectorsData,
   ListConnectorsErrors,
   ListConnectorsResponses,
+  ListConversionRulesData,
+  ListConversionRulesErrors,
+  ListConversionRulesResponses,
   ListCustomersData,
   ListCustomersErrors,
   ListCustomersResponses,
@@ -453,9 +486,15 @@ import type {
   ListMetadataFieldsData,
   ListMetadataFieldsErrors,
   ListMetadataFieldsResponses,
+  ListModelsData,
+  ListModelsErrors,
+  ListModelsResponses,
   ListNotificationsData,
   ListNotificationsErrors,
   ListNotificationsResponses,
+  ListOrganizationAiInferencesData,
+  ListOrganizationAiInferencesErrors,
+  ListOrganizationAiInferencesResponses,
   ListPublishableKeysData,
   ListPublishableKeysErrors,
   ListPublishableKeysResponses,
@@ -525,6 +564,9 @@ import type {
   RedeemVoucherData,
   RedeemVoucherErrors,
   RedeemVoucherResponses,
+  RefundAiInferenceData,
+  RefundAiInferenceErrors,
+  RefundAiInferenceResponses,
   ReleaseInvoiceHoldData,
   ReleaseInvoiceHoldErrors,
   ReleaseInvoiceHoldResponses,
@@ -615,6 +657,9 @@ import type {
   UpdateConnectorSettingsData,
   UpdateConnectorSettingsErrors,
   UpdateConnectorSettingsResponses,
+  UpdateConversionRuleData,
+  UpdateConversionRuleErrors,
+  UpdateConversionRuleResponses,
   UpdateCustomerData,
   UpdateCustomerErrors,
   UpdateCustomerIntegrationData,
@@ -657,6 +702,9 @@ import type {
   UpdateMetadataFieldData,
   UpdateMetadataFieldErrors,
   UpdateMetadataFieldResponses,
+  UpdateModelData,
+  UpdateModelErrors,
+  UpdateModelResponses,
   UpdatePublishableKeyData,
   UpdatePublishableKeyErrors,
   UpdatePublishableKeyResponses,
@@ -1267,6 +1315,33 @@ export class Addons {
         },
       ],
       url: "/addons/{addonSlug}/unarchive",
+      ...options,
+    });
+  }
+}
+
+export class Ai {
+  /**
+   * Read AI platform rollout availability
+   *
+   * Current organization-scoped platform flag only, not authorization to consume AI credits. Available while AI is disabled. Responses must not be cached.
+   */
+  public static getAiUsageCapabilities<ThrowOnError extends boolean = false>(
+    options?: Options<GetAiUsageCapabilitiesData, ThrowOnError>,
+  ): RequestResult<GetAiUsageCapabilitiesResponses, GetAiUsageCapabilitiesErrors, ThrowOnError> {
+    return (options?.client ?? client).get<
+      GetAiUsageCapabilitiesResponses,
+      GetAiUsageCapabilitiesErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/ai/capabilities",
       ...options,
     });
   }
@@ -2974,6 +3049,33 @@ export class Customers {
   }
 }
 
+export class Dashboard {
+  /**
+   * Get the dashboard summary
+   *
+   * The console's home in one response, computed in the database over the whole organization: what needs attention (limits reached, refused reports, silent instances, Licenses ending, archived versions, expiring tokens, zones behind), the figures of the period, the meters closest to their limits, usage reports per day and per instance, evaluations per flag, who runs which License version, what runs where, and who talks to Kaiten. The operation needs read:customers, read:instances and read:licenses. Blocks about a module the caller cannot read are absent; billing figures say nothing about whether billing is enabled, which GET /billing/capabilities does.
+   */
+  public static getDashboardSummary<ThrowOnError extends boolean = false>(
+    options?: Options<GetDashboardSummaryData, ThrowOnError>,
+  ): RequestResult<GetDashboardSummaryResponses, GetDashboardSummaryErrors, ThrowOnError> {
+    return (options?.client ?? client).get<
+      GetDashboardSummaryResponses,
+      GetDashboardSummaryErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/dashboard/summary",
+      ...options,
+    });
+  }
+}
+
 export class DeploymentZones {
   /**
    * List deployment zones
@@ -4155,7 +4257,7 @@ export class Instances {
   /**
    * Report entitlement usage metric for an instance
    *
-   * Report a usage metric for a specific entitlement in a given instance, with optional metadata. The server dates every report on receipt; the request carries no timestamp. Send an Idempotency-Key to make retries safe: without one, a report sent twice counts twice.
+   * Report a usage metric for a specific entitlement in a given instance, with optional metadata. The server dates every report on receipt; the request carries no timestamp. Numeric reports use Idempotency-Key for safe retries; without one, numeric reports sent twice count twice. AI usage uses value.transactionId for immutable reserve/commit phase replay and refuses Idempotency-Key with 422 ReportEntitlementUsageMetric.AiIdempotencyKeyUnsupported.
    */
   public static reportEntitlementUsageMetric<ThrowOnError extends boolean = false>(
     options: Options<ReportEntitlementUsageMetricData, ThrowOnError>,
@@ -4177,6 +4279,58 @@ export class Instances {
         },
       ],
       url: "/instances/{instanceSlug}/entitlements/{entitlementSlug}/usage",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * List AI inferences
+   */
+  public static listAiInferences<ThrowOnError extends boolean = false>(
+    options: Options<ListAiInferencesData, ThrowOnError>,
+  ): RequestResult<ListAiInferencesResponses, ListAiInferencesErrors, ThrowOnError> {
+    return (options.client ?? client).get<
+      ListAiInferencesResponses,
+      ListAiInferencesErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/instances/{instanceSlug}/entitlements/{entitlementSlug}/usage/inferences",
+      ...options,
+    });
+  }
+
+  /**
+   * Refund an AI inference
+   *
+   * Gives back credits charged for one COMMITTED AI inference, in full or in part, any number of times until its charge is refunded. The counter moves through an ordinary negative usage report, written in the same transaction under the Idempotency-Key: it lands in the usage window open now, which is not the charge's once that window has closed, it is journalled with a reportSeq, and it emits the report's own events (ENTITLEMENT_USAGE_REPORT_ACCEPTED). Like any negative report it is never refused by the pool's limit, and the counter is not floored at zero. The refund is then listed on the inference (refunds, credits.refunded). The pool must still be granted to the instance, as for any report. Decimals are strings.
+   */
+  public static refundAiInference<ThrowOnError extends boolean = false>(
+    options: Options<RefundAiInferenceData, ThrowOnError>,
+  ): RequestResult<RefundAiInferenceResponses, RefundAiInferenceErrors, ThrowOnError> {
+    return (options.client ?? client).post<
+      RefundAiInferenceResponses,
+      RefundAiInferenceErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/instances/{instanceSlug}/entitlements/{entitlementSlug}/usage/inferences/{transactionId}/refund",
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -4231,6 +4385,29 @@ export class Instances {
         },
       ],
       url: "/instances/{instanceSlug}/entitlements/{entitlementSlug}/usage/reports/export",
+      ...options,
+    });
+  }
+
+  /**
+   * List open AI reservations
+   */
+  public static listAiReservations<ThrowOnError extends boolean = false>(
+    options: Options<ListAiReservationsData, ThrowOnError>,
+  ): RequestResult<ListAiReservationsResponses, ListAiReservationsErrors, ThrowOnError> {
+    return (options.client ?? client).get<
+      ListAiReservationsResponses,
+      ListAiReservationsErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/instances/{instanceSlug}/entitlements/{entitlementSlug}/usage/reservations",
       ...options,
     });
   }
@@ -4414,6 +4591,35 @@ export class Instances {
         "Content-Type": "application/json",
         ...options.headers,
       },
+    });
+  }
+
+  /**
+   * List the organization's AI inferences
+   *
+   * Every AI operation of the organization across instances and credit pools, newest first by report time, paged with cursor. Each carries the instance and the pool it belongs to, the rule snapshot that priced it, the licence whose rules were considered, its warnings and its vendor cost. Decimals are strings.
+   */
+  public static listOrganizationAiInferences<ThrowOnError extends boolean = false>(
+    options?: Options<ListOrganizationAiInferencesData, ThrowOnError>,
+  ): RequestResult<
+    ListOrganizationAiInferencesResponses,
+    ListOrganizationAiInferencesErrors,
+    ThrowOnError
+  > {
+    return (options?.client ?? client).get<
+      ListOrganizationAiInferencesResponses,
+      ListOrganizationAiInferencesErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/usage/inferences",
+      ...options,
     });
   }
 
@@ -5154,6 +5360,129 @@ export class Licenses {
       ],
       url: "/licenses/{licenseSlug}/archive",
       ...options,
+    });
+  }
+
+  /**
+   * List conversion rules
+   */
+  public static listConversionRules<ThrowOnError extends boolean = false>(
+    options: Options<ListConversionRulesData, ThrowOnError>,
+  ): RequestResult<ListConversionRulesResponses, ListConversionRulesErrors, ThrowOnError> {
+    return (options.client ?? client).get<
+      ListConversionRulesResponses,
+      ListConversionRulesErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/licenses/{licenseSlug}/conversion-rules",
+      ...options,
+    });
+  }
+
+  /**
+   * Create a conversion rule
+   */
+  public static createConversionRule<ThrowOnError extends boolean = false>(
+    options: Options<CreateConversionRuleData, ThrowOnError>,
+  ): RequestResult<CreateConversionRuleResponses, CreateConversionRuleErrors, ThrowOnError> {
+    return (options.client ?? client).post<
+      CreateConversionRuleResponses,
+      CreateConversionRuleErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/licenses/{licenseSlug}/conversion-rules",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Archive a conversion rule
+   */
+  public static archiveConversionRule<ThrowOnError extends boolean = false>(
+    options: Options<ArchiveConversionRuleData, ThrowOnError>,
+  ): RequestResult<ArchiveConversionRuleResponses, ArchiveConversionRuleErrors, ThrowOnError> {
+    return (options.client ?? client).delete<
+      ArchiveConversionRuleResponses,
+      ArchiveConversionRuleErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/licenses/{licenseSlug}/conversion-rules/{ruleId}",
+      ...options,
+    });
+  }
+
+  /**
+   * Get a conversion rule
+   */
+  public static getConversionRule<ThrowOnError extends boolean = false>(
+    options: Options<GetConversionRuleData, ThrowOnError>,
+  ): RequestResult<GetConversionRuleResponses, GetConversionRuleErrors, ThrowOnError> {
+    return (options.client ?? client).get<
+      GetConversionRuleResponses,
+      GetConversionRuleErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/licenses/{licenseSlug}/conversion-rules/{ruleId}",
+      ...options,
+    });
+  }
+
+  /**
+   * Update a conversion rule
+   */
+  public static updateConversionRule<ThrowOnError extends boolean = false>(
+    options: Options<UpdateConversionRuleData, ThrowOnError>,
+  ): RequestResult<UpdateConversionRuleResponses, UpdateConversionRuleErrors, ThrowOnError> {
+    return (options.client ?? client).put<
+      UpdateConversionRuleResponses,
+      UpdateConversionRuleErrors,
+      ThrowOnError
+    >({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/licenses/{licenseSlug}/conversion-rules/{ruleId}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
     });
   }
 
@@ -5973,6 +6302,113 @@ export class MetadataFields {
       ],
       url: "/metadata-fields/{id}/unarchive",
       ...options,
+    });
+  }
+}
+
+export class Models {
+  /**
+   * List models
+   */
+  public static listModels<ThrowOnError extends boolean = false>(
+    options?: Options<ListModelsData, ThrowOnError>,
+  ): RequestResult<ListModelsResponses, ListModelsErrors, ThrowOnError> {
+    return (options?.client ?? client).get<ListModelsResponses, ListModelsErrors, ThrowOnError>({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/models",
+      ...options,
+    });
+  }
+
+  /**
+   * Create a model
+   */
+  public static createModel<ThrowOnError extends boolean = false>(
+    options: Options<CreateModelData, ThrowOnError>,
+  ): RequestResult<CreateModelResponses, CreateModelErrors, ThrowOnError> {
+    return (options.client ?? client).post<CreateModelResponses, CreateModelErrors, ThrowOnError>({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/models",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Delete a model
+   */
+  public static deleteModel<ThrowOnError extends boolean = false>(
+    options: Options<DeleteModelData, ThrowOnError>,
+  ): RequestResult<DeleteModelResponses, DeleteModelErrors, ThrowOnError> {
+    return (options.client ?? client).delete<DeleteModelResponses, DeleteModelErrors, ThrowOnError>(
+      {
+        security: [
+          {
+            key: "bearerAuth",
+            scheme: "bearer",
+            type: "http",
+          },
+        ],
+        url: "/models/{modelSlug}",
+        ...options,
+      },
+    );
+  }
+
+  /**
+   * Get a model
+   */
+  public static getModel<ThrowOnError extends boolean = false>(
+    options: Options<GetModelData, ThrowOnError>,
+  ): RequestResult<GetModelResponses, GetModelErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetModelResponses, GetModelErrors, ThrowOnError>({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/models/{modelSlug}",
+      ...options,
+    });
+  }
+
+  /**
+   * Update a model
+   */
+  public static updateModel<ThrowOnError extends boolean = false>(
+    options: Options<UpdateModelData, ThrowOnError>,
+  ): RequestResult<UpdateModelResponses, UpdateModelErrors, ThrowOnError> {
+    return (options.client ?? client).put<UpdateModelResponses, UpdateModelErrors, ThrowOnError>({
+      security: [
+        {
+          key: "bearerAuth",
+          scheme: "bearer",
+          type: "http",
+        },
+      ],
+      url: "/models/{modelSlug}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
     });
   }
 }

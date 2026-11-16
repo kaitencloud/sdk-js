@@ -93,6 +93,36 @@ export {
   resolveLicenseTerm,
   withQuery,
 } from "./client/normalize.ts";
+// AI credits: the `ai` namespace's types, its typed errors and the provider-
+// agnostic helpers the wrapper packages build on.
+export { classifyProviderError } from "./ai/module.ts";
+export type {
+  AiCommitInput,
+  AiReportResult,
+  AiReserveInput,
+  AiRunContext,
+  AiRunOptions,
+  AiTarget,
+  KaitenAiModule,
+} from "./ai/module.ts";
+export {
+  AiUsageUnsupportedError,
+  InsufficientCreditsError,
+  ModelNotAuthorizedError,
+  UnknownModelError,
+} from "./ai/errors.ts";
+export { fromAnthropic, fromOpenAI } from "./ai/normalize.ts";
+export { estimateTokens, uuidv7 } from "./ai/ids.ts";
+export type {
+  AiEntitlementUsage,
+  AiOperationStatus,
+  AiRequestStatus,
+  AiRequestType,
+  AiUsage,
+  AiUsageOutcome,
+  AiUsagePhase,
+  AiUsageWarning,
+} from "./ai/contract.ts";
 // An entitlement business rule shared by every usage surface, not infrastructure
 // — hence a domain module rather than a `lib/` helper. Exported because a host
 // rendering its own meters needs the same rule the SDK's components use, and the
@@ -120,3 +150,5 @@ export type {
 export type * from "./client/types.ts";
 export type * from "./client/session-types.ts";
 export type * from "./client/anonymous-checkout-types.ts";
+
+export type { KaitenModelsModule, KaitenConversionRulesModule } from "./ai/catalog.ts";
