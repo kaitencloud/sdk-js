@@ -232,7 +232,7 @@ A publishable key is public by design: it ships in your pages, and it grants the
 read-only catalog of your organization's public plans and nothing else. The API
 checks it against the origins you allowed for it on every request, and refuses it
 anywhere but the catalog. The SDK sends it the same way: in the
-`X-Kaiten-Publishable-Key` header, never `Authorization`, with no cookie, to
+`Kaiten-Publishable-Key` header, never `Authorization`, with no cookie, to
 `/public/catalog` only. Anything else a public provider is asked for — a usage
 report — is refused before any request.
 

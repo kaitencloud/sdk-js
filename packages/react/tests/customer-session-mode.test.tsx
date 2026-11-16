@@ -131,10 +131,10 @@ test("reads the portal with the session, and the catalog with the publishable ke
 
   const portalRequest = requests.find((request) => request.url.endsWith("/session/portal"))!;
   expect(portalRequest.headers.get("Authorization")).toBe(`Bearer kst_${"s".repeat(43)}`);
-  expect(portalRequest.headers.get("X-Kaiten-Publishable-Key")).toBeNull();
+  expect(portalRequest.headers.get("Kaiten-Publishable-Key")).toBeNull();
 
   const catalogRequest = requests.find((request) => request.url.endsWith("/public/catalog"))!;
-  expect(catalogRequest.headers.get("X-Kaiten-Publishable-Key")).toBe(PK);
+  expect(catalogRequest.headers.get("Kaiten-Publishable-Key")).toBe(PK);
   expect(catalogRequest.headers.get("Authorization")).toBeNull();
 
   expect(result.current.plans.data?.map((plan) => plan.slug)).toEqual(["starter-v1", "pro-v2"]);

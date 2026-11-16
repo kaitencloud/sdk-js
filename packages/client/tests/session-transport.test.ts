@@ -37,7 +37,7 @@ describe("session mode: Bearer kst_ on session routes only, refreshed before exp
     await client.getPortal();
     expect(requests[0]!.url).toBe("https://api.acme.test/api/public/session/portal");
     expect(requests[0]!.headers.get("Authorization")).toBe(`Bearer ${KST_A}`);
-    expect(requests[0]!.headers.get("X-Kaiten-Publishable-Key")).toBeNull();
+    expect(requests[0]!.headers.get("Kaiten-Publishable-Key")).toBeNull();
     expect(requests[0]!.credentials).toBe("omit");
 
     // 61 s before expiry: still the held session, and the host is not asked.
@@ -84,9 +84,9 @@ describe("session mode: Bearer kst_ on session routes only, refreshed before exp
     await portal.getPortal();
 
     expect(requests[0]!.headers.get("Authorization")).toBeNull();
-    expect(requests[0]!.headers.get("X-Kaiten-Publishable-Key")).toMatch(/^pk_/);
+    expect(requests[0]!.headers.get("Kaiten-Publishable-Key")).toMatch(/^pk_/);
     expect(requests[1]!.headers.get("Authorization")).toBe(`Bearer ${KST_A}`);
-    expect(requests[1]!.headers.get("X-Kaiten-Publishable-Key")).toBeNull();
+    expect(requests[1]!.headers.get("Kaiten-Publishable-Key")).toBeNull();
   });
 
   test("the host's default headers cannot carry a publishable key, or another Authorization, to a session route", async () => {
@@ -97,6 +97,7 @@ describe("session mode: Bearer kst_ on session routes only, refreshed before exp
       getCustomerSession: sessions(session(KST_A, T0 + 30 * MINUTE)),
       defaultHeaders: {
         Authorization: "Bearer ksh_the-hosts",
+        "Kaiten-Publishable-Key": "pk_the-hosts",
         "X-Kaiten-Publishable-Key": "pk_the-hosts",
         "X-App": "shop",
       },
@@ -105,6 +106,7 @@ describe("session mode: Bearer kst_ on session routes only, refreshed before exp
     await client.getPortal();
 
     expect(requests[0]!.headers.get("Authorization")).toBe(`Bearer ${KST_A}`);
+    expect(requests[0]!.headers.get("Kaiten-Publishable-Key")).toBeNull();
     expect(requests[0]!.headers.get("X-Kaiten-Publishable-Key")).toBeNull();
     expect(requests[0]!.headers.get("X-App")).toBe("shop");
   });

@@ -36,7 +36,7 @@ export function catalogueReader(options: {
   const { apiUrl, publishableKey, fetch: fetchApi = fetch } = options;
   return async () => {
     const response = await fetchApi(`${apiBase(apiUrl)}/public/catalog`, {
-      headers: { "X-Kaiten-Publishable-Key": publishableKey, Accept: "application/json" },
+      headers: { "Kaiten-Publishable-Key": publishableKey, Accept: "application/json" },
     });
     if (!response.ok) throw new Error(`the public catalogue answered ${response.status}`);
     const body = (await response.json()) as { plans?: CataloguePlan[] };

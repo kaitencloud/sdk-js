@@ -92,7 +92,7 @@ export function fakeKaiten(options: Fake = {}) {
     const body: Json = typeof raw === "string" && raw !== "" ? JSON.parse(raw) : {};
 
     if (route === "GET /public/catalog") {
-      return headers.get("x-kaiten-publishable-key") === PUBLISHABLE_KEY
+      return headers.get("kaiten-publishable-key") === PUBLISHABLE_KEY
         ? answer(route, catalog)
         : problem(401, "PublicAuth.InvalidCredential", "unknown publishable key");
     }

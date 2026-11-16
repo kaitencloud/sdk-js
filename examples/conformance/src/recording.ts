@@ -26,7 +26,7 @@ export interface Exchange {
 
 type Fetch = typeof globalThis.fetch;
 
-const CREDENTIAL_HEADERS = ["authorization", "x-kaiten-publishable-key"];
+const CREDENTIAL_HEADERS = ["authorization", "kaiten-publishable-key", "x-kaiten-publishable-key"];
 
 /** A credential reduced to what says which kind it is. */
 function shortened(name: string, value: string): string {

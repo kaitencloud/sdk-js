@@ -59,7 +59,7 @@ describe("public mode reads the catalogue from /public/catalog only", () => {
     const request = requestOf(fetch.mock.calls[0]!);
     expect(request.method).toBe("GET");
     expect(request.url).toBe("https://api.acme.test/api/public/catalog");
-    expect(request.headers.get("X-Kaiten-Publishable-Key")).toBe(PK);
+    expect(request.headers.get("Kaiten-Publishable-Key")).toBe(PK);
     expect(request.headers.get("Authorization")).toBeNull();
     expect(request.credentials).toBe("omit");
     expect(catalog.plans).toHaveLength(8);
@@ -183,7 +183,7 @@ describe("narrowing the public catalogue", () => {
 
     expect(url.search).toBe("?familySlug=pro");
     expect(request.method).toBe("GET");
-    expect(request.headers.get("X-Kaiten-Publishable-Key")).toBe(PK);
+    expect(request.headers.get("Kaiten-Publishable-Key")).toBe(PK);
     expect(request.headers.get("Authorization")).toBeNull();
     expect(request.credentials).toBe("omit");
   });

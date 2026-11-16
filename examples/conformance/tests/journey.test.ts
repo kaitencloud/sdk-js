@@ -95,7 +95,7 @@ describe("the journey against a stand-in that keeps to the contract", () => {
     expect(
       journey.exchanges.find((exchange) => exchange.path === "/public/catalog")?.requestHeaders,
     ).toMatchObject({
-      "x-kaiten-publishable-key": "pk_…",
+      "kaiten-publishable-key": "pk_…",
     });
     // No exchange carries more of a credential than its prefix.
     expect(JSON.stringify(journey.exchanges)).not.toContain(SERVER_TOKEN);

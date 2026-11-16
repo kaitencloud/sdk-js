@@ -673,7 +673,7 @@ describe("the catalogue's links", () => {
     const read = async (origin: string) => {
       const response = await double.route(
         new Request(`${origin}${DOUBLE_PATH}/api/public/catalog`, {
-          headers: { "x-kaiten-publishable-key": PUBLISHABLE_KEY },
+          headers: { "kaiten-publishable-key": PUBLISHABLE_KEY },
         }),
       );
       return (await response!.json()) as {
@@ -2308,7 +2308,7 @@ describe("the anonymous checkout, against the stand-in", () => {
     const { double, recorder, raw } = visitorShop({ anonymousCheckout: false });
     const catalogue = async () => {
       const response = await raw("/public/catalog", {
-        headers: { "X-Kaiten-Publishable-Key": PUBLISHABLE_KEY },
+        headers: { "Kaiten-Publishable-Key": PUBLISHABLE_KEY },
       });
       return ((await response.json()) as any).capabilities;
     };
@@ -2316,7 +2316,7 @@ describe("the anonymous checkout, against the stand-in", () => {
 
     const refused = await raw("/public/checkout-sessions", {
       method: "POST",
-      headers: { "X-Kaiten-Publishable-Key": PUBLISHABLE_KEY },
+      headers: { "Kaiten-Publishable-Key": PUBLISHABLE_KEY },
       json: { turnstileToken: token(), priceId: STARTER_PRICE, dryRun: true },
     });
     expect(refused.status).toBe(403);
@@ -2742,7 +2742,7 @@ describe("the anonymous checkout, against the stand-in", () => {
         (json as { turnstileToken: string }).turnstileToken !== "";
       const response = await raw("/public/checkout-sessions", {
         method: "POST",
-        headers: { "X-Kaiten-Publishable-Key": PUBLISHABLE_KEY, ...headers },
+        headers: { "Kaiten-Publishable-Key": PUBLISHABLE_KEY, ...headers },
         // A body that is refused for something other than its token is not refused for a spent one.
         json: spends ? { ...(json as object), turnstileToken: token() } : json,
       });
@@ -2853,7 +2853,7 @@ describe("the anonymous checkout, against the stand-in", () => {
       body: { code: "Auth.WrongCredentialKind" },
     });
     await expect(
-      post(valid, { "X-Kaiten-Publishable-Key": `pk_${"x".repeat(43)}` }),
+      post(valid, { "Kaiten-Publishable-Key": `pk_${"x".repeat(43)}` }),
     ).resolves.toMatchObject({
       status: 401,
       body: { code: "PublicAuth.InvalidCredential" },
@@ -2867,7 +2867,7 @@ describe("the anonymous checkout, against the stand-in", () => {
       new Request(`${API}/public/checkout-sessions`, {
         method: "POST",
         headers: {
-          "X-Kaiten-Publishable-Key": PUBLISHABLE_KEY,
+          "Kaiten-Publishable-Key": PUBLISHABLE_KEY,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ ...valid, dryRun: true }),
@@ -2928,9 +2928,9 @@ describe("the anonymous checkout, against the stand-in", () => {
     ).toBe(401);
     expect((await read(one.sessionId, {})).status).toBe(401);
     // The wrong class: a publishable key, a customer's session, a server token.
-    expect(
-      (await read(one.sessionId, { "X-Kaiten-Publishable-Key": PUBLISHABLE_KEY })).status,
-    ).toBe(403);
+    expect((await read(one.sessionId, { "Kaiten-Publishable-Key": PUBLISHABLE_KEY })).status).toBe(
+      403,
+    );
     expect(
       (await read(one.sessionId, { Authorization: `Bearer kst_${"z".repeat(43)}` })).status,
     ).toBe(403);

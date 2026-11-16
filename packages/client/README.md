@@ -55,7 +55,7 @@ always has, so a test key such as `pk_live_abc` still works against a mock serve
 `authScheme` is required:
 
 - `"bearer"` sends the credential as `Authorization: Bearer`;
-- `"publishable"` sends a publishable key as `X-Kaiten-Publishable-Key`, to
+- `"publishable"` sends a publishable key as `Kaiten-Publishable-Key`, to
   `GET /public/catalog` only: `getCatalog()` reads it, with no cookie and no fallback,
   and every other call is refused before any request;
 - `"none"` sends no credential, for an endpoint in front of Kaiten that authenticates the
@@ -306,7 +306,7 @@ and a start without it a `CheckoutSessionOpened`, so a page does not narrow what
 knows; when `dryRun` is a `boolean` the compiler cannot see, it is either (narrow on `status`).
 An answer of the other kind rejects with a `KaitenError`.
 
-**Two credentials, two routes.** The publishable key goes in `X-Kaiten-Publishable-Key` to the
+**Two credentials, two routes.** The publishable key goes in `Kaiten-Publishable-Key` to the
 start and nowhere else. The start answers a session and its `ksc_` token, which goes in
 `Authorization: Bearer ksc_…` to that session's own two routes and nowhere else. Neither is
 ever sent with the other, whatever `defaultHeaders` holds, and no cookie is sent. `started.token`

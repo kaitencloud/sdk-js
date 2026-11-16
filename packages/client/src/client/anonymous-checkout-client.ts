@@ -212,7 +212,7 @@ interface Held {
  * ```
  *
  * **Two credentials, two routes.** The publishable key goes in
- * `X-Kaiten-Publishable-Key` to the route that starts a checkout and nowhere else.
+ * `Kaiten-Publishable-Key` to the route that starts a checkout and nowhere else.
  * The start answers the session's `ksc_` token, which goes in
  * `Authorization: Bearer ksc_…` to that session's own two routes and nowhere else.
  * Neither is ever sent with the other, whatever `defaultHeaders` holds, and no
@@ -256,7 +256,7 @@ export class KaitenAnonymousCheckoutClient implements KaitenAnonymousCheckoutCli
     const dryRun = input.dryRun === true;
     const label = dryRun ? "startCheckout(dryRun)" : "startCheckout()";
     const headers = this.headers();
-    headers.set("X-Kaiten-Publishable-Key", this.config.publishableKey);
+    headers.set("Kaiten-Publishable-Key", this.config.publishableKey);
     const raw = await this.guarded(
       sendPublic<WireStart>(
         this.fetchImpl,

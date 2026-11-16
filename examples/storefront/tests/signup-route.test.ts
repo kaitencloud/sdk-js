@@ -339,7 +339,7 @@ describe("signing a visitor up", () => {
 
     expect(requests).toHaveLength(1);
     expect(requests[0]!.url).toBe("https://kaiten.test/api/public/catalog");
-    expect(requests[0]!.headers.get("x-kaiten-publishable-key")).toBe(PUBLISHABLE_KEY);
+    expect(requests[0]!.headers.get("kaiten-publishable-key")).toBe(PUBLISHABLE_KEY);
     expect(requests[0]!.headers.get("authorization")).toBeNull();
     expect(requests[0]!.headers.get("origin")).toBeNull();
   });

@@ -22,7 +22,7 @@ export interface KaitenClientConfig {
    * - `"bearer"`: `Authorization: Bearer <token>`, for a `ksh_` token or a JWT the
    *   API's gateway verifies. Both carry rights over a whole organization: use
    *   them on a server. In a browser, the client refuses to send a secret.
-   * - `"publishable"`: `X-Kaiten-Publishable-Key`, for a publishable key
+   * - `"publishable"`: `Kaiten-Publishable-Key`, for a publishable key
    *   (`pk_`), which reads the public catalog and nothing else: `getCatalog()`
    *   calls `GET /public/catalog`, and every other read or write is refused
    *   before any request. A publishable key is meant for a browser.
@@ -135,7 +135,7 @@ export interface KaitenAnonymousCheckoutClientConfig {
   apiUrl: string;
   /**
    * A publishable key (`pk_…`) that has anonymous checkout turned on. It is sent in
-   * `X-Kaiten-Publishable-Key` to the route that starts a checkout and nowhere else.
+   * `Kaiten-Publishable-Key` to the route that starts a checkout and nowhere else.
    */
   publishableKey: string;
   defaultHeaders?: Record<string, string>;
