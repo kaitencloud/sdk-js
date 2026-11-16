@@ -6444,7 +6444,7 @@ export class Public {
   /**
    * Get the public catalogue
    *
-   * What a pricing page shows: for each licence family the organization made public, its default version with its ACTIVE prices and user-facing entitlements, and the same for public add-on families. Read with a publishable key (X-Kaiten-Publishable-Key); the organization is the key's. Amounts are in minor units; never sum metered prices into a headline. Cacheable for 60 seconds.
+   * What a pricing page shows: for each licence family the organization made public, its default version with its ACTIVE prices and user-facing entitlements, and the same for public add-on families. Read with a publishable key (Kaiten-Publishable-Key); the organization is the key's. Amounts are in minor units; never sum metered prices into a headline. Cacheable for 60 seconds.
    */
   public static getPublicCatalog<ThrowOnError extends boolean = false>(
     options?: Options<GetPublicCatalogData, ThrowOnError>,
@@ -6454,7 +6454,7 @@ export class Public {
       GetPublicCatalogErrors,
       ThrowOnError
     >({
-      security: [{ name: "X-Kaiten-Publishable-Key", type: "apiKey" }],
+      security: [{ name: "Kaiten-Publishable-Key", type: "apiKey" }],
       url: "/public/catalog",
       ...options,
     });
@@ -6473,7 +6473,7 @@ export class Public {
       CreateCheckoutSessionErrors,
       ThrowOnError
     >({
-      security: [{ name: "X-Kaiten-Publishable-Key", type: "apiKey" }],
+      security: [{ name: "Kaiten-Publishable-Key", type: "apiKey" }],
       url: "/public/checkout-sessions",
       ...options,
       headers: {
