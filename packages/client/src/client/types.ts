@@ -27,18 +27,20 @@ import type {
 /**
  * One entitlement's usage row, as the usage routes answer it.
  *
- * A current server answers with the instance's effective entitlement: `limit`
- * and `limitCapExceededOveragePercent` are the licence's grant with the
- * instance's add-ons and voucher boosts applied, the values its usage gate
- * enforces, and `source` and `provenance` say where they come from. An older
- * server answers with the grant itself, and sends neither.
+ * A current server answers one row per entitlement the instance has, each with
+ * its effective value: `limit` and `limitCapExceededOveragePercent` are the
+ * licence's grant with the instance's add-ons, voucher boosts and exception
+ * applied, the values its usage gate enforces, and `source` and `provenance`
+ * say where they come from. An entitlement an add-on or the exception grants on
+ * its own has a row too. An older server answers one row per licence grant,
+ * with the grant itself, and sends neither.
  *
  * The contract marks `source` required and the generated type follows. This
  * one keeps `source`, `provenance` and the overage percent optional: a row built
- * against the 1.0 shape (a test double, a host's own fixture, the GraphQL
- * mapping, which cannot tell the layers apart) must keep compiling, and a member
- * that becomes required on a type hosts construct would break them. Reading them
- * is unaffected; the raw type is still `KaitenApi.EntitlementUsage`.
+ * against the 1.0 shape (a test double, a host's own fixture) must keep
+ * compiling, and a member that becomes required on a type hosts construct would
+ * break them. Reading them is unaffected; the raw type is still
+ * `KaitenApi.EntitlementUsage`.
  *
  * All three also accept `null`. A report the server answers from its journal,
  * because the same key was already applied, carries the figures of that first
@@ -53,11 +55,12 @@ export type EntitlementUsage = Omit<
 > & {
   /**
    * The layer that grants the entitlement: `license` when the licence does, its
-   * value possibly changed by add-ons and boosts, `addon` when only add-ons do.
-   * Open: more may come. Absent on a server that predates it, `null` on the
-   * answer to a replayed report.
+   * value possibly changed by add-ons, boosts and an exception, `addon` when an
+   * add-on attached does and the licence does not, `exception` when only the
+   * instance's exception does. Open: more may come. Absent on a server that
+   * predates it, `null` on the answer to a replayed report.
    */
-  source?: "license" | "addon" | (string & {}) | null;
+  source?: "license" | "addon" | "exception" | (string & {}) | null;
   /**
    * Why `limit` is what it is: the licence's grant, the add-ons, the voucher
    * boosts. Absent on a server that predates it, `null` on the answer to a
@@ -770,16 +773,21 @@ export interface ResolvedEntitlement extends EntitlementPresentation {
   configLabel?: string | null;
   /**
    * The legacy 1.0 layer. An exception or an unknown layer reads as `license` here for
-   * compatibility; read `effectiveSource` for the portal's actual layer. `credit` is reserved.
+   * compatibility; read `effectiveSource` for the actual layer. `credit` is reserved.
    */
   source: "license" | "addon" | "credit";
-  /** The portal's actual layer, without a fallback. Open; absent when the server says nothing. */
+  /**
+   * The layer the server says grants the entitlement, without a fallback: on a portal
+   * entitlement, and on a snapshot entitlement whose usage row names it. Open; absent when the
+   * server says nothing.
+   */
   effectiveSource?: "license" | "addon" | "exception" | (string & {});
   actions?: PortalAction[];
   /**
    * How each layer contributed to the effective value — the licence grant, the
-   * add-ons, the voucher boosts — on an entitlement read from a customer's
-   * portal: enough to render "(100,000 base) × 2 voucher = 200,000".
+   * add-ons, the voucher boosts, the exception — on a portal entitlement, and on
+   * a snapshot entitlement whose usage row carries it: enough to render
+   * "(100,000 base) × 2 voucher = 200,000".
    */
   provenance?: EntitlementProvenance;
 }

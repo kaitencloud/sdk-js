@@ -108,9 +108,14 @@ const SCENARIOS = [
     // currency, which the formatter of prices reads through `majorUnitAmount` of the client so
     // that a price is shown as the API bills it. Every scenario that formats a price grew by 0.9
     // to 1.0 KB. Each budget that notes it rises by as much, which leaves its margin as it was.
+    // Measured at 30 082 bytes, up from 29 723: the licensing snapshot is the instance's
+    // effective set, an entitlement an add-on or an exception grants on its own included, each
+    // layer is read from its usage row, and the GraphQL query selects three more members of that
+    // row. Every scenario that builds a KaitenClient grew by 0.3 to 0.4 KB. Each budget that notes
+    // it rises by as much, rounded up to 50 bytes, which leaves its margin as it was.
     name: "core · Gate + KaitenProvider",
     code: `import { Gate, KaitenProvider } from "@kaitencloud/react"; console.log(Gate, KaitenProvider);`,
-    budgetGzip: 30_650,
+    budgetGzip: 31_050,
     unstyled: true,
   },
   {
@@ -118,9 +123,11 @@ const SCENARIOS = [
     // the first scenario. The budget rises by as much.
     // Measured at 28 911 bytes, up from 27 949: the API's table of minor units, as in the first
     // scenario. The budget rises by as much.
+    // Measured at 29 265 bytes, up from 28 908: the snapshot's effective set, as in the
+    // first scenario. The budget rises by as much.
     name: "core · useEntitlementCheck + KaitenProvider",
     code: `import { useEntitlementCheck, KaitenProvider } from "@kaitencloud/react"; console.log(useEntitlementCheck, KaitenProvider);`,
-    budgetGzip: 29_800,
+    budgetGzip: 30_200,
     unstyled: true,
   },
   {
@@ -128,9 +135,11 @@ const SCENARIOS = [
     // the first scenario. The budget rises by as much.
     // Measured at 29 062 bytes, up from 28 090: the API's table of minor units, as in the first
     // scenario. The budget rises by as much.
+    // Measured at 29 411 bytes, up from 29 060: the snapshot's effective set, as in the
+    // first scenario. The budget rises by as much.
     name: "core · Show + KaitenProvider",
     code: `import { Show, KaitenProvider } from "@kaitencloud/react"; console.log(Show, KaitenProvider);`,
-    budgetGzip: 29_950,
+    budgetGzip: 30_350,
     unstyled: true,
   },
   {
@@ -151,9 +160,11 @@ const SCENARIOS = [
     // budget leaves a margin of about 300 bytes.
     // Measured at 33 293 bytes, up from 32 363: the API's table of minor units, as in the first
     // scenario. The budget rises by as much.
+    // Measured at 33 638 bytes, up from 33 291: the snapshot's effective set, as in the
+    // first scenario. The budget rises by as much.
     name: "core · everything",
     code: `import * as all from "@kaitencloud/react"; console.log(all);`,
-    budgetGzip: 33_500,
+    budgetGzip: 33_850,
     unstyled: true,
   },
   {
@@ -170,9 +181,11 @@ const SCENARIOS = [
     // the first scenario. The budget rises by as much.
     // Measured at 32 934 bytes, up from 31 971: the API's table of minor units, as in the first
     // scenario. The budget rises by as much.
+    // Measured at 33 295 bytes, up from 32 932: the snapshot's effective set, as in the
+    // first scenario. The budget rises by as much.
     name: "billing · useCheckout + KaitenProvider",
     code: `import { KaitenProvider } from "@kaitencloud/react"; import { useCheckout } from "@kaitencloud/react/billing"; console.log(KaitenProvider, useCheckout);`,
-    budgetGzip: 33_900,
+    budgetGzip: 34_300,
     unstyled: true,
   },
   {
@@ -190,9 +203,11 @@ const SCENARIOS = [
     // the first scenario. The budget rises by as much.
     // Measured at 34 837 bytes, up from 33 848: the API's table of minor units, as in the first
     // scenario. The budget rises by as much.
+    // Measured at 35 177 bytes, up from 34 835: the snapshot's effective set, as in the
+    // first scenario. The budget rises by as much.
     name: "billing · useAnonymousCheckout + KaitenProvider",
     code: `import { KaitenProvider } from "@kaitencloud/react"; import { useAnonymousCheckout } from "@kaitencloud/react/billing"; console.log(KaitenProvider, useAnonymousCheckout);`,
-    budgetGzip: 35_900,
+    budgetGzip: 36_250,
     unstyled: true,
   },
   {
@@ -254,9 +269,11 @@ const SCENARIOS = [
     // the first scenario. The budget rises by as much.
     // Measured at 29 727 bytes, up from 28 763: the API's table of minor units, as in the first
     // scenario. The budget rises by as much.
+    // Measured at 30 082 bytes, up from 29 723: the snapshot's effective set, as in the
+    // first scenario. The budget rises by as much.
     name: "react-ui · Gate + KaitenProvider through the re-export",
     code: `import { Gate, KaitenProvider } from "@kaitencloud/react-ui"; console.log(Gate, KaitenProvider);`,
-    budgetGzip: 30_650,
+    budgetGzip: 31_050,
     unstyled: true,
   },
   {
@@ -264,27 +281,33 @@ const SCENARIOS = [
     // the first scenario. The budget rises by as much.
     // Measured at 40 196 bytes, up from 39 216: the API's table of minor units, as in the first
     // scenario. The budget rises by as much.
+    // Measured at 40 570 bytes, up from 40 194: the snapshot's effective set, as in the
+    // first scenario. The budget rises by as much.
     name: "react-ui · PlanBadge + KaitenProvider + KaitenStyleRoot",
     code: `import { PlanBadge, KaitenProvider, KaitenStyleRoot } from "@kaitencloud/react-ui"; console.log(PlanBadge, KaitenProvider, KaitenStyleRoot);`,
-    budgetGzip: 40_350,
+    budgetGzip: 40_750,
   },
   {
     // Measured at 49 374 bytes, up from 48 688: what the provider does once a read has failed, as in
     // the first scenario. The budget rises by as much.
     // Measured at 50 337 bytes, up from 49 374: the API's table of minor units, as in the first
     // scenario. The budget rises by as much.
+    // Measured at 50 698 bytes, up from 50 335: the snapshot's effective set, as in the
+    // first scenario. The budget rises by as much.
     name: "react-ui · PricingTable + KaitenProvider + KaitenStyleRoot",
     code: `import { PricingTable, KaitenProvider, KaitenStyleRoot } from "@kaitencloud/react-ui"; console.log(PricingTable, KaitenProvider, KaitenStyleRoot);`,
-    budgetGzip: 51_850,
+    budgetGzip: 52_250,
   },
   {
     // Measured at 50 459 bytes, up from 49 759: what the provider does once a read has failed, as in
     // the first scenario. The budget rises by as much.
     // Measured at 51 438 bytes, up from 50 459: the API's table of minor units, as in the first
     // scenario. The budget rises by as much.
+    // Measured at 51 784 bytes, up from 51 436: the snapshot's effective set, as in the
+    // first scenario. The budget rises by as much.
     name: "react-ui · Paywall + KaitenProvider + KaitenStyleRoot",
     code: `import { Paywall, KaitenProvider, KaitenStyleRoot } from "@kaitencloud/react-ui"; console.log(Paywall, KaitenProvider, KaitenStyleRoot);`,
-    budgetGzip: 51_900,
+    budgetGzip: 52_250,
   },
   {
     // What a host that offers a checkout ships: the flow, the hooks it is made of, and the words
@@ -315,7 +338,9 @@ const SCENARIOS = [
     // the first scenario. The budget rises by as much.
     // Measured at 71 043 bytes, up from 70 112: the API's table of minor units, as in the first
     // scenario. The budget rises by as much.
-    budgetGzip: 72_150,
+    // Measured at 71 398 bytes, up from 71 041: the snapshot's effective set, as in the
+    // first scenario. The budget rises by as much.
+    budgetGzip: 72_550,
   },
   {
     // What a host that sells to visitors ships: the flow, the hook it is made of with the loader of
@@ -338,9 +363,11 @@ const SCENARIOS = [
     // the first scenario. The budget rises by as much.
     // Measured at 74 293 bytes, up from 73 315: the API's table of minor units, as in the first
     // scenario. The budget rises by as much.
+    // Measured at 74 625 bytes, up from 74 291: the snapshot's effective set, as in the
+    // first scenario. The budget rises by as much.
     name: "react-ui · AnonymousCheckoutFlow + KaitenProvider + KaitenStyleRoot",
     code: `import { AnonymousCheckoutFlow, KaitenProvider, KaitenStyleRoot } from "@kaitencloud/react-ui"; console.log(AnonymousCheckoutFlow, KaitenProvider, KaitenStyleRoot);`,
-    budgetGzip: 75_500,
+    budgetGzip: 75_850,
   },
   {
     // What a host that shows a customer how they pay ships: the card, the billing hooks that add or
@@ -356,9 +383,11 @@ const SCENARIOS = [
     // the first scenario. The budget rises by as much.
     // Measured at 50 165 bytes, up from 49 252: the API's table of minor units, as in the first
     // scenario. The budget rises by as much.
+    // Measured at 50 484 bytes, up from 50 163: the snapshot's effective set, as in the
+    // first scenario. The budget rises by as much.
     name: "react-ui · PaymentMethodCard + KaitenProvider + KaitenStyleRoot",
     code: `import { PaymentMethodCard, KaitenProvider, KaitenStyleRoot } from "@kaitencloud/react-ui"; console.log(PaymentMethodCard, KaitenProvider, KaitenStyleRoot);`,
-    budgetGzip: 50_700,
+    budgetGzip: 51_050,
   },
   {
     // What a host that shows a customer their trial ships: the banner, the billing hooks that add a
@@ -369,9 +398,11 @@ const SCENARIOS = [
     // the first scenario. The budget rises by as much.
     // Measured at 50 847 bytes, up from 49 944: the API's table of minor units, as in the first
     // scenario. The budget rises by as much.
+    // Measured at 51 166 bytes, up from 50 844: the snapshot's effective set, as in the
+    // first scenario. The budget rises by as much.
     name: "react-ui · TrialBanner + KaitenProvider + KaitenStyleRoot",
     code: `import { TrialBanner, KaitenProvider, KaitenStyleRoot } from "@kaitencloud/react-ui"; console.log(TrialBanner, KaitenProvider, KaitenStyleRoot);`,
-    budgetGzip: 51_450,
+    budgetGzip: 51_800,
   },
   {
     // What a host that offers a customer portal ships: the sections, the billing hooks they
@@ -408,9 +439,11 @@ const SCENARIOS = [
     // the first scenario. The budget rises by as much.
     // Measured at 71 104 bytes, up from 70 163: the API's table of minor units, as in the first
     // scenario. The budget rises by as much.
+    // Measured at 71 456 bytes, up from 71 102: the snapshot's effective set, as in the
+    // first scenario. The budget rises by as much.
     name: "react-ui · CustomerPortal + KaitenProvider + KaitenStyleRoot",
     code: `import { CustomerPortal, KaitenProvider, KaitenStyleRoot } from "@kaitencloud/react-ui"; console.log(CustomerPortal, KaitenProvider, KaitenStyleRoot);`,
-    budgetGzip: 72_350,
+    budgetGzip: 72_750,
   },
   {
     // Measured at 93 302 bytes, up from 79 688: Base UI's radio group, as in the checkout (12.4 KB),
@@ -441,9 +474,11 @@ const SCENARIOS = [
     // Measured at 112 248 bytes, up from 111 694: the company field of the anonymous checkout, as above.
     // Measured at 118 100 bytes, up from 117 077: the API's table of minor units, as in the first
     // scenario. The budget rises by as much.
+    // Measured at 118 419 bytes, up from 118 097: the snapshot's effective set, as in the
+    // first scenario. The budget rises by as much.
     name: "react-ui · everything",
     code: `import * as all from "@kaitencloud/react-ui"; console.log(all);`,
-    budgetGzip: 120_000,
+    budgetGzip: 120_350,
   },
   {
     name: "client · KaitenClient alone",
@@ -451,7 +486,9 @@ const SCENARIOS = [
     // Measured at 14 935 bytes once the `ai` namespace (KTN-201), which every
     // KaitenClient holds, met main's keyed usage reports and anonymous
     // checkout: 12.0 KB when the namespace landed on its own branch.
-    budgetGzip: 16_400,
+    // Measured at 16 220 bytes, up from 15 889: the snapshot's effective set, as in the
+    // first scenario. The budget rises by as much.
+    budgetGzip: 16_750,
     headless: true,
     resolveDir: FROM_NODE,
   },

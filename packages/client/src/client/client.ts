@@ -50,6 +50,7 @@ import type {
 import type {
   Customer,
   EntitlementGroupUsageItem,
+  EntitlementProvenance,
   EntitlementUsage,
   GetCatalogOptions,
   Instance,
@@ -164,6 +165,9 @@ interface GraphQLUsageRow {
   licenseSlug: string;
   value: unknown;
   limit?: unknown;
+  limitCapExceededOveragePercent?: number | null;
+  source?: string | null;
+  provenance?: unknown;
   currentPeriodStart?: string | null;
   currentPeriodEnd?: string | null;
 }
@@ -183,9 +187,10 @@ interface GraphQLUsageRow {
  * when a reset period is configured, so an absent pair is the entitlement
  * saying "lifetime counter", which the normalizer reads as such.
  *
- * The row carries no `source`, `provenance` or overage percent: the document does
- * not select them yet (see `LICENSING_SNAPSHOT_QUERY`), so the normalizer falls
- * back to the licence grant's percent on this path.
+ * The effective members, `source`, `provenance` and the overage percent, travel
+ * as they come, `null` included: the normalizer reads the layer and the
+ * allowance off them, and falls back to the licence grant's percent without
+ * one. `provenance` is the JSON the REST read answers.
  */
 function usageRowFromGraphql(row: GraphQLUsageRow): EntitlementUsage {
   return {
@@ -195,9 +200,20 @@ function usageRowFromGraphql(row: GraphQLUsageRow): EntitlementUsage {
     licenseSlug: row.licenseSlug,
     value: row.value as EntitlementUsage["value"],
     ...(row.limit ? { limit: row.limit as EntitlementUsage["limit"] } : {}),
+    limitCapExceededOveragePercent: row.limitCapExceededOveragePercent,
+    source: row.source,
+    provenance: row.provenance as EntitlementProvenance | null | undefined,
     ...(row.currentPeriodStart ? { currentPeriodStart: row.currentPeriodStart } : {}),
     ...(row.currentPeriodEnd ? { currentPeriodEnd: row.currentPeriodEnd } : {}),
   };
+}
+
+/**
+ * Every grant row of the catalog, for `normalizeResolvedEntitlements` to name an
+ * entitlement the instance's licence does not grant after its definition.
+ */
+function catalogDefinitions(catalog: CatalogData): LicenseEntitlementRow[] {
+  return [...catalog.entitlementsByLicense.values()].flat();
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -963,6 +979,7 @@ export class KaitenClient implements KaitenClientLike {
       entitlements = normalizeResolvedEntitlements(
         data.catalog.entitlementsByLicense.get(instance.licenseSlug) ?? [],
         data.usageByInstance.get(instance.slug) ?? [],
+        { definitions: catalogDefinitions(data.catalog) },
       );
     }
 
@@ -1059,7 +1076,7 @@ export class KaitenClient implements KaitenClientLike {
       entitlements = normalizeResolvedEntitlements(
         licenseEntitlements,
         usageUnavailable ? null : (usage as EntitlementUsage[] | null),
-        { usageUnavailable },
+        { usageUnavailable, definitions: catalogDefinitions(catalog) },
       );
     }
 

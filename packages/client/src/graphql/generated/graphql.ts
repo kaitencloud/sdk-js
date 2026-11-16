@@ -12,6 +12,15 @@ import type { DocumentTypeDecoration } from "@graphql-typed-document-node/core";
 /** Entitlement type enumeration */
 export type EntitlementType = "BOOLEAN" | "CONFIG" | "NUMBER" | "NUMBER_AI_CREDIT";
 
+/** Where an entitlement of an instance comes from. */
+export type EntitlementUsageSource =
+  /** An add-on attached grants it. */
+  | "addon"
+  /** Only the instance's exception grants it. */
+  | "exception"
+  /** The licence grants it; add-ons, boosts and an exception may change it. */
+  | "license";
+
 /**
  * Whether a version of a license may be served.
  *
@@ -107,6 +116,9 @@ export type LicensingSnapshotQuery = {
         licenseSlug: string;
         value: Record<string, unknown>;
         limit: Record<string, unknown> | null;
+        limitCapExceededOveragePercent: number | null;
+        source: EntitlementUsageSource;
+        provenance: Record<string, unknown> | null;
         currentPeriodStart: string | null;
         currentPeriodEnd: string | null;
       }>;
@@ -277,6 +289,9 @@ export const LicensingSnapshotDocument = new TypedDocumentString(`
         licenseSlug
         value
         limit
+        limitCapExceededOveragePercent
+        source
+        provenance
         currentPeriodStart
         currentPeriodEnd
       }

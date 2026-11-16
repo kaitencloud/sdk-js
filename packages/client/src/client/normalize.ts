@@ -163,8 +163,8 @@ function effectiveLimit(row: LicenseEntitlementRow, usage?: EntitlementUsage): E
  * The two travel together. A current server answers its usage reads with the
  * limit and the percent in force, add-ons and voucher boosts applied, so a limit
  * raised by an add-on is measured against the allowance that goes with it. An
- * older server sends no percent, and the GraphQL read does not select it yet:
- * both fall back to the grant, which is what they have always done.
+ * older server sends no percent, and falls back to the grant, which is what it
+ * has always done.
  */
 function effectiveOveragePercent(
   row: LicenseEntitlementRow,
@@ -218,6 +218,60 @@ export function planFromLicense(
   };
 }
 
+/**
+ * The layer a usage row says grants the entitlement, read and never assumed.
+ * `source` keeps its 1.0 closed union, where an exception or a layer this
+ * client does not know reads as `license`, as on the portal; `effectiveSource`
+ * is the server's own word, and absent when it said nothing.
+ */
+function rowLayers(
+  usage: EntitlementUsage | undefined,
+): Pick<ResolvedEntitlement, "source" | "effectiveSource" | "provenance"> {
+  const layer = usage?.source;
+  return {
+    source: layer === "addon" ? "addon" : "license",
+    ...(typeof layer === "string" ? { effectiveSource: layer } : {}),
+    ...(usage?.provenance ? { provenance: usage.provenance } : {}),
+  };
+}
+
+/**
+ * What a usage row with no licence grant behind it entitles the instance to:
+ * its `limit`, or for a flag or a configuration, whose usage is its value, the
+ * value itself. Undefined when the row says neither.
+ */
+function rowOwnLimit(usage: EntitlementUsage): EntitlementValue | undefined {
+  const limit = usage.limit as EntitlementValue | undefined;
+  if (limit?.type) return limit;
+  const value = usage.value as EntitlementValue | undefined;
+  return value?.type && value.type !== "number" ? value : undefined;
+}
+
+/** The type of an entitlement nothing defines, read off its value. */
+function typeOfValue(value: EntitlementValue): EntitlementType {
+  return value.type === "number" ? "NUMBER" : value.type === "boolean" ? "BOOLEAN" : "CONFIG";
+}
+
+/**
+ * Resolves an instance's entitlements from its licence's grants and its usage
+ * read.
+ *
+ * The usage read is the effective set: a current server answers one row per
+ * entitlement the instance has, whether its licence grants it, an attached
+ * add-on does, or only the instance's exception, and says which in `source`.
+ * Every grant of the licence is resolved, measured against its row when there
+ * is one; then every row the licence does not grant becomes an entitlement of
+ * its own, valued by the row alone.
+ *
+ * Such a row carries no name, type or presentation. `options.definitions`
+ * lends them: the grant rows of any licence, read only for the definition of
+ * an entitlement the instance's licence does not grant (another licence that
+ * sells it is where its name and icon are). Without one, the slug names it and
+ * its value types it.
+ *
+ * A row that does not name its layer adds nothing: a server that predates the
+ * effective read answers one row per licence grant, and nothing else.
+ */
 export function normalizeResolvedEntitlements(
   entitlements: readonly LicenseEntitlementRow[] | null | undefined,
   usageRows: EntitlementUsage[] | null | undefined,
@@ -225,6 +279,8 @@ export function normalizeResolvedEntitlements(
     /**
      * The usage read failed. Numeric entitlements then carry no consumption at
      * all rather than defaulting to zero — see `ResolvedEntitlement.usageUnavailable`.
+     * What the instance has beyond its licence's grants is then unknown, and the
+     * licence's grants are all it resolves.
      */
     usageUnavailable?: boolean;
     /**
@@ -234,112 +290,158 @@ export function normalizeResolvedEntitlements(
      * `ResolvedEntitlement.usageWindowUnknown`.
      */
     usageWindowUnknown?: boolean;
+    /**
+     * Grant rows of any licence, read only for the name, type, presentation and
+     * groups of an entitlement the instance's licence does not grant. Their
+     * values are never read: what the instance is entitled to is its usage row's.
+     */
+    definitions?: readonly LicenseEntitlementRow[] | null;
   },
 ): ResolvedEntitlement[] {
   const usageUnavailable = options?.usageUnavailable === true;
   const usageWindowUnknown = options?.usageWindowUnknown === true;
-  const usageBySlug = new Map((usageRows ?? []).map((row) => [row.entitlementSlug, row]));
+  const rows = usageUnavailable ? [] : (usageRows ?? []);
+  const usageBySlug = new Map(rows.map((row) => [row.entitlementSlug, row]));
 
-  return (entitlements ?? [])
-    .map((entitlement): ResolvedEntitlement => {
-      const slug = entitlement.entitlementSlug ?? "";
-      const usage = usageBySlug.get(slug);
-      // What the instance is entitled to: the usage row's `limit` when the read
-      // carried one, the licence grant otherwise. A Kaiten server with add-ons
-      // and vouchers answers its gauges with the instance's EFFECTIVE value —
-      // the grant with its add-ons and boosts applied, the very value its usage
-      // gate enforces — and an older one with the grant itself, so the row is
-      // right on both. Measuring against the grant alone would show a customer
-      // who bought 3 extra seats as over their limit while the server still
-      // accepts their reports. The overage percent follows the same rule.
-      const measured = usageUnavailable ? undefined : usage;
-      const limit = effectiveLimit(entitlement, measured);
-      const overagePercent = effectiveOveragePercent(entitlement, measured);
-      // A successful read with no row for this slug means nothing has been
-      // consumed, which is zero. A failed read means unknown — and the two must
-      // not collapse into the same number.
-      const currentValue =
-        limit.type === "number"
-          ? usageUnavailable
-            ? null
-            : (usage?.value ?? { type: "number", value: 0 })
-          : limit;
-
-      // Unlimited grants have no cap to consume toward, so report no
-      // remaining/percentage and a healthy status rather than measuring usage
-      // against the sentinel (which read as over_limit / 0 left).
-      const unlimited =
-        limit === entitlement.value
-          ? rowUnlimited(entitlement)
-          : limit.type === "number" && limit.value === UNLIMITED_THRESHOLD;
-      // What the API actually accepts up to, which a soft limit puts above the
-      // entitled value. Null whenever nothing caps it, so the callers keep
-      // answering "no cap" the way they always have.
-      const maxAllowed =
-        unlimited || limit.type !== "number"
+  const resolve = (
+    id: string,
+    slug: string,
+    definition: LicenseEntitlementRow | undefined,
+    usage: EntitlementUsage | undefined,
+    limit: EntitlementValue,
+    overagePercent: number | null | undefined,
+    unlimited: boolean,
+  ): ResolvedEntitlement => {
+    // A successful read with no row for this slug means nothing has been
+    // consumed, which is zero. A failed read means unknown — and the two must
+    // not collapse into the same number.
+    const currentValue =
+      limit.type === "number"
+        ? usageUnavailable
           ? null
-          : getMaximumAllowedUsage(limit.value, overagePercent);
+          : (usage?.value ?? { type: "number", value: 0 })
+        : limit;
+    // What the API actually accepts up to, which a soft limit puts above the
+    // entitled value. Null whenever nothing caps it, so the callers keep
+    // answering "no cap" the way they always have.
+    const maxAllowed =
+      unlimited || limit.type !== "number"
+        ? null
+        : getMaximumAllowedUsage(limit.value, overagePercent);
 
-      return {
-        id: `${entitlement.licenseSlug}:${slug}`,
-        slug,
-        name: entitlement.entitlementName,
-        type: (entitlement.entitlementType ?? "BOOLEAN") as EntitlementType,
-        category: groupCategory(rowGroups(entitlement)),
-        tags: groupTags(rowGroups(entitlement)),
-        ...rowPresentation(entitlement),
-        source: "license",
-        limitValue: limit,
-        currentValue,
-        unlimited,
-        // Only numeric grants can have unknown consumption: a boolean or config
-        // grant is fully described by the license itself.
-        ...(usageUnavailable && limit.type === "number" ? { usageUnavailable: true } : {}),
-        // The window travels only when it was actually read. An absent pair on a
-        // successful read is a fact about the entitlement — the API sets both
-        // bounds exactly when a reset period is configured, and zero-fills
-        // windows never reported into, so "no bounds" means lifetime counter and
-        // never "no report yet". An absent pair because nobody asked for it is a
-        // fact about the request, and says nothing at all; that is what
-        // `usageWindowUnknown` marks, and why the two are not the same shape.
-        //
-        // The SDK never computes a window. `period.go` owns that arithmetic and
-        // it is server-side, phased off the instance's own license start date for
-        // a LICENSE_START anchor — a client-side guess would be wrong for every
-        // instance but one.
-        ...(usageWindowUnknown ? { usageWindowUnknown: true } : {}),
-        ...(usageUnavailable || usageWindowUnknown
-          ? {}
-          : {
-              currentPeriodStart: usage?.currentPeriodStart ?? null,
-              currentPeriodEnd: usage?.currentPeriodEnd ?? null,
-            }),
-        limitCapExceededOveragePercent: overagePercent ?? null,
-        maximumAllowedUsage: maxAllowed,
-        // Counted against what the API accepts, not against the included
-        // value: a soft limit still has room at its granted figure, and
-        // reporting nothing left there would gate a customer the server would
-        // have served.
-        remaining:
-          maxAllowed !== null && currentValue?.type === "number"
-            ? Math.max(maxAllowed - currentValue.value, 0)
+    return {
+      id,
+      slug,
+      name: definition?.entitlementName ?? slug,
+      type: (definition
+        ? (definition.entitlementType ?? "BOOLEAN")
+        : typeOfValue(limit)) as EntitlementType,
+      category: definition ? groupCategory(rowGroups(definition)) : null,
+      tags: definition ? groupTags(rowGroups(definition)) : null,
+      ...(definition ? rowPresentation(definition) : {}),
+      ...rowLayers(usage),
+      limitValue: limit,
+      currentValue,
+      unlimited,
+      // Only numeric grants can have unknown consumption: a boolean or config
+      // grant is fully described by the license itself.
+      ...(usageUnavailable && limit.type === "number" ? { usageUnavailable: true } : {}),
+      // The window travels only when it was actually read. An absent pair on a
+      // successful read is a fact about the entitlement — the API sets both
+      // bounds exactly when a reset period is configured, and zero-fills
+      // windows never reported into, so "no bounds" means lifetime counter and
+      // never "no report yet". An absent pair because nobody asked for it is a
+      // fact about the request, and says nothing at all; that is what
+      // `usageWindowUnknown` marks, and why the two are not the same shape.
+      //
+      // The SDK never computes a window. `period.go` owns that arithmetic and
+      // it is server-side, phased off the instance's own license start date for
+      // a LICENSE_START anchor — a client-side guess would be wrong for every
+      // instance but one.
+      ...(usageWindowUnknown ? { usageWindowUnknown: true } : {}),
+      ...(usageUnavailable || usageWindowUnknown
+        ? {}
+        : {
+            currentPeriodStart: usage?.currentPeriodStart ?? null,
+            currentPeriodEnd: usage?.currentPeriodEnd ?? null,
+          }),
+      limitCapExceededOveragePercent: overagePercent ?? null,
+      maximumAllowedUsage: maxAllowed,
+      // Counted against what the API accepts, not against the included
+      // value: a soft limit still has room at its granted figure, and
+      // reporting nothing left there would gate a customer the server would
+      // have served.
+      remaining:
+        maxAllowed !== null && currentValue?.type === "number"
+          ? Math.max(maxAllowed - currentValue.value, 0)
+          : null,
+      // Deliberately still a share of the INCLUDED value, so a meter reads
+      // 100% where the customer has consumed what they bought, and above it
+      // through the allowance. Rescaling to the ceiling would report someone
+      // at their cap as 91% and hide the moment they cross it.
+      percentageUsed:
+        limit.type === "number" && currentValue?.type === "number" && limit.value > 0
+          ? (currentValue.value / limit.value) * 100
+          : limit.type === "boolean"
+            ? limit.value
+              ? 100
+              : 0
             : null,
-        // Deliberately still a share of the INCLUDED value, so a meter reads
-        // 100% where the customer has consumed what they bought, and above it
-        // through the allowance. Rescaling to the ceiling would report someone
-        // at their cap as 91% and hide the moment they cross it.
-        percentageUsed:
-          limit.type === "number" && currentValue?.type === "number" && limit.value > 0
-            ? (currentValue.value / limit.value) * 100
-            : limit.type === "boolean"
-              ? limit.value
-                ? 100
-                : 0
-              : null,
-        status: entitlementStatus(limit, currentValue, maxAllowed),
-      };
-    })
-    .sort(byDisplayOrder);
+      status: entitlementStatus(limit, currentValue, maxAllowed),
+    };
+  };
+
+  const resolved = (entitlements ?? []).map((entitlement): ResolvedEntitlement => {
+    const slug = entitlement.entitlementSlug ?? "";
+    const usage = usageBySlug.get(slug);
+    // Measured against this grant; what is left in the map, the licence does not grant.
+    usageBySlug.delete(slug);
+    // What the instance is entitled to: the usage row's `limit` when the read
+    // carried one, the licence grant otherwise. A Kaiten server with add-ons
+    // and vouchers answers its gauges with the instance's EFFECTIVE value —
+    // the grant with its add-ons and boosts applied, the very value its usage
+    // gate enforces — and an older one with the grant itself, so the row is
+    // right on both. Measuring against the grant alone would show a customer
+    // who bought 3 extra seats as over their limit while the server still
+    // accepts their reports. The overage percent follows the same rule.
+    const limit = effectiveLimit(entitlement, usage);
+    // Unlimited grants have no cap to consume toward, so report no
+    // remaining/percentage and a healthy status rather than measuring usage
+    // against the sentinel (which read as over_limit / 0 left).
+    const unlimited =
+      limit === entitlement.value
+        ? rowUnlimited(entitlement)
+        : limit.type === "number" && limit.value === UNLIMITED_THRESHOLD;
+    return resolve(
+      `${entitlement.licenseSlug}:${slug}`,
+      slug,
+      entitlement,
+      usage,
+      limit,
+      effectiveOveragePercent(entitlement, usage),
+      unlimited,
+    );
+  });
+
+  // What the licence does not grant and the read says the instance has anyway:
+  // an add-on's grant, or the instance's exception.
+  for (const [slug, usage] of usageBySlug) {
+    const limit = rowOwnLimit(usage);
+    if (usage.source == null || !limit) continue;
+    resolved.push(
+      resolve(
+        `${usage.licenseSlug}:${slug}`,
+        slug,
+        options?.definitions?.find((row) => row.entitlementSlug === slug),
+        usage,
+        limit,
+        usage.limitCapExceededOveragePercent,
+        limit.type === "number" && limit.value === UNLIMITED_THRESHOLD,
+      ),
+    );
+  }
+
+  return resolved.sort(byDisplayOrder);
 }
 
 /**

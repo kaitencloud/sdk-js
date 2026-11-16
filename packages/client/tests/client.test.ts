@@ -1112,10 +1112,6 @@ describe("the usage window travels only where it was actually read", () => {
         ? {}
         : { limitCapExceededOveragePercent: options.overagePercent }),
     };
-    // The GraphQL document does not select the allowance, so its rows never carry it.
-    const { limitCapExceededOveragePercent: _unselected, ...graphqlRow } = row as typeof row & {
-      limitCapExceededOveragePercent?: number;
-    };
     const grant = <T extends object>(grantRow: T): T =>
       options.grantOveragePercent === undefined
         ? grantRow
@@ -1140,7 +1136,7 @@ describe("the usage window travels only where it was actually read", () => {
               createdAt: "2026-01-01T00:00:00Z",
               updatedBy: { id: "u1", name: "u" },
               updatedAt: "2026-01-01T00:00:00Z",
-              instances: [instanceRow("alpha", { entitlementUsage: [{ ...graphqlRow }] })],
+              instances: [instanceRow("alpha", { entitlementUsage: [{ ...row }] })],
             },
           },
         });
@@ -1219,29 +1215,33 @@ describe("the usage window travels only where it was actually read", () => {
   // The licence grants 100 tokens with no allowance; an add-on raised the
   // instance to 300 and brought 50%. The server accepts reports up to 450, and the
   // snapshot measures against that: at 350 the customer is inside their allowance.
-  test("the REST path measures against the effective allowance, not the grant's", async () => {
-    installUsageApi({
-      graphqlAvailable: false,
-      limit: 300,
-      used: 350,
-      overagePercent: 50,
-      grantOveragePercent: 0,
-    });
+  // Both paths: the GraphQL document selects the row's percent, as REST carries it.
+  test.each([false, true])(
+    "the snapshot measures against the effective allowance, not the grant's (GraphQL: %s)",
+    async (graphqlAvailable) => {
+      installUsageApi({
+        graphqlAvailable,
+        limit: 300,
+        used: 350,
+        overagePercent: 50,
+        grantOveragePercent: 0,
+      });
 
-    const snapshot = await new KaitenClient({
-      authScheme: "none",
-      apiUrl: "https://api.test",
-    }).getLicensingSnapshot("acme");
-    const tokens = snapshot.entitlements.find((entitlement) => entitlement.slug === "tokens");
+      const snapshot = await new KaitenClient({
+        authScheme: "none",
+        apiUrl: "https://api.test",
+      }).getLicensingSnapshot("acme");
+      const tokens = snapshot.entitlements.find((entitlement) => entitlement.slug === "tokens");
 
-    expect(tokens).toMatchObject({
-      limitValue: { type: "number", value: 300 },
-      limitCapExceededOveragePercent: 50,
-      maximumAllowedUsage: 450,
-      remaining: 100,
-      status: "near_limit",
-    });
-  });
+      expect(tokens).toMatchObject({
+        limitValue: { type: "number", value: 300 },
+        limitCapExceededOveragePercent: 50,
+        maximumAllowedUsage: 450,
+        remaining: 100,
+        status: "near_limit",
+      });
+    },
+  );
 
   // An older server answers with the grant, and so keeps the allowance it has
   // always had.
@@ -1262,31 +1262,6 @@ describe("the usage window travels only where it was actually read", () => {
     });
   });
 
-  // The GraphQL document does not select the allowance yet, so this path keeps
-  // the grant's, as it always has. It moves with the document, once the schema
-  // that carries the field is published.
-  test("the GraphQL path, whose document does not select the allowance, leaves the grant's", async () => {
-    installUsageApi({
-      graphqlAvailable: true,
-      limit: 300,
-      used: 350,
-      overagePercent: 50,
-      grantOveragePercent: 10,
-    });
-
-    const snapshot = await new KaitenClient({
-      authScheme: "none",
-      apiUrl: "https://api.test",
-    }).getLicensingSnapshot("acme");
-    const tokens = snapshot.entitlements.find((entitlement) => entitlement.slug === "tokens");
-
-    expect(tokens).toMatchObject({
-      limitValue: { type: "number", value: 300 },
-      limitCapExceededOveragePercent: 10,
-      maximumAllowedUsage: 330,
-    });
-  });
-
   // The other half of the same rule: bounds genuinely absent on a successful
   // read are the entitlement saying "lifetime counter", and now that the
   // document asks for them the GraphQL path is entitled to say so. Before this
@@ -1303,5 +1278,237 @@ describe("the usage window travels only where it was actually read", () => {
 
     expect(tokens?.usageWindowUnknown).toBeUndefined();
     expect(resolveUsageScope(tokens ?? {})).toBe("LIFETIME");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The effective set
+// ---------------------------------------------------------------------------
+
+// The usage read answers one row per entitlement the instance HAS: the licence's
+// grants, and what an attached add-on or the instance's exception grants on its
+// own, each with the layer that grants it. The snapshot used to walk the licence's
+// grants and hang usage off them, so an entitlement bought as an add-on never
+// reached a gate: `seats` from the licence and `sso` from an add-on read as
+// `["seats"]`.
+describe("the snapshot is the instance's effective set", () => {
+  // The instance runs `pro`, which grants seats; `enterprise` is where SSO is sold.
+  const seatsGrant = {
+    entitlementSlug: "seats",
+    entitlementName: "Seats",
+    entitlementType: "NUMBER",
+    licenseSlug: "pro",
+    value: { type: "number", value: 10 },
+    limitCapExceededOveragePercent: 0,
+  };
+  const ssoGrant = {
+    entitlementSlug: "sso",
+    entitlementName: "Single sign-on",
+    entitlementType: "BOOLEAN",
+    licenseSlug: "enterprise",
+    value: { type: "boolean", value: true },
+    limitCapExceededOveragePercent: null,
+  };
+
+  const definition = (slug: string, name: string, type: string, displayOrder: number) => ({
+    id: `ent-${slug}`,
+    name,
+    slug,
+    description: null,
+    type,
+    icon: null,
+    unitSingular: null,
+    unitPlural: null,
+    saleUnitSingular: null,
+    saleUnitPlural: null,
+    saleUnitFactor: null,
+    userFacing: true,
+    displayOrder,
+    entitlementGroups: [],
+  });
+
+  const ssoProvenance = {
+    license: null,
+    addons: [
+      {
+        instanceAddonId: "ia-1",
+        addonId: "addon-sso",
+        addonEntitlementId: "ae-1",
+        quantity: 1,
+        overrideBehavior: "OVERRIDE",
+        value: { type: "boolean", value: true },
+        limitCapExceededOveragePercent: null,
+        attachedAt: "2026-02-01T00:00:00Z",
+      },
+    ],
+    boosts: [],
+    exception: null,
+    number: null,
+  };
+
+  const usage = [
+    {
+      entitlementId: "ent-seats",
+      entitlementSlug: "seats",
+      licenseId: "lic-1",
+      licenseSlug: "pro",
+      value: { type: "number", value: 3 },
+      limit: { type: "number", value: 10 },
+      limitCapExceededOveragePercent: 0,
+      source: "license",
+    },
+    {
+      entitlementId: "ent-sso",
+      entitlementSlug: "sso",
+      licenseId: "lic-1",
+      licenseSlug: "pro",
+      value: { type: "boolean", value: true },
+      limit: { type: "boolean", value: true },
+      source: "addon",
+      provenance: ssoProvenance,
+    },
+    {
+      entitlementId: "ent-exports",
+      entitlementSlug: "exports",
+      licenseId: "lic-1",
+      licenseSlug: "pro",
+      value: { type: "number", value: 2 },
+      limit: { type: "number", value: 5 },
+      limitCapExceededOveragePercent: 0,
+      source: "exception",
+    },
+  ];
+
+  const enterpriseRow = { ...licenseRow, id: "lic-2", slug: "enterprise", name: "Enterprise" };
+
+  function installEffectiveApi(graphqlAvailable: boolean): FetchMock {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = new URL(input instanceof Request ? input.url : String(input)).pathname;
+
+      if (url.includes("/graphql")) {
+        if (!graphqlAvailable) return json({ errors: [{ message: "unknown field" }] });
+        return graphqlJson({
+          data: {
+            licenses: {
+              items: [
+                {
+                  ...licenseRow,
+                  entitlements: [
+                    {
+                      ...seatsGrant,
+                      unlimited: false,
+                      entitlement: definition("seats", "Seats", "NUMBER", 2),
+                    },
+                  ],
+                },
+                {
+                  ...enterpriseRow,
+                  entitlements: [
+                    {
+                      ...ssoGrant,
+                      unlimited: false,
+                      entitlement: definition("sso", "Single sign-on", "BOOLEAN", 1),
+                    },
+                  ],
+                },
+              ],
+              hasMore: false,
+            },
+            customer: {
+              id: CUSTOMER_ID,
+              slug: "acme",
+              name: "Acme",
+              externalCustomerId: null,
+              createdBy: { id: "u1", name: "u" },
+              createdAt: "2026-01-01T00:00:00Z",
+              updatedBy: { id: "u1", name: "u" },
+              updatedAt: "2026-01-01T00:00:00Z",
+              instances: [instanceRow("alpha", { entitlementUsage: usage })],
+            },
+          },
+        });
+      }
+      if (url.includes("/entitlements/usage")) return json(usage);
+      if (url.includes("/licenses/pro/entitlements")) return json([seatsGrant]);
+      if (url.includes("/licenses/enterprise/entitlements")) return json([ssoGrant]);
+      if (url.endsWith("/licenses")) return json([licenseRow, enterpriseRow]);
+      if (url.endsWith("/instances")) return json([instanceRow("alpha")]);
+      if (url.includes("/customers/")) return json({ id: CUSTOMER_ID, slug: "acme", name: "Acme" });
+      return json([]);
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+    return fetchMock as FetchMock;
+  }
+
+  test.each([false, true])(
+    "an entitlement an add-on or an exception grants on its own reaches the snapshot (GraphQL: %s)",
+    async (graphqlAvailable) => {
+      installEffectiveApi(graphqlAvailable);
+
+      const snapshot = await new KaitenClient({
+        authScheme: "none",
+        apiUrl: "https://api.test",
+      }).getLicensingSnapshot("acme");
+      const bySlug = new Map(
+        snapshot.entitlements.map((entitlement) => [entitlement.slug, entitlement]),
+      );
+
+      expect([...bySlug.keys()].sort()).toEqual(["exports", "seats", "sso"]);
+      expect(bySlug.get("seats")).toMatchObject({
+        id: "pro:seats",
+        name: "Seats",
+        remaining: 7,
+        source: "license",
+        effectiveSource: "license",
+      });
+      // Named after the definition `enterprise` carries; valued after the row.
+      expect(bySlug.get("sso")).toMatchObject({
+        id: "pro:sso",
+        name: "Single sign-on",
+        type: "BOOLEAN",
+        limitValue: { type: "boolean", value: true },
+        currentValue: { type: "boolean", value: true },
+        status: "enabled",
+        source: "addon",
+        effectiveSource: "addon",
+        provenance: ssoProvenance,
+      });
+      // Nothing in the catalog defines it: its slug names it, its value types it.
+      expect(bySlug.get("exports")).toMatchObject({
+        id: "pro:exports",
+        name: "exports",
+        type: "NUMBER",
+        limitValue: { type: "number", value: 5 },
+        currentValue: { type: "number", value: 2 },
+        remaining: 3,
+        status: "enabled",
+        source: "license",
+        effectiveSource: "exception",
+      });
+      // The licence is still the instance's, and the plans are the catalog's.
+      expect(snapshot.license).toMatchObject({ slug: "pro" });
+      expect(snapshot.plans.map((plan) => plan.slug).sort()).toEqual(["enterprise", "pro"]);
+    },
+  );
+
+  // The usage read failed: what the instance has beyond its licence is unknown,
+  // so the snapshot holds the licence's grants, with their usage unknown.
+  test("a failed usage read leaves the licence's grants, with their usage unknown", async () => {
+    const fetchMock = installEffectiveApi(false);
+    const fallback = fetchMock.getMockImplementation();
+    fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = new URL(input instanceof Request ? input.url : String(input)).pathname;
+      if (url.includes("/entitlements/usage")) return json({ message: "gone" }, 404);
+      return fallback!(input, init);
+    });
+
+    const snapshot = await new KaitenClient({
+      authScheme: "none",
+      apiUrl: "https://api.test",
+    }).getLicensingSnapshot("acme");
+
+    expect(snapshot.entitlements.map((entitlement) => entitlement.slug)).toEqual(["seats"]);
+    expect(snapshot.entitlements[0]).toMatchObject({ usageUnavailable: true, currentValue: null });
   });
 });
