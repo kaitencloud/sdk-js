@@ -3,7 +3,7 @@
 "@kaitencloud/server": minor
 ---
 
-Beside the AI credits operations, the contracts the clients are generated from, `@kaitencloud/openapi` 4.1.0 and `@kaitencloud/graphql-schema` 2.3.0, bring a dashboard summary, a member of the billing capabilities and a GraphQL argument.
+Beside the AI credits operations, the contracts the clients are generated from bring a dashboard summary, a member of the billing capabilities and a GraphQL argument.
 
 - `@kaitencloud/client`: `KaitenApi.getDashboardSummary` reads `GET /dashboard/summary`, an organization's figures in one response: what needs attention (limits reached, refused usage reports, silent instances, Licenses ending, archived versions, expiring tokens, zones behind), the figures of the period, the meters closest to their limits, usage reports per day and per instance, evaluations per flag, who runs which License version, what runs where and who talks to Kaiten. It takes a `range` of `7d`, `30d` (the default) or `90d`, and needs `read:customers`, `read:instances` and `read:licenses`. The answer is a `KaitenApi.DashboardSummary`, with the `Dashboard*` types it is made of; `billing`, `featureFlags` and `integrations` are absent when the caller cannot read their module. Its `range` says from when each figure is read, in `usageHistoryFrom` and `auditTrailFrom`: later than the start of the period when the organization keeps its usage history or its audit trail for less.
 - `@kaitencloud/server`: the same operation is `Dashboard.getDashboardSummary`, the one method of a new resource class, and its types are exported with the others. The README's "Resources" section names every generated class: `Dashboard`, `Identity`, `Users`, `CheckoutSessions`, `Models` and `Ai` were missing from it.
