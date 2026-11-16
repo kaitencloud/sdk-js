@@ -95,9 +95,12 @@ export {
 } from "./client/normalize.ts";
 // AI credits: the `ai` namespace's types, its typed errors and the provider-
 // agnostic helpers the wrapper packages build on.
-export { classifyProviderError } from "./ai/module.ts";
+export { classifyProviderError, isVendorCost } from "./ai/module.ts";
 export type {
   AiCommitInput,
+  AiFailedCommit,
+  AiRefundInput,
+  AiReleaseInput,
   AiReportResult,
   AiReserveInput,
   AiRunContext,
@@ -106,22 +109,40 @@ export type {
   KaitenAiModule,
 } from "./ai/module.ts";
 export {
+  AiInferenceNotCommittedError,
+  AiInferenceNotFoundError,
+  AiPoolNotGrantedError,
+  AiRefundError,
   AiUsageUnsupportedError,
   InsufficientCreditsError,
+  NotAnAiCreditPoolError,
+  NothingToRefundError,
+  RefundExceedsRefundableError,
+  RefundIdempotencyKeyReusedError,
   ModelNotAuthorizedError,
   UnknownModelError,
 } from "./ai/errors.ts";
+export type { AiRefundErrorReason } from "./ai/errors.ts";
 export { fromAnthropic, fromOpenAI } from "./ai/normalize.ts";
 export { estimateTokens, uuidv7 } from "./ai/ids.ts";
 export type {
   AiEntitlementUsage,
+  AiInference,
+  AiInferencePricing,
+  AiInferenceRefund,
   AiOperationStatus,
   AiRequestStatus,
   AiRequestType,
   AiUsage,
   AiUsageOutcome,
   AiUsagePhase,
+  AiUsageRule,
   AiUsageWarning,
+  AiRuleSpecificity,
+  AiVendorCost,
+  NewAiInferenceRefund,
+  OrganizationAiInference,
+  OrganizationAiInferencePage,
 } from "./ai/contract.ts";
 // An entitlement business rule shared by every usage surface, not infrastructure
 // — hence a domain module rather than a `lib/` helper. Exported because a host

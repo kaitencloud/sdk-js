@@ -194,10 +194,11 @@ contracts just to pass CI. `.github/kaiten-contract-source.json` records the fix
 repository `kaitencloud/kaiten`, its full lowercase 40-hex `commit`, and the SDK
 feature `headBranch`. The current AI credits source is Kaiten
 `main`, at `9a49c2d5fab547ea5cb7ba17b11d595eaacdc07f`, for the SDK branch
-`feat/ai-credits`: the AI credits contract has landed on Kaiten's main, so the pin
-now names a reviewed commit of main rather than a feature branch. It is still
-**not** a claim of compatibility with npm latest, which lags that commit until
-Kaiten's release publishes the contract.
+`feat/ai-credits-explain`: the explainable-charges contract has landed on Kaiten's
+main, so the pin names a reviewed commit of main rather than the feature branch it
+was taken from. At that commit the snapshot also matches `@kaitencloud/openapi@latest`,
+so the override no longer decides anything and can be removed once both pull
+requests land.
 
 The contract-drift workflow honors this file **only** for a `pull_request` whose
 head branch exactly matches `headBranch`. Other PR branches, pushes to `main`, and

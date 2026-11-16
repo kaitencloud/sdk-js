@@ -203,3 +203,154 @@ it("settles provider HTTP and connection errors and logs failed commits without 
   ).resolves.toMatchObject({ id: "synthetic" });
   expect(successful.logger.error).toHaveBeenCalledOnce();
 });
+
+describe("vendor cost and failure paths", () => {
+  it("commits the cost a gateway reports, as given, and never invents one", async () => {
+    const reply = () =>
+      json({
+        id: "s",
+        choices: [],
+        usage: { prompt_tokens: 9, completion_tokens: 4, cost: "0.0042" },
+      });
+    const vendorCost = vi.fn(
+      ({ rawUsage }: { rawUsage: unknown }) => (rawUsage as { cost?: string }).cost,
+    );
+    const { client, reserve, commit } = setup(reply);
+    const wrapped = wrapOpenAI(client, {
+      kaiten: { ai: { reserve, commit } } as any,
+      instance: "i",
+      entitlement: "p",
+      vendorCost,
+    });
+    await wrapped.chat.completions.create({ model: "synthetic-model", messages: [] });
+    expect(commit.mock.calls[0]![0]).toMatchObject({
+      requestStatus: "SUCCESS",
+      vendorCost: "0.0042",
+    });
+    expect(vendorCost.mock.calls[0]![0]).toMatchObject({
+      model: "synthetic-model",
+      requestStatus: "SUCCESS",
+    });
+
+    // Without a reader, nothing is sent.
+    const plain = setup(reply);
+    await plain.wrapped.chat.completions.create({ model: "synthetic-model", messages: [] });
+    expect(plain.commit.mock.calls[0]![0]).not.toHaveProperty("vendorCost");
+  });
+
+  it("still commits, and returns the answer, when the cost reader throws", async () => {
+    const { client, reserve, commit, logger } = setup(() =>
+      json({ id: "s", data: [], usage: { prompt_tokens: 3 } }),
+    );
+    const wrapped = wrapOpenAI(client, {
+      kaiten: { ai: { reserve, commit } } as any,
+      instance: "i",
+      entitlement: "p",
+      logger,
+      vendorCost: () => {
+        throw new Error("synthetic reader bug");
+      },
+    });
+    await expect(
+      wrapped.embeddings.create({ model: "synthetic-model", input: "x" }),
+    ).resolves.toMatchObject({ id: "s" });
+    expect(commit.mock.calls[0]![0]).toMatchObject({
+      requestStatus: "SUCCESS",
+      usage: { inputTokens: 3 },
+    });
+    expect(commit.mock.calls[0]![0]).not.toHaveProperty("vendorCost");
+    expect(logger.error).toHaveBeenCalledOnce();
+  });
+
+  it("reads a streamed cost from the usage chunk", async () => {
+    const { client, reserve, commit } = setup(() =>
+      sse(
+        { id: "s", choices: [{ delta: { content: "x" }, index: 0 }] },
+        { id: "s", choices: [], usage: { prompt_tokens: 10, completion_tokens: 3, cost: "0.5" } },
+      ),
+    );
+    const wrapped = wrapOpenAI(client, {
+      kaiten: { ai: { reserve, commit } } as any,
+      instance: "i",
+      entitlement: "p",
+      vendorCost: ({ rawUsage }) => (rawUsage as { cost?: string } | undefined)?.cost,
+    });
+    const stream = await wrapped.chat.completions.create({
+      model: "synthetic-model",
+      messages: [],
+      stream: true,
+    });
+    for await (const _ of stream) {
+    }
+    expect(commit.mock.calls[0]![0]).toMatchObject({ requestStatus: "SUCCESS", vendorCost: "0.5" });
+  });
+
+  it("settles a stream closed before its first event as sent, never NOT_SENT", async () => {
+    const { wrapped, commit } = setup(() =>
+      sse({ id: "s", choices: [{ delta: { content: "x" }, index: 0 }] }),
+    );
+    const stream = await wrapped.chat.completions.create({
+      model: "synthetic-model",
+      messages: [],
+      stream: true,
+    });
+    await stream[Symbol.asyncIterator]().return?.(undefined);
+    expect(commit).toHaveBeenCalledOnce();
+    expect(commit.mock.calls[0]![0]).toMatchObject({ requestStatus: "CUSTOMER_ERROR" });
+  });
+
+  it("settles a caller's abort as CUSTOMER_ERROR, not NOT_SENT", async () => {
+    const controller = new AbortController();
+    const { wrapped, commit } = setup(() => {
+      controller.abort();
+      throw new DOMException("aborted", "AbortError");
+    });
+    await expect(
+      wrapped.embeddings.create(
+        { model: "synthetic-model", input: "x" },
+        { signal: controller.signal },
+      ),
+    ).rejects.toThrow();
+    expect(commit.mock.calls[0]![0]).toMatchObject({ requestStatus: "CUSTOMER_ERROR" });
+  });
+
+  it("hands a failed commit to onCommitError with a retry", async () => {
+    const { client, reserve, commit, logger } = setup(() =>
+      json({ id: "s", data: [], usage: { prompt_tokens: 3 } }),
+    );
+    const onCommitError = vi.fn();
+    const wrapped = wrapOpenAI(client, {
+      kaiten: { ai: { reserve, commit } } as any,
+      instance: "i",
+      entitlement: "p",
+      logger,
+      onCommitError,
+    });
+    commit.mockRejectedValueOnce(new Error("synthetic commit failure"));
+    await expect(
+      wrapped.embeddings.create({ model: "synthetic-model", input: "x" }),
+    ).resolves.toMatchObject({ id: "s" });
+    expect(onCommitError).toHaveBeenCalledOnce();
+    expect(logger.error).not.toHaveBeenCalled();
+    const failed = onCommitError.mock.calls[0]![1];
+    expect(failed.transactionId).toBe("t");
+    await failed.retry();
+    expect(commit.mock.calls[1]![0]).toEqual(commit.mock.calls[0]![0]);
+  });
+
+  it("refuses every call on a pool that is not an AI credit pool", async () => {
+    const { NotAnAiCreditPoolError, KaitenError } = await import("@kaitencloud/client/ai").then(
+      async (ai) => ({ ...ai, KaitenError: (await import("@kaitencloud/client")).KaitenError }),
+    );
+    const { wrapped, reserve, fetch } = setup(() => json({}));
+    reserve.mockRejectedValue(
+      new NotAnAiCreditPoolError(new KaitenError({ title: "not ai", status: 422 })),
+    );
+    for (let i = 0; i < 2; i++) {
+      await expect(
+        wrapped.embeddings.create({ model: "synthetic-model", input: "x" }),
+      ).rejects.toBeInstanceOf(NotAnAiCreditPoolError);
+    }
+    expect(fetch).not.toHaveBeenCalled();
+  });
+});
