@@ -200,7 +200,7 @@ export class KaitenTransport {
   /**
    * Reads a route of the public surface with the publishable key.
    *
-   * The key goes in `X-Kaiten-Publishable-Key` and nowhere else: no
+   * The key goes in `Kaiten-Publishable-Key` and nowhere else: no
    * `Authorization` header, and no cookie (`credentials: "omit"`), since the
    * public routes neither read nor set one and answer any origin. Replayed
    * after a network failure or a 5xx, like every read. `query` is the route's
@@ -228,7 +228,7 @@ export class KaitenTransport {
         client.get({
           url: path,
           query,
-          headers: { "X-Kaiten-Publishable-Key": token },
+          headers: { "Kaiten-Publishable-Key": token },
           credentials: "omit",
         }),
       label,

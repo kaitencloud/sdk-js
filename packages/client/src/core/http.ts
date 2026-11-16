@@ -152,6 +152,8 @@ export function retryAfterDelay(error: unknown): number | undefined {
 export function publicHeaders(defaultHeaders?: Record<string, string>): Headers {
   const headers = new Headers(defaultHeaders);
   headers.delete("Authorization");
+  headers.delete("Kaiten-Publishable-Key");
+  // Its name before the X- prefix was dropped (RFC 6648), which Kaiten still reads.
   headers.delete("X-Kaiten-Publishable-Key");
   return headers;
 }

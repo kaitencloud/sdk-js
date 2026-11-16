@@ -97,7 +97,7 @@ export type PaymentOutcome = "paid" | "requires_action" | "failed" | "processing
 export interface KaitenDoubleOptions {
   /** The token the minting route accepts, as `Authorization: Bearer`. */
   serverToken: string;
-  /** The publishable key the catalogue accepts, as `X-Kaiten-Publishable-Key`. */
+  /** The publishable key the catalogue accepts, as `Kaiten-Publishable-Key`. */
   publishableKey: string;
   /**
    * The public catalogue it serves and sells from, in the shape of `GET /public/catalog`: Acme's,
@@ -1429,7 +1429,7 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
     if (authorization?.startsWith("Bearer ksc_")) return "ksc_";
     if (authorization?.startsWith("Bearer ksh_")) return "ksh_";
     if (authorization) return "other";
-    if (request.headers.has("x-kaiten-publishable-key")) return "pk_";
+    if (request.headers.has("kaiten-publishable-key")) return "pk_";
     return "none";
   };
 
@@ -1460,7 +1460,7 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
     }
 
     if (key === "GET /public/catalog") {
-      return request.headers.get("x-kaiten-publishable-key") === options.publishableKey
+      return request.headers.get("kaiten-publishable-key") === options.publishableKey
         ? reply(200, catalogFor(origin))
         : problem(
             401,
@@ -2258,7 +2258,7 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
   function startCheckout(request: Request, body: unknown): Response {
     const path = "/api/public/checkout-sessions";
     if (request.headers.has("authorization")) return wrongKind(path);
-    if (request.headers.get("x-kaiten-publishable-key") !== options.publishableKey) {
+    if (request.headers.get("kaiten-publishable-key") !== options.publishableKey) {
       return invalidCredential(path);
     }
     const read = readDraft(body);
@@ -2455,7 +2455,7 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
   /** The session a request's `ksc_` is for: another session's id answers as an unknown token does. */
   function checkoutOf(request: Request, sessionId: string): StoredCheckout | Response {
     const path = `/api/public/checkout-sessions/${sessionId}`;
-    if (request.headers.has("x-kaiten-publishable-key")) return wrongKind(path);
+    if (request.headers.has("kaiten-publishable-key")) return wrongKind(path);
     const header = request.headers.get("authorization") ?? "";
     if (!header.startsWith("Bearer ")) return invalidCredential(path);
     const bearer = header.slice("Bearer ".length).trim();

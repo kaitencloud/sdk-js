@@ -167,7 +167,7 @@ describe("startCheckout", () => {
     const request = requests[0]!;
     expect(request.method).toBe("POST");
     expect(pathOf(request)).toBe("/public/checkout-sessions");
-    expect(request.headers.get("X-Kaiten-Publishable-Key")).toBe(PK);
+    expect(request.headers.get("Kaiten-Publishable-Key")).toBe(PK);
     expect(request.headers.get("Authorization")).toBeNull();
     expect(request.headers.get("Content-Type")).toBe("application/json");
     expect(request.credentials).toBe("omit");
@@ -507,7 +507,7 @@ describe("getCheckoutSession", () => {
     expect(request.method).toBe("GET");
     expect(pathOf(request)).toBe(`/public/checkout-sessions/${SESSION_ID}`);
     expect(request.headers.get("Authorization")).toBe(`Bearer ${KSC}`);
-    expect(request.headers.get("X-Kaiten-Publishable-Key")).toBeNull();
+    expect(request.headers.get("Kaiten-Publishable-Key")).toBeNull();
     expect(request.credentials).toBe("omit");
     expect(request.url).not.toContain("ksc_");
     expect(request.url).not.toContain(KSC);
@@ -718,7 +718,7 @@ describe("confirmCheckout", () => {
     expect(request.method).toBe("POST");
     expect(pathOf(request)).toBe(`/public/checkout-sessions/${SESSION_ID}/confirm`);
     expect(request.headers.get("Authorization")).toBe(`Bearer ${KSC}`);
-    expect(request.headers.get("X-Kaiten-Publishable-Key")).toBeNull();
+    expect(request.headers.get("Kaiten-Publishable-Key")).toBeNull();
     expect(request.headers.get("Content-Type")).toBeNull();
     expect(request.credentials).toBe("omit");
     expect(await request.text()).toBe("");
@@ -1181,6 +1181,7 @@ describe("the credentials", () => {
   test("the host's default headers cannot carry a credential of either class", async () => {
     const defaultHeaders = {
       Authorization: "Bearer kst_the-hosts",
+      "Kaiten-Publishable-Key": "pk_the-hosts",
       "X-Kaiten-Publishable-Key": "pk_the-hosts",
       "X-App": "shop",
     };
@@ -1197,10 +1198,11 @@ describe("the credentials", () => {
     await client.confirmCheckout(SESSION_ID);
 
     const [start, read, confirm] = requests as [Request, Request, Request];
-    expect(start.headers.get("X-Kaiten-Publishable-Key")).toBe(PK);
+    expect(start.headers.get("Kaiten-Publishable-Key")).toBe(PK);
     expect(start.headers.get("Authorization")).toBeNull();
     for (const request of [read, confirm]) {
       expect(request.headers.get("Authorization")).toBe(`Bearer ${KSC}`);
+      expect(request.headers.get("Kaiten-Publishable-Key")).toBeNull();
       expect(request.headers.get("X-Kaiten-Publishable-Key")).toBeNull();
     }
     for (const request of requests) expect(request.headers.get("X-App")).toBe("shop");
