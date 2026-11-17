@@ -147,6 +147,12 @@ export const de: KaitenLocalization = {
     errorDescription:
       "Ihr Zugriff konnte im Moment nicht überprüft werden. Bitte versuchen Sie es gleich erneut.",
     usageDescription: (current, limit) => `Sie haben ${current} von ${limit} zulässigen verwendet.`,
+    usageUnavailable: "Nutzung nicht verfügbar",
+    usageUnavailableDescription:
+      "Ihre Nutzung konnte im Moment nicht gelesen werden. Bitte versuchen Sie es gleich erneut.",
+    insufficientQuota: "Kontingent reicht nicht aus",
+    insufficientQuotaDescription: (required, remaining) =>
+      `Benötigt werden ${required}, übrig sind ${remaining}.`,
   },
   price: {
     perMonth: "/Monat",

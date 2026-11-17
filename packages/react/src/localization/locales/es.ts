@@ -146,6 +146,12 @@ export const es: KaitenLocalization = {
     errorDescription:
       "No se pudo verificar su acceso en este momento. Vuelva a intentarlo en un instante.",
     usageDescription: (current, limit) => `Ha utilizado ${current} de ${limit} permitidos.`,
+    usageUnavailable: "Uso no disponible",
+    usageUnavailableDescription:
+      "No se pudo leer su uso en este momento. Vuelva a intentarlo en un instante.",
+    insufficientQuota: "Cuota insuficiente",
+    insufficientQuotaDescription: (required, remaining) =>
+      `Se necesitan ${required} y quedan ${remaining}.`,
   },
   price: {
     perMonth: "/mes",
