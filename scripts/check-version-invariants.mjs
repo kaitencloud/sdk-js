@@ -54,28 +54,43 @@ const typescriptOf = (manifest) => {
 const majorOf = (version) => Number(/(\d+)/.exec(version ?? "")?.[1]) || 0;
 
 // ---------------------------------------------------------------------------
-// 1. The `vite` alias must name the same release as `vite-plus`.
+// 1. The `vite` alias must name the core `vite-plus` depends on.
 //    vite-plus resolves its own core through this alias; a mismatch silently runs
-//    two different Vite cores against one config.
+//    two different Vite cores against one config. Up to vite-plus 1.0 the core
+//    carried vite-plus's version; since then it carries Vite's (vite-plus 1.7.0
+//    depends on vite-plus-core 8.3.8000), so the pin is read from vite-plus's own
+//    manifest rather than derived from its version.
 // ---------------------------------------------------------------------------
 {
   const vitePlus = catalogEntry("vite-plus");
   const viteAlias = catalogEntry("vite");
   const aliased = /@voidzero-dev\/vite-plus-core@(.+)$/.exec(viteAlias ?? "")?.[1];
+  const vitePlusManifest = resolve(repoRoot, "node_modules/vite-plus/package.json");
 
   if (!vitePlus || !aliased) {
     fail(
       "vite alias",
       `could not read both catalog entries (vite-plus=${vitePlus}, vite=${viteAlias})`,
     );
-  } else if (aliased !== vitePlus) {
-    fail(
-      "vite alias",
-      `catalog vite -> vite-plus-core@${aliased} but vite-plus is ${vitePlus}; ` +
-        `pin both to the same release`,
-    );
+  } else if (!existsSync(vitePlusManifest)) {
+    pass("vite alias", "skipped — vite-plus is not installed");
   } else {
-    pass("vite alias", `vite-plus-core@${aliased} matches vite-plus`);
+    const manifest = JSON.parse(readFileSync(vitePlusManifest, "utf8"));
+    const core = /@voidzero-dev\/vite-plus-core@(.+)$/.exec(manifest.dependencies?.vite ?? "")?.[1];
+    if (manifest.version !== vitePlus) {
+      fail(
+        "vite alias",
+        `the catalog names vite-plus ${vitePlus} but ${manifest.version} is installed; run vp install`,
+      );
+    } else if (core && aliased !== core) {
+      fail(
+        "vite alias",
+        `catalog vite -> vite-plus-core@${aliased} but vite-plus ${vitePlus} depends on ` +
+          `vite-plus-core@${core}; pin the alias to it`,
+      );
+    } else {
+      pass("vite alias", `vite-plus-core@${aliased} is the core vite-plus ${vitePlus} depends on`);
+    }
   }
 }
 
