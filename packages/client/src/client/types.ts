@@ -340,7 +340,16 @@ export interface LicenseEntitlementRow {
  * so sending one is a rejected request, not an ignored field.
  */
 export interface ReportUsageInput {
-  value: EntitlementValue;
+  /**
+   * The quantity to count. A usage report takes a number only: the API refuses
+   * any other value with 422 `InvalidValueType`. An AI credit is reported
+   * through `ai.reserve` and `ai.commit`, not here.
+   */
+  value: NumberEntitlementValue;
+  /**
+   * `append` adds `value` to the counter, `set` replaces the counter with it.
+   * The API refuses a report without one with 422 `InvalidBehavior`.
+   */
   behavior: UsageBehavior;
   metadata?: Record<string, unknown>;
   /**

@@ -369,23 +369,20 @@ const REPORT_RETRY_STATUSES = [500, 502, 503, 504] as const;
 /** The header the report's key travels in. The body has no member for it. */
 const IDEMPOTENCY_KEY_HEADER = "Idempotency-Key";
 
-/** The report as the body carries it: the key travels in a header, never here. */
 /**
  * The body of a usage report: the input without its key, which travels in a
  * header.
  *
- * The regenerated route takes a `number` or an `ai_usage` value, while
- * `ReportUsageInput` still takes every `EntitlementValue`, boolean and object
- * included. That is deliberate and checked by
- * `tests/report-usage-transaction-id.test.ts`: a 1.0 caller's report is sent
- * byte for byte, and a value the API does not take is refused by the API, with
- * its own code, rather than by a client that would decide for it. An AI report
- * is not sent through here at all — `ai.reserve` / `ai.commit` send the
- * `ai_usage` variant — so the cast narrows nothing a caller can observe.
+ * `ReportUsageInput` takes the `number` variant of the route's value; the
+ * `ai_usage` one is sent by `ai.reserve` / `ai.commit`, never through here. The
+ * body is the caller's object as it is, checked byte for byte by
+ * `tests/report-usage-transaction-id.test.ts`: a value that reaches it untyped,
+ * from JavaScript or through a cast, is refused by the API with its own code,
+ * not by a client that would decide for it.
  */
 function reportBody(input: ReportUsageInput): ReportEntitlementUsageMetricData["body"] {
   const { transactionId: _key, ...body } = input;
-  return body as ReportEntitlementUsageMetricData["body"];
+  return body;
 }
 
 /** What the API accepts as a `transactionId`: 1 to 128 characters of `[A-Za-z0-9._:-]`. */

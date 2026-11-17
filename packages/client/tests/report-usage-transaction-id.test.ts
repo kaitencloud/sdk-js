@@ -797,6 +797,12 @@ describe("reportUsage without a transactionId", () => {
   // that release and kept as literal text: a report with no key is the caller's
   // object serialized as it was, in the order the caller wrote it, with no
   // member added. A change here is a change for every 1.0 caller.
+  //
+  // 1.0 typed `value` as any entitlement value; 2.0 takes a number only, the one
+  // value the API counts. A boolean or object value that still arrives untyped,
+  // from JavaScript or through a cast, goes out as written and the API refuses
+  // it: the client does not decide for it.
+  const untyped = (input: unknown): ReportUsageInput => input as ReportUsageInput;
   const SENT_BY_1_0_0: { name: string; input: ReportUsageInput; body: string }[] = [
     {
       name: "append a number",
@@ -826,15 +832,15 @@ describe("reportUsage without a transactionId", () => {
     },
     {
       name: "a boolean value",
-      input: { value: { type: "boolean", value: true }, behavior: "set" },
+      input: untyped({ value: { type: "boolean", value: true }, behavior: "set" }),
       body: '{"value":{"type":"boolean","value":true},"behavior":"set"}',
     },
     {
       name: "an object value",
-      input: {
+      input: untyped({
         value: { type: "object", value: { tier: "gold", limits: { rps: 5 } } },
         behavior: "set",
-      },
+      }),
       body: '{"value":{"type":"object","value":{"tier":"gold","limits":{"rps":5}}},"behavior":"set"}',
     },
     {
