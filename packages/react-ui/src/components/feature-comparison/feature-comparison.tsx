@@ -5,6 +5,7 @@ import * as React from "react";
 
 import { useMergedAppearance } from "../../appearance/context.tsx";
 import { useIcons } from "../../appearance/icons.tsx";
+import { publishedPlans } from "../../lib/published-plans.ts";
 import { cn } from "../../lib/utils.ts";
 import {
   useLocalization,
@@ -168,7 +169,11 @@ export function FeatureComparison({
   const merged = useMergedAppearance(appearance);
   const icons = useIcons();
   const plansQuery = usePlans();
-  const plans = plansProp ?? plansQuery.data ?? [];
+  // Same rule as PricingTable: draft and archived licenses are not on offer.
+  const plans = React.useMemo(
+    () => publishedPlans(plansProp ?? plansQuery.data ?? []),
+    [plansProp, plansQuery.data],
+  );
   const localization = useLocalization();
   const rows = React.useMemo(() => {
     const builtRows = buildFeatureRows(plans, localization);

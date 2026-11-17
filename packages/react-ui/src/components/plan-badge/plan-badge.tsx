@@ -1,7 +1,7 @@
 // Copyright 2026 KAITEN INC
 // SPDX-License-Identifier: Apache-2.0
 
-import { useLicense, type LicenseType } from "@kaitencloud/react";
+import { useLicense, useLicensingSnapshot, type LicenseType } from "@kaitencloud/react";
 import { cn } from "../../lib/utils.ts";
 import { useAssertWrappedByKaitenProvider } from "../../style-root/kaiten-style-root.tsx";
 import { useTrackComponent } from "@kaitencloud/react/internal";
@@ -9,7 +9,7 @@ import { Badge } from "../ui/badge.tsx";
 
 // Colours the badge by licence type (shared intent with CurrentPlan's badge).
 function licenseTypeBadgeVariant(
-  type: LicenseType,
+  type: LicenseType | undefined,
 ): "default" | "secondary" | "success" | "outline" {
   switch (type) {
     case "PAID":
@@ -30,7 +30,8 @@ export interface PlanBadgeProps {
 }
 
 /**
- * Compact badge of the customer's current plan (name, coloured by licence type).
+ * Compact badge of the customer's current plan (name, coloured by licence type). A customer
+ * session has no licence: the badge names the plan its portal names, with no type.
  * A small drop-anywhere primitive — e.g. next to an account menu or app header.
  * @experimental
  */
@@ -38,14 +39,20 @@ export function PlanBadge({ unstyled = false, className }: PlanBadgeProps) {
   useAssertWrappedByKaitenProvider("PlanBadge");
   useTrackComponent("PlanBadge");
 
-  const { data: license, isLoading } = useLicense();
+  const license = useLicense();
+  const snapshot = useLicensingSnapshot();
 
-  if (isLoading || !license) return null;
+  // Same reading as BillingSummary and CurrentPlan: the licence when there is one, else the
+  // plan the portal names.
+  if (license.isLoading) return null;
+  const type = license.data?.type;
+  const name = license.data?.name ?? snapshot.data?.currentPlan?.name;
+  if (!name) return null;
 
   if (unstyled) {
     return (
-      <span data-slot="plan-badge" className="ktn-own" data-plan-type={license.type}>
-        {license.name}
+      <span data-slot="plan-badge" className="ktn-own" data-plan-type={type}>
+        {name}
       </span>
     );
   }
@@ -53,10 +60,10 @@ export function PlanBadge({ unstyled = false, className }: PlanBadgeProps) {
   return (
     <Badge
       data-slot="plan-badge"
-      variant={licenseTypeBadgeVariant(license.type)}
+      variant={licenseTypeBadgeVariant(type)}
       className={cn("ktn-own", className)}
     >
-      {license.name}
+      {name}
     </Badge>
   );
 }

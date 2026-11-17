@@ -20,11 +20,12 @@ import {
   type KaitenLocalization,
   type Plan,
 } from "@kaitencloud/react";
-import { isHttpUrl, useKaitenDataContext, useTrackComponent } from "@kaitencloud/react/internal";
+import { useKaitenDataContext, useTrackComponent } from "@kaitencloud/react/internal";
 
 import { useIcons } from "../../appearance/icons.tsx";
 import { useMergedAppearance } from "../../appearance/context.tsx";
 import type { KaitenAppearance } from "../../appearance/types.ts";
+import { safeHref } from "../../lib/safe-href.ts";
 import { cn } from "../../lib/utils.ts";
 import { useAssertWrappedByKaitenProvider } from "../../style-root/kaiten-style-root.tsx";
 import { CheckoutSummaryBody } from "../checkout-flow/checkout-summary.tsx";
@@ -148,17 +149,6 @@ function turnstileTheme(baseTheme: KaitenAppearance["baseTheme"]): "auto" | "lig
     return document.documentElement.closest(".dark") ? "dark" : "auto";
   }
   return "auto";
-}
-
-/** An address a link can safely go to: http(s), absolute or relative to this page. */
-function safeHref(url: string | undefined): string | null {
-  if (url === undefined || url === "") return null;
-  try {
-    const resolved = new URL(url, typeof window === "undefined" ? undefined : window.location.href);
-    return isHttpUrl(resolved.href) ? url : null;
-  } catch {
-    return null;
-  }
 }
 
 /**
@@ -502,7 +492,7 @@ function AnonymousCheckoutView({
       <>
         <Message unstyled={unstyled} tone="info" text={words.notSelfServe} />
         <div className={unstyled ? undefined : "flex flex-wrap gap-2"}>
-          {safeHref(plan.selfServeCtaUrl ?? undefined) ? (
+          {safeHref(plan.selfServeCtaUrl) ? (
             <Action unstyled={unstyled} variant="default" href={plan.selfServeCtaUrl!}>
               {localization.pricingTable.contactUs}
             </Action>
