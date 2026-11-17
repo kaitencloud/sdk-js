@@ -28,14 +28,24 @@ import { SessionAddOns } from "./session-addons.tsx";
 export interface AddOnsProps {
   appearance?: KaitenAppearance;
   unstyled?: boolean;
+  /**
+   * Adds or removes the add-on, outside a customer session. Without it the section lists the
+   * add-ons with no button: nothing would change them.
+   */
   onManageAddon?: (addon: Addon) => void | Promise<void>;
 }
 
+/**
+ * Hands the add-on to the host, then announces an addition. A removal is the host's to
+ * announce: `kaiten:addon-added` saying an add-on was added when it was removed would mislead
+ * whoever listens.
+ */
 async function handleAddonAction(
   addon: Addon,
-  onManageAddon?: (addon: Addon) => void | Promise<void>,
+  onManageAddon: (addon: Addon) => void | Promise<void>,
 ): Promise<void> {
-  await onManageAddon?.(addon);
+  await onManageAddon(addon);
+  if (addon.active) return;
   emitKaitenEvent("kaiten:addon-added", {
     addonId: addon.id,
     addonSlug: addon.slug,
@@ -153,13 +163,15 @@ function SnapshotAddOns({ appearance, unstyled = false, onManageAddon }: AddOnsP
                 );
               })()}
             </div>
-            <Button
-              size="sm"
-              variant={addon.active ? "outline" : "default"}
-              onClick={() => void handleAddonAction(addon, onManageAddon)}
-            >
-              {addon.active ? localization.addOns.remove : localization.addOns.add}
-            </Button>
+            {onManageAddon ? (
+              <Button
+                size="sm"
+                variant={addon.active ? "outline" : "default"}
+                onClick={() => void handleAddonAction(addon, onManageAddon)}
+              >
+                {addon.active ? localization.addOns.remove : localization.addOns.add}
+              </Button>
+            ) : null}
           </div>
         ))}
 

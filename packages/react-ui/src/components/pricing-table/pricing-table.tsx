@@ -4,6 +4,8 @@
 import * as React from "react";
 
 import { useMergedAppearance } from "../../appearance/context.tsx";
+import { publishedPlans } from "../../lib/published-plans.ts";
+import { safeHref } from "../../lib/safe-href.ts";
 import { cn } from "../../lib/utils.ts";
 import {
   Card,
@@ -229,11 +231,14 @@ function renderCtaText(
  * A self-serve plan, or one the catalog says nothing about, gets the select
  * button. A plan that is not self-serve — "Contact us" for a CUSTOM one —
  * links to its `selfServeCtaUrl`, and offers nothing when it has none: a
- * button that leads nowhere is worse than no button.
+ * button that leads nowhere is worse than no button. The address goes through
+ * `safeHref`, as in the anonymous checkout: the API only stores http(s), but a
+ * host's own catalogue (`plans`, `mode="static"`) is not checked by anyone else.
  */
 function planCta(plan: Plan): { href: string } | "select" | null {
   if (plan.selfServe !== false) return "select";
-  return plan.selfServeCtaUrl ? { href: plan.selfServeCtaUrl } : null;
+  const href = safeHref(plan.selfServeCtaUrl);
+  return href ? { href } : null;
 }
 
 /** Calls `onSelectPlan` with the price only when the card showed one. */
@@ -365,15 +370,10 @@ function PricingTableView({
   }) {
   const localization = useLocalization();
 
-  // `published` is the catalog's own visibility flag — `planFromLicense` maps it
-  // from `license.lifecycleState`, so a host's draft or archived licenses arrive
-  // here as `published: false`. Nothing read it before, which put those licenses
-  // on the adopter's PUBLIC pricing page. `!== false` (not a truthiness test) is
-  // deliberate and matches `useUpgradeOptions`: `undefined` means "the read path
-  // didn't say" (host-supplied `plans`, older API) and must stay visible — only
-  // an explicit `false` hides a plan.
+  // Draft and archived licenses must not reach the adopter's public pricing page:
+  // `publishedPlans` says why, and FeatureComparison applies the same rule.
   const visiblePlans = React.useMemo(
-    () => plans.filter((plan) => plan.published !== false && !hidePlans?.includes(plan.slug)),
+    () => publishedPlans(plans).filter((plan) => !hidePlans?.includes(plan.slug)),
     [hidePlans, plans],
   );
 
