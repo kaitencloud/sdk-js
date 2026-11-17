@@ -280,10 +280,9 @@ npm trusted publishing, so no npm token is stored anywhere.
 
 The billing features need a Kaiten release that serves billing's routes. The root README and
 those of the four packages each say which, in a "Kaiten version" section whose first sentence
-is the same everywhere, and `vp test run scripts` fails when they differ. While no Kaiten
-release carries billing, the sentence says so. The pull request of the first release that
-needs a Kaiten with billing replaces "the first Kaiten release with billing" by that Kaiten's
-version, in all five.
+is the same everywhere, and `vp test run scripts` fails when they differ. A pull request that
+makes a package need a newer Kaiten, for a route, a field or a header, raises that version in
+all five, in `packages/react/STABILITY.md`, and in the doc comments that name it.
 
 ### The first version of a package
 

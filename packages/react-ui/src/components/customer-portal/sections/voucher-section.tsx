@@ -59,7 +59,7 @@ const LIVE = new Set(["TRIAL", "ACTIVE", "PAST_DUE"]);
  * it is not kept in the page, in an address, or anywhere a log could read it. Between the check and
  * the apply it is held in memory by the hook and nowhere else.
  *
- * Needs the first Kaiten release with billing.
+ * Needs Kaiten 26.11.3 or later.
  *
  * @experimental Styled component — shape may change in a minor release (see STABILITY.md); prefer `unstyled` mode or the headless hooks for the stable path.
  */

@@ -95,7 +95,7 @@ interface Settled {
  * preview made elsewhere calls it without asking twice. Under any mode but
  * `customer-session` there is no session to ask, and it stays `idle`.
  *
- * Needs the first Kaiten release with billing (see STABILITY.md).
+ * Needs Kaiten 26.11.3 or later (see STABILITY.md).
  */
 export function useCheckoutPreview(
   selection: CheckoutPreviewSelection | null,

@@ -24,11 +24,11 @@ import "@kaitencloud/react-ui/styles.css";
 
 ## Kaiten version
 
-Minimum Kaiten version for the billing features: **the first Kaiten release with billing.** No Kaiten release carries billing yet.
+Minimum Kaiten version for the billing features: **26.11.3**, the first Kaiten release that serves all of them.
 
 The components that read billing need it: `PricingTable` with a catalogue read by a
-publishable key, `CheckoutFlow`, `CheckoutSummary`, and the billing sections of
-`CustomerPortal` under a customer session (`InvoiceList`, `VoucherEntry`,
+publishable key, `AnonymousCheckoutFlow`, `CheckoutFlow`, `CheckoutSummary`, and the billing
+sections of `CustomerPortal` under a customer session (`InvoiceList`, `VoucherEntry`,
 `PaymentMethodCard`). A component that draws a catalogue the host holds, or the licensing
 snapshot of `mode="authenticated"`, asks no more of the server than before. The provider's
 modes and what each asks of the server are in the

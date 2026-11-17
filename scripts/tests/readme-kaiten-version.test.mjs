@@ -3,7 +3,7 @@
 
 // The README of each package, and the root one, say which Kaiten release the billing
 // features need, in a section of their own. The sentence is the same everywhere, so
-// that the day a Kaiten release carries billing, the version is written once and
+// that when the minimum Kaiten release changes, the version is written once and
 // every README says it. A README that is edited alone fails here.
 
 import { readFileSync } from "node:fs";

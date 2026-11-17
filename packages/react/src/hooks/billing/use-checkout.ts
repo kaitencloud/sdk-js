@@ -219,7 +219,7 @@ const OPEN_PAYMENTS: readonly string[] = ["requires_action", "processing"];
  * while a payment is still open (`requires_action`, `processing`) the invoices are read
  * until it is settled.
  *
- * Needs the first Kaiten release with billing (see STABILITY.md).
+ * Needs Kaiten 26.11.3 or later (see STABILITY.md).
  */
 export function useCheckout(options: UseCheckoutOptions = {}): UseCheckoutResult {
   useTrackHook("useCheckout");

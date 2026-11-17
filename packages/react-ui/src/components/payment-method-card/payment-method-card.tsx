@@ -58,7 +58,7 @@ export interface PaymentMethodCardProps {
  * confirms with the API that a payment method was saved, reads the portal again and shows the new
  * labels. A confirmation that did not go through is said, with a way to try it again.
  *
- * Needs the first Kaiten release with billing.
+ * Needs Kaiten 26.11.3 or later.
  *
  * @experimental Styled component — shape may change in a minor release (see STABILITY.md); prefer `unstyled` mode or the headless hooks for the stable path.
  */
