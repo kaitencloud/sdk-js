@@ -764,6 +764,29 @@ describe("confirmCheckout", () => {
     }
   });
 
+  test("a timeout of 0 sets none, as it does for a KaitenClient", async () => {
+    const timeout = vi.spyOn(AbortSignal, "timeout");
+    try {
+      const answers = (request: Request) =>
+        request.url.endsWith("/confirm") ? json(requiresPaymentMethod()) : json(checkoutSession());
+      // Answers after 20 ms, as a network does, and fails as `fetch` does once
+      // the request's signal has aborted.
+      const late = async (request: Request) => {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        if (request.signal.aborted) throw request.signal.reason;
+        return answers(request);
+      };
+      const { client } = await started(late, { timeoutMs: 0 });
+      timeout.mockClear();
+
+      await client.confirmCheckout(SESSION_ID);
+      await client.getCheckoutSession(SESSION_ID);
+      expect(timeout).not.toHaveBeenCalled();
+    } finally {
+      timeout.mockRestore();
+    }
+  });
+
   test("a payment method is needed first: the page to save it, and the token is kept", async () => {
     const { client } = await started(() => json(requiresPaymentMethod()));
 
