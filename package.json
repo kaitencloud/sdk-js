@@ -30,6 +30,7 @@
     "@arethetypeswrong/core": "catalog:",
     "@changesets/changelog-github": "catalog:",
     "@changesets/cli": "catalog:",
+    "@types/node": "catalog:",
     "esbuild": "catalog:",
     "graphql": "catalog:",
     "publint": "catalog:",

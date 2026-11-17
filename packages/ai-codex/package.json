@@ -38,14 +38,14 @@
   },
   "devDependencies": {
     "@kaitencloud/client": "workspace:*",
-    "@openai/codex-sdk": "0.163.0",
+    "@openai/codex-sdk": "0.169.0",
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vite-plus": "catalog:"
   },
   "peerDependencies": {
     "@kaitencloud/client": "workspace:^",
-    "@openai/codex-sdk": "~0.163.0"
+    "@openai/codex-sdk": ">=0.163.0 <0.170.0"
   },
   "peerDependenciesMeta": {
     "@openai/codex-sdk": {

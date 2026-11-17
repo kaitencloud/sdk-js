@@ -43,7 +43,7 @@ jobs:
     # Keep the tag in sync with the pinned @playwright/test version;
     # scripts/check-version-invariants.mjs fails when they differ.
     container:
-      image: mcr.microsoft.com/playwright:v1.63.0-noble
+      image: mcr.microsoft.com/playwright:v1.65.0-noble
     steps:
       - uses: actions/checkout@v7.0.1
         with:
