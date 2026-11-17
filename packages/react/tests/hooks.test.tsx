@@ -1094,6 +1094,103 @@ test("an entitlement whose usage could not be read fails closed", async () => {
   expect(result.current.limit).toBe(1000);
 });
 
+const snapshotWithUnreadUsage: LicensingSnapshot = {
+  ...baseSnapshot,
+  entitlements: baseSnapshot.entitlements.map((entitlement) =>
+    entitlement.slug === "api_calls"
+      ? {
+          ...entitlement,
+          currentValue: null,
+          remaining: null,
+          percentageUsed: null,
+          usageUnavailable: true,
+        }
+      : entitlement,
+  ),
+};
+
+// A wall raised because the usage could not be read is not a plan that lacks the
+// feature: offering an upgrade to a customer nobody could read was the wrong answer,
+// and the zero that stands in for the unread usage is no figure to draw.
+test("usePaywallTrigger names a usage it could not read, and offers nothing to buy", async () => {
+  const { result } = renderHook(
+    () => ({
+      blocking: usePaywallTrigger("api_calls"),
+      allowing: usePaywallTrigger("api_calls", { onError: "allow" }),
+    }),
+    { wrapper: authenticatedWrapper({ snapshot: snapshotWithUnreadUsage }) },
+  );
+
+  await waitFor(() => expect(result.current.blocking.isLoading).toBe(false));
+
+  expect(result.current.blocking).toMatchObject({
+    shouldShow: true,
+    reason: "usage_unavailable",
+    metered: false,
+    recommendedAction: undefined,
+  });
+  // The same "nothing to decide on" as a failed read: fail-open is the host's call.
+  expect(result.current.allowing).toMatchObject({ shouldShow: false, reason: null });
+});
+
+// 95 of 100 with 10 required: the plan has the feature, there is just not enough of
+// it left. "Not entitled" sent that customer to change plan instead of adding quota.
+test("usePaywallTrigger tells a quota with too little left from one that ran out", async () => {
+  const bare = {
+    id: "ent-bare",
+    slug: "bare_metric",
+    name: "Bare metric",
+    type: "NUMBER" as const,
+    source: "license" as const,
+    limitValue: { type: "number" as const, value: 100 },
+    currentValue: { type: "number" as const, value: 95 },
+    remaining: 5,
+    percentageUsed: 95,
+    status: "near_limit" as const,
+  };
+  const snapshot: LicensingSnapshot = {
+    ...baseSnapshot,
+    actions: [
+      { type: "upgrade_plan", label: "Upgrade" },
+      { type: "add_quota", label: "Add quota" },
+    ],
+    entitlements: [
+      bare,
+      {
+        ...bare,
+        id: "ent-full",
+        slug: "full_metric",
+        currentValue: { type: "number", value: 100 },
+        remaining: 0,
+        percentageUsed: 100,
+        status: "over_limit",
+      },
+    ],
+  };
+
+  const { result } = renderHook(
+    () => ({
+      short: usePaywallTrigger("bare_metric", { min: 10 }),
+      enough: usePaywallTrigger("bare_metric", { min: 5, threshold: 1 }),
+      full: usePaywallTrigger("full_metric", { min: 10 }),
+    }),
+    { wrapper: authenticatedWrapper({ snapshot }) },
+  );
+
+  await waitFor(() => expect(result.current.short.isLoading).toBe(false));
+
+  expect(result.current.short).toMatchObject({
+    shouldShow: true,
+    reason: "insufficient_quota",
+    remaining: 5,
+    metered: true,
+  });
+  expect(result.current.short.recommendedAction).toMatchObject({ type: "add_quota" });
+  expect(result.current.enough).toMatchObject({ shouldShow: false, reason: null });
+  // Nothing left at all is still a quota that ran out.
+  expect(result.current.full).toMatchObject({ shouldShow: true, reason: "over_limit" });
+});
+
 // The end of a licence closes no gate. `endLicenseDate` is information: billing
 // never moves it, so a subscription that renews would otherwise lose its entitlements
 // on a date it has no say in, while the server went on serving it.

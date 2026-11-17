@@ -846,6 +846,11 @@ whether an earlier read succeeded.
   its `onError`: `"block"` by default, which renders the fallback or the wall with the reason
   `error`, or `"allow"`.
 
+The usage of one quota can fail to read while its grant was read (`usageUnavailable` on the
+entitlement). How much is used is then unknown, which is not zero: `usePaywallTrigger`, so
+`Gate` and `Paywall`, apply their `onError` to it as well, with the reason `usage_unavailable`
+when they block, and offer nothing to buy.
+
 Either way the provider reads again on its own, one read per provider whatever the number of
 gates under it:
 

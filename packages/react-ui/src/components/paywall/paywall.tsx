@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import * as React from "react";
+import { flushSync } from "react-dom";
 
 import {
   useEntitlements,
@@ -58,6 +59,33 @@ const INERT = { inert: "inert" } as unknown as { inert?: boolean };
 const HOST_SUBTREE = "ktn-host";
 
 /**
+ * The wrappers with no wall up: there, but out of the layout.
+ *
+ * The content sits in the same two elements whether a wall is up or not, so that a wall
+ * coming up or down only toggles `inert` on them. Rendering `children` bare when no wall
+ * was up changed the shape of the tree, and React unmounted and remounted the content
+ * each time: a form being filled when a periodic read crossed the threshold came back
+ * empty. With no wall, `display: contents` keeps the two elements out of the host's
+ * layout, as the bare `children` were. It is a style rather than a class, so that it
+ * holds with or without the SDK's stylesheet.
+ */
+const CONTENTS: React.CSSProperties = { display: "contents" };
+
+/** The first control of the wall, which takes the focus the wall takes from the content. */
+const FOCUSABLE = 'button, [href], input, [tabindex]:not([tabindex="-1"])';
+
+const useIsomorphicLayoutEffect =
+  typeof window === "undefined" ? React.useEffect : React.useLayoutEffect;
+
+/**
+ * The refusals hard mode shows as a modal: they name what the customer lacks, and what
+ * to buy. Any other reason, a later one included, comes up as the inline wall.
+ */
+function isModalRefusal(reason: string | null): boolean {
+  return reason === "over_limit" || reason === "insufficient_quota" || reason === "not_entitled";
+}
+
+/**
  * Why the wall says WHY it is there, in the DOM.
  *
  * `data-slot="paywall"` told a host that a wall is up and nothing else, so the
@@ -66,12 +94,12 @@ const HOST_SUBTREE = "ktn-host";
  * duplicating `usePaywallTrigger` beside the component that already computed it.
  * `data-reason` carries `usePaywallTrigger`'s own verdict:
  *
- *   over_limit | near_limit | not_entitled | error
+ *   over_limit | insufficient_quota | near_limit | not_entitled | usage_unavailable | error
  *
  * and, because the set is open, whatever reason a later Kaiten billing adds: a
  * reason this component does not know comes up as a wall with the generic wording,
  * the content behind it inert, and `hard` mode shows it as the inline wall, not the
- * dialog, which is kept for the three reasons that name what the customer lacks.
+ * dialog, which is kept for the three refusals that name what the customer lacks.
  *
  * It is on every branch that renders a wall, the hard mode's `<dialog>`
  * included, and on the same element as `data-slot`. Analytics can segment on it,
@@ -184,39 +212,46 @@ function PaywallRoot({
 
   React.useEffect(() => {
     if (typeof process !== "undefined" && process.env.NODE_ENV === "production") return;
-    if (
-      mode === "hard" &&
-      (trigger.reason === "over_limit" || trigger.reason === "not_entitled") &&
-      trigger.shouldShow &&
-      !onUpgrade
-    ) {
+    if (mode === "hard" && isModalRefusal(trigger.reason) && trigger.shouldShow && !onUpgrade) {
       console.warn(
         '[@kaitencloud/react] Paywall: `mode="hard"` with no `onUpgrade` leaves users without an upgrade action. Provide `onUpgrade` or `onDismiss`.',
       );
     }
   }, [mode, onUpgrade, trigger.reason, trigger.shouldShow]);
 
-  // When the soft wall is up, the masked content underneath must not stay
-  // focusable/clickable (keyboard + SR users would tab straight into blocked
-  // content). We mark it `inert` in render; here we move focus into the panel and
-  // restore it on dismiss. Hard mode uses the native `<dialog>`, whose
-  // `showModal()` holds focus itself.
+  // `hard` keeps a REFUSAL behind the wall. The warning before the limit is no refusal —
+  // the usage is still accepted — so it can be closed in both modes.
+  const dismissible = mode === "soft" || trigger.reason === "near_limit";
+  const wallUp = !trigger.isLoading && trigger.shouldShow && !(dismissed && dismissible);
+  const modal =
+    wallUp && !unstyled && mode === "hard" && !modalDismissed && isModalRefusal(trigger.reason);
+  const inlineWall = wallUp && !modal;
+
+  // The content underneath an inline wall is `inert`, so a focus inside it would be lost
+  // to the page: the wall takes it, and gives it back when it comes down. A focus
+  // anywhere else stays where it is — a periodic read that crosses the threshold must
+  // not pull the reader out of whatever they are doing elsewhere on the page. The
+  // dialog holds focus itself.
   //
-  // Both moves pass `preventScroll` — plain `focus()` scrolls every scrollable
-  // ancestor to reveal its target, so an inline wall below the fold would yank the
-  // host page down to itself the moment its data resolves, with no user action
-  // behind the jump. The focus move is the point; the scroll is not part of it.
-  const wallVisible = !trigger.isLoading && trigger.shouldShow && !(dismissed && mode === "soft");
+  // A layout effect, so that the focus is read before the browser moves it off the
+  // content that just became inert. Both moves pass `preventScroll`: plain `focus()`
+  // scrolls every scrollable ancestor to its target, and the focus move is the point,
+  // not the scroll.
+  const contentRef = React.useRef<HTMLDivElement>(null);
   const overlayRef = React.useRef<HTMLDivElement>(null);
-  const restoreFocusRef = React.useRef<HTMLElement | null>(null);
-  React.useEffect(() => {
-    if (!wallVisible || mode === "hard") return;
-    restoreFocusRef.current = (document.activeElement as HTMLElement | null) ?? null;
-    overlayRef.current
-      ?.querySelector<HTMLElement>('button, [href], input, [tabindex]:not([tabindex="-1"])')
-      ?.focus({ preventScroll: true });
-    return () => restoreFocusRef.current?.focus?.({ preventScroll: true });
-  }, [wallVisible, mode]);
+  useIsomorphicLayoutEffect(() => {
+    if (!inlineWall) return;
+    const focused = document.activeElement;
+    if (!(focused instanceof HTMLElement) || !contentRef.current?.contains(focused)) return;
+    overlayRef.current?.querySelector<HTMLElement>(FOCUSABLE)?.focus({ preventScroll: true });
+    return () => {
+      // Only a focus the wall still holds goes back: one the reader moved elsewhere stays.
+      const now = document.activeElement;
+      if (now === null || now === document.body || overlayRef.current?.contains(now)) {
+        focused.focus({ preventScroll: true });
+      }
+    };
+  }, [inlineWall]);
 
   // Access is not known yet. Rendering `children` here revealed the protected
   // content on every first mount — and on every remount, which the provider does
@@ -225,12 +260,8 @@ function PaywallRoot({
   // takes a `loading` slot; `Gate` deliberately stays open because the host sees
   // `isLoading` and the server still enforces. Paywall can do neither: it renders
   // the protected content itself, so it follows `onError`.
-  if (trigger.isLoading) {
-    return onError === "allow" ? <>{children}</> : <>{loading}</>;
-  }
-
-  if (!trigger.shouldShow || (dismissed && mode === "soft")) {
-    return <>{children}</>;
+  if (trigger.isLoading && onError !== "allow") {
+    return <>{loading}</>;
   }
 
   const LockIconComp = icons.lock;
@@ -239,20 +270,41 @@ function PaywallRoot({
   const reasonLabel =
     trigger.reason === "over_limit"
       ? localization.paywall.limitReached
-      : trigger.reason === "near_limit"
-        ? localization.paywall.approachingLimit
-        : localization.paywall.notAvailable;
+      : trigger.reason === "insufficient_quota"
+        ? localization.paywall.insufficientQuota
+        : trigger.reason === "near_limit"
+          ? localization.paywall.approachingLimit
+          : trigger.reason === "usage_unavailable"
+            ? localization.paywall.usageUnavailable
+            : localization.paywall.notAvailable;
 
   const badgeVariant =
-    trigger.reason === "over_limit" || trigger.reason === "error" ? "destructive" : "secondary";
+    trigger.reason === "over_limit" ||
+    trigger.reason === "insufficient_quota" ||
+    trigger.reason === "error"
+      ? "destructive"
+      : "secondary";
 
+  // A figure only where there is one: an unread usage is not zero, and a feature the
+  // plan does not include is not "0 of 1".
   const description =
     trigger.reason === "error"
       ? localization.paywall.errorDescription
-      : localization.paywall.usageDescription(
-          trigger.current.toLocaleString(),
-          trigger.limit.toLocaleString(),
-        );
+      : trigger.reason === "usage_unavailable"
+        ? localization.paywall.usageUnavailableDescription
+        : trigger.reason === "insufficient_quota" &&
+            typeof min === "number" &&
+            typeof trigger.remaining === "number"
+          ? localization.paywall.insufficientQuotaDescription(
+              min.toLocaleString(),
+              trigger.remaining.toLocaleString(),
+            )
+          : trigger.reason !== "not_entitled" && trigger.metered
+            ? localization.paywall.usageDescription(
+                trigger.current.toLocaleString(),
+                trigger.limit.toLocaleString(),
+              )
+            : localization.paywall.flagDisabledDescription;
 
   // Under a customer session the portal also says where the subscription stands. That never opens
   // or closes a wall (billing status closes none), but it explains one: a subscription that is over,
@@ -273,58 +325,29 @@ function PaywallRoot({
   const subscribe = subscriptionState?.capabilities.checkout ? subscriptionWords.subscribe : null;
   const subscriptionKind = subscriptionState?.kind;
 
+  // A usage nobody could read is no reason to sell anything.
+  const upgrade = trigger.reason === "usage_unavailable" ? undefined : onUpgrade;
+
   const handleDismiss = () => {
     setDismissed(true);
     onDismiss?.();
   };
 
-  if (unstyled) {
-    return (
-      <div
-        data-slot="paywall"
-        data-reason={trigger.reason ?? undefined}
-        data-subscription={subscriptionKind}
-        className="ktn-own"
-      >
-        <div {...INERT} className={HOST_SUBTREE}>
-          {children}
-        </div>
-        <div ref={overlayRef} role="group" aria-label={reasonLabel}>
-          <p>{reasonLabel}</p>
-          <p>{description}</p>
-          {note ? <p>{note}</p> : null}
-          {trigger.metered ? (
-            <p>
-              {trigger.current} / {trigger.limit}
-            </p>
-          ) : null}
-          {onUpgrade ? (
-            <button type="button" onClick={() => onUpgrade(trigger.recommendedAction)}>
-              {ctaLabel(trigger.recommendedAction, localization, subscribe)}
-            </button>
-          ) : null}
-          {mode === "soft" ? (
-            <button type="button" onClick={handleDismiss}>
-              {localization.paywall.dismiss}
-            </button>
-          ) : null}
-          <KaitenBranding unstyled />
-        </div>
-      </div>
-    );
-  }
+  // The modal is closed before the host's upgrade runs, so that whatever the host opens
+  // from it — a checkout in its own modal — is not left under one it cannot reach. The
+  // content stays behind the inline wall.
+  const upgradeFromModal = upgrade
+    ? (action?: PortalAction) => {
+        flushSync(() => setModalDismissed(true));
+        upgrade(action);
+      }
+    : undefined;
 
-  if (
-    mode === "hard" &&
-    !modalDismissed &&
-    (trigger.reason === "over_limit" || trigger.reason === "not_entitled")
-  ) {
-    return (
-      <>
-        <div {...INERT} className={HOST_SUBTREE}>
-          {children}
-        </div>
-        {/*
+  let overlay: React.ReactNode = null;
+  if (modal) {
+    overlay =
+      (
+        /*
          * The wall blocks the FEATURE, not the browser.
          *
          * This dialog used to be a Radix `<Dialog open>` with no `onOpenChange`,
@@ -334,16 +357,16 @@ function PaywallRoot({
          * dialog OR back to the page — a WCAG 2.1.2 keyboard trap whose only
          * mitigation was a dev-mode console.warn.
          *
-         * Closing it costs the gate nothing: `children` are `inert` on every
-         * branch, and dismissing the modal falls through to the inline wall below,
-         * which keeps them inert and renders no dismiss control in hard mode. The
-         * paid content stays unreachable; the page stops being a cage.
+         * Closing it costs the gate nothing: `children` stay `inert`, and dismissing
+         * the modal falls through to the inline wall, which keeps them inert and
+         * renders no dismiss control for a refusal in hard mode. The paid content stays
+         * unreachable; the page stops being a cage.
          *
          * It is the native `<dialog>` now (see ui/dialog.tsx): a click on the
          * backdrop does nothing there by default, so a stray click cannot drop
          * the modal by accident — Escape and the close button are the deliberate
          * exits.
-         */}
+         */
         <Dialog
           data-reason={trigger.reason ?? undefined}
           data-subscription={subscriptionKind}
@@ -355,7 +378,7 @@ function PaywallRoot({
             badgeVariant={badgeVariant}
             trigger={trigger}
             overagePercent={overagePercent}
-            onUpgrade={onUpgrade}
+            onUpgrade={upgradeFromModal}
             appearance={merged}
             LockIcon={LockIconComp}
             ArrowIcon={ArrowIcon}
@@ -365,32 +388,33 @@ function PaywallRoot({
             subscribe={subscribe}
           />
         </Dialog>
-      </>
-    );
-  }
-
-  return (
-    /*
-     * The wall is an `absolute inset-0` overlay, so the box the card has to fit into
-     * is whatever the host wrapped — and a host gates small things: a button, a
-     * toolbar row, a stat. `min-h-20` is the floor the compact wall needs to sit in
-     * (`.ktn-paywall-wall` in src/styles/kaiten.css turns the card into a single row
-     * below the full card's footprint); without it a one-line child left the card
-     * centred on a ~20px box, spilling over the components either side.
-     *
-     * It is the last class before `paywallOverlay`, so a host that would rather keep
-     * its own layout can drop the floor with `min-h-0` and take the spill back.
-     */
-    <div
-      data-slot="paywall"
-      data-reason={trigger.reason ?? undefined}
-      data-subscription={subscriptionKind}
-      className={cn("ktn-own", "relative min-h-20", merged.elements?.paywallOverlay)}
-    >
-      {/* Masked content is inert: not focusable, not clickable, hidden from AT. */}
-      <div {...INERT} className={HOST_SUBTREE}>
-        {children}
+      );
+  } else if (inlineWall && unstyled) {
+    overlay = (
+      <div ref={overlayRef} role="group" aria-label={reasonLabel}>
+        <p>{reasonLabel}</p>
+        <p>{description}</p>
+        {note ? <p>{note}</p> : null}
+        {trigger.metered ? (
+          <p>
+            {trigger.current} / {trigger.limit}
+          </p>
+        ) : null}
+        {upgrade ? (
+          <button type="button" onClick={() => upgrade(trigger.recommendedAction)}>
+            {ctaLabel(trigger.recommendedAction, localization, subscribe)}
+          </button>
+        ) : null}
+        {dismissible ? (
+          <button type="button" onClick={handleDismiss}>
+            {localization.paywall.dismiss}
+          </button>
+        ) : null}
+        <KaitenBranding unstyled />
       </div>
+    );
+  } else if (inlineWall) {
+    overlay = (
       <div
         ref={overlayRef}
         role="group"
@@ -406,8 +430,8 @@ function PaywallRoot({
             badgeVariant={badgeVariant}
             trigger={trigger}
             overagePercent={overagePercent}
-            onUpgrade={onUpgrade}
-            onDismiss={mode === "soft" ? handleDismiss : undefined}
+            onUpgrade={upgrade}
+            onDismiss={dismissible ? handleDismiss : undefined}
             appearance={merged}
             LockIcon={LockIconComp}
             ArrowIcon={ArrowIcon}
@@ -417,6 +441,47 @@ function PaywallRoot({
           />
         </div>
       </div>
+    );
+  }
+
+  return (
+    /*
+     * One shape whatever the wall does (see `CONTENTS`): the content is always the first
+     * child of the second element, and a wall only toggles `inert` and the classes.
+     *
+     * The inline wall is an `absolute inset-0` overlay, so the box the card has to fit
+     * into is whatever the host wrapped — and a host gates small things: a button, a
+     * toolbar row, a stat. `min-h-20` is the floor the compact wall needs to sit in
+     * (`.ktn-paywall-wall` in src/styles/kaiten.css turns the card into a single row
+     * below the full card's footprint); without it a one-line child left the card
+     * centred on a ~20px box, spilling over the components either side.
+     *
+     * It is the last class before `paywallOverlay`, so a host that would rather keep
+     * its own layout can drop the floor with `min-h-0` and take the spill back.
+     */
+    <div
+      data-slot={inlineWall ? "paywall" : undefined}
+      data-reason={inlineWall ? (trigger.reason ?? undefined) : undefined}
+      data-subscription={inlineWall ? subscriptionKind : undefined}
+      className={
+        inlineWall
+          ? unstyled
+            ? "ktn-own"
+            : cn("ktn-own", "relative min-h-20", merged.elements?.paywallOverlay)
+          : undefined
+      }
+      style={inlineWall ? undefined : CONTENTS}
+    >
+      {/* Masked content is inert: not focusable, not clickable, hidden from AT. */}
+      <div
+        ref={contentRef}
+        {...(wallUp ? INERT : null)}
+        className={HOST_SUBTREE}
+        style={wallUp ? undefined : CONTENTS}
+      >
+        {children}
+      </div>
+      {overlay}
     </div>
   );
 }

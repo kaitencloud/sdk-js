@@ -688,10 +688,19 @@ export interface KaitenLocalization {
     contactSales: string;
     upgrade: string;
     dismiss: string;
+    /** Said by a wall for a feature the plan does not include (`not_entitled`). */
     flagDisabledDescription: string;
     /** Shown when the paywall blocks because access data failed to load (fail-closed). */
     errorDescription: string;
     usageDescription: (current: string, limit: string) => string;
+    /** The title of a wall raised because the usage of its quota could not be read (`usage_unavailable`). */
+    usageUnavailable: string;
+    /** What that wall says: how much is used is unknown, which is not the same as nothing used. */
+    usageUnavailableDescription: string;
+    /** The title of a wall for a quota with less left than the gated action needs (`insufficient_quota`). */
+    insufficientQuota: string;
+    /** "This needs 10, and 5 are left." — what the action needs, then what the quota has left. */
+    insufficientQuotaDescription: (required: string, remaining: string) => string;
   };
   /**
    * How a price reads after its amount: "/month", "every 3 months", "per 1M
