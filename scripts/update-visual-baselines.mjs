@@ -10,8 +10,8 @@
 // remote operation, and remote operations fail in confusing ways when a local
 // precondition is missing. The checks below turn each of those into a sentence.
 //
-// The workflow commits the regenerated PNGs back to the branch it ran on, so pull
-// once it finishes.
+// The workflow commits the regenerated PNGs back to the branch it ran on, through
+// GitHub's API so that GitHub signs the commit, so pull once it finishes.
 //
 // Flags:
 //   --dry-run   run every check and print what would be dispatched, without firing.

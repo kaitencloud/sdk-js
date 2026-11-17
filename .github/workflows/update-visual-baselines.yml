@@ -15,13 +15,14 @@ name: Update visual baselines
 #     2. Runs `playwright test --update-snapshots`, rewriting the *-linux.png.
 #     3. Re-runs the suite WITHOUT --update to prove the fresh baselines pass in
 #        this environment (this is the "verified green in CI" gate).
-#     4. Uploads them as an artifact, which is also the fallback if the push
+#     4. Uploads them as an artifact, which is also the fallback if the commit
 #        below is rejected (e.g. a protected branch).
 #   commit (the one job that can write):
-#     5. Commits those baselines to the branch you dispatched from and pushes.
+#     5. Commits those baselines to the branch you dispatched from, through the
+#        GraphQL API, so GitHub signs the commit and it shows as Verified.
 #
 # Why two jobs: rendering installs the dependency tree and runs its install
-# scripts, its build and Storybook. None of that runs where a token that can push
+# scripts, its build and Storybook. None of that runs where a token that can write
 # exists, so a compromised dependency cannot write to the repository. The job that
 # holds that token installs nothing and runs no code from the branch.
 #
@@ -91,7 +92,7 @@ jobs:
         run: vp run test:visual
       - name: Upload regenerated baselines as an artifact
         # Always upload, so the baselines can be downloaded and committed by hand
-        # if the push in `commit` is rejected (e.g. a protected branch). `commit`
+        # if the commit in `commit` is rejected (e.g. a protected branch). `commit`
         # only runs when this whole job, verification included, succeeded.
         if: always()
         uses: actions/upload-artifact@v7.0.1
@@ -104,23 +105,34 @@ jobs:
   commit:
     needs: render
     runs-on: ubuntu-latest
-    # Needed to push the regenerated baselines back to the branch.
+    # Needed to commit the regenerated baselines to the branch.
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v7.0.1
         with:
-          # The commit `render` rendered from. If the branch has moved since, the
-          # push below is not a fast-forward and fails rather than landing the
-          # baselines on code they were not rendered from. persist-credentials
-          # (default) keeps the token configured so that push is authenticated.
+          # The commit `render` rendered from, to diff the baselines against. The
+          # commit is made through the API, not pushed, so no credential stays in
+          # the checkout.
           ref: ${{ github.sha }}
+          persist-credentials: false
       - name: Download the verified baselines
         uses: actions/download-artifact@v8.0.2
         with:
           name: visual-baselines-linux
           path: ${{ runner.temp }}/visual-baselines-linux
-      - name: Commit updated baselines back to the branch
+      - name: Commit updated baselines to the branch, signed by GitHub
+        # createCommitOnBranch, not `git push`: GitHub signs the commits it creates
+        # through the API, so the baselines land Verified, as the branch's other
+        # commits are, with no signing key in this job. Its author is
+        # github-actions[bot], which the DCO check exempts. expectedHeadOid keeps
+        # the old fast-forward guarantee: if the branch has moved since the
+        # dispatch, the mutation fails rather than landing the baselines on code
+        # they were not rendered from.
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ github.ref_name }}
+          EXPECTED_HEAD: ${{ github.sha }}
         run: |
           set -euo pipefail
           baselines="packages/react-ui/tests/visual/__screenshots__"
@@ -128,12 +140,32 @@ jobs:
           # the artifact came from a job that ran the dependency tree.
           find "$RUNNER_TEMP/visual-baselines-linux" -maxdepth 1 -type f -name '*-linux.png' \
             -exec cp -- {} "$baselines/" \;
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -- "$baselines"
-          if git diff --cached --quiet; then
+          mapfile -t changed < <(git ls-files --modified --others --exclude-standard -- "$baselines")
+          if [ "${#changed[@]}" -eq 0 ]; then
             echo "Baselines already up to date — nothing to commit."
             exit 0
           fi
-          git commit -m "test(react-ui): regenerate Linux visual baselines in CI"
-          git push origin "HEAD:${GITHUB_REF_NAME}"
+          printf 'Committing %s baseline(s):\n' "${#changed[@]}"
+          printf '  %s\n' "${changed[@]}"
+
+          additions="$RUNNER_TEMP/additions.jsonl"
+          : > "$additions"
+          for path in "${changed[@]}"; do
+            base64 -w0 -- "$path" |
+              jq -Rc --arg path "$path" '{path: $path, contents: .}' >> "$additions"
+          done
+          jq -sc \
+            --arg repo "$GITHUB_REPOSITORY" \
+            --arg branch "$BRANCH" \
+            --arg head "$EXPECTED_HEAD" \
+            '{
+              query: "mutation($input: CreateCommitOnBranchInput!) { createCommitOnBranch(input: $input) { commit { oid url } } }",
+              variables: {input: {
+                branch: {repositoryNameWithOwner: $repo, branchName: $branch},
+                expectedHeadOid: $head,
+                message: {headline: "test(react-ui): regenerate Linux visual baselines in CI"},
+                fileChanges: {additions: .}
+              }}
+            }' "$additions" > "$RUNNER_TEMP/request.json"
+          gh api graphql --input "$RUNNER_TEMP/request.json" \
+            --jq '.data.createCommitOnBranch.commit | "Committed \(.oid): \(.url)"'

@@ -149,7 +149,11 @@ Four of these are scripts you can run yourself, after `vp run -r build`:
 
 Visual baselines are Linux screenshots. When a change moves pixels on purpose,
 regenerate them with the **Update visual baselines** workflow rather than locally:
-`vp run baselines:update` dispatches it on your pushed branch.
+`vp run baselines:update` dispatches it on your pushed branch. It commits the new
+baselines through GitHub's API, as `github-actions[bot]`: GitHub signs that commit, and
+the DCO check exempts bots. GitHub does not start the pull request's checks on a commit
+the workflow's token made by themselves: approve them in the Actions tab, or push the
+branch's next commit.
 
 ## License headers
 
