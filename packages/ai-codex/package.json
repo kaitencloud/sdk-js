@@ -45,7 +45,7 @@
   },
   "peerDependencies": {
     "@kaitencloud/client": "workspace:^",
-    "@openai/codex-sdk": "~0.163.0"
+    "@openai/codex-sdk": ">=0.163.0 <0.170.0"
   },
   "peerDependenciesMeta": {
     "@openai/codex-sdk": {
