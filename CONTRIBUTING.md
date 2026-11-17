@@ -204,13 +204,8 @@ and would fetch the published contract in their place.
 A feature PR can validate against a companion Kaiten commit **without publishing**
 contracts just to pass CI. `.github/kaiten-contract-source.json` records the fixed
 repository `kaitencloud/kaiten`, its full lowercase 40-hex `commit`, and the SDK
-feature `headBranch`. The current AI credits source is Kaiten
-`main`, at `9a49c2d5fab547ea5cb7ba17b11d595eaacdc07f`, for the SDK branch
-`feat/ai-credits-explain`: the explainable-charges contract has landed on Kaiten's
-main, so the pin names a reviewed commit of main rather than the feature branch it
-was taken from. At that commit the snapshot also matches `@kaitencloud/openapi@latest`,
-so the override no longer decides anything and can be removed once both pull
-requests land.
+feature `headBranch`. Remove the file once that PR has merged and Kaiten has published
+the contract: without it, every comparison is with npm's `latest`.
 
 The contract-drift workflow honors this file **only** for a `pull_request` whose
 head branch exactly matches `headBranch`. Other PR branches, pushes to `main`, and
