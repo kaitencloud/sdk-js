@@ -148,3 +148,28 @@ test("unstyled: the select button and the link are the browser's own, with no va
     expect(action.getAttribute("data-variant")).toBeNull();
   }
 });
+
+test("a contact address that is not http(s) gives no link, styled or unstyled", () => {
+  // A host's own catalogue (`plans`, `mode="static"`) is not checked by the API, so the
+  // table checks it, as the anonymous checkout already does.
+  const unsafe = [
+    sold("script", "Script", { selfServeCtaUrl: "javascript:alert(1)" }),
+    sold("data", "Data", { selfServeCtaUrl: "data:text/html,<p>hi</p>" }),
+    sold("enterprise", "Enterprise"),
+    sold("relative", "Relative", { selfServeCtaUrl: "/contact" }),
+  ];
+
+  const { container, unmount } = renderTable(unsafe);
+  expect(within(card("Script")).queryByRole("link", { name: "Contact us" })).toBeNull();
+  expect(within(card("Data")).queryByRole("link", { name: "Contact us" })).toBeNull();
+  expect(contact("Enterprise").getAttribute("href")).toBe("https://acme.test/contact");
+  expect(contact("Relative").getAttribute("href")).toBe("/contact");
+  expect(container.querySelector('a[href^="javascript:"], a[href^="data:"]')).toBeNull();
+  unmount();
+
+  const unstyled = renderTable(unsafe, { unstyled: true });
+  const hrefs = [...unstyled.container.querySelectorAll("article a")].map((link) =>
+    link.getAttribute("href"),
+  );
+  expect(hrefs).toEqual(["https://acme.test/contact", "/contact"]);
+});
