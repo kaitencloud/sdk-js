@@ -25,7 +25,10 @@ export default defineConfig({
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: 0,
-  workers: 1,
+  // The total, shared by the projects. The screenshots hold themselves to one worker
+  // below; the layout invariants take every worker there is. CI's runner has four
+  // vCPUs; locally, Playwright's default (half the cores) applies.
+  workers: process.env.CI ? 4 : undefined,
   reporter: process.env.CI ? [["github"], ["list"]] : "list",
   use: {
     baseURL: `http://127.0.0.1:${PORT}`,
@@ -51,6 +54,9 @@ export default defineConfig({
     {
       name: "chromium",
       testDir: "tests/visual",
+      // One browser at a time, as these baselines were recorded: a screenshot taken
+      // while other pages compete for the CPU is one more source of drift.
+      workers: 1,
       use: { ...devices["Desktop Chrome"] },
     },
     {
@@ -63,9 +69,14 @@ export default defineConfig({
        * and CI owns them. An overflow is an integer. It is the same integer on macOS
        * and on the CI runner, so this project needs no baselines, has nothing to
        * update, and is meant to be run locally — `vp run test:layout`.
+       *
+       * For the same reason it runs in parallel, test by test: each case opens its own
+       * page on the static Storybook and measures integers, so neither the order nor a
+       * busy CPU can change what it reads. Serial, its ~590 cases took 11.5 minutes of CI.
        */
       name: "layout",
       testDir: "tests/layout",
+      fullyParallel: true,
       use: { ...devices["Desktop Chrome"] },
     },
   ],

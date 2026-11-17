@@ -87,10 +87,34 @@ jobs:
       - name: Check that no browser bundle carries a secret
         run: node scripts/check-no-secrets-in-example-build.mjs
 
+  # `test` is what the ruleset requires. Its work runs in the three jobs below, side by
+  # side: in one job it took twenty minutes, eleven of them the layout invariants alone.
+  # This job passes when all three passed, and fails when any of them failed, was
+  # cancelled or was skipped, so the required check means what it always meant.
   test:
+    if: ${{ always() }}
+    needs: [test-unit, test-visual, test-layout]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every test job to have passed
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "test-unit, test-visual, test-layout: $RESULTS"
+          for result in $RESULTS; do
+            if [ "$result" != "success" ]; then
+              echo "::error::a test job ended in '$result'"
+              exit 1
+            fi
+          done
+
+  # The tests of every package and example, the repository's scripts and the React
+  # coverage ratchets.
+  test-unit:
     runs-on: ubuntu-latest
     # The official Playwright image ships the browsers, so CI never downloads
-    # them. Keep the tag in sync with the pinned @playwright/test version;
+    # them: react-ui's `test` runs its Storybook stories in Chromium. Keep the tag
+    # in sync with the pinned @playwright/test version;
     # scripts/check-version-invariants.mjs fails when they differ.
     container:
       image: mcr.microsoft.com/playwright:v1.63.0-noble
@@ -149,6 +173,39 @@ jobs:
         run: |
           (cd packages/react && vp run test:unit:coverage)
           (cd packages/react-ui && vp run test:unit:coverage)
+
+  # Visual regression: a curated list of Storybook stories against the Linux baselines.
+  test-visual:
+    runs-on: ubuntu-latest
+    # Same image and tag as `test-unit`: the baselines are rendered by this Chromium.
+    container:
+      image: mcr.microsoft.com/playwright:v1.63.0-noble
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: pnpm/action-setup@v6.1.0
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - uses: voidzero-dev/setup-vp@v1.22.0
+        with:
+          # actions/setup-node and pnpm/action-setup own Node.js and pnpm. Vite+
+          # only provides vp, at the catalog's vite-plus version.
+          node-manager: false
+          package-manager: false
+          cache: true
+          run-install: false
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build packages
+        run: vp run -r build
+      - name: Link preinstalled Playwright browsers into the default cache path
+        # See `test-unit`: the scripts run with `env -u PLAYWRIGHT_BROWSERS_PATH`.
+        run: |
+          for home in "$HOME" /root; do
+            mkdir -p "$home/.cache"
+            ln -sfn /ms-playwright "$home/.cache/ms-playwright"
+          done
       - name: Build React Storybook
         working-directory: packages/react-ui
         run: vp run build-storybook
@@ -168,12 +225,55 @@ jobs:
             packages/react-ui/playwright-report
             packages/react-ui/test-results
           retention-days: 14
+
+  # Layout invariants: no component may escape the box its host gives it, at
+  # 320/480/768/1280px of container width. Recorded overflows live in
+  # tests/layout/overflow.spec.ts, and that map may only ever shrink. The project
+  # runs on every worker the runner has (see playwright.config.ts).
+  test-layout:
+    runs-on: ubuntu-latest
+    # Same image and tag as `test-unit`.
+    container:
+      image: mcr.microsoft.com/playwright:v1.63.0-noble
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: pnpm/action-setup@v6.1.0
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - uses: voidzero-dev/setup-vp@v1.22.0
+        with:
+          # actions/setup-node and pnpm/action-setup own Node.js and pnpm. Vite+
+          # only provides vp, at the catalog's vite-plus version.
+          node-manager: false
+          package-manager: false
+          cache: true
+          run-install: false
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build packages
+        run: vp run -r build
+      - name: Link preinstalled Playwright browsers into the default cache path
+        # See `test-unit`: the scripts run with `env -u PLAYWRIGHT_BROWSERS_PATH`.
+        run: |
+          for home in "$HOME" /root; do
+            mkdir -p "$home/.cache"
+            ln -sfn /ms-playwright "$home/.cache/ms-playwright"
+          done
+      - name: Build React Storybook
+        working-directory: packages/react-ui
+        run: vp run build-storybook
       - name: Run layout invariants (container overflow)
-        # No component may escape the box its host gives it, at 320/480/768/1280px
-        # of container width. Recorded overflows live in
-        # tests/layout/overflow.spec.ts, and that map may only ever shrink.
         working-directory: packages/react-ui
         run: vp run test:layout
+      - name: Upload the traces of a failure
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: playwright-layout-traces
+          path: packages/react-ui/test-results
+          retention-days: 14
 
   # The storefront example in a browser: its pricing table, its checkout and its customer
   # portal, against a stand-in for Kaiten that runs in the same process, so the job needs no
@@ -186,7 +286,7 @@ jobs:
   # that stack and points the `live` project at it.
   storefront-e2e:
     runs-on: ubuntu-latest
-    # Same image as the `test` job, and the same tag to keep in sync with @playwright/test;
+    # Same image as the `test-unit` job, and the same tag to keep in sync with @playwright/test;
     # scripts/check-version-invariants.mjs fails when they differ.
     container:
       image: mcr.microsoft.com/playwright:v1.63.0-noble
@@ -211,7 +311,7 @@ jobs:
       - name: Build packages
         run: vp run -r build
       - name: Link preinstalled Playwright browsers into the default cache path
-        # See the `test` job: the scripts run with `env -u PLAYWRIGHT_BROWSERS_PATH`.
+        # See the `test-unit` job: the scripts run with `env -u PLAYWRIGHT_BROWSERS_PATH`.
         run: |
           for home in "$HOME" /root; do
             mkdir -p "$home/.cache"

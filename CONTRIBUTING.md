@@ -112,7 +112,9 @@ The components have a Storybook playground: `vp run @kaitencloud/react-ui#storyb
 - **test**: the tests of every package and of the Node example, the React coverage
   ratchets, Storybook, visual regression and layout invariants, in the Playwright
   container, those of the conformance example (which skip the live suite and rehearse
-  its code), and those of the repository's own scripts (`vp test run scripts`).
+  its code), and those of the repository's own scripts (`vp test run scripts`). The
+  work runs side by side in three jobs, `test-unit`, `test-visual` and `test-layout`,
+  and `test` passes only when all three did; the ruleset requires `test` alone.
 - **storefront-e2e**: the storefront example (`examples/storefront`) in Chromium: its pricing
   table, its checkout and its customer portal, against a stand-in for Kaiten that runs in the
   same process, so it needs no stack and no secret. A card saved on a provider's page, a declined
