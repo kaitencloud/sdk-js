@@ -9,6 +9,7 @@
 
 import type { KaitenCustomerSession, KaitenSessionClientConfig } from "../core/config.ts";
 import {
+  PROVIDER_TIMEOUT_MS,
   resolveApiBaseUrl,
   resolveFetchImplementation,
   retryable,
@@ -169,12 +170,24 @@ export class KaitenSessionClient implements KaitenSessionClientLike {
   }
 
   async checkout(input: CheckoutInput): Promise<CheckoutResult> {
-    return mapCheckout(await this.call<WireCheckout>("POST", "checkout", "checkout()", input));
+    // A preview computes what is due and asks the provider nothing.
+    const wait = input?.dryRun ? "read" : "provider";
+    return mapCheckout(
+      await this.call<WireCheckout>("POST", "checkout", "checkout()", input, wait),
+    );
   }
 
   async cancelSubscription(input: { reason?: string } = {}): Promise<PortalSubscription> {
     return mapSubscription(
-      await this.call<WireSubscription>("POST", "billing/cancel", "cancelSubscription()", input),
+      // Ending a subscription still waiting for its first payment voids that
+      // invoice at the provider.
+      await this.call<WireSubscription>(
+        "POST",
+        "billing/cancel",
+        "cancelSubscription()",
+        input,
+        "provider",
+      ),
     );
   }
 
@@ -191,6 +204,7 @@ export class KaitenSessionClient implements KaitenSessionClientLike {
         "billing/portal-session",
         "createPortalSession()",
         input,
+        "provider",
       ),
     );
   }
@@ -206,6 +220,7 @@ export class KaitenSessionClient implements KaitenSessionClientLike {
         "billing/payment-method-session",
         "createPaymentMethodSession()",
         currencyCode === undefined ? { returnUrl } : { returnUrl, currency: currencyCode },
+        "provider",
       ),
     );
   }
@@ -221,6 +236,8 @@ export class KaitenSessionClient implements KaitenSessionClientLike {
         "POST",
         `billing/payment-method-session/${encodeURIComponent(sessionId)}/complete`,
         `completePaymentMethodSession(${sessionId})`,
+        undefined,
+        "provider",
       ),
     );
   }
@@ -271,25 +288,33 @@ export class KaitenSessionClient implements KaitenSessionClientLike {
     );
   }
 
-  /** One call to `/public/session/<route>`, with its retries and its renewal. */
+  /**
+   * One call to `/public/session/<route>`, with its retries and its renewal.
+   * `wait` is `"provider"` for a write that goes through the payment provider
+   * before it answers, which waits {@link PROVIDER_TIMEOUT_MS} when the host sets
+   * no `timeoutMs`; every other call waits the 10 seconds of a read.
+   */
   private call<T>(
     method: "GET" | "POST" | "PUT",
     route: string,
     label: string,
     body?: unknown,
+    wait: "read" | "provider" = "read",
   ): Promise<T> {
+    const timeoutMs =
+      this.config.timeoutMs ?? (wait === "provider" ? PROVIDER_TIMEOUT_MS : undefined);
     return retry(
       async () => {
         let token = await this.sessionToken();
         try {
-          return await this.send<T>(method, route, label, token, body);
+          return await this.send<T>(method, route, label, token, body, timeoutMs);
         } catch (error) {
           if (!(error instanceof KaitenError) || error.status !== 401)
             throw this.refused(error, label);
           // The session was refused: renew it, once, and send the request again.
           token = await this.sessionToken(token);
           try {
-            return await this.send<T>(method, route, label, token, body);
+            return await this.send<T>(method, route, label, token, body, timeoutMs);
           } catch (again) {
             throw this.refused(again, label);
           }
@@ -317,13 +342,14 @@ export class KaitenSessionClient implements KaitenSessionClientLike {
     label: string,
     token: string,
     body: unknown,
+    timeoutMs: number | undefined,
   ): Promise<T> {
     const headers = publicHeaders(this.config.defaultHeaders);
     headers.set("Authorization", `Bearer ${token}`);
     return sendPublic<T>(
       this.fetchImpl,
       `${this.baseUrl}/public/session/${route}`,
-      { method, headers, body, timeoutMs: this.config.timeoutMs },
+      { method, headers, body, timeoutMs },
       label,
     );
   }

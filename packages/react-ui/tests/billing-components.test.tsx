@@ -25,6 +25,7 @@ import {
   BillingSummary,
   EntitlementStatusBar,
   FeatureCatalog,
+  FeatureComparison,
   type LicensingSnapshot,
   type Plan,
 } from "../src/index.ts";
@@ -311,6 +312,87 @@ test("FeatureCatalog accepts a host-supplied catalog instead of usePlans()", asy
   mount(<FeatureCatalog plans={[{ ...plan, name: "Host Plan" }]} />);
   await settled();
   expect(screen.getByText("Seats")).toBeDefined();
+});
+
+// A plan that lists an entitlement it does not grant: SSO off, no seats.
+const free: Plan = {
+  id: "plan-free",
+  slug: "free",
+  name: "Free",
+  price: 0,
+  currencyCode: "USD",
+  interval: "month",
+  features: [],
+  published: true,
+  entitlements: [
+    { slug: "seats", name: "Seats", type: "NUMBER", value: { type: "number", value: 0 } },
+    { slug: "sso", name: "SSO", type: "BOOLEAN", value: { type: "boolean", value: false } },
+    // Granted without limit: the unlimited sentinel is negative, and it is a grant.
+    {
+      slug: "projects",
+      name: "Projects",
+      type: "NUMBER",
+      unlimited: true,
+      value: { type: "number", value: -1 },
+    },
+  ],
+};
+
+// What a server token reads besides the published plans: every licence of the
+// organization, drafts and archived versions included.
+const draft: Plan = {
+  ...plan,
+  id: "plan-next",
+  slug: "pro-next",
+  name: "Pro Next",
+  published: false,
+  lifecycleState: "DRAFT",
+  entitlements: [
+    ...(plan.entitlements ?? []),
+    { slug: "ai", name: "AI assistant", type: "BOOLEAN", value: { type: "boolean", value: true } },
+  ],
+};
+const archived: Plan = {
+  ...plan,
+  id: "plan-old",
+  slug: "pro-old",
+  name: "Pro Legacy",
+  published: false,
+  lifecycleState: "ARCHIVED",
+};
+
+test("FeatureCatalog names only the plans that grant a feature", async () => {
+  install({ plans: [free, plan] });
+  mount(<FeatureCatalog unstyled />);
+  await waitFor(() => expect(screen.getByText(/^SSO/)).toBeDefined());
+
+  const row = (name: string) => screen.getByText(new RegExp(`^${name}\\b`)).textContent;
+  expect(row("SSO")).toMatch(/Available on: Pro$/);
+  expect(row("Seats")).toMatch(/Available on: Pro$/);
+  expect(row("Projects")).toMatch(/Available on: Free$/);
+});
+
+test("FeatureCatalog leaves out draft and archived plans", async () => {
+  install({ plans: [plan, draft, archived] });
+  mount(<FeatureCatalog unstyled />);
+  await waitFor(() => expect(screen.getByText(/^SSO/)).toBeDefined());
+
+  expect(screen.getByText(/^SSO/).textContent).toMatch(/Available on: Pro$/);
+  expect(screen.queryByText(/AI assistant/)).toBeNull();
+});
+
+test("FeatureComparison leaves out draft and archived plans under a server token", async () => {
+  install({ plans: [plan, draft, archived] });
+  mount(<FeatureComparison />);
+  await waitFor(() =>
+    expect(document.querySelector('[data-slot="feature-comparison"] thead')).toBeTruthy(),
+  );
+
+  const headers = [...document.querySelectorAll('[data-slot="feature-comparison"] thead th')].map(
+    (header) => header.textContent,
+  );
+  expect(headers.slice(1)).toEqual(["Pro"]);
+  expect(screen.queryByText("AI assistant")).toBeNull();
 });
 
 test("FeatureCatalog filters by search, and says so when nothing matches", async () => {

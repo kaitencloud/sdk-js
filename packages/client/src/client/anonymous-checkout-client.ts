@@ -15,6 +15,7 @@ import type {
   KaitenCheckoutTokenStorage,
 } from "../core/config.ts";
 import {
+  PROVIDER_TIMEOUT_MS,
   resolveApiBaseUrl,
   publicHeaders,
   resolveFetchImplementation,
@@ -157,12 +158,6 @@ const STORAGE_KEY_PREFIX = "kaiten.checkout.";
 
 /** How long the API lets the token read a session after it closed: 24 hours. */
 const READ_WINDOW_MS = 24 * 60 * 60 * 1000;
-
-/**
- * The timeout of a confirm when the host sets none. A confirm may open a payment
- * provider's objects and pay inline, so it gets longer than the 10 seconds of a read.
- */
-const CONFIRM_TIMEOUT_MS = 30_000;
 
 /**
  * `sessionStorage` in a browser that lets this page use it. Elsewhere memory alone:
@@ -332,7 +327,8 @@ export class KaitenAnonymousCheckoutClient implements KaitenAnonymousCheckoutCli
         {
           method: "POST",
           headers: this.bearer(token),
-          timeoutMs: this.config.timeoutMs ?? CONFIRM_TIMEOUT_MS,
+          // A confirm may open the payment provider's objects and pay inline.
+          timeoutMs: this.config.timeoutMs ?? PROVIDER_TIMEOUT_MS,
         },
         label,
       ),

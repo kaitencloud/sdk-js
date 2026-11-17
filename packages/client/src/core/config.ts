@@ -32,7 +32,10 @@ export interface KaitenClientConfig {
   authScheme: KaitenAuthScheme;
   defaultHeaders?: Record<string, string>;
   fetch?: KaitenFetch;
-  /** Optional per-request timeout in milliseconds (AbortSignal.timeout). */
+  /**
+   * Per-request timeout in milliseconds (`AbortSignal.timeout`): 10 seconds when
+   * unset, and no deadline at all when `0`.
+   */
   timeoutMs?: number;
   /**
    * Called when the API rejects the credential (401/403).
@@ -90,7 +93,13 @@ export interface KaitenSessionClientConfig {
   getCustomerSession: KaitenCustomerSessionProvider;
   defaultHeaders?: Record<string, string>;
   fetch?: KaitenFetch;
-  /** Optional per-request timeout in milliseconds. */
+  /**
+   * Per-request timeout in milliseconds, as for `KaitenClient`: `0` sets no
+   * deadline at all. When unset, a call that goes through the payment provider
+   * before it answers (`checkout` other than a `dryRun`, `cancelSubscription`,
+   * `createPortalSession`, `createPaymentMethodSession` and
+   * `completePaymentMethodSession`) waits 30 seconds, every other call 10.
+   */
   timeoutMs?: number;
   /**
    * Called when the API refuses a session the client has already renewed once
@@ -140,7 +149,11 @@ export interface KaitenAnonymousCheckoutClientConfig {
   publishableKey: string;
   defaultHeaders?: Record<string, string>;
   fetch?: KaitenFetch;
-  /** Optional per-request timeout in milliseconds. */
+  /**
+   * Per-request timeout in milliseconds, as for `KaitenClient`: `0` sets no
+   * deadline at all. When unset, `confirmCheckout`, which may go through the
+   * payment provider before it answers, waits 30 seconds, every other call 10.
+   */
   timeoutMs?: number;
   /**
    * Called when the API refuses the credential of a call: a 401, or a 403

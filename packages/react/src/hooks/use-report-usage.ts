@@ -57,7 +57,8 @@ function bumpEntitlementUsage(
   entitlementSlug: string,
   input: ReportUsageInput,
 ): LicensingSnapshot | undefined {
-  // Only numeric usage moves a meter; boolean/config reports leave it untouched.
+  // Only a number moves a meter. A report is typed to carry one; a value that
+  // reaches here untyped, which the API refuses, leaves the meter untouched.
   if (!snapshot?.entitlements || input.value.type !== "number") return snapshot;
   const delta = input.value.value;
 

@@ -17,6 +17,7 @@ import {
   BillingSummary,
   CurrentPlan,
   formatKaitenDate,
+  PlanBadge,
   type KaitenLocalizationOverrides,
 } from "../src/index.ts";
 import { KaitenProvider } from "./support/styled-provider.tsx";
@@ -189,4 +190,42 @@ test("the billing summary names the plan the same way", async () => {
   await waitFor(() =>
     expect(document.querySelector('[data-slot="billing-summary-plan"]')?.textContent).toBe("Pro"),
   );
+});
+
+test("the plan badge names the plan the portal says the session is on", async () => {
+  const sessionClient = new KaitenSessionClient({
+    apiUrl: API,
+    fetch: vi.fn(
+      async () =>
+        new Response(JSON.stringify(sessionAnswers.portal), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+    ),
+    getCustomerSession: () => ({
+      token: `kst_${"s".repeat(43)}`,
+      expiresAt: new Date(Date.now() + 30 * 60_000).toISOString(),
+    }),
+  });
+  render(
+    <KaitenProvider
+      mode="customer-session"
+      sessionClient={sessionClient}
+      apiUrl={API}
+      polling={{ enabled: false }}
+    >
+      <PlanBadge />
+      <PlanBadge unstyled />
+    </KaitenProvider>,
+  );
+
+  await waitFor(() =>
+    expect(
+      [...document.querySelectorAll('[data-slot="plan-badge"]')].map((badge) => badge.textContent),
+    ).toEqual(["Pro", "Pro"]),
+  );
+  // A session has no licence, so no licence type to colour the badge by or to state.
+  for (const badge of document.querySelectorAll('[data-slot="plan-badge"]')) {
+    expect(badge.getAttribute("data-plan-type")).toBeNull();
+  }
 });

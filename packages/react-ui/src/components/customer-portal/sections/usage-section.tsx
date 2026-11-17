@@ -93,12 +93,15 @@ function UsageMetersImpl({ appearance, unstyled = false }: UsageMetersProps) {
         <h3>{localization.usageMeters.title}</h3>
         <ul>
           {data.map((entitlement) => {
+            const reading = readQuota(entitlement);
             const window = usageWindowLabel(entitlement, localization);
             return (
               <li key={entitlement.slug}>
                 {entitlement.name}:{" "}
-                {entitlement.currentValue?.type === "number" ? entitlement.currentValue.value : 0} /{" "}
-                {entitlement.limitValue.type === "number" ? entitlement.limitValue.value : 0}
+                {/* A usage read that failed says nothing about how much is used: it is not "0 / limit". */}
+                {reading.unavailable
+                  ? localization.billingSummary.usageUnavailable
+                  : `${reading.used} / ${entitlement.limitValue.type === "number" ? entitlement.limitValue.value : 0}`}
                 {window ? ` (${window})` : ""}{" "}
                 <ProvenanceNote
                   unstyled
@@ -138,13 +141,29 @@ function UsageMetersImpl({ appearance, unstyled = false }: UsageMetersProps) {
 
           return (
             <div key={entitlement.slug} className="rounded-ktn-lg border border-ktn-border p-4">
-              <div className="mb-3 flex items-start justify-between gap-3">
+              <div
+                className={cn(
+                  "flex items-start justify-between gap-3",
+                  reading.unavailable ? "" : "mb-3",
+                )}
+              >
                 <div>
                   <p className="text-sm font-medium">{entitlement.name}</p>
-                  <p className="text-xs text-ktn-muted-foreground">
-                    {`${current.toLocaleString()} / ${limit.toLocaleString()}`}
-                    {unitLabel(entitlement, limit) ? ` ${unitLabel(entitlement, limit)}` : ""}
-                  </p>
+                  {/* A usage read that failed says nothing about how much is used, so the row
+                      says that in place of "0 / limit", a percentage and a bar of nothing. */}
+                  {reading.unavailable ? (
+                    <p
+                      data-slot="usage-meters-unavailable"
+                      className="ktn-own text-xs text-ktn-muted-foreground"
+                    >
+                      {localization.billingSummary.usageUnavailable}
+                    </p>
+                  ) : (
+                    <p className="text-xs text-ktn-muted-foreground">
+                      {`${current.toLocaleString()} / ${limit.toLocaleString()}`}
+                      {unitLabel(entitlement, limit) ? ` ${unitLabel(entitlement, limit)}` : ""}
+                    </p>
+                  )}
                   {/*
                     Per bar, never once per card. Each entitlement carries its own
                     cadence, and a LICENSE_START anchor phases the window off the
@@ -162,17 +181,21 @@ function UsageMetersImpl({ appearance, unstyled = false }: UsageMetersProps) {
                     source={entitlement.effectiveSource ?? entitlement.source}
                   />
                 </div>
-                <Badge variant={badge.variant} className={badge.className}>
-                  {`${reading.percentOfGrant}%`}
-                </Badge>
+                {reading.unavailable ? null : (
+                  <Badge variant={badge.variant} className={badge.className}>
+                    {`${reading.percentOfGrant}%`}
+                  </Badge>
+                )}
               </div>
-              <ProgressBar
-                value={current}
-                max={limit}
-                overagePercent={reading.overagePercent}
-                className={cn(merged.elements?.usageBar)}
-                fillClassName={cn(merged.elements?.usageBarFill)}
-              />
+              {reading.unavailable ? null : (
+                <ProgressBar
+                  value={current}
+                  max={limit}
+                  overagePercent={reading.overagePercent}
+                  className={cn(merged.elements?.usageBar)}
+                  fillClassName={cn(merged.elements?.usageBarFill)}
+                />
+              )}
             </div>
           );
         })}

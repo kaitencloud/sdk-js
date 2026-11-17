@@ -19,7 +19,8 @@ export interface PaywallTriggerOptions {
   /**
    * What to do when there is no entitlement data to decide on: no read ever
    * succeeded, or reads have been failing for longer than the provider's
-   * `staleIfErrorMs`. `"block"` (default, fail-closed) shows the paywall, so
+   * `staleIfErrorMs`, or the usage of the quota could not be read
+   * (`usage_unavailable`). `"block"` (default, fail-closed) shows the paywall, so
    * paid content is never revealed to a customer nothing was read for;
    * `"allow"` (fail-open) hides the paywall and reveals the content. The error
    * stays available on `error` either way.
@@ -34,8 +35,11 @@ export interface PaywallTriggerOptions {
  * Why a paywall shows.
  *
  * - `over_limit`: the quota is used up.
+ * - `insufficient_quota`: the quota has some left, but less than the `min` asked for.
  * - `near_limit`: past the threshold, still allowed.
  * - `not_entitled`: the plan does not include it.
+ * - `usage_unavailable`: the quota is granted, but its usage could not be read, and
+ *   the policy is to block.
  * - `error`: there is no entitlement data to decide on, and the policy is to block.
  *
  * The union is open: a minor release may name more, for instance when Kaiten
@@ -43,7 +47,14 @@ export interface PaywallTriggerOptions {
  * as a wall, not as an error: `shouldShow` and `GateState.blocked` already say
  * whether one is up.
  */
-export type PaywallReason = "over_limit" | "near_limit" | "not_entitled" | "error" | (string & {});
+export type PaywallReason =
+  | "over_limit"
+  | "insufficient_quota"
+  | "near_limit"
+  | "not_entitled"
+  | "usage_unavailable"
+  | "error"
+  | (string & {});
 
 export interface PaywallTriggerResult {
   shouldShow: boolean;
@@ -55,10 +66,17 @@ export interface PaywallTriggerResult {
   /**
    * True only when the decision is driven by a FINITE numeric quota (so the
    * `current`/`limit`/`percentage` and a progress bar are meaningful). False for
-   * boolean/config denials and unlimited entitlements — UIs should not draw
-   * a 0% meter for "feature not in plan" (R-?, it read as a metering bug).
+   * boolean/config denials, unlimited entitlements and a quota whose usage could
+   * not be read — UIs should not draw a 0% meter for "feature not in plan" (it
+   * read as a metering bug), nor a zero for a usage nobody knows.
    */
   metered: boolean;
+  /**
+   * What the quota has left before the server refuses, or `null` when there is no finite
+   * quota or its usage could not be read. With `insufficient_quota`, it is less than the
+   * `min` asked for.
+   */
+  remaining?: number | null;
   /**
    * The window this quota is counted in, already localized — or `null` when
    * there is nothing truthful to say (no numeric cap, or a scope nobody read).
@@ -102,8 +120,12 @@ export function usePaywallTrigger(
   const gates = mode === "authenticated" || mode === "customer-session";
 
   // A finite numeric quota is the only case where current/limit/percentage and a
-  // progress bar are meaningful (R-?). Boolean/config/flag/unlimited never are.
-  const metered = check.entitlement?.limitValue.type === "number" && !check.isUnlimited;
+  // progress bar are meaningful (R-?). Boolean/config/flag/unlimited never are, and
+  // neither is a quota whose usage could not be read: its `current` is no figure.
+  const quota = check.entitlement?.limitValue.type === "number" && !check.isUnlimited;
+  const usageUnread = quota && check.entitlement?.usageUnavailable === true;
+  const metered = quota && !usageUnread;
+  const remaining = check.remaining;
   const usageWindow = check.entitlement ? usageWindowLabel(check.entitlement, localization) : null;
 
   // Only a customer's scope has a customer's entitlements. Public mode's
@@ -130,6 +152,7 @@ export function usePaywallTrigger(
         limit: check.limit,
         percentage: check.percentage,
         metered: false,
+        remaining,
         usageWindow,
         isLoading: false,
         error: null,
@@ -145,6 +168,7 @@ export function usePaywallTrigger(
         limit: check.limit,
         percentage: check.percentage,
         metered,
+        remaining,
         usageWindow,
         isLoading: true,
         error: null,
@@ -167,6 +191,26 @@ export function usePaywallTrigger(
         limit: check.limit,
         percentage: check.percentage,
         metered,
+        remaining,
+        usageWindow,
+        isLoading: false,
+        error: check.error,
+        recommendedAction: undefined,
+      };
+    }
+
+    // The quota is granted and its usage could not be read: there is nothing to
+    // decide on either, so the same policy applies. It is no reason to sell anything.
+    if (usageUnread) {
+      const failClosed = (options.onError ?? "block") === "block";
+      return {
+        shouldShow: failClosed,
+        reason: failClosed ? ("usage_unavailable" as const) : null,
+        current: check.current,
+        limit: check.limit,
+        percentage: check.percentage,
+        metered,
+        remaining,
         usageWindow,
         isLoading: false,
         error: check.error,
@@ -184,11 +228,21 @@ export function usePaywallTrigger(
     const pickAction = (reason: PaywallReason | null): PortalAction | undefined => {
       if (entitlement?.actions?.[0]) return entitlement.actions[0];
       const preferred =
-        reason === "over_limit" || reason === "near_limit" ? "add_quota" : "upgrade_plan";
+        reason === "over_limit" || reason === "insufficient_quota" || reason === "near_limit"
+          ? "add_quota"
+          : "upgrade_plan";
       return fallbackActions.find((action) => action.type === preferred) ?? fallbackActions[0];
     };
     if (!check.allowed) {
-      const reason = check.percentage >= 100 ? "over_limit" : "not_entitled";
+      // A finite quota that refuses is one that ran out, or one with less left than
+      // the `min` asked for. Only a grant of nothing, or a feature that is off, is
+      // one the plan does not include.
+      const reason: PaywallReason =
+        !metered || check.limit <= 0
+          ? "not_entitled"
+          : typeof options.min === "number" && (remaining ?? 0) > 0
+            ? "insufficient_quota"
+            : "over_limit";
       return {
         shouldShow: true,
         reason,
@@ -196,6 +250,7 @@ export function usePaywallTrigger(
         limit: check.limit,
         percentage: check.percentage,
         metered,
+        remaining,
         usageWindow,
         isLoading: false,
         error: check.error,
@@ -211,6 +266,7 @@ export function usePaywallTrigger(
         limit: check.limit,
         percentage: check.percentage,
         metered,
+        remaining,
         usageWindow,
         isLoading: false,
         error: check.error,
@@ -225,6 +281,7 @@ export function usePaywallTrigger(
       limit: check.limit,
       percentage: check.percentage,
       metered,
+      remaining,
       usageWindow,
       isLoading: false,
       error: check.error,
@@ -236,6 +293,8 @@ export function usePaywallTrigger(
     entitlementSlug,
     failed,
     metered,
+    remaining,
+    usageUnread,
     usageWindow,
     gates,
     options.min,

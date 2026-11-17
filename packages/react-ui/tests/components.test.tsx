@@ -1094,6 +1094,66 @@ test("AddOns invokes onManageAddon before emitting kaiten:addon-added", async ()
   window.removeEventListener("kaiten:addon-added", addonListener as EventListener);
 });
 
+test("AddOns renders no add or remove button the host has not wired", async () => {
+  installFetchMock({ snapshot: portalRichSnapshot });
+
+  render(
+    <KaitenProvider
+      mode="authenticated"
+      accessToken="tmp_demo"
+      customerId={CUSTOMER_PORTAL_RICH}
+      polling={{ enabled: false }}
+    >
+      <AddOns />
+    </KaitenProvider>,
+  );
+
+  await waitFor(() => {
+    expect(screen.getByText("Extra seats")).toBeDefined();
+  });
+
+  // Same rule as CurrentPlan: without `onManageAddon` nothing changes the add-on,
+  // so a button would only emit an event that claims it did.
+  expect(screen.queryByRole("button", { name: "Add" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Remove" })).toBeNull();
+});
+
+test("AddOns does not announce a removal as kaiten:addon-added", async () => {
+  installFetchMock({ snapshot: portalRichSnapshot });
+  const onManageAddon = vi.fn();
+  const addonListener = vi.fn();
+  window.addEventListener("kaiten:addon-added", addonListener as EventListener);
+
+  render(
+    <KaitenProvider
+      mode="authenticated"
+      accessToken="tmp_demo"
+      customerId={CUSTOMER_PORTAL_RICH}
+      polling={{ enabled: false }}
+    >
+      <AddOns onManageAddon={onManageAddon} />
+    </KaitenProvider>,
+  );
+
+  await waitFor(() => {
+    expect(screen.getByRole("button", { name: "Remove" })).toBeDefined();
+  });
+
+  fireEvent.click(screen.getByRole("button", { name: "Remove" }));
+
+  await waitFor(() => {
+    expect(onManageAddon).toHaveBeenCalledWith(
+      expect.objectContaining({ slug: "priority", active: true }),
+    );
+  });
+  // Let the handler's microtasks run out before asserting that nothing was emitted.
+  await Promise.resolve();
+  await Promise.resolve();
+  expect(addonListener).not.toHaveBeenCalled();
+
+  window.removeEventListener("kaiten:addon-added", addonListener as EventListener);
+});
+
 test("IncludedFeatures and UsageMeters support unstyled layout", async () => {
   installFetchMock({ snapshot: portalRichSnapshot });
 

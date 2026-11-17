@@ -6,7 +6,8 @@ import * as React from "react";
 import { useMergedAppearance } from "../../appearance/context.tsx";
 import { useIcons } from "../../appearance/icons.tsx";
 import type { KaitenAppearance } from "../../appearance/types.ts";
-import { usePlans, useLocalization, type Plan } from "@kaitencloud/react";
+import { usePlans, useLocalization, type Plan, type PlanEntitlement } from "@kaitencloud/react";
+import { publishedPlans } from "../../lib/published-plans.ts";
 import { cn } from "../../lib/utils.ts";
 import { useAssertWrappedByKaitenProvider } from "../../style-root/kaiten-style-root.tsx";
 import { useTrackComponent } from "@kaitencloud/react/internal";
@@ -63,8 +64,26 @@ export interface CatalogFeature {
    * against your own set.
    */
   icon?: string | null;
-  /** Names of the plans that include this feature, in catalog order. */
+  /**
+   * Names of the plans that grant this feature, in catalog order. A plan that lists it
+   * switched off (`false`) or at `0` does not grant it and is not named; the list is
+   * empty for a feature no plan grants yet.
+   */
   planNames: string[];
+}
+
+/**
+ * Whether a plan that lists an entitlement grants it. Listing is not granting: a plan can
+ * carry SSO at `false` or seats at `0` to say it has none. A number below zero is the
+ * unlimited sentinel, and a grant. A listed entitlement with no value says nothing more
+ * than that it is there, which FeatureComparison reads as included too.
+ */
+function grants(entitlement: PlanEntitlement): boolean {
+  if (entitlement.unlimited) return true;
+  const value = entitlement.value;
+  if (value?.type === "boolean") return value.value;
+  if (value?.type === "number") return value.value !== 0;
+  return true;
 }
 
 /**
@@ -81,9 +100,10 @@ function buildFeatures(plans: Plan[], generalLabel: string): CatalogFeature[] {
       // read path did not say, and stays visible — same rule as everywhere else.
       if (entitlement.userFacing === false) continue;
 
+      const granted = grants(entitlement);
       const existing = features.get(entitlement.slug);
       if (existing) {
-        if (!existing.planNames.includes(plan.name)) existing.planNames.push(plan.name);
+        if (granted && !existing.planNames.includes(plan.name)) existing.planNames.push(plan.name);
         continue;
       }
 
@@ -98,7 +118,7 @@ function buildFeatures(plans: Plan[], generalLabel: string): CatalogFeature[] {
         category: entitlement.category || generalLabel,
         ...(stage ? { stage } : {}),
         icon: entitlement.icon,
-        planNames: [plan.name],
+        planNames: granted ? [plan.name] : [],
       });
     }
   }
@@ -143,7 +163,11 @@ export function FeatureCatalog({
   const plansQuery = usePlans();
 
   const hostSupplied = plansProp !== undefined;
-  const plans = plansProp ?? plansQuery.data ?? [];
+  // Draft and archived licenses are not on offer: same rule as PricingTable.
+  const plans = React.useMemo(
+    () => publishedPlans(plansProp ?? plansQuery.data ?? []),
+    [plansProp, plansQuery.data],
+  );
 
   const features = React.useMemo(
     () => buildFeatures(plans, localization.featureComparison.general),
@@ -206,8 +230,10 @@ export function FeatureCatalog({
           {features.map((feature) => (
             <li key={feature.slug}>
               {feature.name}
-              {feature.stage ? ` (${feature.stage})` : ""} — {feature.category} —{" "}
-              {localization.featureCatalog.availableOn} {feature.planNames.join(", ")}
+              {feature.stage ? ` (${feature.stage})` : ""} — {feature.category}
+              {feature.planNames.length
+                ? ` — ${localization.featureCatalog.availableOn} ${feature.planNames.join(", ")}`
+                : ""}
             </li>
           ))}
         </ul>
@@ -336,21 +362,25 @@ export function FeatureCatalog({
                       ) : null}
                     </div>
 
-                    <Separator className="ktn-own mt-auto" />
+                    {feature.planNames.length ? (
+                      <>
+                        <Separator className="ktn-own mt-auto" />
 
-                    <div className="ktn-own flex flex-wrap items-center gap-2">
-                      <span className="ktn-own font-ktn-mono text-[10px] text-ktn-muted-foreground uppercase">
-                        {localization.featureCatalog.availableOn}
-                      </span>
-                      {feature.planNames.map((planName) => (
-                        <span
-                          key={planName}
-                          className="ktn-own rounded-ktn-sm border px-2 py-1 font-ktn-mono text-[11px]"
-                        >
-                          {planName}
-                        </span>
-                      ))}
-                    </div>
+                        <div className="ktn-own flex flex-wrap items-center gap-2">
+                          <span className="ktn-own font-ktn-mono text-[10px] text-ktn-muted-foreground uppercase">
+                            {localization.featureCatalog.availableOn}
+                          </span>
+                          {feature.planNames.map((planName) => (
+                            <span
+                              key={planName}
+                              className="ktn-own rounded-ktn-sm border px-2 py-1 font-ktn-mono text-[11px]"
+                            >
+                              {planName}
+                            </span>
+                          ))}
+                        </div>
+                      </>
+                    ) : null}
                   </CardContent>
                 </Card>
               </li>

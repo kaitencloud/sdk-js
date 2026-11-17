@@ -136,6 +136,12 @@ export const defaultLocalization: KaitenLocalization = {
       "This feature is currently gated for this customer. Unlock it by changing plan or enabling the related add-on.",
     errorDescription: "We couldn't verify your access right now. Please try again in a moment.",
     usageDescription: (current, limit) => `You've used ${current} of ${limit} allowed.`,
+    usageUnavailable: "Usage unavailable",
+    usageUnavailableDescription:
+      "We couldn't read your usage right now. Please try again in a moment.",
+    insufficientQuota: "Not enough quota",
+    insufficientQuotaDescription: (required, remaining) =>
+      `This needs ${required}, and ${remaining} are left.`,
   },
   price: {
     perMonth: "/month",

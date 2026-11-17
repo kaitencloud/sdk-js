@@ -154,7 +154,11 @@ which it sends as `Authorization: Bearer kst_…` to `/api/public/session/*` and
 else. It calls `getCustomerSession` for its first call and again 60 seconds before the
 session expires, once for any number of concurrent calls; when the API refuses a
 session (401), it renews it and sends the request once more, and a second refusal
-reaches `onAuthError`.
+reaches `onAuthError`. A call waits 10 seconds for its answer, and one that goes through
+the payment provider before it answers (`checkout` other than a `dryRun`,
+`cancelSubscription`, `createPortalSession`, `createPaymentMethodSession` and
+`completePaymentMethodSession`) 30. `timeoutMs` sets one deadline for every call, and
+`0` none, as for `KaitenClient`.
 
 | Call                                                                | Route                                                    |
 | ------------------------------------------------------------------- | -------------------------------------------------------- |
