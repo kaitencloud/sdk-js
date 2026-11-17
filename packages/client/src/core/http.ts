@@ -73,6 +73,14 @@ export function toKaitenApiError(error: unknown, responseStatus?: number): Kaite
 export const DEFAULT_TIMEOUT_MS = 10_000;
 
 /**
+ * Ceiling on a write that goes through the payment provider when the host sets
+ * none. Such a write may open the provider's objects and pay inline before it
+ * answers, and one that times out in the browser may still succeed on the
+ * server: the customer would see a network error for a subscription that exists.
+ */
+export const PROVIDER_TIMEOUT_MS = 30_000;
+
+/**
  * Whether to replay a failed attempt: only a call that is safe to replay, at
  * most three attempts, and only after a network failure or a 5xx. A call that
  * names its `statuses` is replayed after those 5xx alone.
@@ -170,7 +178,9 @@ export function apiErrorOf(body: unknown, response: Response): KaitenError {
  * One request to a route of the public surface, and its answer: the JSON body of
  * a success, or the `KaitenError` of a refusal. The public routes neither read
  * nor set a cookie, so none is sent. The caller builds the headers, credential
- * included; a body that is not `undefined` is sent as JSON.
+ * included; a body that is not `undefined` is sent as JSON. `timeoutMs` means
+ * what it means for `KaitenClient`: {@link DEFAULT_TIMEOUT_MS} when it is
+ * `undefined`, and no deadline at all when it is `0`.
  */
 export async function sendPublic<T>(
   fetchImpl: KaitenFetch,
@@ -178,7 +188,7 @@ export async function sendPublic<T>(
   options: { method: string; headers: Headers; body?: unknown; timeoutMs?: number },
   label: string,
 ): Promise<T> {
-  const { method, headers, body, timeoutMs } = options;
+  const { method, headers, body, timeoutMs = DEFAULT_TIMEOUT_MS } = options;
   if (body !== undefined) headers.set("Content-Type", "application/json");
 
   let response: Response;
@@ -189,7 +199,7 @@ export async function sendPublic<T>(
         headers,
         credentials: "omit",
         body: body === undefined ? undefined : JSON.stringify(body),
-        signal: AbortSignal.timeout(timeoutMs ?? DEFAULT_TIMEOUT_MS),
+        ...(timeoutMs ? { signal: AbortSignal.timeout(timeoutMs) } : {}),
       }),
     );
   } catch (error) {
