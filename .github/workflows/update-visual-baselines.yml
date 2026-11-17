@@ -116,7 +116,7 @@ jobs:
           # (default) keeps the token configured so that push is authenticated.
           ref: ${{ github.sha }}
       - name: Download the verified baselines
-        uses: actions/download-artifact@v8.0.1
+        uses: actions/download-artifact@v8.0.2
         with:
           name: visual-baselines-linux
           path: ${{ runner.temp }}/visual-baselines-linux
