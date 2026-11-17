@@ -19,8 +19,8 @@ catalog:
   "@types/react-dom": ^19.3.0
   # In lockstep with the vitest pin below; scripts/check-version-invariants.mjs holds
   # every @vitest/* entry to it.
-  "@vitest/browser-playwright": 5.0.1
-  "@vitest/coverage-v8": 5.0.1
+  "@vitest/browser-playwright": 5.1.0
+  "@vitest/coverage-v8": 5.1.0
   graphql: ^17.0.2
   jsdom: ^30.0.1
   react: ^19.3.0
@@ -29,13 +29,13 @@ catalog:
   # caret: TypeScript ships breaking changes in minor releases. The packages that
   # run openapi-ts take TypeScript 6 from the `codegen` catalog below instead.
   typescript: ~7.0.2
-  vite: npm:@voidzero-dev/vite-plus-core@1.0.0
-  vite-plus: 1.0.0
+  vite: npm:@voidzero-dev/vite-plus-core@8.3.8000
+  vite-plus: 1.7.0
   # vite-plus bundles upstream vitest and exposes it via `vite-plus/test`. Pin the
-  # exact version it ships (`vp toolchain vitest`), 5.0.1 for vite-plus 1.0.0, so the
+  # exact version it ships (`vp toolchain vitest`), 5.1.0 for vite-plus 1.7.0, so the
   # project shares a single Vitest copy. Dependabot leaves it to `vp migrate`, which
   # re-pins it with vite-plus.
-  vitest: 5.0.1
+  vitest: 5.1.0
   postcss: ^8.5.28
   publint: ^0.3.25
   # Reads contracts/openapi.yaml in the client's tests, to check the fixtures against it.
@@ -71,25 +71,23 @@ overrides:
   jsdom: "catalog:"
 peerDependencyRules:
   allowAny:
-    - vite
     - vitest
   allowedVersions:
-    vite: "*"
     vitest: "*"
 minimumReleaseAgeExclude:
   - "@changesets/apply-release-plan@8.1.1"
   - "@changesets/cli@3.0.3"
   - "@changesets/config@4.0.1"
-  - "@voidzero-dev/vite-plus-core@1.0.0"
-  - "@voidzero-dev/vite-plus-darwin-arm64@1.0.0"
-  - "@voidzero-dev/vite-plus-darwin-x64@1.0.0"
-  - "@voidzero-dev/vite-plus-linux-arm64-gnu@1.0.0"
-  - "@voidzero-dev/vite-plus-linux-arm64-musl@1.0.0"
-  - "@voidzero-dev/vite-plus-linux-x64-gnu@1.0.0"
-  - "@voidzero-dev/vite-plus-linux-x64-musl@1.0.0"
-  - "@voidzero-dev/vite-plus-win32-arm64-msvc@1.0.0"
-  - "@voidzero-dev/vite-plus-win32-x64-msvc@1.0.0"
-  - vite-plus@1.0.0
+  - "@voidzero-dev/vite-plus-core@8.3.8000"
+  - "@voidzero-dev/vite-plus-darwin-arm64@1.7.0"
+  - "@voidzero-dev/vite-plus-darwin-x64@1.7.0"
+  - "@voidzero-dev/vite-plus-linux-arm64-gnu@1.7.0"
+  - "@voidzero-dev/vite-plus-linux-arm64-musl@1.7.0"
+  - "@voidzero-dev/vite-plus-linux-x64-gnu@1.7.0"
+  - "@voidzero-dev/vite-plus-linux-x64-musl@1.7.0"
+  - "@voidzero-dev/vite-plus-win32-arm64-msvc@1.7.0"
+  - "@voidzero-dev/vite-plus-win32-x64-msvc@1.7.0"
+  - vite-plus@1.7.0
   - "@anthropic-ai/claude-agent-sdk-darwin-arm64@0.3.303"
   - "@anthropic-ai/claude-agent-sdk-darwin-x64@0.3.303"
   - "@anthropic-ai/claude-agent-sdk-linux-arm64-musl@0.3.303"
