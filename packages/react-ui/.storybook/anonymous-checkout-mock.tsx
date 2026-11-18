@@ -102,6 +102,11 @@ export interface StoryAnonymousOptions {
   delayMs?: number;
   /** What the visitor does on the payment provider's page: save a payment method and come back, or stay. Default `stays`. */
   visitor?: "saves" | "stays";
+  /**
+   * With `saves`, the visitor saves once this settles rather than a moment after the window opens:
+   * what a test does in the meantime then comes first, however busy the machine is.
+   */
+  savesWhen?: Promise<void>;
   /** How the first payment ends. Default `paid`. */
   payment?: StoryPayment;
   /** Fails a method, or one call of it. */
@@ -203,10 +208,12 @@ function Shell({
     window.open = (url) => {
       if (options.visitor === "saves") {
         const sessionId = sessionOf(url);
-        setTimeout(() => {
+        const save = () => {
           base.completeSetup(sessionId);
           announceReturn(sessionId);
-        }, 50);
+        };
+        if (options.savesWhen) void options.savesWhen.then(save);
+        else setTimeout(save, 50);
       }
       return { opener: window } as unknown as Window;
     };

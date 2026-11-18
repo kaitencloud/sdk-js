@@ -678,8 +678,13 @@ describe("what is due", () => {
   });
 
   test("an amount that changed after the payment method was saved is not drawn as what is due", async () => {
-    // The visitor saves the card in the popup a moment after it opens, and the trial is used up first.
-    mount({ plan: pro }, { visitor: "saves" });
+    // Another checkout uses the trial up while the popup is open, and only then does the visitor
+    // save the card: the save waits for the test, so a busy machine cannot put it first.
+    let save!: () => void;
+    const savesWhen = new Promise<void>((resolve) => {
+      save = resolve;
+    });
+    mount({ plan: pro }, { visitor: "saves", savesWhen });
     await fillIn();
     fireEvent.click(go());
     await screen.findByText(`For ${EMAIL}`);
@@ -688,8 +693,9 @@ describe("what is due", () => {
     fireEvent.click(go("Continue to payment"));
     await screen.findByText(/Save your payment method in the window we opened/);
     latestAnonymousClient().consumeTrial("chk_mock_1");
+    save();
 
-    const alert = await screen.findByRole("alert");
+    const alert = await screen.findByRole("alert", {}, { timeout: 4_000 });
 
     expect(alert.textContent).toMatch(/amount due changed after your payment method was saved/);
     // What the visitor was shown is not what is due now, and is not drawn as if it were.
