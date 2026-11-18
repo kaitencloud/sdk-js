@@ -1,6 +1,7 @@
 // Copyright 2026 KAITEN INC
 // SPDX-License-Identifier: Apache-2.0
 
+import { majorUnitAmount } from "@kaitencloud/client";
 import { createMockKaitenClient, demoCatalog } from "@kaitencloud/client/testing";
 import { Gate, KaitenProvider, usePlans } from "@kaitencloud/react";
 
@@ -11,14 +12,22 @@ import { Gate, KaitenProvider, usePlans } from "@kaitencloud/react";
 const catalog = demoCatalog();
 const client = createMockKaitenClient();
 
-function formatPrice(
-  amountInCents: number | null | undefined,
-  currency: string | null | undefined,
-) {
-  if (amountInCents == null) return "Contact us";
-  return new Intl.NumberFormat("en", { style: "currency", currency: currency ?? "EUR" }).format(
-    amountInCents / 100,
-  );
+// A price is in the currency's minor units: cents for EUR, but yen for JPY and fils
+// for KWD. How many make a major unit is the API's to say, and `majorUnitAmount`
+// reads its table: dividing by 100 is wrong for JPY and KWD, and the runtime's locale
+// data counts no decimals for HUF or IDR, where the API counts two. It answers with
+// an exact decimal string, which `Intl` formats as it is, and with nothing for a
+// currency the API does not know.
+function formatPrice(amount: number | null | undefined, currency: string | null | undefined) {
+  if (amount == null) return "Contact us";
+  const currencyCode = currency ?? "EUR";
+  const major = majorUnitAmount({ amount, currencyCode });
+  if (major === undefined) return "—";
+  return new Intl.NumberFormat("en", {
+    style: "currency",
+    currency: currencyCode,
+    maximumFractionDigits: 20,
+  }).format(major as `${number}`);
 }
 
 function PlanCards() {

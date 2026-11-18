@@ -1,14 +1,28 @@
 // Copyright 2026 KAITEN INC
 // SPDX-License-Identifier: Apache-2.0
 
+import { majorUnitAmount } from "@kaitencloud/client";
+
 import type { StandInEvent, StandInState } from "./stand-in.ts";
 
 const date = (iso: string) =>
   new Intl.DateTimeFormat("en", { dateStyle: "medium", timeZone: "UTC" }).format(new Date(iso));
 
+/**
+ * An amount in minor units, shown in major ones: `€49.00`. How many minor units make a major one
+ * is the API's to say, and `majorUnitAmount` reads its table: the runtime's locale data counts no
+ * decimals for HUF or IDR, where the API counts two, and would show 4900 minor units as 4,900
+ * forints. The amount is exact, so it is formatted with every digit it has. A currency the API
+ * does not know has no amount to show.
+ */
 const money = (minorUnits: number, currency: string) => {
-  const format = new Intl.NumberFormat("en", { style: "currency", currency });
-  return format.format(minorUnits / 10 ** (format.resolvedOptions().maximumFractionDigits ?? 2));
+  const amount = majorUnitAmount({ amount: minorUnits, currencyCode: currency });
+  if (amount === undefined) return "—";
+  return new Intl.NumberFormat("en", {
+    style: "currency",
+    currency,
+    maximumFractionDigits: 20,
+  }).format(amount as `${number}`);
 };
 
 const PAYMENTS: Record<StandInState["payment"], string> = {

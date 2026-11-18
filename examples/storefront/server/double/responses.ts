@@ -5,6 +5,8 @@
 // of the API's (a JSON body, or a problem with a `code`), the pages of the payment provider, and
 // the few helpers its sums and its dates share.
 
+import { majorUnitAmount } from "@kaitencloud/client";
+
 type Json = Record<string, any>;
 
 /** A response: a JSON body for a status below 400, a problem above, and the headers it carries (`Retry-After`, say). */
@@ -69,12 +71,21 @@ export function addMonths(from: Date, months: number): Date {
   return next;
 }
 
-/** The label of an amount in minor units, for the description of a line: `49.00 EUR`. */
+/**
+ * The label of an amount in minor units, for the description of a line: `49.00 EUR`, `4900 JPY`,
+ * `12.500 KWD`, with a decimal for each digit of the minor unit. How many there are is the API's to
+ * say, and `majorUnitAmount` reads its table: the runtime's locale data counts none for HUF or IDR,
+ * where the API counts two. One minor unit in major ones (`"0.01"` euros, `"1"` yen) gives the
+ * count. A currency the API does not know is labelled in minor units.
+ */
 export function money(amount: number, currency: string): string {
-  const digits =
-    new Intl.NumberFormat("en", { style: "currency", currency }).resolvedOptions()
-      .maximumFractionDigits ?? 2;
-  return `${(amount / 10 ** digits).toFixed(digits)} ${currency}`;
+  const major = majorUnitAmount({ amount, currencyCode: currency });
+  const one = majorUnitAmount({ amount: 1, currencyCode: currency });
+  if (major === undefined || one === undefined) return `${amount} minor units of ${currency}`;
+
+  const decimals = one.split(".")[1]?.length ?? 0;
+  const [whole, fraction = ""] = major.split(".");
+  return `${decimals > 0 ? `${whole}.${fraction.padEnd(decimals, "0")}` : whole} ${currency}`;
 }
 
 /** A code as the API reads it: case and separators do not matter. */
