@@ -1,11 +1,5 @@
 ---
 "@kaitencloud/client": minor
-"@kaitencloud/ai-openai": minor
-"@kaitencloud/ai-anthropic": minor
-"@kaitencloud/ai-vercel": minor
-"@kaitencloud/ai-claude-agent": minor
-"@kaitencloud/ai-codex": minor
-"@kaitencloud/ai-copilot": minor
 ---
 
 Add the provider-free AI toolkit subpath, bounded OpenAI/Anthropic wrappers and

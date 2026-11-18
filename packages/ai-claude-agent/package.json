@@ -1,6 +1,7 @@
 {
   "name": "@kaitencloud/ai-claude-agent",
   "version": "0.0.0",
+  "private": true,
   "description": "Explicit usage accounting for @anthropic-ai/claude-agent-sdk; see documented preflight limitations.",
   "homepage": "https://github.com/kaitencloud/sdk-js/tree/main/packages/ai-claude-agent#readme",
   "bugs": {

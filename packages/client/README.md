@@ -518,6 +518,7 @@ and `@kaitencloud/ai-vercel` reserve before each bounded provider call.
 `@kaitencloud/ai-claude-agent` and `@kaitencloud/ai-copilot` observe post-call usage
 only; they cannot stop a model request before it runs. `@kaitencloud/ai-codex`
 gates submitted prompts, not each internal model inference.
+These six packages are released separately from `@kaitencloud/client`.
 
 ## Reporting usage
 

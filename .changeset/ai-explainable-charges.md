@@ -1,12 +1,6 @@
 ---
 "@kaitencloud/client": minor
 "@kaitencloud/server": minor
-"@kaitencloud/ai-openai": minor
-"@kaitencloud/ai-anthropic": minor
-"@kaitencloud/ai-vercel": minor
-"@kaitencloud/ai-claude-agent": minor
-"@kaitencloud/ai-codex": minor
-"@kaitencloud/ai-copilot": minor
 ---
 
 AI credits (preview), explainable charges. Requires Kaiten 26.11.3 or later; the AI credits feature stays off until it is enabled on the platform.
