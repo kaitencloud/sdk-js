@@ -106,6 +106,12 @@ route is what a mixed app wants, so the pages that only gate pay no DOM:
 </KaitenProvider>
 ```
 
+Your own markup inside a style root stays yours. The root is one `<div>`, full
+width and `position: relative`, that carries the `--ktn-*` tokens; the
+stylesheet's rules apply to the elements the SDK renders and to nothing else
+under it, so a root around the whole app restyles none of the app. See
+[Tailwind v4 host apps](#tailwind-v4-host-apps) for how that is held.
+
 A styled component with no style root above it renders unstyled — every SDK rule
 is scoped to that element — and says so in development. Nesting a second
 `<KaitenProvider>` will not help: one with the same scope is a pass-through.
@@ -183,9 +189,11 @@ never drift apart:
 
 `--ktn-*` is the SDK's public override surface — the names `appearance.variables`
 writes at runtime — and it is the same surface in light and dark. The generic names
-(`--primary`, `--background`, …) are never declared inside `.kaiten`: nothing of the
-SDK's inherits into host markup you pass as children, and nothing of the host's is
-inherited by SDK components.
+(`--primary`, `--background`, …) are never declared inside `.kaiten`, and neither
+are Tailwind's own theme variables (`--spacing`, `--text-sm`, …), which the
+stylesheet inlines into its utilities: `--ktn-*` is all that host markup inside a
+style root inherits from it, and nothing of the host's is inherited by SDK
+components.
 
 Tailwind's theme keys stay generic, so components are written with `bg-primary` and
 read `--ktn-primary`. On top of that the SDK adds:
@@ -198,24 +206,43 @@ Published consumers get precompiled CSS via `@kaitencloud/react-ui/styles.css` �
 
 ## Tailwind v4 host apps
 
-Every rule the stylesheet ships is confined to the `.kaiten` subtree — utilities,
-preflight and Tailwind's theme variables alike. Import order therefore does not
-matter, and **none of the SDK's utilities can reach your app**: a rule like
-`.bg-primary` is emitted as `.bg-primary:is(.kaiten,.kaiten *)`, so it applies
-inside Kaiten components and nowhere else. This holds even when the host has its
-own `.bg-primary` bound to its own tokens.
+Every rule the stylesheet ships is confined to the markup the SDK renders, inside
+the `.kaiten` subtree. Import order therefore does not matter, and **none of the
+SDK's rules can reach your app**, outside a style root or inside one.
 
-This holds for the **preflight** too, which needs saying because it is keyed on
-_tag_ names rather than class names — `h1`–`h6`, `a`, `ul`/`ol`, `img`, `button`,
-`table`, the universal `margin`/`padding`/`border` reset. `KaitenStyleRoot`
-renders `<div class="kaiten">{children}</div>`, so your markup is inside the
-boundary, and a tag-keyed rule scoped only to `.kaiten` would reset it. Those
-rules therefore carry a second condition: they apply only to elements the SDK
-rendered (`.ktn-own`), and explicitly not to markup you pass through one of its
-components (`<Paywall>{yourContent}</Paywall>`).
+Inside one needs saying. `KaitenStyleRoot` renders
+`<div class="kaiten">{children}</div>`, so your markup is within the boundary, and
+an app that runs Tailwind or shadcn has the SDK's class names — `bg-primary`,
+`rounded-lg`, `text-sm`, `p-4` — bound to its own theme. Each rule therefore
+carries two conditions. A utility like `.bg-primary` is emitted as
+`.bg-primary:is(.kaiten,.kaiten *):where(.ktn-own,.ktn-own *,.ktn-shell)`: inside
+a style root, **and** on an element the SDK rendered. `ktn-own` marks each
+component's root, with everything under it. `ktn-shell` marks the one element the
+SDK wraps _your_ markup in, the root of a `<Paywall>`, and nothing under it: the
+content you gate stays yours behind the wall, and an SDK component you placed in
+that content is still the SDK's. (A node you hand a component as a prop — an icon,
+a cell's value — is rendered inside that component, and styled with it.)
+
+Both conditions hold for:
+
+- the **utilities**, which are keyed on class names you may have too;
+- the **preflight**, which is keyed on _tag_ names — `h1`–`h6`, `a`, `ul`/`ol`,
+  `img`, `button`, `table`, the universal `margin`/`padding`/`border` reset;
+- the SDK's **text colour**, which is declared on the outermost element of each
+  component and not on the root, so your text keeps the colour of your page.
+
+What your markup does inherit from a style root is the `--ktn-*` tokens, and
+nothing else. Tailwind's own theme variables are not declared on it: your `p-4`
+computes from your `--spacing` inside a style root as it does outside.
+
+One consequence of the third point: a component does not take the text colour of a
+section you set it in, it reads `--ktn-foreground`. For a section whose surface
+calls for another one — a dark band in a light page — give that section a style
+root of its own (`appearance={{ baseTheme: "dark" }}`), or set `--ktn-foreground`
+on it.
 
 Both directions are tested against the shipped stylesheet — that your markup keeps
-its own styling, and that the SDK's still gets its reset.
+its own styling, and that the SDK's still gets its own.
 
 - Import `@kaitencloud/react-ui/styles.css` once from your app shell or package entry.
 - Do not add `node_modules/@kaitencloud/react-ui` or the SDK source folder to the host app's Tailwind `@source` / content scan. The SDK stylesheet is already compiled.
@@ -236,9 +263,10 @@ Storybook includes `Integration/Tailwind v4 Host` to verify a host shell with co
 ### Which side wins inside `.kaiten`
 
 Scoping settles what the SDK does to your app. The reverse — whether your CSS reaches
-_into_ Kaiten and overrides `appearance.variables` — is settled by specificity:
+_into_ Kaiten's components and overrides `appearance.variables` — is settled by
+specificity:
 
-| Host CSS                                           | Result inside `.kaiten`                          |
+| Host CSS                                           | Result on Kaiten's elements                      |
 | -------------------------------------------------- | ------------------------------------------------ |
 | Tailwind v4, or anything in `@layer`               | `appearance.variables` wins, either import order |
 | Unlayered — Tailwind v3, plain CSS, most CSS-in-JS | `appearance.variables` wins, either import order |
@@ -246,18 +274,21 @@ _into_ Kaiten and overrides `appearance.variables` — is settled by specificity
 | The SDK imported `layer(kaiten)` (see above)       | You win wholesale, however your CSS is emitted   |
 
 The published stylesheet is unlayered, and every rule in it is scoped, so a collision is
-decided on specificity: `.bg-primary:is(.kaiten,.kaiten *)` carries two classes against
-a host's `.bg-primary`, and Kaiten keeps your tokens rather than silently adopting the
-host's. Name `.kaiten` in your own selector and you are back to two classes against two,
-the later sheet winning — so an override you meant still lands, while a name collision
-you did not intend does not.
+decided on specificity. The SDK's `.bg-primary` carries two classes — its own, and one
+for `:is(.kaiten,.kaiten *)`; the `:where()` that asks for the SDK's markup weighs
+nothing — against a host's `.bg-primary`, and a Kaiten component keeps your tokens
+rather than silently adopting the host's. Name `.kaiten` in your own selector and you
+are back to two classes against two, the later sheet winning — so an override you meant
+still lands, while a name collision you did not intend does not.
 
 One consequence worth knowing if you are on Tailwind v4: an override you write _inside_
 `@layer utilities` now loses, because layered always loses to unlayered. Write it
 outside a layer, or import the SDK with `layer(kaiten)` and override it wholesale.
 
 `Integration/Appearance precedence` asserts these rows against the published
-`dist/kaiten.css` in a real browser, so the boundary is pinned rather than assumed.
+`dist/kaiten.css` in a real browser, so the boundary is pinned rather than assumed. The
+same stories hold the other direction: a host's own button inside the style root, with
+the same class names, keeps the host's styling in each arrangement.
 
 ## Theming and appearance
 

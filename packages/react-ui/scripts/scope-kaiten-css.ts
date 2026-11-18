@@ -24,28 +24,43 @@ const SCOPE = ":is(.kaiten,.kaiten *)";
 /**
  * Narrows a rule further, to the markup the SDK itself rendered.
  *
- * `SCOPE` alone means "inside the boundary" — and a non-headless
- * `<KaitenProvider>` wraps the HOST's children in that boundary. That is fine
- * for the utilities, which are keyed on class names the host does not have. It
- * is not fine for Tailwind's preflight, which is keyed on TAG names: `h1`-`h6`,
- * `a`, `ul`/`ol`, `img`, `button`, `table`, and the universal margin/padding/
- * border reset. Those rules reset the host's own markup, and since this sheet is
- * deliberately unlayered they beat any host CSS that lives in a `@layer`.
+ * `SCOPE` alone means "inside the boundary", and the boundary wraps the HOST's
+ * markup: `<KaitenStyleRoot>` renders `<div class="kaiten">{children}</div>`,
+ * and one root around a whole app is a supported way to mount it. No generated
+ * rule may reach that markup on the strength of `SCOPE`:
  *
- * `.ktn-own` sits on every element the SDK renders (its `.ktn-own *` branch
- * covers their internals); `.ktn-host` marks the one place the SDK mounts markup
- * it did not write — the children of `<Paywall>` — and takes it back out.
+ * - Tailwind's preflight is keyed on TAG names: `h1`-`h6`, `a`, `ul`/`ol`, `img`,
+ *   `button`, `table`, and the universal margin/padding/border reset.
+ * - The utilities are keyed on CLASS names, and a host with its own Tailwind
+ *   build, or shadcn's tokens, has the same ones (`bg-primary`, `rounded-lg`,
+ *   `text-sm`, `p-4`), bound to its own theme. On the host's own element the
+ *   SDK's rule would outrank the host's: two classes against one, and
+ *   unlayered against a host that layers.
  *
- * `:where()` twice, deliberately: it contributes NO specificity, so a rule
- * carrying this suffix weighs exactly what it weighed before. That is what keeps
- * the arbitration documented in the README true, and what keeps the hand-written
- * `.kaiten *` border rule below the `border-ktn-*` utilities rather than above
- * them — an `:is()` version would weigh (0,2,0) and invert both.
+ * Two markers say what the SDK rendered:
+ *
+ * - `.ktn-own` sits on every root the SDK renders, and covers its subtree
+ *   (`.ktn-own *`).
+ * - `.ktn-shell` sits on an element the SDK renders AROUND markup it did not
+ *   write, the wrapper `<Paywall>` puts around the content it gates, and covers
+ *   that element alone. What is under it is the host's, until an SDK component
+ *   in there starts over with a `.ktn-own` of its own. An exclusion
+ *   (`:not(.host *)`) cannot say that: it also drops the `UpgradeButton` a host
+ *   placed in the section it gates.
+ *
+ * `:where()`, deliberately: it contributes NO specificity, so a rule carrying
+ * this suffix weighs exactly what it weighs without it. That is what keeps the
+ * arbitration documented in the README true, and what keeps the hand-written
+ * `.kaiten …` border rule below the `border-ktn-*` utilities rather than above
+ * them: an `:is()` version would weigh (0,2,0) and invert both.
  */
-const OWNERSHIP = ":where(.ktn-own,.ktn-own *):not(:where(.ktn-host,.ktn-host *))";
+const OWNERSHIP = ":where(.ktn-own,.ktn-own *,.ktn-shell)";
 
-/** Preflight and other tag-keyed base rules: the SDK's own markup only. */
-const RESET_SCOPE = SCOPE + OWNERSHIP;
+/** Every generated rule: inside the boundary, on the SDK's own markup. */
+const OWNED_SCOPE = SCOPE + OWNERSHIP;
+
+/** The two markers `OWNERSHIP` is made of, as a hand-written rule may spell them. */
+const OWNERSHIP_MARKERS = [".ktn-own", ".ktn-shell"];
 
 /** Layers Tailwind generates. Anything else in the file is hand-authored. */
 const GENERATED_LAYERS = new Set(["theme", "base", "components", "utilities"]);
@@ -59,10 +74,13 @@ const GENERATED_LAYERS = new Set(["theme", "base", "components", "utilities"]);
 const PROPERTIES_LAYER = "properties";
 
 /**
- * Selectors carrying Tailwind's own theme variables. They must land on the SDK
- * root itself (custom properties inherit from there); scoping them as
- * descendants would leave `--spacing`, `--text-sm` &c. undefined for every
- * utility that reads them.
+ * Selectors carrying Tailwind's own theme variables. A variable has to land on
+ * the SDK root itself (custom properties inherit from there); scoped as a
+ * descendant it would be undefined for every utility that reads it.
+ *
+ * src/styles/kaiten.css inlines Tailwind's theme, so this rule is normally not
+ * emitted at all: `assertOwnVariables` says why, and fails the build on what
+ * would come through here.
  */
 const THEME_ROOT_SELECTORS = new Set([":root", ":host"]);
 
@@ -168,10 +186,10 @@ function pseudoElementStart(selector: string, from: number): number {
  *
  * The scope is appended rather than prepended because a type selector has to
  * come first in its compound — `html:is(…)` is valid, `:is(…)html` is not.
- * Appending also gives the semantics we want for the root: `.relative:is(…)`
- * matches the `.kaiten` element itself, where a descendant scope would not.
+ * Appending also puts both conditions on the subject itself: `.a .b:is(…)`
+ * asks where `.b` is and who rendered it, whatever `.a` is.
  */
-export function scopeSelector(selector: string, scope: string = SCOPE): string {
+export function scopeSelector(selector: string, scope: string = OWNED_SCOPE): string {
   // Hand-authored rules already say `.kaiten`; scoping them again would both
   // double the specificity and, for `.dark .kaiten`, change what they match.
   if (selector.includes(".kaiten")) {
@@ -196,11 +214,10 @@ function isRule(node: ChildNode): node is Rule {
 }
 
 function scopeContainer(container: Container, layer: string): void {
-  // Tailwind emits the preflight, and only the preflight, into `base`. The
-  // hand-authored `@layer base` block in src/styles/kaiten.css already names
-  // `.kaiten`, so scopeSelector short-circuits on it and it is unaffected.
-  const scope = layer === "base" ? RESET_SCOPE : SCOPE;
-
+  // One scope for every generated layer, the preflight and the utilities alike.
+  // The hand-authored `@layer base` block in src/styles/kaiten.css already names
+  // `.kaiten`, so scopeSelector short-circuits on it: those rules say for
+  // themselves whose markup they are for, and `assertOwned` reads them.
   for (const node of container.nodes ?? []) {
     if (isRule(node)) {
       const selectors = splitSelectorList(node.selector);
@@ -208,9 +225,9 @@ function scopeContainer(container: Container, layer: string): void {
         layer === "theme" && selectors.every((part) => THEME_ROOT_SELECTORS.has(part));
 
       // `:root, :host` carries Tailwind's theme variables. Retarget it at the SDK
-      // root instead of scoping it, so the variables exist exactly where the
-      // scoped utilities need them and nowhere else on the host page.
-      node.selector = isThemeRoot ? ".kaiten" : scopeSelectorList(node.selector, scope);
+      // root instead of scoping it, so a variable exists where the scoped
+      // utilities read it and nowhere else on the host page.
+      node.selector = isThemeRoot ? ".kaiten" : scopeSelectorList(node.selector, OWNED_SCOPE);
       continue;
     }
 
@@ -244,14 +261,15 @@ function dedent(node: ChildNode): void {
  * Dissolves the generated layers, hoisting their rules to document scope in place.
  *
  * A layered declaration loses to every unlayered one no matter how specific it is, so
- * as long as the SDK shipped inside `@layer utilities` its `.bg-primary:is(.kaiten,
- * .kaiten *)` was unreachable in any host that emits plain CSS — Tailwind v3, hand-
- * written stylesheets, most CSS-in-JS. The `:is()` headroom was never consulted and
+ * as long as the SDK shipped inside `@layer utilities` its scoped `.bg-primary` was
+ * unreachable in any host that emits plain CSS — Tailwind v3, hand-written
+ * stylesheets, most CSS-in-JS. The `:is()` headroom was never consulted and
  * `appearance.variables` was inert there. Unlayered, the same rule competes on
  * specificity instead: two classes against the host's one, and the override lands.
  *
- * This is only safe because every rule here is already confined to `.kaiten` — nothing
- * gains reach over the host page, it just stops losing inside its own subtree. The two
+ * This is only safe because every rule here is already confined to the SDK's own
+ * markup inside `.kaiten` — nothing gains reach over the host's page or over the
+ * markup it put under the root, the SDK just stops losing on its own elements. The two
  * orderings the layers used to buy are preserved by what replaces them:
  *
  * - preflight below utilities, by source order (Tailwind emits `base` first) plus the
@@ -301,7 +319,8 @@ function unwrapGeneratedLayers(root: Container): void {
 }
 
 /**
- * Confines every Tailwind-generated rule to the `.kaiten` subtree.
+ * Confines every Tailwind-generated rule to the markup the SDK rendered inside the
+ * `.kaiten` subtree.
  *
  * Without this the package ships unprefixed, unscoped utilities — `.bg-primary`
  * bound to `var(--ktn-primary)`, a variable that only exists under `.kaiten` —
@@ -309,6 +328,9 @@ function unwrapGeneratedLayers(root: Container): void {
  * stylesheet loads last wins, so importing the SDK could blank the host's
  * utilities, and importing it first meant SDK components silently read host
  * tokens and ignored `appearance.variables`. No import order was correct.
+ *
+ * Inside the boundary is not enough of a scope, because the host's markup is in there
+ * too: see `OWNERSHIP`.
  *
  * Hand-authored rules (already written under `.kaiten`) and global-by-necessity
  * at-rules (`@property`) pass through untouched.
@@ -382,6 +404,101 @@ export function assertScoped(css: string): void {
           .slice(0, 10)
           .map((selector) => `  ${selector}`)
           .join("\n"),
+    );
+  }
+}
+
+/** The boundary itself, alone or with a colour-mode class: `.kaiten`, `.dark .kaiten:not(.ktn-light)`. */
+function isBoundary(selector: string): boolean {
+  return /^\.kaiten(?![\w-])/.test(selector.slice(subjectCompoundStart(selector)));
+}
+
+/**
+ * A class in the SDK's own namespace: `.ktn-badge-success`, `.ktn-dialog`.
+ *
+ * The lookahead keeps out the utilities of the `ktn-wide:` and `ktn-full:` variants,
+ * whose escaped names (`.ktn-wide\:flex-row`) begin the same way and are generated,
+ * so they owe the ownership condition like any other utility.
+ */
+const PRIVATE_CLASS = /\.ktn-[a-z0-9-]+(?![\w\\-])/;
+
+/**
+ * Fails the build if a rule could style markup the SDK did not render.
+ *
+ * `assertScoped` asks whether a rule stays INSIDE the boundary. The host's own markup
+ * is inside it too, so this asks the other question, of every selector in the sheet.
+ * One passes when it is:
+ *
+ * - ownership-bound: it names `.ktn-own` or `.ktn-shell`, as `OWNERSHIP` does;
+ * - the boundary itself. What that element may declare is checked apart: its custom
+ *   properties by `assertOwnVariables`, the rest in tests/scope-css.test.ts;
+ * - keyed on a class of the SDK's own namespace (`.kaiten .ktn-badge-success`), which
+ *   no host stylesheet has, so a host's element takes it only by being given it.
+ *
+ * A utility that lost its suffix fails here, and so does a hand-written
+ * `.kaiten code`: scoped, and still a rule about the host's `<code>`.
+ */
+export function assertOwned(css: string): void {
+  const root = postcss.parse(css);
+  const reaching: string[] = [];
+
+  root.walkRules((rule) => {
+    if (isExempt(rule)) return;
+
+    for (const selector of splitSelectorList(rule.selector)) {
+      if (OWNERSHIP_MARKERS.some((marker) => selector.includes(marker))) continue;
+      if (isBoundary(selector)) continue;
+      if (PRIVATE_CLASS.test(selector)) continue;
+      reaching.push(selector);
+    }
+  });
+
+  if (reaching.length > 0) {
+    throw new Error(
+      `scope-kaiten-css: ${reaching.length} selector(s) can match markup the SDK did not render:\n` +
+        reaching
+          .slice(0, 10)
+          .map((selector) => `  ${selector}`)
+          .join("\n") +
+        `\nThe host's own markup sits inside .kaiten. Bind the rule to the SDK's markup ` +
+        `(.ktn-own, .ktn-shell) or key it on a .ktn-* class.`,
+    );
+  }
+}
+
+/** Custom properties a rule of this sheet may declare: the SDK's tokens, and Tailwind's internals. */
+const OWN_VARIABLE = /^--(?:ktn|tw)-/;
+
+/**
+ * Fails the build if the sheet declares a custom property that is not the SDK's.
+ *
+ * A custom property is inherited, so what the boundary declares reaches every element
+ * under it, the host's included, whatever the selectors of the other rules say. The
+ * SDK's tokens are `--ktn-*`, a namespace no host reads. Tailwind's theme variables are
+ * not: `--spacing`, `--text-sm`, `--radius-xs` are the names a Tailwind v4 host declares
+ * on `:root`, and its own `p-4` computes `calc(var(--spacing) * 4)` from the nearest one.
+ * Declared on `.kaiten`, the SDK's copy resizes the host's markup without one SDK rule
+ * matching it.
+ *
+ * src/styles/kaiten.css inlines Tailwind's theme for that reason, and this holds it
+ * there. `--tw-*` passes: those are set by a utility on the element it matched, and
+ * registered as non-inheriting.
+ */
+export function assertOwnVariables(css: string): void {
+  const foreign = new Set<string>();
+
+  postcss.parse(css).walkDecls(/^--/, (decl) => {
+    if (!OWN_VARIABLE.test(decl.prop)) foreign.add(decl.prop);
+  });
+
+  if (foreign.size > 0) {
+    throw new Error(
+      `scope-kaiten-css: the stylesheet declares ${foreign.size} custom propert` +
+        `${foreign.size === 1 ? "y" : "ies"} outside the SDK's namespace: ` +
+        `${[...foreign].slice(0, 10).join(", ")}. A Tailwind host declares the same names ` +
+        `and reads them on its own markup inside .kaiten. Tailwind's theme has to stay ` +
+        `inlined (\`theme(inline)\` in src/styles/kaiten.css), and a token of the SDK's is ` +
+        `named --ktn-*.`,
     );
   }
 }

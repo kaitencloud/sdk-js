@@ -20,8 +20,9 @@ import { resolveVariables } from "../src/appearance/apply.ts";
  * to the stylesheet every customer downloads — three rules that exist only to lay out
  * a test harness. Out here it contributes nothing.
  *
- * The question it answers: does `appearance.variables` still win once the SDK is
- * dropped into a host running its own Tailwind build?
+ * The questions it answers: does `appearance.variables` still win once the SDK is
+ * dropped into a host running its own Tailwind build, and does that host's own markup
+ * keep the host's styling once it sits inside the style root?
  *
  * It asks against the artifact customers actually install — `dist/kaiten.css` — and not
  * against the stylesheet Storybook normally renders with. The two are not the same
@@ -31,7 +32,8 @@ import { resolveVariables } from "../src/appearance/apply.ts";
  *   compiles in-process. That output is *unscoped* — plain `.bg-primary` at document
  *   scope, exactly the shape that shipped before `ac12ec3`.
  * - The published file is post-processed by `scripts/scope-kaiten-css.ts` into
- *   `.bg-primary:is(.kaiten,.kaiten *)`, and only `vp pack` produces it.
+ *   `.bg-primary:is(.kaiten,.kaiten *):where(.ktn-own,…)`, and only `vp pack`
+ *   produces it.
  *
  * So the ordinary Storybook cascade cannot observe the regression this guards: every
  * other story in this package renders against CSS that never had the fix applied.
@@ -69,16 +71,34 @@ export const EXPECTED = {
   primaryForeground: "rgb(255, 255, 255)",
   /** `0.25rem` at the default 16px root. */
   radius: "4px",
-  /** `#dc2626` — the host's own `--primary`, which must survive outside `.kaiten`. */
+  /** The SDK's own `text-sm` and `p-4`, whatever the host's theme says. */
+  fontSize: "14px",
+  padding: "16px",
+  /**
+   * `#dc2626` — the host's own `--primary`, which must survive outside `.kaiten`, and
+   * on the host's own markup inside it.
+   */
   hostPrimary: "rgb(220, 38, 38)",
   hostRadius: "24px",
+  /** The host's theme: `--text-sm: 13px`, and `p-4` over a `--spacing` of 0.5rem. */
+  hostFontSize: "13px",
+  hostPadding: "32px",
+  hostMono: '"Courier New", monospace',
 } as const;
 
+/**
+ * `--spacing` and `--text-sm` are Tailwind's own theme variable names, which a v4 host
+ * declares on `:root` and its utilities read. The SDK's sheet is a Tailwind build too:
+ * whatever it declares under those names inside `.kaiten` is what the host's utilities
+ * read there.
+ */
 const HOST_TOKENS = `
   :root {
     --primary: #dc2626;
     --primary-foreground: #fef2f2;
     --radius: 1.5rem;
+    --spacing: 0.5rem;
+    --text-sm: 13px;
   }
 `;
 
@@ -86,19 +106,29 @@ const HOST_UTILITIES = `
   .bg-primary { background-color: var(--primary); }
   .text-primary-foreground { color: var(--primary-foreground); }
   .rounded-lg { border-radius: var(--radius); }
+  .text-sm { font-size: var(--text-sm); }
+  .p-4 { padding: calc(var(--spacing) * 4); }
+`;
+
+/** A tag-keyed host rule, as weak as a rule gets: one type selector. */
+const HOST_BASE = `
+  code { font-family: "Courier New", monospace; }
 `;
 
 /**
  * A host on Tailwind v4, which emits its utilities into native cascade layers.
  *
- * The SDK is unlayered and so outranks the host's layered utilities outright. Even at
- * equal footing it would win: `.bg-primary:is(.kaiten,.kaiten *)` carries two classes
- * against the host's one, the margin `ac12ec3` bought. Either way it holds in both
- * import orders — which was the actual bug, since load order used to decide.
+ * The SDK is unlayered and so outranks the host's layered utilities outright, on its
+ * own elements. Even at equal footing it would win there: its scoped `.bg-primary`
+ * carries two classes against the host's one, the margin `ac12ec3` bought. Either way
+ * it holds in both import orders — which was the actual bug, since load order used to
+ * decide. On the host's elements there is nothing to outrank: the SDK's rule asks for
+ * `ktn-own` and does not match them.
  */
 export const HOST_TAILWIND_V4 = `
   @layer theme, base, components, utilities;
   ${HOST_TOKENS}
+  @layer base { ${HOST_BASE} }
   @layer utilities { ${HOST_UTILITIES} }
 `;
 
@@ -117,18 +147,27 @@ export const HOST_TAILWIND_V4 = `
  * substrate, and it is also the majority of the shadcn market, so the arrangement that
  * used to silently do nothing is the one the suite should defend hardest.
  */
-export const HOST_UNLAYERED = `${HOST_TOKENS}${HOST_UTILITIES}`;
+export const HOST_UNLAYERED = `${HOST_TOKENS}${HOST_BASE}${HOST_UTILITIES}`;
+
+const PROBE_CLASSES = "bg-primary text-primary-foreground rounded-lg text-sm p-4";
 
 /**
- * Markup mirroring what `Button` renders (`bg-primary text-primary-foreground`) plus a
- * host-owned twin outside the SDK root, so one document answers both halves of the
- * guarantee: the host must not reach in, and the SDK must not leak out.
+ * Markup mirroring what `Button` renders (`ktn-own`, `bg-primary
+ * text-primary-foreground`) plus two host-owned twins, one outside the SDK root and one
+ * inside it, so one document answers the whole guarantee: the host must not reach in,
+ * and the SDK must not leak out, nor repaint what the host put under its root.
+ *
+ * The twin inside is where an app's own markup lands when one style root wraps the app,
+ * and it carries the same class names because a Tailwind or shadcn host has them too.
+ * `ktn-own` is what tells the two apart: every element the SDK renders carries it.
  */
 function iframeMarkup(styleAttr: string): string {
   return `
-    <button id="host-probe" class="bg-primary text-primary-foreground rounded-lg">Host</button>
+    <button id="host-probe" class="${PROBE_CLASSES}">Host</button>
     <div class="kaiten" style="${styleAttr}">
-      <button id="themed-probe" class="bg-primary text-primary-foreground rounded-lg">Upgrade</button>
+      <button id="embedded-host-probe" class="${PROBE_CLASSES}">Host, inside</button>
+      <code id="embedded-host-code">code</code>
+      <button id="themed-probe" class="ktn-own ${PROBE_CLASSES}">Upgrade</button>
     </div>
   `;
 }
@@ -184,13 +223,15 @@ export function PrecedenceHarness({
   return (
     <div style={{ font: "13px ui-sans-serif, system-ui", width: "100%" }}>
       <p style={{ color: "#5c6672", margin: "0 0 10px" }}>
-        Left: a host-owned button. Right: the same classes inside <code>.kaiten</code> with an{" "}
-        <code>appearance.variables</code> override. One document, host stylesheet loaded last.
+        Left: a host-owned button. Middle: the same button and a <code>code</code> inside{" "}
+        <code>.kaiten</code>, still the host's. Right: the same classes on the SDK's own button,
+        with an <code>appearance.variables</code> override. One document, host stylesheet loaded
+        last.
       </p>
       <iframe
         ref={ref}
         title="Appearance precedence harness"
-        style={{ border: 0, height: 96, width: "100%" }}
+        style={{ border: 0, height: 128, width: "100%" }}
       />
     </div>
   );

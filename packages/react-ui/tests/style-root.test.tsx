@@ -49,7 +49,9 @@ test("KaitenStyleRoot renders the scope root and the portal host", () => {
 
   const root = container.querySelector(".kaiten");
   expect(root).not.toBeNull();
-  expect(root?.classList.contains("w-full")).toBe(true);
+  // No utility class: those are for the SDK's own markup, and what is under the
+  // root is the host's. Its width comes from the `.kaiten` rule of the stylesheet.
+  expect(root?.className).toBe("kaiten");
   // Every SDK rule is scoped to this element, and portals mount inside it so
   // the tokens reach them too.
   expect(root?.querySelector("[data-slot='kaiten-portal-host']")).not.toBeNull();
