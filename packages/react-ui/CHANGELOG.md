@@ -1,5 +1,11 @@
 # @kaitencloud/react-ui
 
+## 2.1.0
+
+### Minor Changes
+
+- [#57](https://github.com/kaitencloud/sdk-js/pull/57) [`2038191`](https://github.com/kaitencloud/sdk-js/commit/20381915e720f0071bf39eba6e7d338813654aad) Thanks [@Lleios](https://github.com/Lleios)! - Add `LicenseUsage`, a block for a page of its own that shows the licence a customer holds and every numeric quota of it, with what each has used: a capped quota has its figures, its window and a bar that follows the usage rule of the Kaiten console, and a quota nothing caps (every licence Kaiten sells today) has what is used out of "Unlimited", which `UsageMeters` leaves out. It works under `mode="authenticated"` and `mode="customer-session"` (named there by the plan the portal names, with no term, since the portal carries none), says a trial with a badge, draws nothing where there is no snapshot to read, and has its words in every language pack. It is experimental, like the other styled components, and adds about 1 KB gzip to an app that imports everything.
+
 ## 2.0.0
 
 ### Major Changes
