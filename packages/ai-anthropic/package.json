@@ -37,14 +37,14 @@
     "check": "vp check"
   },
   "devDependencies": {
-    "@anthropic-ai/sdk": ">=0.100.0 <1.0.0",
+    "@anthropic-ai/sdk": ">=0.100.0 <2.0.0",
     "@kaitencloud/client": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vite-plus": "catalog:"
   },
   "peerDependencies": {
-    "@anthropic-ai/sdk": ">=0.100.0 <1.0.0",
+    "@anthropic-ai/sdk": ">=0.100.0 <2.0.0",
     "@kaitencloud/client": "workspace:^"
   },
   "peerDependenciesMeta": {
