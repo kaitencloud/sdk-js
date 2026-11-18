@@ -23,8 +23,8 @@ Commit failures are logged without hiding SDK messages.
 Evidence: [official cost tracking](https://platform.claude.com/docs/en/agent-sdk/cost-tracking)
 and [published SDK declarations](https://unpkg.com/@anthropic-ai/claude-agent-sdk@0.3.303/sdk.d.ts).
 The optional dev SDK verifies the types; tests replay synthetic typed events and
-never start Claude. This is a documented partial fulfillment of D4's agent gate,
-not a transparent per-model-turn gating implementation.
+never start Claude. It accounts for usage after each model response; it does not
+gate each model turn before it runs.
 
 `vendorCost` (optional) reads what the provider charged for a call off its answer
 and returns an exact decimal string in USD, committed beside the cost Kaiten

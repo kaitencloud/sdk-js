@@ -19,8 +19,8 @@ completion, local pricing or cumulative session totals are reported.
 before a model request. No reserve is fabricated after the call. Experimental
 requestHandler HTTP/WebSocket interception exists but changes the data-path surface
 and requires physical-retry and per-WebSocket-message correlation; this adapter
-instead documents post-call accounting only. It does not fulfill D4 preflight
-stopping for Copilot.
+instead documents post-call accounting only. It cannot stop a Copilot model
+request before it runs.
 
 Evidence: [released event types](https://cdn.jsdelivr.net/npm/@github/copilot-sdk@1.0.22/dist/types.d.ts)
 and [request handler](https://cdn.jsdelivr.net/npm/@github/copilot-sdk@1.0.22/dist/copilotRequestHandler.d.ts).
