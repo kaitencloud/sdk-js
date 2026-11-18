@@ -1,6 +1,6 @@
 {
   "name": "@kaitencloud/ai-vercel",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Kaiten AI credits for the Vercel AI SDK: kaitenMiddleware() for wrapLanguageModel. Server-side only.",
   "homepage": "https://github.com/kaitencloud/sdk-js/tree/main/packages/ai-vercel#readme",
   "bugs": {
