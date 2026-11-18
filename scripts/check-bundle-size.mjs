@@ -413,6 +413,15 @@ const SCENARIOS = [
     budgetGzip: 51_800,
   },
   {
+    // What a host that shows a customer their licence and its usage ships: the block, the shared
+    // meter, the note on where a limit comes from and the words of that note's English. It reads the
+    // snapshot, and the portal's subscription to know a trial, so it carries no billing hook.
+    // Measured at 52 088 bytes.
+    name: "react-ui · LicenseUsage + KaitenProvider + KaitenStyleRoot",
+    code: `import { LicenseUsage, KaitenProvider, KaitenStyleRoot } from "@kaitencloud/react-ui"; console.log(LicenseUsage, KaitenProvider, KaitenStyleRoot);`,
+    budgetGzip: 52_400,
+  },
+  {
     // What a host that offers a customer portal ships: the sections, the billing hooks they
     // change a subscription with, and the words of their English. A host that offers none does
     // not: the scenarios above are not in it.
@@ -484,9 +493,12 @@ const SCENARIOS = [
     // scenario. The budget rises by as much.
     // Measured at 118 419 bytes, up from 118 097: the snapshot's effective set, as in the
     // first scenario. The budget rises by as much.
+    // Measured at 120 266 bytes, up from 119 291 (the notes above stopped at 118 419, and what the
+    // tree grew by since was not written down): the licence usage block, 975 bytes. The budget rises
+    // by as much, to the margin it had.
     name: "react-ui · everything",
     code: `import * as all from "@kaitencloud/react-ui"; console.log(all);`,
-    budgetGzip: 120_350,
+    budgetGzip: 121_350,
   },
   {
     name: "client · KaitenClient alone",

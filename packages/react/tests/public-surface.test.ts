@@ -39,6 +39,7 @@ const STYLED_SURFACE = [
   "EntitlementStatusBar",
   "BillingSummary",
   "TrialBanner",
+  "LicenseUsage",
 ] as const;
 
 const CORE_SURFACE = [
