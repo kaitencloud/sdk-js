@@ -1,6 +1,7 @@
 {
   "name": "@kaitencloud/ai-codex",
   "version": "0.0.0",
+  "private": true,
   "description": "Explicit usage accounting for @openai/codex-sdk; see documented preflight limitations.",
   "homepage": "https://github.com/kaitencloud/sdk-js/tree/main/packages/ai-codex#readme",
   "bugs": {

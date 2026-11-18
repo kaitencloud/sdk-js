@@ -1,6 +1,7 @@
 {
   "name": "@kaitencloud/ai-anthropic",
   "version": "0.0.0",
+  "private": true,
   "description": "Kaiten AI credits for the Anthropic SDK: wrapAnthropic(client) reserves and commits messages.create and messages.stream. Server-side only.",
   "homepage": "https://github.com/kaitencloud/sdk-js/tree/main/packages/ai-anthropic#readme",
   "bugs": {

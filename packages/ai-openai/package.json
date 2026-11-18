@@ -1,6 +1,7 @@
 {
   "name": "@kaitencloud/ai-openai",
   "version": "0.0.0",
+  "private": true,
   "description": "Kaiten AI credits for the OpenAI SDK: wrapOpenAI(client) reserves and commits every allow-listed call. Server-side only.",
   "homepage": "https://github.com/kaitencloud/sdk-js/tree/main/packages/ai-openai#readme",
   "bugs": {
