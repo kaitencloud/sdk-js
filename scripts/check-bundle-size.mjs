@@ -495,7 +495,7 @@ const SCENARIOS = [
     // first scenario. The budget rises by as much.
     // Measured at 120 266 bytes, up from 119 291 (the notes above stopped at 118 419, and what the
     // tree grew by since was not written down): the licence usage block, 975 bytes. The budget rises
-    // by as much, to the margin it had.
+    // by 1 000, that growth rounded up to 50 bytes.
     name: "react-ui · everything",
     code: `import * as all from "@kaitencloud/react-ui"; console.log(all);`,
     budgetGzip: 121_350,
