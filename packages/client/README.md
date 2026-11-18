@@ -15,14 +15,19 @@ npm install @kaitencloud/client
 
 ## Kaiten version
 
-Minimum Kaiten version for the billing features: **the first Kaiten release with billing.** No Kaiten release carries billing yet.
+Minimum Kaiten version for the billing features: **26.11.3**, the first Kaiten release that serves all of them.
 
-Three things need it. `getCatalog()` with a publishable key reads `GET /public/catalog`, and
-`KaitenSessionClient` calls the `/public/session/*` routes; a server without billing does not
-have them, answers with an error, and the call rejects with a `KaitenError`. A usage report
-with a `transactionId` carries it in the `Idempotency-Key` header, which such a server ignores:
+Four things need it. `getCatalog()` with a publishable key reads `GET /public/catalog`,
+`KaitenAnonymousCheckoutClient` starts a checkout with one, and `KaitenSessionClient` calls the
+`/public/session/*` routes; a server without billing does not have them, answers with an error,
+and the call rejects with a `KaitenError`. Kaiten serves them from 26.10.7 on, but this version
+sends the publishable key as `Kaiten-Publishable-Key`, which Kaiten reads from 26.11.3 on: an
+earlier release reads only `X-Kaiten-Publishable-Key`, and refuses the catalogue and the
+checkout. A usage report with a `transactionId` carries it in the `Idempotency-Key` header,
+which a server without billing ignores:
 the report is counted at every sending, its answer has no `transactionId`, and the client never
-sends it again, as [Reporting usage](#reporting-usage) describes. Everything else, which 1.0.0
+sends it again, as [Reporting usage](#reporting-usage) describes. The AI credits (`ai`) need
+Kaiten 26.11.3 too. Everything else, which 1.0.0
 already did (the catalogue and the licensing snapshot composed from the licences endpoints, usage reports
 without a key), works against the Kaiten releases it worked against. What a
 newer server adds to a usage row (`source`, `provenance`, the effective limit) is read when it

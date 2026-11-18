@@ -204,13 +204,8 @@ and would fetch the published contract in their place.
 A feature PR can validate against a companion Kaiten commit **without publishing**
 contracts just to pass CI. `.github/kaiten-contract-source.json` records the fixed
 repository `kaitencloud/kaiten`, its full lowercase 40-hex `commit`, and the SDK
-feature `headBranch`. The current AI credits source is Kaiten
-`main`, at `9a49c2d5fab547ea5cb7ba17b11d595eaacdc07f`, for the SDK branch
-`feat/ai-credits-explain`: the explainable-charges contract has landed on Kaiten's
-main, so the pin names a reviewed commit of main rather than the feature branch it
-was taken from. At that commit the snapshot also matches `@kaitencloud/openapi@latest`,
-so the override no longer decides anything and can be removed once both pull
-requests land.
+feature `headBranch`. Remove the file once that PR has merged and Kaiten has published
+the contract: without it, every comparison is with npm's `latest`.
 
 The contract-drift workflow honors this file **only** for a `pull_request` whose
 head branch exactly matches `headBranch`. Other PR branches, pushes to `main`, and
@@ -280,10 +275,9 @@ npm trusted publishing, so no npm token is stored anywhere.
 
 The billing features need a Kaiten release that serves billing's routes. The root README and
 those of the four packages each say which, in a "Kaiten version" section whose first sentence
-is the same everywhere, and `vp test run scripts` fails when they differ. While no Kaiten
-release carries billing, the sentence says so. The pull request of the first release that
-needs a Kaiten with billing replaces "the first Kaiten release with billing" by that Kaiten's
-version, in all five.
+is the same everywhere, and `vp test run scripts` fails when they differ. A pull request that
+makes a package need a newer Kaiten, for a route, a field or a header, raises that version in
+all five, in `packages/react/STABILITY.md`, and in the doc comments that name it.
 
 ### The first version of a package
 

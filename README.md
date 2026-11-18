@@ -55,11 +55,14 @@ React app and a Node backend that run without an account.
 
 ## Kaiten version
 
-Minimum Kaiten version for the billing features: **the first Kaiten release with billing.** No Kaiten release carries billing yet.
+Minimum Kaiten version for the billing features: **26.11.3**, the first Kaiten release that serves all of them.
 
 What needs it is the billing surface: the public catalogue read with a publishable key, a
 customer session and the portal and checkout it opens, and the `Idempotency-Key` header of a
-usage report (its `transactionId`). Everything `@kaitencloud/client` and `@kaitencloud/server` 1.0.0 did works against
+usage report (its `transactionId`). Kaiten serves billing's routes from 26.10.7 on, but this
+version sends a publishable key as `Kaiten-Publishable-Key`, which Kaiten reads from 26.11.3
+on: an earlier release reads only `X-Kaiten-Publishable-Key`, and refuses the catalogue and the
+anonymous checkout. Everything `@kaitencloud/client` and `@kaitencloud/server` 1.0.0 did works against
 the Kaiten releases it worked against, and `mode="static"` of the React packages makes no
 request. Each package's README says what it asks of the server.
 

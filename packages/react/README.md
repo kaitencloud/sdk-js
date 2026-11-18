@@ -19,14 +19,16 @@ There is nothing to import for its effect: no stylesheet, no side effects.
 
 ## Kaiten version
 
-Minimum Kaiten version for the billing features: **the first Kaiten release with billing.** No Kaiten release carries billing yet.
+Minimum Kaiten version for the billing features: **26.11.3**, the first Kaiten release that serves all of them.
 
 `mode="public"` (the catalogue, read with a publishable key from `GET {apiUrl}/public/catalog`),
 `mode="customer-session"` and the hooks of [`@kaitencloud/react/billing`](#billing-hooks) (the
 `/public/session/*` routes) need it. A server without billing answers them with an error,
-which a hook returns in `error`. `mode="static"` renders a catalogue the host already holds and
+which a hook returns in `error`. Kaiten serves those routes from 26.10.7 on, but `mode="public"`
+and `useAnonymousCheckout` send the publishable key as `Kaiten-Publishable-Key`, which Kaiten
+reads from 26.11.3 on. `mode="static"` renders a catalogue the host already holds and
 makes no request, and `mode="authenticated"` reads what the client composes from the licences
-endpoints, so neither needs more than the server serves today. What the client asks of
+endpoints, so neither needs a Kaiten with billing. What the client asks of
 the server is in [its README](../client/README.md#kaiten-version).
 
 ## Package status
@@ -44,7 +46,7 @@ the server is in [its README](../client/README.md#kaiten-version).
 
 What this package exports follows semantic versioning, the billing surface included:
 `mode="public"`, `mode="customer-session"` and the hooks of `@kaitencloud/react/billing` are
-stable from 1.0.0, and need the first Kaiten release with billing. The exceptions may change in
+stable from 1.0.0, and need Kaiten 26.11.3 or later. The exceptions may change in
 a minor release: the telemetry types, `formatKaitenPrice`, the words of the styled components,
 and a few small exports not yet classified. One that `@kaitencloud/react-ui` imports only grows
 within a major, so that a published `@kaitencloud/react-ui` keeps working.

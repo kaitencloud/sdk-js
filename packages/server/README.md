@@ -30,7 +30,7 @@ Every bundler handles them regardless of your app's module format.
 
 ## Kaiten version
 
-Minimum Kaiten version for the billing features: **the first Kaiten release with billing.** No Kaiten release carries billing yet.
+Minimum Kaiten version for the billing features: **26.11.3**, the first Kaiten release that serves all of them.
 
 The resource classes are generated from the API contract, so a call to a route that a Kaiten
 release does not have is answered with an error and throws a `KaitenError`. Billing's routes
@@ -38,8 +38,11 @@ are the ones that need it: the classes `Addons`, `Billing`, `CustomerSessions`, 
 `PublishableKeys` and `Vouchers`, the operations the other classes gained, the helpers of
 `KaitenBilling`, billing's webhook events, and the `Idempotency-Key` header of a usage report,
 which a release without it ignores: the report is counted at every sending and its answer has
-no `transactionId`. The classes and operations of 1.0.0 are unchanged and work against the
-Kaiten releases they worked against.
+no `transactionId`. Kaiten serves billing's routes from 26.10.7 on. `Public.getPublicCatalog`
+and `Public.createCheckoutSession` send a publishable key given in `auth` as
+`Kaiten-Publishable-Key`, which Kaiten reads from 26.11.3 on, and the AI credit routes are in
+Kaiten from 26.11.3 on. The classes and operations of 1.0.0, OFREP's excepted, are still there
+and work against the Kaiten releases they worked against.
 
 ## Quick start
 

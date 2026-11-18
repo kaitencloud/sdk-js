@@ -66,7 +66,7 @@ export interface TrialBannerProps {
  * charged. The portal says whether either is offered (`capabilities.paymentMethods`,
  * `capabilities.unsubscribe`). It adds no route and reads nothing but the portal.
  *
- * Needs `mode="customer-session"` and the first Kaiten release that serves the portal's trial block.
+ * Needs `mode="customer-session"` and Kaiten 26.11.3 or later.
  *
  * @experimental Styled component — shape may change in a minor release (see STABILITY.md); prefer `unstyled` mode or the headless hooks for the stable path.
  */

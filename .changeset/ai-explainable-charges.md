@@ -9,7 +9,7 @@
 "@kaitencloud/ai-copilot": minor
 ---
 
-AI credits (preview), explainable charges. Requires a Kaiten API version that ships them (to be set at release); the AI credits feature stays off until it is enabled on the platform.
+AI credits (preview), explainable charges. Requires Kaiten 26.11.3 or later; the AI credits feature stays off until it is enabled on the platform.
 
 - `ai.commit` takes an optional `vendorCost`: what the provider charged, in USD, as an exact decimal string, recorded beside the cost Kaiten computes and never changing the credits charged. It is validated locally, refused on a `NOT_SENT` commit, sent byte-identical on retries, and dropped with a warning, the commit going on, when the API predates it. The SDK never computes a cost.
 - Every provider integration takes a `vendorCost` reader and an `onCommitError` hook: a commit that fails after its retries is handed over with a `retry()` that resends it byte for byte, instead of only being logged.

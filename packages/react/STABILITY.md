@@ -140,9 +140,10 @@ integration points:
 
 ## Stable, with Kaiten billing
 
-These are on the blessed path too, with a compatibility note: **they need the first
-Kaiten release with billing.** They read the routes billing adds, `/public/catalog`
-and `/public/session/*`, which no released Kaiten server serves yet; a server without
+These are on the blessed path too, with a compatibility note: **they need Kaiten
+26.11.3 or later.** They read the routes billing adds, `/public/catalog` and
+`/public/session/*`, which Kaiten serves from 26.10.7 on, and send a publishable key
+as `Kaiten-Publishable-Key`, which Kaiten reads from 26.11.3 on; a server without
 billing answers them with an error, which a hook returns in `error`. The README's
 [Kaiten version](README.md#kaiten-version) says what needs what. They are written
 against the API contract that billing publishes and tested against answers Kaiten's
@@ -188,7 +189,7 @@ the rest of the blessed path:
   chosen is `selection.licensePriceId` (the client sends it to the API as `priceId`) and the page is
   told the instance is subscribed by `onSubscribed`. `start()` stays its own, since it spends a
   Turnstile token and opens a session, which `submit()` does not. Like the other billing hooks it
-  needs the first Kaiten release that has the anonymous checkout (`POST /public/checkout-sessions`). Its steps, its refusals
+  needs Kaiten 26.11.3 or later, which reads the publishable key that starts a checkout (`POST /public/checkout-sessions`) as `Kaiten-Publishable-Key`. Its steps, its refusals
   (`AnonymousCheckoutProblem`), the way it opened the payment provider's page, how a payment is
   waited on and the state of the widget may gain a member in a minor release, by the rules of
   [Unions that grow](#unions-that-grow). The `name` and the `company` it holds are the page's own: Kaiten has no
@@ -238,7 +239,7 @@ the core lists here that `@kaitencloud/react-ui` imports only grows within a maj
   `Paywall`, `PlanBadge`,
   `UpgradeButton`, `EntitlementStatusBar`, `FeatureCatalog`, `BillingSummary`,
   `KaitenBranding`. The names it re-exports from the core keep the core's
-  guarantee. What it draws from billing needs the first Kaiten release with billing
+  guarantee. What it draws from billing needs Kaiten 26.11.3 or later
   as well:
   - **`CheckoutSummary` and `CheckoutFlow`** (`@kaitencloud/react-ui`), a checkout drawn:
     what is due today and a customer's whole checkout. They are `useCheckoutPreview` and

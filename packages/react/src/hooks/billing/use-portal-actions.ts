@@ -150,7 +150,7 @@ function useSessionMutation<TInput, TOutput>(
  * makes while the period that ended is being closed (`BoundaryPendingError`) is waited out
  * and the call made once more, `retryAt` saying when; any other refusal is the error.
  *
- * Needs the first Kaiten release with billing (see STABILITY.md).
+ * Needs Kaiten 26.11.3 or later (see STABILITY.md).
  */
 export function useCancelSubscription(
   options: PortalActionOptions<PortalSubscription> = {},
@@ -167,7 +167,7 @@ export function useCancelSubscription(
  * Withdraws a cancellation scheduled for the end of the period. Waits out a billing period
  * that is being closed like {@link useCancelSubscription}.
  *
- * Needs the first Kaiten release with billing (see STABILITY.md).
+ * Needs Kaiten 26.11.3 or later (see STABILITY.md).
  */
 export function useReactivateSubscription(
   options: PortalActionOptions<PortalSubscription> = {},
@@ -200,7 +200,7 @@ export interface UseSetAddonQuantityResult extends UsePortalActionResult<
  * that is being closed like {@link useCancelSubscription}, and names what any other refusal is
  * in `problem`.
  *
- * Needs the first Kaiten release with billing (see STABILITY.md).
+ * Needs Kaiten 26.11.3 or later (see STABILITY.md).
  */
 export function useSetAddonQuantity(
   options: PortalActionOptions<SessionAddon> = {},
@@ -243,7 +243,7 @@ export interface UseBillingPortalResult extends UsePortalActionResult<
  * `mutateAsync({ returnUrl })` and send them to its `url` yourself: `mutate` and `mutateAsync`
  * only ask for it.
  *
- * Needs the first Kaiten release with billing (see STABILITY.md).
+ * Needs Kaiten 26.11.3 or later (see STABILITY.md).
  */
 export function useBillingPortal(options: UseBillingPortalOptions = {}): UseBillingPortalResult {
   const { navigate, ...rest } = options;
@@ -270,7 +270,7 @@ export function useBillingPortal(options: UseBillingPortalOptions = {}): UseBill
  *
  * The code travels in the body of the call and is not kept by the hook.
  *
- * Needs the first Kaiten release with billing (see STABILITY.md).
+ * Needs Kaiten 26.11.3 or later (see STABILITY.md).
  */
 export function useValidateVoucher(
   options: PortalActionOptions<VoucherValidation> = {},
@@ -309,7 +309,7 @@ export interface UseRedeemVoucherResult extends RedeemVoucherState {
  * applied code reads the portal again before `apply` resolves. A refusal is on `problem` and
  * `error`, never a rejection.
  *
- * Needs the first Kaiten release with billing (see STABILITY.md).
+ * Needs Kaiten 26.11.3 or later (see STABILITY.md).
  */
 export function useRedeemVoucher(
   options: { onApplied?: (redemption: SessionRedemption) => void } = {},
@@ -479,7 +479,7 @@ export function completePaymentMethodSessionOnce(
  * says it is done) completes the session and reads the portal again, which then holds the
  * new labels. Mount it on the page the customer is sent back to.
  *
- * Needs the first Kaiten release with billing (see STABILITY.md).
+ * Needs Kaiten 26.11.3 or later (see STABILITY.md).
  */
 export function usePaymentMethodSession(
   options: UsePaymentMethodSessionOptions = {},
