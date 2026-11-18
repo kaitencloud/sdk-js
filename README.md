@@ -5,12 +5,12 @@ entitlements, report usage, and show pricing and paywalls. Flag decisions use Op
 
 ## Packages
 
-| Package                                      | Use it for                                                                                                                                                    |
-| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [`@kaitencloud/server`](packages/server)     | Node backends: the full API contract behind a `ksh_` token, and webhook verification.                                                                         |
-| [`@kaitencloud/client`](packages/client)     | The catalogue, a customer's licensing snapshot, usage reports and flag evaluation. Built for browsers, where it never holds a secret; it runs on servers too. |
-| [`@kaitencloud/react`](packages/react)       | React, headless: the provider, the hooks and `Gate` / `Show`, for apps that draw their own UI.                                                                |
-| [`@kaitencloud/react-ui`](packages/react-ui) | React components: `PricingTable`, `Paywall`, `CustomerPortal` and more, themed through `appearance`. It re-exports `@kaitencloud/react`.                      |
+| Package                                      | Use it for                                                                                                                                                                               |
+| -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`@kaitencloud/server`](packages/server)     | Node backends: the full API contract behind a `ksh_` token, and webhook verification.                                                                                                    |
+| [`@kaitencloud/client`](packages/client)     | The catalogue, a customer's licensing snapshot and billing, anonymous checkout, usage reports and AI credits. Built for browsers, where it never holds a secret; it runs on servers too. |
+| [`@kaitencloud/react`](packages/react)       | React, headless: the provider, the hooks and `Gate` / `Show`, for apps that draw their own UI.                                                                                           |
+| [`@kaitencloud/react-ui`](packages/react-ui) | React components: `PricingTable`, `Paywall`, `CustomerPortal` and more, themed through `appearance`. It re-exports `@kaitencloud/react`.                                                 |
 
 All four packages are on npm. The React packages read the public catalogue and the
 customer sessions that Kaiten billing serves; see the "Kaiten version" section below.

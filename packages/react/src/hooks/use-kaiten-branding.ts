@@ -23,11 +23,14 @@ export interface KaitenBrandingState {
  * own markup (`@kaitencloud/react-ui`'s `KaitenBranding` is this hook plus a
  * default rendering).
  *
- * Server-enforced: the server's answer wins over the safe default, and any value
- * other than a strict `true` reads as "not removable" so a malformed response
- * cannot hide the mark. Asking to hide it without a license that allows it
- * keeps it visible, emits a one-shot `branding.bypass_attempted` telemetry
- * event so Kaiten can see the attempt, and says why in development.
+ * Kaiten says whether the vendor's plan lets the mark be removed, on the public
+ * catalogue and on a customer session's portal; this hook applies that answer in
+ * the browser, and nothing on the server checks what the page renders. The
+ * answer read wins over the safe default, and any value other than a strict
+ * `true` reads as "not removable", so a missing or malformed answer cannot hide
+ * the mark. Asking to hide it without a license that allows it keeps it visible,
+ * emits a one-shot `branding.bypass_attempted` event to the provider's telemetry
+ * `transport`, when the host set one, and says why in development.
  */
 export function useKaitenBranding(): KaitenBrandingState {
   useTrackHook("useKaitenBranding");

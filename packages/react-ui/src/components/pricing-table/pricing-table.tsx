@@ -181,7 +181,7 @@ function getPlanPrice(
 }
 
 // Render a plan's price WITHOUT the silent `?? 0` coercion that made paid tiers
-// publish as "0,00 €" on a public pricing page when no money model supplied an
+// publish as "0,00 €" on a public pricing page when the catalog carried no
 // amount. When the amount is missing we show a localized "Custom" label (and the
 // interval suffix is dropped) so the host is forced to notice, not ship a fake €0.
 function renderPlanPrice(
@@ -194,7 +194,7 @@ function renderPlanPrice(
 }
 
 // Add-ons follow the same rule as the plan price above. `?? 0` published a paid
-// add-on as "0,00 €" whenever no money model supplied an amount — a wrong price
+// add-on as "0,00 €" whenever the catalog carried no amount — a wrong price
 // on a public page is worse than an honest "Custom", and it was the one place
 // the coercion survived after the plan price was fixed.
 function renderAddonPrice(
@@ -389,10 +389,14 @@ function PricingTableView({
     }
   }, [hasAnnualPlans, interval]);
 
-  // Dev guard (R-?): a plan with no resolvable amount used to render a silent
+  // Dev guard: a plan with no resolvable amount used to render a silent
   // "0,00 €". It now shows the localized `customPrice` label, but warn so the
-  // adopter wires real prices (Kaiten has no server-side money model — prices are
-  // host-supplied) instead of unknowingly publishing "Custom" everywhere.
+  // adopter wires real prices instead of unknowingly publishing "Custom"
+  // everywhere. With billing on, Kaiten prices each licence version (an amount in
+  // minor units and a currency), and the public catalogue and a customer
+  // session's portal carry those prices. A plan with no default flat fee has
+  // none, and neither does a catalogue composed with a server token or a static
+  // one the host wrote without amounts.
   React.useEffect(() => {
     if (isProduction()) return;
     const priceless = visiblePlans.filter(
