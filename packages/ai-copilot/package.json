@@ -1,7 +1,6 @@
 {
   "name": "@kaitencloud/ai-copilot",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.0",
   "description": "Explicit usage accounting for @github/copilot-sdk; see documented preflight limitations.",
   "homepage": "https://github.com/kaitencloud/sdk-js/tree/main/packages/ai-copilot#readme",
   "bugs": {

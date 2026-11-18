@@ -744,9 +744,13 @@ describe("this repository", () => {
 
       expect(results.filter((result) => result.status === "fail")).toEqual([]);
       const published = publishedPackages(repoRoot).map(({ name }) => name);
-      // The AI provider packages stay private until their first version is on npm
-      // (CONTRIBUTING.md, "The first version of a package").
       expect(published.toSorted((a, b) => a.localeCompare(b))).toEqual([
+        "@kaitencloud/ai-anthropic",
+        "@kaitencloud/ai-claude-agent",
+        "@kaitencloud/ai-codex",
+        "@kaitencloud/ai-copilot",
+        "@kaitencloud/ai-openai",
+        "@kaitencloud/ai-vercel",
         "@kaitencloud/client",
         "@kaitencloud/react",
         "@kaitencloud/react-ui",
