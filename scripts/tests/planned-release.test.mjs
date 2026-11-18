@@ -10,6 +10,11 @@ import { afterAll, beforeAll, describe, expect, test } from "vite-plus/test";
 import { checkDependencyFloors, projectRelease } from "../check-release-dependencies.mjs";
 import { packWorkspacePackage, repoRoot } from "../lib/npm-package.mjs";
 
+// Each test versions a fixture workspace with Changesets and packs tarballs with pnpm, in
+// child processes: about a second on a laptop, but past Vitest's 5-second default on a busy
+// CI runner, where the other script suites run beside it. 30 seconds still catches a hang.
+const SLOW = { timeout: 30_000 };
+
 let work;
 beforeAll(() => {
   work = mkdtempSync(join(tmpdir(), "kaiten-projection-test-"));
@@ -103,7 +108,7 @@ function publishedClient(into) {
   return packWorkspacePackage(dir, into);
 }
 
-describe("the release projected by Changesets", () => {
+describe("the release projected by Changesets", SLOW, () => {
   test("checks unpublished planned versions and leaves the source tree intact", async () => {
     const root = workspace();
     const before = readFileSync(join(root, "packages/client/package.json"), "utf8");
@@ -183,7 +188,7 @@ describe("the release projected by Changesets", () => {
   });
 });
 
-describe("React UI's dependency floor", () => {
+describe("React UI's dependency floor", SLOW, () => {
   test("rejects a missing internal export in published React instead of using newer local React", async () => {
     const root = workspace({ clientBump: false });
     const published = mkdtempSync(join(work, "published-"));
