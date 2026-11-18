@@ -44,6 +44,9 @@ export interface KaitenClientConfig {
    * credential. Use this to refresh the host session or send the user to sign
    * in; because `tokenProvider` is consulted per request, the next poll picks up
    * the new token with no further wiring.
+   *
+   * What the callback throws is reported on the console and goes no further:
+   * the call still rejects with the API's error.
    */
   onAuthError?: (error: KaitenAuthErrorInfo) => void;
   /**
@@ -60,6 +63,9 @@ export interface KaitenClientConfig {
    * Without this hook the two reasons to degrade are indistinguishable: an API
    * older than the schema (permanent, fix by upgrading) and an outage
    * (transient, fix by waiting). Log it, or alert on it.
+   *
+   * What the callback throws is reported on the console and goes no further:
+   * the read still answers.
    */
   onDegraded?: (info: KaitenDegradedInfo) => void;
 }
@@ -104,7 +110,8 @@ export interface KaitenSessionClientConfig {
   /**
    * Called when the API refuses a session the client has already renewed once
    * (401), or refuses the call itself (403). Use it to sign the customer in
-   * again.
+   * again. What it throws is reported on the console; the call still rejects
+   * with the API's error.
    */
   onAuthError?: (error: KaitenAuthErrorInfo) => void;
 }
@@ -161,7 +168,8 @@ export interface KaitenAnonymousCheckoutClientConfig {
    * there is nothing to renew it with. A 403 that says the feature is off
    * (`AnonymousCheckoutDisabled`) or the origin is not allowed is not a credential
    * problem and does not call it: it rejects the call with a `KaitenError`, as any
-   * other refusal does.
+   * other refusal does. What the callback throws is reported on the console; the
+   * call still rejects with the API's error.
    */
   onAuthError?: (error: KaitenAuthErrorInfo) => void;
   /**

@@ -699,6 +699,30 @@ describe("getCheckoutSession", () => {
     expect(storage.items.size).toBe(0);
   });
 
+  test("a host whose onAuthError throws still gets the API's refusal, and the throw is reported", async () => {
+    const thrown = new Error("the host's handler broke");
+    const report = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const { client } = await started(
+        () => json(problem(401, "PublicAuth.InvalidCredential"), 401),
+        {
+          onAuthError: () => {
+            throw thrown;
+          },
+        },
+      );
+
+      const error = await caught(client.getCheckoutSession(SESSION_ID));
+
+      expect(error).toBeInstanceOf(KaitenError);
+      expect(error).toMatchObject({ status: 401, code: "PublicAuth.InvalidCredential" });
+      expect(client.holdsCheckoutSession(SESSION_ID)).toBe(false);
+      expect(report).toHaveBeenCalledWith(expect.stringContaining("onAuthError"), thrown);
+    } finally {
+      report.mockRestore();
+    }
+  });
+
   test("needs the id of a session", async () => {
     const { client, requests } = open(() => json(checkoutSession()));
 

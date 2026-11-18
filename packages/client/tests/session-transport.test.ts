@@ -144,6 +144,34 @@ describe("session mode: Bearer kst_ on session routes only, refreshed before exp
     expect(refused.mock.calls[0]![0]).toMatchObject({ status: 401, operation: "getPortal()" });
   });
 
+  // What the host's callback throws is its own bug: reported, and never in the
+  // place of the refusal it was told about.
+  test("the API's refusal is what rejects when the host's onAuthError throws", async () => {
+    const thrown = new Error("the host's handler broke");
+    const report = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const refusing = server(() =>
+        json({ title: "Forbidden", status: 403, code: "Auth.WrongCredentialKind" }, 403),
+      );
+      const client = sessionClient(
+        refusing.fetch,
+        sessions(session(KST_A, T0 + 30 * MINUTE)),
+        () => {
+          throw thrown;
+        },
+      );
+
+      const failure = await client.getPortal().catch((error: unknown) => error);
+
+      expect(failure).toBeInstanceOf(KaitenError);
+      expect(failure).toMatchObject({ status: 403, code: "Auth.WrongCredentialKind" });
+      expect(refusing.requests).toHaveLength(1);
+      expect(report).toHaveBeenCalledWith(expect.stringContaining("onAuthError"), thrown);
+    } finally {
+      report.mockRestore();
+    }
+  });
+
   test("a session client needs getCustomerSession", () => {
     expect(() => new KaitenSessionClient({ apiUrl: "https://api.acme.test/api" } as never)).toThrow(
       TypeError,

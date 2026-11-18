@@ -3,6 +3,7 @@
 
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
+import { KaitenError } from "../../src/core/runtime/errors.ts";
 import { KaitenTransport } from "../../src/core/transport.ts";
 import type { KaitenFetch } from "../../src/core/config.ts";
 
@@ -98,6 +99,31 @@ describe("onAuthError", () => {
     await expect(transport.get("/a")).rejects.toThrow();
 
     expect(onAuthError.mock.calls[0][0]).toMatchObject({ status: 403 });
+  });
+
+  // The host is told about a refusal that already happened. What its callback
+  // throws is the host's own bug: it is reported, and the caller still gets
+  // the API's answer rather than the host's error in its place.
+  it("hands back the API's refusal when the callback throws, and reports the throw", async () => {
+    const { fetch, requests } = stubFetch([401]);
+    const thrown = new Error("the host's handler broke");
+    const report = vi.spyOn(console, "error").mockImplementation(() => {});
+    const transport = new KaitenTransport({
+      authScheme: "bearer",
+      apiUrl: "https://example.test/api",
+      fetch,
+      tokenProvider: () => "stale",
+      onAuthError: () => {
+        throw thrown;
+      },
+    });
+
+    const failure = await transport.get("/a").catch((error: unknown) => error);
+
+    expect(failure).toBeInstanceOf(KaitenError);
+    expect(failure).toMatchObject({ status: 401 });
+    expect(requests).toHaveLength(1);
+    expect(report).toHaveBeenCalledWith(expect.stringContaining("onAuthError"), thrown);
   });
 
   it("stays silent on a 500", async () => {

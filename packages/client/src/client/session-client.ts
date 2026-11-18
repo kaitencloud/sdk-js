@@ -18,6 +18,7 @@ import {
   sendPublic,
 } from "../core/http.ts";
 import { KaitenError } from "../core/runtime/errors.ts";
+import { notifyHost } from "../core/runtime/host-callback.ts";
 import { retry } from "../core/runtime/retry.ts";
 import {
   mapCheckout,
@@ -331,7 +332,11 @@ export class KaitenSessionClient implements KaitenSessionClientLike {
   /** Tells the host the API refused its customer's credential, then hands the error back. */
   private refused(error: unknown, label: string): unknown {
     if (error instanceof KaitenError && (error.status === 401 || error.status === 403)) {
-      this.config.onAuthError?.({ status: error.status, operation: label, error });
+      notifyHost("onAuthError", this.config.onAuthError, {
+        status: error.status,
+        operation: label,
+        error,
+      });
     }
     return error;
   }

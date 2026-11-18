@@ -28,6 +28,7 @@ import {
   TRANSACTION_ID_REUSED_CODE,
   TransactionIdReusedError,
 } from "../core/runtime/errors.ts";
+import { notifyHost } from "../core/runtime/host-callback.ts";
 import {
   defaultActions,
   normalizeBrandingCapability,
@@ -726,11 +727,7 @@ export class KaitenClient implements KaitenClientLike {
   // callback is its own business, but it must never be able to fail the read it
   // is reporting on — degrading is already the unhappy path.
   private reportDegraded(operation: string, error: unknown): void {
-    try {
-      this.onDegraded?.({ operation, error });
-    } catch {
-      // Ignore: a broken observer is not a reason to lose the snapshot.
-    }
+    notifyHost("onDegraded", this.onDegraded, { operation, error });
   }
 
   private async buildCatalogGraphQL(): Promise<CatalogData> {

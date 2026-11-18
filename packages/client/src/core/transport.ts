@@ -4,6 +4,7 @@
 import { createClient, createConfig } from "./generated/client/index.ts";
 import type { Client } from "./generated/client/index.ts";
 import { KaitenError, KaitenNetworkError } from "./runtime/errors.ts";
+import { notifyHost } from "./runtime/host-callback.ts";
 import { retry } from "./runtime/retry.ts";
 import {
   apiErrorOf,
@@ -180,7 +181,11 @@ export class KaitenTransport {
           if (status === 401 || status === 403) {
             // Surfaced, never retried: the SDK has no way to mint a new
             // credential, and hammering a rejected one just burns rate budget.
-            this.onAuthError?.({ status, operation: label, error: result.error });
+            notifyHost("onAuthError", this.onAuthError, {
+              status,
+              operation: label,
+              error: result.error,
+            });
           }
           throw apiErrorOf(result.error, result.response);
         }
