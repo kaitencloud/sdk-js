@@ -8,11 +8,10 @@ import { useDocumentTitle } from "../title.ts";
 import { SignUpStep } from "./sign-up-step.tsx";
 
 /**
- * The licence the customer holds and what it has used: the page a vendor gives a customer who wants
- * to follow their consumption, and the page the Kaiten console gives an organization for its own
- * licence. `LicenseUsage` reads the same customer session as the account page and draws one row for
- * every numeric quota of the plan, a capped one with its bar and one nothing caps with what is used
- * out of "Unlimited".
+ * The licence the customer holds and what it has used, on a page of its own: the page a vendor
+ * gives a customer who wants to follow their consumption. `LicenseUsage` reads the same customer
+ * session as the account page and draws one row for every numeric quota of the plan, a capped one
+ * with its bar and one nothing caps with what is used out of "Unlimited".
  */
 export function LicensePage() {
   const account = useAccount();
