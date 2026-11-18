@@ -1,5 +1,58 @@
 # @kaitencloud/server
 
+## 2.0.0
+
+### Major Changes
+
+- [#20](https://github.com/kaitencloud/sdk-js/pull/20) [`16006f7`](https://github.com/kaitencloud/sdk-js/commit/16006f71e23820a1be1cd6a8d5f39b7451600b5a) Thanks [@tomflenner](https://github.com/tomflenner)! - BREAKING: enforce OpenFeature SDK + official OFREP providers for all flag decisions. Remove direct client evaluation methods/facades, generated client and server OFREP operations, evaluation helpers and React evaluation hooks. Licensing reads no longer evaluate flags and return an empty flag display list. Remove flag conditions from `Show` and `flagKey` from `Gate`, `usePaywallTrigger` and `Paywall`; entitlement gating and management CRUD are unchanged.
+
+  Use `@openfeature/server-sdk` with `@openfeature/ofrep-provider` on your backend. Browser/React integrations use the official Web/React SDK and `@openfeature/ofrep-web-provider` only with an authorized, browser-safe OFREP endpoint; never expose a Kaiten `ksh_` secret. See `MIGRATION-2.md` for removed symbols, context/authentication and failure handling. Already-published 1.x versions and immutable consumer fixtures are not rewritten; there are no compatibility aliases.
+
+  Sync the published OpenAPI contract and regenerate the management clients: add voucher deletion and its webhook payload, plus the assigned license term state on instance detail reads. Direct OFREP evaluation operations remain excluded from both SDKs.
+
+### Minor Changes
+
+- [#14](https://github.com/kaitencloud/sdk-js/pull/14) [`b81cae0`](https://github.com/kaitencloud/sdk-js/commit/b81cae0bcf9ead11ab7edc3b2f8f48613b721bfb) Thanks [@tomflenner](https://github.com/tomflenner)! - Regenerate REST and GraphQL snapshots from the KTN-201 Kaiten branch, expose AI
+  model/conversion-rule/inference reads, and replace the temporary hand-written AI
+  wire bridge with generated aliases. The numeric report helper rejects non-numeric
+  read-value variants locally; AI reports use the generated write-only union.
+
+- [#29](https://github.com/kaitencloud/sdk-js/pull/29) [`56d7157`](https://github.com/kaitencloud/sdk-js/commit/56d715752b48b06239f59cfbf85e9b6cb0d536bb) Thanks [@Alexkuva](https://github.com/Alexkuva)! - AI credits (preview), explainable charges. Requires Kaiten 26.11.3 or later; the AI credits feature stays off until it is enabled on the platform.
+
+  - `ai.commit` takes an optional `vendorCost`: what the provider charged, in USD, as an exact decimal string, recorded beside the cost Kaiten computes and never changing the credits charged. It is validated locally, refused on a `NOT_SENT` commit, sent byte-identical on retries, and dropped with a warning, the commit going on, when the API predates it. The SDK never computes a cost.
+  - Every provider integration takes a `vendorCost` reader and an `onCommitError` hook: a commit that fails after its retries is handed over with a `retry()` that resends it byte for byte, instead of only being logged.
+  - Report answers carry the pricing `rule`; `AiUsageWarning` is an open union that includes `NO_RESERVATION`, `COUNTER_PRECISION_DEGRADED` and `PRICING_SNAPSHOT_UNREADABLE`.
+  - `ai.release()`, a `NOT_SENT` commit: without a reservation it leaves a tombstone, and a later reserve or commit under the same `transactionId` throws `TransactionIdReusedError`.
+  - Inference rows carry the pricing snapshot, licence, warnings, `reportSeq`, vendor cost, refunds and `credits.refunded`; `ai.listInferences` takes the `authorized`, `modelSlug`, `model` and `requestType` filters, and fills `refunds` and `warnings` with `[]` on a row from an older API.
+  - `ai.listOrganizationInferences()` lists the organization's inferences across instances and pools, cursor-paginated like `ai.listInferences`.
+  - `ai.refund()` gives credits of a committed inference back. Its idempotency key is generated when omitted and reused on retries; refusals throw `AiRefundError` and its subclasses (`AiInferenceNotFoundError`, `AiInferenceNotCommittedError`, `NothingToRefundError`, `RefundExceedsRefundableError`, `RefundIdempotencyKeyReusedError`, `AiPoolNotGrantedError`).
+  - A pool that is not an AI credit pool now throws `NotAnAiCreditPoolError` on every call, in `run` and in every wrapper, instead of degrading to unmetered calls. Degradation remains for an API that predates AI credits.
+  - Settlement fixes: a stream the provider answered is never settled `NOT_SENT`, even when closed before its first event (OpenAI, Anthropic, Vercel); a cancellation is `CUSTOMER_ERROR` and a timeout `PROVIDER_ERROR`, never `NOT_SENT`; `classifyProviderError` reads the AI SDK's `statusCode`; a Vercel call whose provider sends no usage no longer fails after the provider answered; a Codex or Claude Agent failure mid-stream is `PROVIDER_ERROR`, no longer `CUSTOMER_ERROR`.
+  - `@kaitencloud/server`: the regenerated `Instances.refundAiInference`, `Instances.listOrganizationAiInferences` and the new inference and conversion-rule members.
+
+- [#25](https://github.com/kaitencloud/sdk-js/pull/25) [`76107a8`](https://github.com/kaitencloud/sdk-js/commit/76107a82f6987b7f5b2db40c70aafa7985e41110) Thanks [@fuzcap](https://github.com/fuzcap)! - An anonymous checkout names the customer after the buyer's company.
+
+  - `@kaitencloud/client`: `startCheckout` takes an optional `customerName`, at most 255 characters, which the completion names the new customer and its instance after. Kaiten trims it, and names both after the `email` when it is left out. `getCheckoutSession` and `confirmCheckout` read it back as `customerName`, `null` when the start gave none. The mock client does the same.
+  - `@kaitencloud/server`: the generated types carry `customerName` on the checkout session draft and on both session reads.
+  - `@kaitencloud/react`: `useAnonymousCheckout` sends `selection.company`, trimmed, as the `customerName`; with no company, `selection.name`; with neither, nothing. It used to keep both in the tab and send neither, so every customer was named after an e-mail address.
+  - `@kaitencloud/react-ui`: `collectCompany` and `collectName` say that the company, else the name, names the customer.
+
+- [#36](https://github.com/kaitencloud/sdk-js/pull/36) [`1ffd653`](https://github.com/kaitencloud/sdk-js/commit/1ffd6531c66e8db3be520b2dad1f4d94716b0f3f) Thanks [@Lleios](https://github.com/Lleios)! - Beside the AI credits operations, the contracts the clients are generated from bring a dashboard summary, a member of the billing capabilities and a GraphQL argument.
+
+  - `@kaitencloud/client`: `KaitenApi.getDashboardSummary` reads `GET /dashboard/summary`, an organization's figures in one response: what needs attention (limits reached, refused usage reports, silent instances, Licenses ending, archived versions, expiring tokens, zones behind), the figures of the period, the meters closest to their limits, usage reports per day and per instance, evaluations per flag, who runs which License version, what runs where and who talks to Kaiten. It takes a `range` of `7d`, `30d` (the default) or `90d`, and needs `read:customers`, `read:instances` and `read:licenses`. The answer is a `KaitenApi.DashboardSummary`, with the `Dashboard*` types it is made of; `billing`, `featureFlags` and `integrations` are absent when the caller cannot read their module. Its `range` says from when each figure is read, in `usageHistoryFrom` and `auditTrailFrom`: later than the start of the period when the organization keeps its usage history or its audit trail for less.
+  - `@kaitencloud/server`: the same operation is `Dashboard.getDashboardSummary`, the one method of a new resource class, and its types are exported with the others. The README's "Resources" section names every generated class: `Dashboard`, `Identity`, `Users`, `CheckoutSessions`, `Models` and `Ai` were missing from it.
+  - `BillingCapabilities`, which `getBillingCapabilities` answers, gains an optional `featureCheckUnavailable`: the capabilities whose plan grant is temporarily unknown. Their member of `features` stays `false`, and a caller can retry instead of reading it as a refusal. In the client this is `KaitenApi.BillingCapabilities`; the client's own `BillingCapabilities` type is a different one and does not gain it.
+  - The GraphQL schema gains the `changesOnly` argument of `organizationAuditTrails`. Neither of the client's two GraphQL operations uses it, and its generated documents do not change.
+
+- [#39](https://github.com/kaitencloud/sdk-js/pull/39) [`83e0b3d`](https://github.com/kaitencloud/sdk-js/commit/83e0b3d4da8be8cf2876738763a317669ef5efba) Thanks [@Lleios](https://github.com/Lleios)! - The generated operations that take a publishable key name its header `Kaiten-Publishable-Key`, as the API contract now does: `KaitenApi.getPublicCatalog` and `KaitenApi.createCheckoutSession` in the client, `Public.getPublicCatalog` and `Public.createCheckoutSession` in the server.
+
+  - A call that passes the key in the `auth` option now sends it as `Kaiten-Publishable-Key`. A Kaiten server that predates the rename reads only `X-Kaiten-Publishable-Key`: upgrade it first, or set that header yourself instead of passing `auth`.
+  - `KaitenClient` and `KaitenAnonymousCheckoutClient` do not go through these operations.
+
+### Patch Changes
+
+- [#49](https://github.com/kaitencloud/sdk-js/pull/49) [`80139ae`](https://github.com/kaitencloud/sdk-js/commit/80139ae2d5c55142f4f8ef427e3a97049ebf3efc) Thanks [@Lleios](https://github.com/Lleios)! - The READMEs and the doc comments name the Kaiten release the billing features need: 26.11.3. Kaiten serves billing's routes from 26.10.7 on, and reads the publishable key as `Kaiten-Publishable-Key`, the name this version sends, from 26.11.3 on. They used to say that no Kaiten release carried billing yet.
+
 ## 1.1.0
 
 ### Minor Changes
