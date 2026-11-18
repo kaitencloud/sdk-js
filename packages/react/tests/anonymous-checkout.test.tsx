@@ -573,6 +573,38 @@ test("a free plan completes at the first confirm, and the page is told once, wit
   expect(onSubscribed).toHaveBeenCalledTimes(1);
 });
 
+// The page is told after the fact. What its callbacks throw is the page's own bug: it is
+// reported, and the visitor's checkout goes on as if the page had listened.
+test("a page whose callbacks throw still has its checkout started and completed, and the throws reported", async () => {
+  const startedThrown = new Error("the page's start handler broke");
+  const subscribedThrown = new Error("the page's completion handler broke");
+  const report = vi.spyOn(console, "error").mockImplementation(() => {});
+  const client = doubleOf();
+  const probe = await mount(client, {
+    onStarted: () => {
+      throw startedThrown;
+    },
+    onSubscribed: () => {
+      throw subscribedThrown;
+    },
+  });
+  await started(probe, STARTER);
+
+  expect(probe.now.step).toBe("review");
+  expect(probe.now.error).toBeNull();
+  expect(probe.now.quote).toMatchObject({ dueToday: { total: 0 } });
+  expect(report).toHaveBeenCalledWith(expect.stringContaining("onStarted"), startedThrown);
+
+  await act(async () => {
+    await probe.now.confirm();
+  });
+  await flush();
+
+  expect(probe.now.step).toBe("completed");
+  expect(probe.now.outcome).toMatchObject({ sessionId: "chk_mock_1" });
+  expect(report).toHaveBeenCalledWith(expect.stringContaining("onSubscribed"), subscribedThrown);
+});
+
 test("a trial that needs no payment method starts at the first confirm and says when it ends", async () => {
   const probe = await mount(doubleOf());
   await started(probe, LITE);

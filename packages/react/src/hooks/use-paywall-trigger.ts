@@ -10,6 +10,7 @@ import { useEntitlements } from "./use-kaiten-entitlements.ts";
 import { useLicensingSnapshot } from "./use-licensing-snapshot.ts";
 import { useLocalization } from "../localization/context.tsx";
 import { usageWindowLabel } from "../lib/entitlement-usage-window.ts";
+import { isProduction } from "../lib/production.ts";
 import type { PortalAction } from "../types.ts";
 
 export interface PaywallTriggerOptions {
@@ -134,7 +135,7 @@ export function usePaywallTrigger(
   // silently paywall every visitor (R-?). Warn and fail OPEN: gating belongs in
   // a customer's scope; on a marketing page the content should render.
   React.useEffect(() => {
-    if (!gates && process.env.NODE_ENV !== "production") {
+    if (!gates && !isProduction()) {
       console.warn(
         `[@kaitencloud/react] usePaywallTrigger/Paywall("${entitlementSlug}") is used under mode="${mode}". ` +
           `Only an authenticated or customer-session <KaitenProvider> has a customer's entitlements, so the paywall is disabled (content shown). ` +

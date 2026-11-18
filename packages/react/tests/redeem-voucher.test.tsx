@@ -180,6 +180,24 @@ describe("the hook", () => {
     expect(onApplied).toHaveBeenCalledTimes(1);
   });
 
+  // The page is told after the fact. What its callback throws is the page's own bug: it is
+  // reported, and the voucher the API applied is still applied.
+  test("a page whose onApplied throws still has the voucher applied, and the throw is reported", async () => {
+    const thrown = new Error("the page's handler broke");
+    const report = vi.spyOn(console, "error").mockImplementation(() => {});
+    const client = createMockKaitenSessionClient();
+    const view = mount(client, () => {
+      throw thrown;
+    });
+    await waitFor(() => expect(view.result.current.portal.data).toBeDefined());
+
+    await act(() => view.result.current.redeem.check("WELCOME20"));
+    await act(() => view.result.current.redeem.apply());
+
+    expect(view.result.current.redeem).toMatchObject({ status: "applied", problem: null });
+    expect(report).toHaveBeenCalledWith(expect.stringContaining("onApplied"), thrown);
+  });
+
   test("never holds the code in its state, and forgets it once applied", async () => {
     const client = createMockKaitenSessionClient();
     const view = mount(client);

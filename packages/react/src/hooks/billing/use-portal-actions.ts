@@ -15,6 +15,7 @@ import type {
   VoucherValidation,
 } from "@kaitencloud/client";
 
+import { notifyHost } from "../../lib/host-callback.ts";
 import { useKaitenContext } from "../../providers/kaiten-provider.tsx";
 import { useTrackHook } from "../../telemetry/context.tsx";
 import { useKaitenMutation, type UseKaitenMutationResult } from "../use-kaiten-query.ts";
@@ -381,7 +382,7 @@ export function useRedeemVoucher(
       await invalidatePortal(mutate, scopeKey);
       if (attempt.current !== mine) return;
       dispatch({ type: "applied", redemption });
-      onApplied.current?.(redemption);
+      notifyHost("onApplied", onApplied.current, redemption);
     } catch (error) {
       if (attempt.current === mine)
         dispatch({ type: "refused", error: error as Error, now: Date.now() });

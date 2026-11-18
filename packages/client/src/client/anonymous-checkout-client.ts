@@ -33,6 +33,7 @@ import {
   isBrowserRuntime,
   isCheckoutSessionToken,
 } from "../core/runtime/keys.ts";
+import { notifyHost } from "../core/runtime/host-callback.ts";
 import { retry } from "../core/runtime/retry.ts";
 import type {
   CheckoutConfirmation as WireConfirmation,
@@ -388,7 +389,7 @@ export class KaitenAnonymousCheckoutClient implements KaitenAnonymousCheckoutCli
         if (credential) {
           if (sessionId !== undefined && error.status === 401)
             this.forgetCheckoutSession(sessionId);
-          this.config.onAuthError?.({
+          notifyHost("onAuthError", this.config.onAuthError, {
             status: error.status as 401 | 403,
             operation: label,
             error,

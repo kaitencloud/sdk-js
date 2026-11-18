@@ -437,6 +437,29 @@ test("a customer with a payment method is subscribed at once, and the portal and
   expect(callsOf(client, "getPortal").length).toBeGreaterThan(portalReads);
 });
 
+// The page is told after the fact. What its callback throws is the page's own bug: it is
+// reported, and the customer who subscribed is still subscribed.
+test("a page whose onSubscribed throws still has a subscribed checkout, and the throw is reported", async () => {
+  const thrown = new Error("the page's handler broke");
+  const report = vi.spyOn(console, "error").mockImplementation(() => {});
+  const client = withCard();
+  const probe = await mount(client, {
+    initial: { licensePriceId: GROWTH },
+    onSubscribed: () => {
+      throw thrown;
+    },
+  });
+
+  await act(async () => probe.now.submit());
+  await settle();
+
+  expect(commits(client)).toHaveLength(1);
+  expect(probe.now.step).toBe("subscribed");
+  expect(probe.now.error).toBeNull();
+  expect(probe.now.result).not.toBeNull();
+  expect(report).toHaveBeenCalledWith(expect.stringContaining("onSubscribed"), thrown);
+});
+
 /** A double that subscribes with the given payment, whatever is asked, and previews as usual. */
 function paying(status: string, invoiceStatus = "PAYMENT_FAILED") {
   const client = unsubscribedSession({

@@ -13,6 +13,7 @@ import {
 import { useIcons } from "../../appearance/icons.tsx";
 import { useMergedAppearance } from "../../appearance/context.tsx";
 import { cn } from "../../lib/utils.ts";
+import { isProduction } from "../../lib/production.ts";
 import { useAssertWrappedByKaitenProvider } from "../../style-root/kaiten-style-root.tsx";
 import { useTrackComponent } from "@kaitencloud/react/internal";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "../ui/card.tsx";
@@ -213,7 +214,7 @@ function PaywallRoot({
   }, [onThresholdReached, trigger.percentage, trigger.shouldShow]);
 
   React.useEffect(() => {
-    if (typeof process !== "undefined" && process.env.NODE_ENV === "production") return;
+    if (isProduction()) return;
     if (mode === "hard" && isModalRefusal(trigger.reason) && trigger.shouldShow && !onUpgrade) {
       console.warn(
         '[@kaitencloud/react] Paywall: `mode="hard"` with no `onUpgrade` leaves users without an upgrade action. Provide `onUpgrade` or `onDismiss`.',

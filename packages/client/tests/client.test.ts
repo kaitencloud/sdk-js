@@ -606,6 +606,29 @@ describe("onDegraded", () => {
     expect(onDegraded.mock.calls[0]?.[0]).toMatchObject({ operation: "getCatalog" });
   });
 
+  // The observer is the host's: what it throws is reported, and the read it
+  // observes still answers.
+  test("a callback that throws neither fails the read nor goes unreported", async () => {
+    const thrown = new Error("the host's handler broke");
+    const report = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      installSnapshotApi({ graphqlOrder: [instanceRow("alpha")], graphqlAvailable: false });
+
+      const snapshot = await new KaitenClient({
+        authScheme: "none",
+        apiUrl: "https://api.test",
+        onDegraded: () => {
+          throw thrown;
+        },
+      }).getLicensingSnapshot("acme");
+
+      expect(snapshot.instance?.slug).toBe("alpha");
+      expect(report).toHaveBeenCalledWith(expect.stringContaining("onDegraded"), thrown);
+    } finally {
+      report.mockRestore();
+    }
+  });
+
   test("stays quiet when GraphQL answers", async () => {
     const onDegraded = vi.fn();
     installSnapshotApi({ graphqlOrder: [instanceRow("alpha")] });

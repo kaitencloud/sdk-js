@@ -162,9 +162,12 @@ const SCENARIOS = [
     // scenario. The budget rises by as much.
     // Measured at 33 638 bytes, up from 33 291: the snapshot's effective set, as in the
     // first scenario. The budget rises by as much.
+    // Measured at 33 869 bytes, up from 33 799: the report of a host callback that throws, which
+    // the mutations, both checkouts and the voucher's redemption call it through. The budget had
+    // been left 51 bytes over the measure: it rises to a margin of about 300 bytes again.
     name: "core · everything",
     code: `import * as all from "@kaitencloud/react"; console.log(all);`,
-    budgetGzip: 33_850,
+    budgetGzip: 34_150,
     unstyled: true,
   },
   {
@@ -305,9 +308,14 @@ const SCENARIOS = [
     // scenario. The budget rises by as much.
     // Measured at 51 784 bytes, up from 51 436: the snapshot's effective set, as in the
     // first scenario. The budget rises by as much.
+    // Measured at 52 329 bytes, up from 52 220: the paywall's warning about a provider with no
+    // customer. Its guard read `process.env.NODE_ENV` with nothing around it, so a bundle dropped
+    // the warning, and a browser with no bundler threw; read through the helper that is safe
+    // there, it stays in the bundle, never reached in production. The budget had been left 30
+    // bytes over the measure: it rises to a margin of about 300 bytes again.
     name: "react-ui · Paywall + KaitenProvider + KaitenStyleRoot",
     code: `import { Paywall, KaitenProvider, KaitenStyleRoot } from "@kaitencloud/react-ui"; console.log(Paywall, KaitenProvider, KaitenStyleRoot);`,
-    budgetGzip: 52_250,
+    budgetGzip: 52_650,
   },
   {
     // What a host that offers a checkout ships: the flow, the hooks it is made of, and the words
