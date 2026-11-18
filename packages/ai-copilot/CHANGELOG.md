@@ -1,5 +1,11 @@
 # @kaitencloud/ai-copilot
 
+## 0.1.1
+
+### Patch Changes
+
+- [#54](https://github.com/kaitencloud/sdk-js/pull/54) [`03cddb1`](https://github.com/kaitencloud/sdk-js/commit/03cddb17a8946e7a71c0dbf8500ae18bac40ad41) Thanks [@Lleios](https://github.com/Lleios)! - Published by the release workflow, with npm provenance, a git tag and a GitHub release. The code is unchanged from 0.1.0.
+
 ## 0.1.0
 
 First release, on npm under the Apache License 2.0. Usage accounting for the GitHub Copilot SDK. `observeCopilotSession(session, { kaiten, instance, entitlement })` commits the usage of each model call a session reports. It observes after the call: the SDK's events cannot block a model request, so a credit refusal cannot stop one.
