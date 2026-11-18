@@ -1,12 +1,10 @@
 // Copyright 2026 KAITEN INC
 // SPDX-License-Identifier: Apache-2.0
 
+import { isProduction } from "./production.ts";
+
 /** Warn once per (hook, slug) — the entitlement hooks re-run on every poll. */
 const warned = new Set<string>();
-
-function isProduction(): boolean {
-  return typeof process !== "undefined" && process.env.NODE_ENV === "production";
-}
 
 /**
  * Says, in development, that an entitlement slug matched nothing.

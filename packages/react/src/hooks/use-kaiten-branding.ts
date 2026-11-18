@@ -3,6 +3,7 @@
 
 import * as React from "react";
 
+import { isProduction } from "../lib/production.ts";
 import { useKaitenContext, useKaitenDataContext } from "../providers/kaiten-provider.tsx";
 import { useTelemetry, useTrackHook } from "../telemetry/context.tsx";
 
@@ -15,10 +16,6 @@ export interface KaitenBrandingState {
    * rendering its own footer needs.
    */
   hidden: boolean;
-}
-
-function isProduction(): boolean {
-  return typeof process !== "undefined" && process.env.NODE_ENV === "production";
 }
 
 /**

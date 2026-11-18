@@ -29,6 +29,7 @@ import {
   TransactionIdReusedError,
 } from "../core/runtime/errors.ts";
 import { notifyHost } from "../core/runtime/host-callback.ts";
+import { isProduction } from "../core/runtime/production.ts";
 import {
   defaultActions,
   normalizeBrandingCapability,
@@ -243,10 +244,6 @@ const listQuery = (cursor?: string) =>
  * legitimately answers with when there is no content.
  */
 const USAGE_UNAVAILABLE = Symbol("kaiten.usage-unavailable");
-
-function isProduction(): boolean {
-  return typeof process !== "undefined" && process.env.NODE_ENV === "production";
-}
 
 /** Warn once per (customer, instance) pair — the snapshot re-runs on every poll. */
 const warnedImplicitInstance = new Set<string>();

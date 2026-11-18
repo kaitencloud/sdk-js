@@ -28,6 +28,7 @@ import type {
 import { kaitenKeys } from "../hooks/query-keys.ts";
 import type { UseKaitenQueryResult } from "../hooks/use-kaiten-query.ts";
 import { snapshotFromPortal } from "../lib/portal-snapshot.ts";
+import { isProduction } from "../lib/production.ts";
 import { DEFAULT_STALE_IF_ERROR_MS, useProviderRead } from "./provider-read.ts";
 import { createOfflineKaitenClient } from "./static-client.ts";
 
@@ -84,10 +85,6 @@ interface KaitenDataContextValue {
 
 const KaitenContext = /* @__PURE__ */ React.createContext<KaitenContextValue | null>(null);
 const KaitenDataContext = /* @__PURE__ */ React.createContext<KaitenDataContextValue | null>(null);
-
-function isProduction(): boolean {
-  return typeof process !== "undefined" && process.env.NODE_ENV === "production";
-}
 
 function createDisabledQueryResult<T>(): UseKaitenQueryResult<T> {
   return {

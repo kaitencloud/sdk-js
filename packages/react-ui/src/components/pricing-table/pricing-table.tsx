@@ -5,6 +5,7 @@ import * as React from "react";
 
 import { useMergedAppearance } from "../../appearance/context.tsx";
 import { publishedPlans } from "../../lib/published-plans.ts";
+import { isProduction } from "../../lib/production.ts";
 import { safeHref } from "../../lib/safe-href.ts";
 import { cn } from "../../lib/utils.ts";
 import {
@@ -393,7 +394,7 @@ function PricingTableView({
   // adopter wires real prices (Kaiten has no server-side money model — prices are
   // host-supplied) instead of unknowingly publishing "Custom" everywhere.
   React.useEffect(() => {
-    if (typeof process !== "undefined" && process.env.NODE_ENV === "production") return;
+    if (isProduction()) return;
     const priceless = visiblePlans.filter(
       (plan) => getPlanPrice(plan, interval).display === undefined,
     );

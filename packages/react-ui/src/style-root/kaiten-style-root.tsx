@@ -6,6 +6,7 @@ import { clsx } from "clsx";
 import { useKaitenAvailable } from "@kaitencloud/react";
 
 import { buildAppearanceStyle } from "../appearance/apply.ts";
+import { isProduction } from "../lib/production.ts";
 import { AppearanceProvider, useMergedAppearance } from "../appearance/context.tsx";
 import type { KaitenAppearance } from "../appearance/types.ts";
 
@@ -19,10 +20,6 @@ interface StyleRootContextValue {
 }
 
 const StyleRootContext = /* @__PURE__ */ React.createContext<StyleRootContextValue | null>(null);
-
-function isProduction(): boolean {
-  return typeof process !== "undefined" && process.env.NODE_ENV === "production";
-}
 
 /**
  * The portal mount node of the nearest `KaitenStyleRoot`, or `null` when there is
