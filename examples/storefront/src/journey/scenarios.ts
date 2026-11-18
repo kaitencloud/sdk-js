@@ -343,6 +343,21 @@ export function chapters(catalogue: JourneyCatalogue): Chapter[] {
           ],
         },
         {
+          id: "license-usage",
+          title: "Follow what a licence has used",
+          lead: 'A licence is made of quotas, some capped and some that nothing caps. The page draws each as it is: a bar for a capped one, what is used out of "Unlimited" for the others.',
+          steps: [
+            {
+              text: "Start from a Pro customer whose licence also grants quotas nothing caps: workspaces, webhooks and environments, with what the customer has used of each.",
+              actions: [start("Start over", { subscribed: true, unlimitedQuotas: true })],
+            },
+            {
+              text: 'The license usage lists the API calls, with the 20% allowance Pro grants, and the seats as bars, and the three others with their count out of "Unlimited": no percentage, no bar.',
+              actions: [go("Open the license usage", "/license")],
+            },
+          ],
+        },
+        {
           id: "cancel",
           title: "Cancel, then withdraw",
           lead: "A cancellation takes effect at the end of the period, and can be withdrawn until then.",

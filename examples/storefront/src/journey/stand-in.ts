@@ -62,6 +62,8 @@ export interface StartingPoint {
   email?: boolean;
   subscribed?: boolean;
   free?: boolean;
+  /** The licence also grants quotas nothing caps, beside the plan's own: workspaces, webhooks, environments. */
+  unlimitedQuotas?: boolean;
   /** A visitor with no account: the storefront's backend asks the visitor to sign up. */
   signUp?: boolean;
   /** The publishable key opens the anonymous checkout: a visitor buys a plan with no account. */

@@ -28,10 +28,10 @@
 //
 // It is not a Kaiten. The sums are its own (a plan's price, an add-on's, a voucher's
 // percentage), the entitlements are the plan's own as the catalogue lists them (limits from the
-// catalogue, usage a fixed share of the limit, nothing metered), and it accepts every origin and
-// never limits a rate. What it proves is that the storefront asks for the right routes with
-// the right credentials, and that the SDK's components draw what comes back, including the
-// refusals a test makes it send. It proves nothing about Kaiten.
+// catalogue, usage a fixed share of the limit, nothing metered; a scenario can add quotas nothing
+// caps), and it accepts every origin and never limits a rate. What it proves is that the
+// storefront asks for the right routes with the right credentials, and that the SDK's components
+// draw what comes back, including the refusals a test makes it send. It proves nothing about Kaiten.
 //
 // It speaks HTTP: the page reaches it under `/kaiten-double/api`, as it would reach a Kaiten
 // under `/api`, and the storefront's own backend reaches it through the `fetch` the server SDK
@@ -274,11 +274,26 @@ export interface Scenario {
    */
   signUp?: boolean;
   /**
+   * The licence also grants quotas that nothing caps, beside the plan's own: workspaces, webhooks and
+   * environments, each with what the customer has used. A licence Kaiten sells today is made of such
+   * quotas, and the catalogue lists none of them, so the plan's own are drawn from it and these come
+   * from nowhere else: a customer's portal then holds a licence with quotas that are capped and quotas
+   * that are not, which the licence-usage page draws. Off by default.
+   */
+  unlimitedQuotas?: boolean;
+  /**
    * The publishable key starts anonymous checkouts: the catalogue says so, with a Turnstile site key, and a
    * visitor buys with no account. Off by default.
    */
   anonymousCheckout?: boolean;
 }
+
+/** The quotas `Scenario.unlimitedQuotas` adds, and what a customer has used of each. */
+const UNLIMITED_QUOTAS = [
+  { slug: "workspaces", name: "Workspaces", used: 12 },
+  { slug: "webhooks", name: "Webhooks", used: 4 },
+  { slug: "environments", name: "Environments", used: 3 },
+] as const;
 
 /** What a payment can come to, as `/control/payment` is told. */
 const OUTCOMES: PaymentOutcome[] = ["paid", "requires_action", "failed", "processing"];
@@ -366,6 +381,8 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
   /** The invoices whose failure leaves the subscription PAST_DUE: a renewal's and a trial's conversion. */
   let dunning: Set<string>;
   let addOns: Json[];
+  /** The licence grants quotas nothing caps beside the plan's own (`Scenario.unlimitedQuotas`). */
+  let unlimitedQuotas: boolean;
   /**
    * The code the instance redeemed, as the portal lists it (`SessionRedemption`): the one voucher the
    * double knows, taken once per instance, at a checkout or from the portal. Its discount is on the
@@ -472,6 +489,7 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
     dunning = new Set();
     addOns = [];
     redeemed = null;
+    unlimitedQuotas = scenario.unlimitedQuotas === true;
     if (scenario.subscribed) {
       const now = new Date();
       const end = addMonths(now, 1);
@@ -916,6 +934,22 @@ export function createKaitenDouble(options: KaitenDoubleOptions): KaitenDouble {
         });
       }
       drawn.push(entitlement);
+    }
+    if (unlimitedQuotas) {
+      // Drawn as the recorded portal draws its own unlimited quota (`workspaces`): the sentinel, no
+      // ceiling and no share, and the count the customer has. The portal lists its entitlements by slug.
+      const unlimited = (session.portal.entitlements as Json[]).find(
+        (each) => each.slug === "workspaces",
+      )!;
+      for (const quota of UNLIMITED_QUOTAS) {
+        drawn.push({
+          ...structuredClone(unlimited),
+          slug: quota.slug,
+          name: quota.name,
+          currentValue: quota.used,
+        });
+      }
+      drawn.sort((left, right) => left.slug.localeCompare(right.slug));
     }
     return drawn;
   };
