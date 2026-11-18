@@ -162,9 +162,12 @@ const SCENARIOS = [
     // scenario. The budget rises by as much.
     // Measured at 33 638 bytes, up from 33 291: the snapshot's effective set, as in the
     // first scenario. The budget rises by as much.
+    // Measured at 33 869 bytes, up from 33 799: the report of a host callback that throws, which
+    // the mutations, both checkouts and the voucher's redemption call it through. The budget had
+    // been left 51 bytes over the measure: it rises to a margin of about 300 bytes again.
     name: "core · everything",
     code: `import * as all from "@kaitencloud/react"; console.log(all);`,
-    budgetGzip: 33_850,
+    budgetGzip: 34_150,
     unstyled: true,
   },
   {

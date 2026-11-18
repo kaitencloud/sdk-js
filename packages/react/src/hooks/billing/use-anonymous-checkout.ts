@@ -22,6 +22,7 @@ import {
 } from "@kaitencloud/client";
 
 import { useKaitenContext, useKaitenDataContext } from "../../providers/kaiten-provider.tsx";
+import { notifyHost } from "../../lib/host-callback.ts";
 import { useTrackHook } from "../../telemetry/context.tsx";
 import { isPlausibleEmail } from "./checkout-selection.ts";
 import { anonymousCheckoutProblem, type AnonymousCheckoutProblem } from "./anonymous-refusals.ts";
@@ -202,6 +203,7 @@ export interface UseAnonymousCheckoutOptions {
   /**
    * Called once when a checkout is started, with its id, before the visitor is sent anywhere: the
    * place to record the name and the company they typed against the session if the page keeps them.
+   * What it throws is reported on the console and changes nothing: the checkout stays started.
    */
   onStarted?: (started: {
     sessionId: string;
@@ -209,7 +211,10 @@ export interface UseAnonymousCheckoutOptions {
     name: string | null;
     company: string | null;
   }) => void;
-  /** Called once when the checkout completes, in this window, whether the visitor paid here or came back. */
+  /**
+   * Called once when the checkout completes, in this window, whether the visitor paid here or came
+   * back. What it throws is reported on the console and changes nothing: the checkout stays completed.
+   */
   onSubscribed?: (outcome: AnonymousCheckoutOutcome) => void;
 }
 
@@ -603,7 +608,7 @@ export function useAnonymousCheckout(
   React.useEffect(() => {
     if (outcome === null || told.current === outcome.sessionId) return;
     told.current = outcome.sessionId;
-    latest.current.options.onSubscribed?.(outcome);
+    notifyHost("onSubscribed", latest.current.options.onSubscribed, outcome);
   }, [outcome]);
 
   /** An error that ends where a step cannot go on: the step to show, and the error. */
@@ -717,7 +722,7 @@ export function useAnonymousCheckout(
         );
       }
       setFlow({ ...SELECTING, step: "review", sessionId: opened.sessionId, quote });
-      current.onStarted?.({
+      notifyHost("onStarted", current.onStarted, {
         sessionId: opened.sessionId,
         email: quote.email,
         name: name || null,

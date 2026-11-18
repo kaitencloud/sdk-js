@@ -487,6 +487,47 @@ test("useKaitenMutation tracks success, sync mutate, and normalized errors", asy
   expect(onError).toHaveBeenCalledWith(expect.objectContaining({ message: "boom" }));
 });
 
+// The host is told once the call has an outcome. What its callbacks throw is its own bug: it is
+// reported, and neither turns a success into a failure nor stands in for the call's own error.
+test("useKaitenMutation keeps the call's outcome when the host's callbacks throw", async () => {
+  const thrown = new Error("the host's handler broke");
+  const report = vi.spyOn(console, "error").mockImplementation(() => {});
+  try {
+    const succeeding = renderHook(() =>
+      useKaitenMutation({
+        mutationFn: async (input: string) => input.toUpperCase(),
+        onSuccess: () => {
+          throw thrown;
+        },
+      }),
+    );
+    await act(async () => {
+      await expect(succeeding.result.current.mutateAsync("ok")).resolves.toBe("OK");
+    });
+    expect(succeeding.result.current.data).toBe("OK");
+    expect(succeeding.result.current.error).toBeNull();
+    expect(report).toHaveBeenCalledWith(expect.stringContaining("onSuccess"), thrown);
+
+    const failing = renderHook(() =>
+      useKaitenMutation({
+        mutationFn: async (_input: string): Promise<string> => {
+          throw new Error("refused");
+        },
+        onError: () => {
+          throw thrown;
+        },
+      }),
+    );
+    await act(async () => {
+      await expect(failing.result.current.mutateAsync("bad")).rejects.toThrow("refused");
+    });
+    expect(failing.result.current.error?.message).toBe("refused");
+    expect(report).toHaveBeenCalledWith(expect.stringContaining("onError"), thrown);
+  } finally {
+    report.mockRestore();
+  }
+});
+
 test("useKaitenMutation's mutate leaves a refusal in error, and rejects nothing it hands back", async () => {
   const unhandled = vi.fn();
   process.on("unhandledRejection", unhandled);

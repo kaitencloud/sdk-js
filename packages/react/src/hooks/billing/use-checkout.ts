@@ -12,6 +12,7 @@ import type {
 } from "@kaitencloud/client";
 
 import { useKaitenContext, useKaitenDataContext } from "../../providers/kaiten-provider.tsx";
+import { notifyHost } from "../../lib/host-callback.ts";
 import { useTrackHook } from "../../telemetry/context.tsx";
 import {
   checkoutInput,
@@ -104,7 +105,10 @@ export interface UseCheckoutOptions {
   debounceMs?: number;
   /** What sends this page to the provider's, when the browser blocks the popup. Default `location.assign`. */
   navigate?: (url: string) => void;
-  /** Called once the instance is subscribed, with the answer. */
+  /**
+   * Called once the instance is subscribed, with the answer. What it throws is reported on the
+   * console and changes nothing: the checkout stays subscribed.
+   */
   onSubscribed?: (result: CheckoutSubscribed) => void;
 }
 
@@ -347,7 +351,7 @@ export function useCheckout(options: UseCheckoutOptions = {}): UseCheckoutResult
         setFlow({ step: "subscribed", setup: null, committed: chosen, result, error: null });
         void invalidatePortal(mutate, scopeKey);
         void invalidateInvoices(mutate, scopeKey);
-        latest.current.options.onSubscribed?.(result);
+        notifyHost("onSubscribed", latest.current.options.onSubscribed, result);
       } catch (thrown) {
         const error = thrown instanceof Error ? thrown : new Error(String(thrown));
         const refusal = checkoutProblem(error, input);

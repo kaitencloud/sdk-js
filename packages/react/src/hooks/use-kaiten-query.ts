@@ -4,6 +4,7 @@
 import * as React from "react";
 import useSWR, { useSWRConfig } from "swr";
 
+import { notifyHost } from "../lib/host-callback.ts";
 import { useKaitenContext } from "../providers/kaiten-provider.tsx";
 
 export interface UseKaitenQueryOptions<T> {
@@ -60,7 +61,9 @@ export function useKaitenQuery<T>({
 
 export interface UseKaitenMutationOptions<TInput, TOutput> {
   mutationFn: (input: TInput) => Promise<TOutput>;
+  /** Called once the call succeeded. What it throws is reported on the console and changes nothing. */
   onSuccess?: (data: TOutput) => void;
+  /** Called once the call failed. What it throws is reported on the console; the call's error stands. */
   onError?: (error: Error) => void;
   revalidateKeys?: readonly (readonly unknown[])[];
 }
@@ -106,13 +109,13 @@ export function useKaitenMutation<TInput, TOutput>({
         for (const key of revalidateKeysRef.current ?? []) {
           await mutate(key);
         }
-        onSuccessRef.current?.(result);
+        notifyHost("onSuccess", onSuccessRef.current, result);
         return result;
       } catch (err) {
         const resolvedError = err instanceof Error ? err : new Error(String(err));
         setError(resolvedError);
         setIsPending(false);
-        onErrorRef.current?.(resolvedError);
+        notifyHost("onError", onErrorRef.current, resolvedError);
         throw resolvedError;
       }
     },
