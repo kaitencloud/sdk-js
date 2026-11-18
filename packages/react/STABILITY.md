@@ -237,7 +237,7 @@ the core lists here that `@kaitencloud/react-ui` imports only grows within a maj
   `TrialBanner`,
   `PricingTable`, `FeatureComparison`, `CheckoutSummary`, `CheckoutFlow`, `AnonymousCheckoutFlow`,
   `Paywall`, `PlanBadge`,
-  `UpgradeButton`, `EntitlementStatusBar`, `FeatureCatalog`, `BillingSummary`,
+  `UpgradeButton`, `EntitlementStatusBar`, `FeatureCatalog`, `BillingSummary`, `LicenseUsage`,
   `KaitenBranding`. The names it re-exports from the core keep the core's
   guarantee. What it draws from billing needs Kaiten 26.11.3 or later
   as well:
@@ -289,6 +289,17 @@ the core lists here that `@kaitencloud/react-ui` imports only grows within a maj
     outside a trial, and nothing from a server that does not serve the block. It adds no route and
     reads nothing but the portal. `now` fixes the instant it counts from; `trial` draws a trial
     the host holds.
+  - **`LicenseUsage`** (`@kaitencloud/react-ui`), under `mode="authenticated"` and `mode="customer-session"`:
+    the licence a customer holds and one row for every numeric quota meant for them, capped or not.
+    A capped quota has its figures, its window and the usage rule's state and bar; one nothing caps
+    has what is used out of "Unlimited", with no ratio; one whose usage could not be read says
+    "Usage unavailable". It is named by the licence, or by the plan a customer session's portal
+    names, wears a badge in a trial and draws the licence's term when the snapshot has one (a
+    session has none). It draws nothing under `public` and `static`, which have no snapshot to read,
+    and says so in a sentence for a licence with no numeric quota. It adds no route and no words of
+    its own: it says what `usageMeters`, `billingSummary`, `includedFeatures` and `subscription`
+    already say, so every language pack has them. Under a customer session it needs Kaiten 26.11.3
+    or later, like the rest of that mode.
   - **The subscription in `CurrentPlan`, `BillingSummary` and `Paywall`** (`@kaitencloud/react-ui`),
     under `mode="customer-session"`: the status the portal gives (running, in its trial, canceled and
     ending with its period, past due, over, waiting for the first payment of its checkout, or no

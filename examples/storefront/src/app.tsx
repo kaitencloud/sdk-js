@@ -19,6 +19,7 @@ import { PalettePicker } from "./components/palette-picker.tsx";
 import { ThemeSwitcher } from "./components/theme-switcher.tsx";
 import { CheckoutPage } from "./pages/checkout-page.tsx";
 import { JourneyPage } from "./pages/journey-page.tsx";
+import { LicensePage } from "./pages/license-page.tsx";
 import { PortalPage } from "./pages/portal-page.tsx";
 import { PricingPage } from "./pages/pricing-page.tsx";
 import { SalesPage } from "./pages/sales-page.tsx";
@@ -201,11 +202,13 @@ function Shell({ mode, sessionEnded }: { mode: StorefrontConfig["mode"]; session
     ? "checkout"
     : path === "/portal"
       ? "portal"
-      : path === "/journey"
-        ? "journey"
-        : path === "/sales"
-          ? "sales"
-          : "pricing";
+      : path === "/license"
+        ? "license"
+        : path === "/journey"
+          ? "journey"
+          : path === "/sales"
+            ? "sales"
+            : "pricing";
 
   return (
     <div className="site">
@@ -226,6 +229,9 @@ function Shell({ mode, sessionEnded }: { mode: StorefrontConfig["mode"]; session
             </Link>
             <Link to="/portal" aria-current={page === "portal" ? "page" : undefined}>
               Account
+            </Link>
+            <Link to="/license" aria-current={page === "license" ? "page" : undefined}>
+              License
             </Link>
             <Link to="/journey" aria-current={page === "journey" ? "page" : undefined}>
               Journey
@@ -256,6 +262,8 @@ function Shell({ mode, sessionEnded }: { mode: StorefrontConfig["mode"]; session
           <CheckoutPage slug={decodeURIComponent(path.slice("/checkout/".length))} />
         ) : page === "portal" ? (
           <PortalPage />
+        ) : page === "license" ? (
+          <LicensePage />
         ) : page === "journey" ? (
           <JourneyPage mode={mode} />
         ) : page === "sales" ? (

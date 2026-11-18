@@ -28,6 +28,18 @@ export const portal = (page: Page) => ({
   invoices: section(page, "Invoices"),
 });
 
+/** The licence-usage block, and the row of one of its quotas by the name it is listed under. */
+export const licenseUsage = (page: Page) => {
+  const block = page.locator('[data-slot="license-usage"]');
+  return {
+    block,
+    quota: (name: string): Locator =>
+      block.locator('[data-slot="license-usage-quota"]').filter({
+        has: page.getByText(name, { exact: true }),
+      }),
+  };
+};
+
 /** Goes to the checkout of a plan and gives the billing email the customer has none of yet. */
 export async function startCheckout(page: Page, plan: string, email = "billing@acme.test") {
   await page.goto("/");

@@ -38,6 +38,7 @@ const STYLED_SURFACE = [
   "EntitlementStatusBar",
   "BillingSummary",
   "TrialBanner",
+  "LicenseUsage",
 ] as const;
 
 /** Reached through `@kaitencloud/react/internal` only; a host has no business with them. */

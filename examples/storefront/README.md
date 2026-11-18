@@ -10,6 +10,7 @@ managing it, and the code to read when you wire your own.
 /checkout/:plan       CheckoutFlow    the choices, what is due today, the card, the outcome
                       AnonymousCheckoutFlow   the same for a visitor with no account: company, name, email, security check
 /portal               CustomerPortal  the plan, the limits, the invoices, cancellation, Change plan
+/license              LicenseUsage    the plan and every numeric quota of it, capped or not, with what is used
 /sales                                where Change plan and the plans priced on request lead
 /journey                              a presenter's walk through the payment lifecycle
 ```
@@ -198,6 +199,24 @@ The component words the button "Upgrade version" by default; `app.tsx` passes
 `localization={{ currentPlan: { upgradeVersion: "Change plan" } }}`, which is what the specification
 calls it.
 
+## The license page
+
+`/license` is [`LicenseUsage`](src/pages/license-page.tsx) in a page of its own, read from the same
+customer session as the account page: the plan's name (a session has no licence, so the block takes the
+plan the portal names, and draws no term), and one row for every numeric quota of it. A quota that
+something caps has its figures, the window it is counted in, a percentage of what was granted and a bar
+that reads the usage as the Kaiten console does, allowance included. A quota nothing caps has what is
+used out of "Unlimited", with no ratio, percentage or bar, which is why the account page's **Usage
+meters** (`UsageMeters`, which keeps to the capped ones) is not enough for a licence that is unlimited
+throughout, as every licence Kaiten sells today is. A feature that is on or off, such as single sign-on, is
+not a quantity: the account page's **Included features** lists it. A visitor with no account is asked to
+make one first, as on the account page.
+
+Pro's own quotas are all capped, so the stand-in shows a licence of both kinds only when it is asked to:
+the **Follow what a licence has used** scenario of the journey page (or `reset` with
+`unlimitedQuotas: true`) adds three quotas that nothing caps, with what the customer has used of each.
+Against your Kaiten the page shows whatever your plan grants.
+
 ## The journey page
 
 `/journey` walks a presenter through the payment lifecycle. Each scenario has a few steps, and a step
@@ -220,6 +239,7 @@ your Kaiten the buttons are off and the links remain.
 | Change the payment method          | the portal's Update payment method: the provider's page offers the other card                                                     |
 | Cancel, then withdraw              | the portal's controls, or **Advance to the boundary** to let the cancellation run                                                 |
 | Upgrade from the free plan         | Starter first, then Pro from the pricing table: the free subscription ends with no invoice                                        |
+| Follow what a licence has used     | Pro with quotas nothing caps, then the license page: a bar for each capped quota, a count out of "Unlimited" for the others       |
 | Change plan: a commercial request  | the portal's button, which opens the plan's own link                                                                              |
 | The vendor schedules a plan change | the storefront's backend schedules Growth with the server token, the boundary applies it                                          |
 
@@ -622,15 +642,16 @@ is a customer who moves:
 - a log of the events Kaiten would have sent the vendor. It is a log: no webhook is delivered.
 
 It is not Kaiten. The sums are its own, the entitlements are the catalogue's for the plan the
-customer is on (its limits, a usage that is a share of them, nothing metered), and it accepts every
-origin and limits no rate. It proves that the storefront
+customer is on (its limits, a usage that is a share of them, nothing metered; a scenario can add
+quotas nothing caps), and it accepts every origin and limits no rate. It proves that the storefront
 asks for the right routes with the right credentials and that the components draw what comes back,
 refusals included. It proves nothing about Kaiten, and `tests/kaiten-double.test.ts` holds it to
 what it stands in for: the conformance suite's whole journey runs against it, and every answer it
 gives in those tests is checked against `contracts/openapi.yaml`.
 
 A test controls it over HTTP, under `/kaiten-double/control`: `reset` starts from a customer with
-nothing (or with a card, an email, a subscription, or a free one with `free`), `script` has the next
+nothing (or with a card, an email, a subscription, or a free one with `free`, and with `unlimitedQuotas`
+a licence that also grants quotas nothing caps), `script` has the next
 calls to a route answered with a refusal you give it (a 401, a 403, a 429 with a `Retry-After`),
 `payment` says what becomes of the next payment, `advance` moves to the next boundary (`trial/end` only
 a trial's), `invoices/:id/pay` and `invoices/:id/decline` settle an invoice, `anonymous-checkout` (`{ "enabled": true }`)
@@ -726,7 +747,7 @@ Playwright runs, and CI uses the Playwright image. `pnpm run test:e2e` serves th
 a script, and the live project reads them.
 
 - **`stand-in`**, `checkout.spec.ts`, `failures.spec.ts`, `theme.spec.ts`, `journey.spec.ts`,
-  `signup.spec.ts` and `anonymous.spec.ts`, against the stand-in. It needs nothing,
+  `signup.spec.ts`, `anonymous.spec.ts` and `license.spec.ts`, against the stand-in. It needs nothing,
   so it runs everywhere, CI included (`storefront-e2e` in `.github/workflows/ci.yml`).
   - `checkout.spec.ts` is the customer's way: the pricing table, a plan taken to its checkout, a card
     saved on the provider's page in a popup and, when the browser blocks popups, in place of the
@@ -758,6 +779,10 @@ a script, and the live project reads them.
     widget a new token, since the stand-in for Kaiten takes each once. What these tests do not cover: the
     real Turnstile widget (Cloudflare is never loaded), a widget in a container under 320px, and a run
     against a real Kaiten (the `live` project plays no anonymous checkout).
+  - `license.spec.ts` is the license page: the quotas of a plan drawn as the usage rule says (the capped ones
+    with their bars, a soft limit's ceiling, the ones nothing caps with what is used out of "Unlimited" and
+    no bar), a plan with no quota to measure, the nav entry and the journey scenario that leads to it, a
+    visitor asked to make an account, and a block that fits its screen from 1280px down to 320px.
   - `theme.spec.ts` is the colour mode and the theme: System following the operating system, a
     choice kept across a reload and applied before the first paint, Claude's and Neo Brutalism's
     values on the page and on the components in Light and in Dark, going back to Kaiten, and a header

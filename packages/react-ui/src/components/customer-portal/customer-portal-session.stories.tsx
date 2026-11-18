@@ -7,6 +7,7 @@ import { expect, userEvent, waitFor, within } from "storybook/test";
 import { fr } from "@kaitencloud/react/locales";
 
 import { initechSession } from "../../../.storybook/kaiten-mock.tsx";
+import { seatsUnmeasured } from "../../../.storybook/license-portals.ts";
 import { portalDecorator, refusal } from "../../../.storybook/portal-mock.tsx";
 import { AddOns, CurrentPlan, CustomerPortal, UsageMeters } from "./customer-portal.tsx";
 import { InvoiceList } from "./sections/invoices-section.tsx";
@@ -357,6 +358,28 @@ export const UsageOnTheCeiling: Story = {
     const bar = canvas.getByRole("progressbar", { name: "Progress: 240,000 of 200,000" });
     await expect(bar).toHaveAttribute("data-usage-state", "at_limit");
     await expect(canvas.getByText("120%")).toBeInTheDocument();
+  },
+};
+
+export const UsageNotMeasured: Story = {
+  name: "A quota whose usage the server could not measure",
+  decorators: [portalDecorator({ portal: seatsUnmeasured() })],
+  render: () => (
+    <div className="flex w-full max-w-md flex-col gap-4">
+      <UsageMeters />
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByText("Seats", {}, SLOW);
+    // The grant is known and the usage is not: the row says so in place of "0 / 8", a percentage
+    // and a bar. The quotas that were measured are drawn as they are.
+    await expect(canvas.getByText("Usage unavailable")).toBeInTheDocument();
+    await expect(canvas.queryByRole("progressbar", { name: /^Progress: 0 of 8/ })).toBeNull();
+    await expect(canvas.queryByText("0 / 8")).toBeNull();
+    await expect(
+      canvas.getByRole("progressbar", { name: "Progress: 30,000 of 200,000" }),
+    ).toBeInTheDocument();
   },
 };
 

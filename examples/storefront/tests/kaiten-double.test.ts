@@ -855,6 +855,69 @@ describe("the portal's entitlements", () => {
   });
 });
 
+describe("a licence with quotas nothing caps", () => {
+  test("a scenario adds them beside the plan's own, with the usage the customer has, and nothing else moves", async () => {
+    const { double, customer, recorder } = world();
+    double.reset({ subscribed: true, unlimitedQuotas: true });
+    const { entitlements } = await (await customer()).getPortal();
+
+    // Listed by slug, as the portal lists them: Pro's own, and the three the catalogue does not list.
+    expect(entitlements.map((each) => each.slug)).toEqual([
+      "api-calls",
+      "environments",
+      "seats",
+      "sso",
+      "webhooks",
+      "workspaces",
+    ]);
+    for (const [slug, used] of [
+      ["workspaces", 12],
+      ["webhooks", 4],
+      ["environments", 3],
+    ] as const) {
+      expect(
+        entitlements.find((each) => each.slug === slug),
+        slug,
+      ).toMatchObject({
+        unlimited: true,
+        limitValue: { type: "number", value: -1 },
+        currentValue: { type: "number", value: used },
+        maximumAllowedUsage: null,
+        percentageUsed: null,
+      });
+    }
+    // The plan's own are what they were: capped, with the catalogue's numbers.
+    expect(entitlements.find((each) => each.slug === "api-calls")).toMatchObject({
+      unlimited: false,
+      limitValue: { value: 100000 },
+      maximumAllowedUsage: 120000,
+    });
+    expect(contractProblems(recorder)).toEqual([]);
+  });
+
+  test("it is off by default, and a new scenario turns it off again", async () => {
+    const { double, customer } = world();
+    const slugs = async () =>
+      (await (await customer()).getPortal()).entitlements.map((each) => each.slug).sort();
+
+    double.reset({ subscribed: true });
+    expect(await slugs()).toEqual(["api-calls", "seats", "sso"]);
+
+    double.reset({ subscribed: true, unlimitedQuotas: true });
+    expect(await slugs()).toHaveLength(6);
+
+    double.reset({ subscribed: true });
+    expect(await slugs()).toEqual(["api-calls", "seats", "sso"]);
+  });
+
+  test("a customer with no plan has no quota to add them to", async () => {
+    const { double, customer } = world();
+    double.reset({ unlimitedQuotas: true });
+    // The default customer holds an instance but no licence of the catalogue's: nothing is listed.
+    expect((await (await customer()).getPortal()).entitlements).toEqual([]);
+  });
+});
+
 describe("the next boundary", () => {
   const advance = async (double: ReturnType<typeof world>["double"]) => {
     const result = double.advance(ORIGIN);

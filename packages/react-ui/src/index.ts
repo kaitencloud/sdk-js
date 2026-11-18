@@ -115,3 +115,4 @@ export {
   type BillingSummaryProps,
   type BillingSummaryBilling,
 } from "./components/billing-summary/billing-summary.tsx";
+export { LicenseUsage, type LicenseUsageProps } from "./components/license-usage/license-usage.tsx";

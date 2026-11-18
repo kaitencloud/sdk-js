@@ -56,6 +56,8 @@ export interface StandIn {
     email?: boolean;
     subscribed?: boolean;
     free?: boolean;
+    /** The licence also grants quotas nothing caps: workspaces, webhooks and environments. */
+    unlimitedQuotas?: boolean;
     /** A visitor with no account: the storefront runs in sign-up mode until the next reset. */
     signUp?: boolean;
     /** The publishable key opens the anonymous checkout: a visitor buys with no account. */
