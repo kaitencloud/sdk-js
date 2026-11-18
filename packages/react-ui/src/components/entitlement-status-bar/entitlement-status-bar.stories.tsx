@@ -10,11 +10,20 @@ import {
   type KaitenFetchMockScenario,
   scenarioPaywallNearLimit,
   scenarioPortalDefault,
+  scenarioQuotas,
 } from "../../../.storybook/kaiten-mock.tsx";
 import { EntitlementStatusBar } from "./entitlement-status-bar.tsx";
 
 const defaultScenario = scenarioPortalDefault();
 const nearLimitScenario = scenarioPaywallNearLimit();
+// The usage read failed: the grants are known, what is consumed is not.
+const unreadableScenario = scenarioQuotas(
+  [
+    { slug: "api_calls", name: "API calls", limit: 10_000, used: 4_200 },
+    { slug: "seats", name: "Seats", limit: 25, used: 12 },
+  ],
+  { usageUnavailable: true },
+);
 
 /**
  * Five metered quotas — the shape a real host produces, not a worst case.
@@ -162,5 +171,38 @@ export const MetersAreAccessible: Story = {
     for (const bar of bars) {
       await expect(bar).toHaveAccessibleName(/\d/);
     }
+  },
+};
+
+/**
+ * A usage read that failed says nothing about how much is used, which is not "nothing used". Each
+ * meter says so in place of "0%", a bar of nothing and "0/10k", and no meter is drawn as healthy.
+ */
+export const UsageUnavailable: Story = {
+  decorators: [shell(unreadableScenario)],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByTitle("API calls");
+    await expect(
+      canvasElement.querySelectorAll('[data-slot="entitlement-status-bar-unavailable"]'),
+    ).toHaveLength(2);
+    await expect(canvas.getAllByText("Usage unavailable")).toHaveLength(2);
+    await expect(canvas.queryAllByRole("progressbar")).toHaveLength(0);
+    await expect(canvas.queryByText("0%")).toBeNull();
+    await expect(canvas.queryByText(/^0\/\d/)).toBeNull();
+  },
+};
+
+export const UsageUnavailableUnstyled: Story = {
+  decorators: [shell(unreadableScenario)],
+  args: {
+    unstyled: true,
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(await canvas.findByText(/^API calls:/)).toHaveTextContent(
+      "API calls: Usage unavailable",
+    );
+    await expect(canvas.queryByText(/0 \/ 10,000/)).toBeNull();
   },
 };

@@ -22,6 +22,7 @@ import {
   type EntitlementUsage,
   type Instance,
   type KaitenCatalog,
+  type KaitenLocalizationOverrides,
   type License,
   type LicenseEntitlement,
   type LicensingSnapshot,
@@ -431,6 +432,8 @@ export interface KaitenStoryProviderProps {
    * has `branding.removable: true` — use a scenario override in Storybook when wiring Controls.
    */
   hideBranding?: boolean;
+  /** The language pack the story is read in; English when left out. */
+  locale?: KaitenLocalizationOverrides;
 }
 
 const DEFAULT_LOADING_DELAY_MS = 1500;
@@ -482,6 +485,7 @@ export function KaitenStoryProvider({
   simulateLoading,
   simulateError,
   hideBranding = false,
+  locale,
 }: KaitenStoryProviderProps) {
   const client = React.useMemo(
     () => createStoryClient(scenario, buildStoryClientOptions(simulateLoading, simulateError)),
@@ -500,6 +504,7 @@ export function KaitenStoryProvider({
         polling={{ enabled: false }}
         hideBranding={hideBranding}
         client={client}
+        locale={locale}
       >
         <KaitenStyleRoot>{children}</KaitenStyleRoot>
       </KaitenProvider>
@@ -920,6 +925,10 @@ export interface QuotaFixture {
    * limit. An unlimited grant carries `-1` whatever is given here, as the API stores it.
    */
   allowancePercent?: number;
+  /** The unit it is counted in, singular and plural: "12 seats". The definition carries it, not the grant. */
+  unit?: [singular: string, plural: string];
+  /** The bounds of the window it is counted in. A quota with none counts for all time. */
+  window?: [start: string, end: string];
 }
 
 /**
@@ -946,6 +955,17 @@ export function scenarioQuotas(
         value: { type: "number", value: quota.limit },
       }),
       limitCapExceededOveragePercent: quota.limit === -1 ? -1 : (quota.allowancePercent ?? 0),
+      // The unit rides the entitlement's definition, which only the GraphQL read path carries.
+      ...(quota.unit
+        ? {
+            entitlement: {
+              slug: quota.slug,
+              name: quota.name,
+              unitSingular: quota.unit[0],
+              unitPlural: quota.unit[1],
+            },
+          }
+        : {}),
     })),
     usageRows: quotas.map((quota) => ({
       entitlementId: `e-${quota.slug}`,
@@ -953,6 +973,9 @@ export function scenarioQuotas(
       licenseId: license.id,
       licenseSlug: license.slug,
       value: { type: "number", value: quota.used },
+      ...(quota.window
+        ? { currentPeriodStart: quota.window[0], currentPeriodEnd: quota.window[1] }
+        : {}),
     })),
     plans: defaultPlans(),
     ...(options.usageUnavailable ? { usageUnavailable: true } : {}),
