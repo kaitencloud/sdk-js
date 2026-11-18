@@ -295,10 +295,11 @@ interface KaitenProviderSharedProps {
   /**
    * Request that the "Powered by Kaiten" branding be hidden.
    *
-   * Server-enforced: the branding is hidden only when the active Kaiten license
-   * sets `branding.removable === true`. If the license does not allow removal,
-   * the branding stays visible regardless of this prop and a
-   * `branding.bypass_attempted` telemetry event is emitted.
+   * Granted only when the data read says the license allows it
+   * (`branding.removable === true`, which Kaiten reports and the SDK applies in
+   * the browser). If the license does not allow removal, the branding stays
+   * visible regardless of this prop and a `branding.bypass_attempted` event goes
+   * to the telemetry `transport`, when one is set.
    */
   hideBranding?: boolean;
   children: React.ReactNode;

@@ -15,7 +15,7 @@ import type { PortalAction } from "../types.ts";
 
 export interface PaywallTriggerOptions {
   threshold?: number;
-  /** Minimum remaining numeric units required (R-?): denies when `remaining < min`. */
+  /** Minimum remaining numeric units required: denies when `remaining < min`. */
   min?: number;
   /**
    * What to do when there is no entitlement data to decide on: no read ever
@@ -121,7 +121,7 @@ export function usePaywallTrigger(
   const gates = mode === "authenticated" || mode === "customer-session";
 
   // A finite numeric quota is the only case where current/limit/percentage and a
-  // progress bar are meaningful (R-?). Boolean/config/flag/unlimited never are, and
+  // progress bar are meaningful. Boolean/config/flag/unlimited never are, and
   // neither is a quota whose usage could not be read: its `current` is no figure.
   const quota = check.entitlement?.limitValue.type === "number" && !check.isUnlimited;
   const usageUnread = quota && check.entitlement?.usageUnavailable === true;
@@ -132,7 +132,7 @@ export function usePaywallTrigger(
   // Only a customer's scope has a customer's entitlements. Public mode's
   // snapshot is intentionally empty and static mode has no snapshot at all, so
   // an entitlement check under either always reads "not entitled" and would
-  // silently paywall every visitor (R-?). Warn and fail OPEN: gating belongs in
+  // silently paywall every visitor. Warn and fail OPEN: gating belongs in
   // a customer's scope; on a marketing page the content should render.
   React.useEffect(() => {
     if (!gates && !isProduction()) {

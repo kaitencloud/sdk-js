@@ -33,7 +33,7 @@ export function KaitenBranding({
   variant = "footer",
 }: KaitenBrandingProps) {
   const localization = useLocalization();
-  // The rule — server-enforced removal, the bypass audit event, the development
+  // The rule — removal only when the license allows it, the bypass event, the development
   // warning — is the core's `useKaitenBranding`; this is its default rendering.
   const { hidden } = useKaitenBranding();
   const poweredByPrefix = getPoweredByPrefix(localization.branding.poweredBy);
