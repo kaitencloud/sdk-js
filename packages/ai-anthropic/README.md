@@ -1,6 +1,6 @@
 # Kaiten AI credits for Anthropic
 
-Server-side only; optional peer `@anthropic-ai/sdk` (`>=0.100.0 <1`).
+Server-side only; optional peer `@anthropic-ai/sdk` (`>=0.100.0 <2`).
 
 ```ts
 import { wrapAnthropic } from "@kaitencloud/ai-anthropic";
