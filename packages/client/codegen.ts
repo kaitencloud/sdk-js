@@ -25,8 +25,9 @@ const config: CodegenConfig = {
         useTypeImports: true,
         // The workspace compiles with moduleResolution=nodenext: relative imports
         // need explicit extensions, so emit ESM ".js" specifiers (mapped to the
-        // .ts sources by TypeScript).
-        emitLegacyCommonJSImports: false,
+        // .ts sources by TypeScript). Client preset 7 took this from
+        // `emitLegacyCommonJSImports: false`, which no longer adds them.
+        importExtension: ".js",
         scalars: {
           UUID: "string",
           Time: "string",
