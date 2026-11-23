@@ -117,7 +117,7 @@ jobs:
     # in sync with the pinned @playwright/test version;
     # scripts/check-version-invariants.mjs fails when they differ.
     container:
-      image: mcr.microsoft.com/playwright:v1.65.0-noble
+      image: mcr.microsoft.com/playwright:v1.65.1-noble
     steps:
       - uses: actions/checkout@v7.0.1
       - uses: pnpm/action-setup@v6.1.1
@@ -179,7 +179,7 @@ jobs:
     runs-on: ubuntu-latest
     # Same image and tag as `test-unit`: the baselines are rendered by this Chromium.
     container:
-      image: mcr.microsoft.com/playwright:v1.65.0-noble
+      image: mcr.microsoft.com/playwright:v1.65.1-noble
     steps:
       - uses: actions/checkout@v7.0.1
       - uses: pnpm/action-setup@v6.1.1
@@ -234,7 +234,7 @@ jobs:
     runs-on: ubuntu-latest
     # Same image and tag as `test-unit`.
     container:
-      image: mcr.microsoft.com/playwright:v1.65.0-noble
+      image: mcr.microsoft.com/playwright:v1.65.1-noble
     steps:
       - uses: actions/checkout@v7.0.1
       - uses: pnpm/action-setup@v6.1.1
@@ -289,7 +289,7 @@ jobs:
     # Same image as the `test-unit` job, and the same tag to keep in sync with @playwright/test;
     # scripts/check-version-invariants.mjs fails when they differ.
     container:
-      image: mcr.microsoft.com/playwright:v1.65.0-noble
+      image: mcr.microsoft.com/playwright:v1.65.1-noble
     steps:
       - uses: actions/checkout@v7.0.1
       - uses: pnpm/action-setup@v6.1.1
