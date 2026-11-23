@@ -41,7 +41,8 @@ which a release without it ignores: the report is counted at every sending and i
 no `transactionId`. Kaiten serves billing's routes from 26.10.7 on. `Public.getPublicCatalog`
 and `Public.createCheckoutSession` send a publishable key given in `auth` as
 `Kaiten-Publishable-Key`, which Kaiten reads from 26.11.3 on, and the AI credit routes are in
-Kaiten from 26.11.3 on. The classes and operations of 1.0.0, OFREP's excepted, are still there
+Kaiten from 26.11.3 on. The `metadata` member of `Instances.patchInstance`'s body needs a
+Kaiten release that carries the metadata merge, and an earlier one refuses it with a 422. The classes and operations of 1.0.0, OFREP's excepted, are still there
 and work against the Kaiten releases they worked against.
 
 ## Quick start
@@ -233,6 +234,35 @@ itself, so a long range is never held in memory. The file name the API suggests 
 `Content-Disposition` header of the `response` the call also returns. A `from` before the start
 of the retention is refused with a 422, `ListUsageReports.OutsideRetention` or
 `ExportUsageReports.OutsideRetention`.
+
+## Instance metadata
+
+`Instances.updateInstance` replaces the whole instance, metadata included, so changing one
+metadata key through it means reading the instance first, and a key someone else changed
+in the meantime is overwritten. `Instances.patchInstance` takes the keys to change instead,
+with no read first:
+
+```ts
+import { Instances } from "@kaitencloud/server";
+
+// Set "region", remove "legacy-plan", keep every other key as it is.
+await Instances.patchInstance({
+  client,
+  path: { instanceSlug: "sakura-tokyo-prod" },
+  body: { metadata: { region: "eu-west", "legacy-plan": null } },
+});
+```
+
+`metadata` is merged at the first level: each key sent is set, its value replacing the
+stored one whole (lists and objects included); a key whose value is `null` is removed; keys
+it does not name are kept. An empty object, or none, leaves the metadata as it is. The same
+body may carry `status` and `lifecycleStage`, each changed only when present. The merged
+metadata is validated as on `updateInstance`: a declared metadata field that refuses it throws
+a `KaitenError` with the code `MetadataValidation.Failed`, and nothing of the patch is
+written.
+
+`metadata` needs a Kaiten release that carries the metadata merge on
+`PATCH /instances/{instanceSlug}`; an earlier one refuses the key with a 422.
 
 ## Invoices and the handoff queue
 
