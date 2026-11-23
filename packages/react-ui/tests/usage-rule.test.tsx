@@ -130,7 +130,10 @@ const barNamed = (name: RegExp | string) => screen.getByRole("progressbar", { na
 const panel = () => document.querySelector<HTMLElement>('[data-slot="billing-summary-warning"]');
 const segment = (bar: HTMLElement, name: string) =>
   bar.querySelector<HTMLElement>(`[data-segment="${name}"]`);
-/** A style's percentage as a number: the widths are quotients, not round figures. */
+/**
+ * A style's percentage as a number: the widths are quotients, not round figures, and the
+ * CSSOM keeps six significant digits of them (`83.3333%`), as a browser does since jsdom 31.
+ */
 const percent = (value: string | undefined) => Number.parseFloat(value ?? "NaN");
 
 /**
@@ -222,10 +225,10 @@ test("ProgressBar: inside the allowance the part up to the grant stays green and
   expect(bar.dataset.usageState).toBe("in_allowance");
   // 100 of 120 is the contract, 10 of 120 the allowance used.
   expect(segment(bar, "contract")?.className).toContain("bg-ktn-success");
-  expect(percent(segment(bar, "contract")?.style.width)).toBeCloseTo((100 / 120) * 100, 6);
+  expect(percent(segment(bar, "contract")?.style.width)).toBeCloseTo((100 / 120) * 100, 3);
   expect(segment(bar, "allowance")?.className).toContain("bg-ktn-warning");
-  expect(percent(segment(bar, "allowance")?.style.left)).toBeCloseTo((100 / 120) * 100, 6);
-  expect(percent(segment(bar, "allowance")?.style.width)).toBeCloseTo((10 / 120) * 100, 6);
+  expect(percent(segment(bar, "allowance")?.style.left)).toBeCloseTo((100 / 120) * 100, 3);
+  expect(percent(segment(bar, "allowance")?.style.width)).toBeCloseTo((10 / 120) * 100, 3);
 });
 
 test("ProgressBar: on the ceiling and past it the whole fill is red", () => {
@@ -240,7 +243,7 @@ test("ProgressBar: on the ceiling and past it the whole fill is red", () => {
   bar = screen.getByRole("progressbar");
   expect(bar.dataset.usageState).toBe("over_limit");
   // Kept on the track.
-  expect(percent(segment(bar, "allowance")?.style.width)).toBeCloseTo((20 / 120) * 100, 6);
+  expect(percent(segment(bar, "allowance")?.style.width)).toBeCloseTo((20 / 120) * 100, 3);
 });
 
 test("ProgressBar: a grant of nothing has no band to draw, and an unlimited one no track to fill", () => {
