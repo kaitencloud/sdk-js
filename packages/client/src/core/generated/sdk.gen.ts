@@ -3069,7 +3069,7 @@ export const getInstance = <ThrowOnError extends boolean = false>(
 /**
  * Patch an instance
  *
- * Partially update an instance. Currently supports the operational status and the commercial lifecycle stage.
+ * Partially update an instance: its operational status, its commercial lifecycle stage, and individual metadata keys. Unlike PUT, a metadata change needs no read of the instance first, and does not overwrite keys it does not name.
  */
 export const patchInstance = <ThrowOnError extends boolean = false>(
   options: Options<PatchInstanceData, ThrowOnError>,
