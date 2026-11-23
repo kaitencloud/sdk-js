@@ -12019,6 +12019,10 @@ components:
             - AT_RISK
           minLength: 1
           type: string
+        metadata:
+          additionalProperties: {}
+          description: "Metadata keys to change, merged into the stored metadata at the first level: each key present is set, its value replacing the stored one whole (lists and objects included); a key whose value is null is removed; keys absent from the object are kept. The merged result is validated against the organization's declared instance metadata fields, as on PUT. When omitted, metadata is unchanged."
+          type: object
         status:
           description: Operational status of the instance
           enum:
@@ -15180,6 +15184,12 @@ components:
             - 123e4567-e89b-12d3-a456-426614174000
           readOnly: true
           type: string
+        releaseNote:
+          description: Release notes for the release, in markdown. Set on create only. Returned when a single release is read; omitted from list responses.
+          examples:
+            - Faster start-up. See the [changelog](https://example.com/changelog).
+          maxLength: 62000
+          type: string
         slug:
           description: Optional URL-friendly identifier, unique per organization. Auto-generated if not provided.
           examples:
@@ -15252,6 +15262,12 @@ components:
           examples:
             - 123e4567-e89b-12d3-a456-426614174000
           readOnly: true
+          type: string
+        releaseNote:
+          description: Release notes for the release, in markdown. Set on create only. Returned when a single release is read; omitted from list responses.
+          examples:
+            - Faster start-up. See the [changelog](https://example.com/changelog).
+          maxLength: 62000
           type: string
         slug:
           description: Optional URL-friendly identifier, unique per organization. Auto-generated if not provided.
@@ -18737,6 +18753,7 @@ components:
       type: http
       x-kaiten-scopes:
         - read:addons
+        - read:beta_features
         - read:billing
         - read:components
         - read:customer_sessions
@@ -18759,6 +18776,7 @@ components:
         - read:vouchers
         - read:webhooks
         - write:addons
+        - write:beta_features
         - write:billing
         - write:components
         - write:customer_sessions
@@ -25399,7 +25417,7 @@ paths:
       tags:
         - instances
     patch:
-      description: Partially update an instance. Currently supports the operational status and the commercial lifecycle stage.
+      description: "Partially update an instance: its operational status, its commercial lifecycle stage, and individual metadata keys. Unlike PUT, a metadata change needs no read of the instance first, and does not overwrite keys it does not name."
       operationId: patchInstance
       parameters:
         - description: Instance slug

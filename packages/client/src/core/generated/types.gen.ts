@@ -7057,6 +7057,12 @@ export type PatchInstanceBody = {
    */
   lifecycleStage?: string;
   /**
+   * Metadata keys to change, merged into the stored metadata at the first level: each key present is set, its value replacing the stored one whole (lists and objects included); a key whose value is null is removed; keys absent from the object are kept. The merged result is validated against the organization's declared instance metadata fields, as on PUT. When omitted, metadata is unchanged.
+   */
+  metadata?: {
+    [key: string]: unknown;
+  };
+  /**
    * Operational status of the instance
    */
   status?: "HEALTHY" | "DEGRADED" | "INCIDENT" | "MAINTENANCE";
@@ -8671,6 +8677,10 @@ export type Release = {
    */
   readonly id: string;
   /**
+   * Release notes for the release, in markdown. Set on create only. Returned when a single release is read; omitted from list responses.
+   */
+  releaseNote?: string;
+  /**
    * Optional URL-friendly identifier, unique per organization. Auto-generated if not provided.
    */
   slug?: string;
@@ -8709,6 +8719,10 @@ export type ReleaseDelivered = {
    * Unique identifier for the release
    */
   readonly id: string;
+  /**
+   * Release notes for the release, in markdown. Set on create only. Returned when a single release is read; omitted from list responses.
+   */
+  releaseNote?: string;
   /**
    * Optional URL-friendly identifier, unique per organization. Auto-generated if not provided.
    */
@@ -13834,6 +13848,10 @@ export type ReleaseWritable = {
    */
   description?: string;
   /**
+   * Release notes for the release, in markdown. Set on create only. Returned when a single release is read; omitted from list responses.
+   */
+  releaseNote?: string;
+  /**
    * Optional URL-friendly identifier, unique per organization. Auto-generated if not provided.
    */
   slug?: string;
@@ -13860,6 +13878,10 @@ export type ReleaseDeliveredWritable = {
    * Description of the release
    */
   description?: string;
+  /**
+   * Release notes for the release, in markdown. Set on create only. Returned when a single release is read; omitted from list responses.
+   */
+  releaseNote?: string;
   /**
    * Optional URL-friendly identifier, unique per organization. Auto-generated if not provided.
    */
