@@ -8677,6 +8677,10 @@ export type Release = {
    */
   readonly id: string;
   /**
+   * Release notes for the release, in markdown. Set on create only. Returned when a single release is read; omitted from list responses.
+   */
+  releaseNote?: string;
+  /**
    * Optional URL-friendly identifier, unique per organization. Auto-generated if not provided.
    */
   slug?: string;
@@ -8715,6 +8719,10 @@ export type ReleaseDelivered = {
    * Unique identifier for the release
    */
   readonly id: string;
+  /**
+   * Release notes for the release, in markdown. Set on create only. Returned when a single release is read; omitted from list responses.
+   */
+  releaseNote?: string;
   /**
    * Optional URL-friendly identifier, unique per organization. Auto-generated if not provided.
    */
@@ -13840,6 +13848,10 @@ export type ReleaseWritable = {
    */
   description?: string;
   /**
+   * Release notes for the release, in markdown. Set on create only. Returned when a single release is read; omitted from list responses.
+   */
+  releaseNote?: string;
+  /**
    * Optional URL-friendly identifier, unique per organization. Auto-generated if not provided.
    */
   slug?: string;
@@ -13866,6 +13878,10 @@ export type ReleaseDeliveredWritable = {
    * Description of the release
    */
   description?: string;
+  /**
+   * Release notes for the release, in markdown. Set on create only. Returned when a single release is read; omitted from list responses.
+   */
+  releaseNote?: string;
   /**
    * Optional URL-friendly identifier, unique per organization. Auto-generated if not provided.
    */
