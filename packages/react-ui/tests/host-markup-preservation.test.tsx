@@ -31,7 +31,7 @@
 
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import postcss from "postcss";
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, beforeAll, describe, expect, test, vi } from "vite-plus/test";
@@ -66,13 +66,14 @@ const SHIPPED_CSS = path.resolve(import.meta.dirname, "../dist/kaiten.css");
  * The shipped sheet, with pseudo-element branches removed from every selector
  * list.
  *
- * This is not cosmetic. **jsdom discards an entire rule when its selector list
- * contains a pseudo-element**, and Tailwind emits its universal
+ * This is not cosmetic. **jsdom up to 30 discarded an entire rule when its
+ * selector list contained a pseudo-element**, and Tailwind emits its universal
  * `box-sizing`/`margin`/`padding`/`border` reset with `::after, ::before,
  * ::backdrop, ::file-selector-button` in that same list. Without this step jsdom
- * never applies the single most destructive rule in the sheet, and every
- * assertion below would pass with the bug fully present. `harness sees the
- * universal reset` pins that the stripping worked.
+ * never applied the single most destructive rule in the sheet, and every
+ * assertion below passed with the bug fully present. jsdom 31 keeps such a rule;
+ * the step stays so that the harness does not depend on it. `harness sees the
+ * universal reset` pins that the rule applies.
  */
 function loadShippedCss(): string {
   const root = postcss.parse(readFileSync(SHIPPED_CSS, "utf8"));
@@ -102,13 +103,13 @@ function renderUnderBoundary(children: ReactNode) {
 /**
  * What a host's own stylesheet gives the class names it shares with the SDK.
  *
- * Unlayered, with literal values: jsdom discards every rule inside an `@layer`
- * and does not substitute `var()` in a computed value, so a Tailwind v4 host
- * cannot be modelled here. It also drops a `calc()` over a variable outright,
- * which is what the SDK's spacing utilities are, so `p-4` is not among the
- * classes read here: the SDK's rule would be invisible and the assertion would
- * pass with the bug present. `Integration/Appearance precedence` asserts both in
- * a real browser.
+ * Unlayered, with literal values. jsdom up to 30 discarded every rule inside an
+ * `@layer`, did not substitute `var()` in a computed value and dropped a `calc()`
+ * over a variable, which is what the SDK's spacing utilities are, so neither a
+ * Tailwind v4 host nor `p-4` could be read here: the SDK's rule would have been
+ * invisible and the assertion would have passed with the bug present. jsdom 31
+ * does all three, but this file has not grown those cases:
+ * `Integration/Appearance precedence` asserts both in a real browser.
  */
 const HOST = {
   background: "rgb(220, 38, 38)",
@@ -181,7 +182,7 @@ function renderWalled(mode: "soft" | "hard", unstyled: boolean) {
 }
 
 test("harness sees the universal reset (otherwise every assertion here is vacuous)", () => {
-  // jsdom would drop this rule untouched — see loadShippedCss. If this fails,
+  // jsdom up to 30 would drop this rule untouched — see loadShippedCss. If this fails,
   // the stripping stopped working and the rest of this file proves nothing.
   const { getByTestId } = renderUnderBoundary(
     <div className="ktn-own">
@@ -195,7 +196,9 @@ test("harness sees the universal reset (otherwise every assertion here is vacuou
 describe("host markup is left alone", () => {
   // `box-sizing` and `border-width` come from that universal reset; `list-style`
   // from the tag-keyed preflight. All three read as the browser default here,
-  // which is the whole point.
+  // which is the whole point. Since jsdom 31 a list's marker is computed from the
+  // browser's own sheet, as in a browser: `disc`, and `circle` for a list inside
+  // another. The preflight's `list-style: none` reads as `none`.
 
   test("a host list keeps its bullets and its box model", () => {
     const { getByTestId } = render(
@@ -212,12 +215,15 @@ describe("host markup is left alone", () => {
     );
 
     const style = getComputedStyle(getByTestId("host-list"));
-    expect(style.listStyle).toBe("");
+    expect(style.listStyleType).toBe("disc");
     expect(style.boxSizing).toBe("content-box");
-    // The default border width, read from a list outside `.kaiten`: jsdom 29
-    // reported the keyword `medium`, and jsdom 30 resolves it to a length.
-    expect(style.borderWidth).toBe(getComputedStyle(getByTestId("control-list")).borderWidth);
-    expect(style.borderWidth).not.toBe("0px");
+    // The default border, read from a list outside `.kaiten`. The reset's
+    // `border: 0 solid` shows in the style: since jsdom 31 a border whose style is
+    // `none` computes to a width of `0px`, as in a browser, whatever its width says.
+    const control = getComputedStyle(getByTestId("control-list"));
+    expect(style.borderWidth).toBe(control.borderWidth);
+    expect(style.borderStyle).toBe(control.borderStyle);
+    expect(style.borderStyle).toBe("none");
   });
 
   test("a host heading and link are untouched", () => {
@@ -249,7 +255,7 @@ describe("host markup is left alone", () => {
     );
 
     const style = getComputedStyle(getByTestId("walled-list"));
-    expect(style.listStyle).toBe("");
+    expect(style.listStyleType).toBe("disc");
     expect(style.boxSizing).toBe("content-box");
   });
 });
@@ -268,6 +274,7 @@ describe("SDK markup is still reset", () => {
     expect(style.listStyle).toBe("none");
     expect(style.boxSizing).toBe("border-box");
     expect(style.borderWidth).toBe("0px");
+    expect(style.borderStyle).toBe("solid");
   });
 
   test("the marked element itself is reset, not only its descendants", () => {
@@ -298,7 +305,7 @@ describe("SDK markup is still reset", () => {
       </main>,
     );
 
-    expect(getComputedStyle(getByTestId("host-nav")).listStyle).toBe("");
+    expect(getComputedStyle(getByTestId("host-nav")).listStyleType).toBe("disc");
     expect(getComputedStyle(getByTestId("sdk-inside-host")).listStyle).toBe("none");
   });
 
@@ -314,7 +321,7 @@ describe("SDK markup is still reset", () => {
     );
 
     expect(getComputedStyle(getByTestId("shell")).listStyle).toBe("none");
-    expect(getComputedStyle(getByTestId("host-list")).listStyle).toBe("");
+    expect(getComputedStyle(getByTestId("host-list")).listStyleType).toBe("circle");
   });
 
   test("an SDK component the host placed behind a wall is still reset", () => {
@@ -335,7 +342,7 @@ describe("SDK markup is still reset", () => {
       </KaitenProvider>,
     );
 
-    expect(getComputedStyle(screen.getByTestId("host-list")).listStyle).toBe("");
+    expect(getComputedStyle(screen.getByTestId("host-list")).listStyleType).toBe("disc");
     expect(getComputedStyle(screen.getByTestId("nested-sdk-list")).listStyle).toBe("none");
   });
 });
@@ -503,11 +510,24 @@ describe("host markup keeps its own theme variables", () => {
 });
 
 describe("host type is left alone", () => {
+  // The host's face is read from a host <code> outside `.kaiten`, not from
+  // `HOST.mono`: jsdom 31 serializes a computed `font-family` without the quotes
+  // the host's sheet wrote, so a comparison with the declared text holds either
+  // way and proves nothing.
   test("a host <code> keeps its own typeface", () => {
     loadHostSheet("after");
-    const { getByTestId } = renderUnderBoundary(<code data-testid="host-code">npm install</code>);
+    const { getByTestId } = render(
+      <>
+        <code data-testid="control">npm install</code>
+        <div className="kaiten">
+          <code data-testid="host-code">npm install</code>
+        </div>
+      </>,
+    );
 
-    expect(getComputedStyle(getByTestId("host-code")).fontFamily).toBe(HOST.mono);
+    const hostFace = getComputedStyle(getByTestId("control")).fontFamily;
+    expect(hostFace).toContain("Courier New");
+    expect(getComputedStyle(getByTestId("host-code")).fontFamily).toBe(hostFace);
   });
 
   test("a host <code> with no rule of its own keeps the browser's", () => {
@@ -538,8 +558,10 @@ describe("host type is left alone", () => {
       </>,
     );
 
+    const hostFace = getComputedStyle(getByTestId("control")).fontFamily;
     const face = getComputedStyle(getByTestId("sdk-code")).fontFamily;
-    expect(face).not.toBe(HOST.mono);
+    expect(hostFace).toContain("Courier New");
+    expect(face).not.toBe(hostFace);
     expect(face).not.toBe("");
   });
 });
@@ -595,9 +617,16 @@ describe("SDK text still takes the SDK's colour", () => {
   test("a marked element inside a component inherits, it does not declare again", () => {
     // `Card` sets `text-card-foreground` for its subtree, and its title is marked
     // too: a colour declared on every marked element would put the page's
-    // foreground back on the title, over the card's.
+    // foreground back on the title, over the card's. jsdom 31 substitutes `var()`
+    // in a computed colour, and the light theme gives both tokens the same value,
+    // so the card's token gets one of its own here.
+    const cardForeground = "rgb(9, 8, 7)";
     const { getByTestId } = renderUnderBoundary(
-      <div className="ktn-own text-card-foreground" data-testid="card">
+      <div
+        className="ktn-own text-card-foreground"
+        data-testid="card"
+        style={{ "--ktn-card-foreground": cardForeground } as CSSProperties}
+      >
         <div className="ktn-own" data-testid="card-title">
           Team
         </div>
@@ -605,7 +634,7 @@ describe("SDK text still takes the SDK's colour", () => {
     );
 
     const card = getComputedStyle(getByTestId("card")).color;
-    expect(card).toContain("card-foreground");
+    expect(card).toBe(cardForeground);
     expect(getComputedStyle(getByTestId("card-title")).color).toBe(card);
   });
 
