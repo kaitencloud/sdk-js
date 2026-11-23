@@ -1,5 +1,15 @@
 # @kaitencloud/client
 
+## 2.1.0
+
+### Minor Changes
+
+- [#66](https://github.com/kaitencloud/sdk-js/pull/66) [`7cbef70`](https://github.com/kaitencloud/sdk-js/commit/7cbef70a3f7858c093513e2c76cd32ac8423a87d) Thanks [@Lleios](https://github.com/Lleios)! - `PatchInstanceBody` gains an optional `metadata` member, as the API contract now does: `KaitenApi.patchInstance` in the client and `Instances.patchInstance` in the server can change individual metadata keys of an instance without reading it first. The keys sent are merged at the first level into the stored metadata: a key present is set, its value replacing the stored one whole; a key whose value is `null` is removed; keys not named are kept. The merged result is validated against the organization's declared instance metadata fields, as on `PUT`.
+
+  - A Kaiten server that predates the metadata merge refuses the `metadata` key with a 422.
+
+- [#66](https://github.com/kaitencloud/sdk-js/pull/66) [`7cbef70`](https://github.com/kaitencloud/sdk-js/commit/7cbef70a3f7858c093513e2c76cd32ac8423a87d) Thanks [@Lleios](https://github.com/Lleios)! - A release carries an optional `releaseNote`, its release notes in markdown, as the API contract now does: `Release` and `ReleaseWritable` gain the member, and so does `ReleaseDelivered`, the payload of the release webhooks. It is set when the release is created (`KaitenApi.createRelease` in the client, `Releases.createRelease` in the server) and returned when a single release is read (`KaitenApi.getReleaseBySlug`, `DeploymentZones.getReleaseBySlug`); list responses omit it.
+
 ## 2.0.0
 
 ### Major Changes
