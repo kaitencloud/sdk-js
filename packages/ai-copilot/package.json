@@ -37,7 +37,7 @@
     "check": "vp check"
   },
   "devDependencies": {
-    "@github/copilot-sdk": "1.0.32",
+    "@github/copilot-sdk": "1.0.34",
     "@kaitencloud/client": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",
