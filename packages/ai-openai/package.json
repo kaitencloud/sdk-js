@@ -39,13 +39,13 @@
   "devDependencies": {
     "@kaitencloud/client": "workspace:*",
     "@types/node": "catalog:",
-    "openai": "^7.0.0",
+    "openai": "^7.62.0",
     "typescript": "catalog:",
     "vite-plus": "catalog:"
   },
   "peerDependencies": {
     "@kaitencloud/client": "workspace:^",
-    "openai": "^7.0.0"
+    "openai": "^7.62.0"
   },
   "peerDependenciesMeta": {
     "openai": {

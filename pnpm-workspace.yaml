@@ -13,7 +13,7 @@ catalog:
   "@graphql-typed-document-node/core": ^3.2.0
   "@openfeature/ofrep-provider": ^0.2.5
   "@openfeature/server-sdk": ^1.23.0
-  "@playwright/test": 1.65.0
+  "@playwright/test": 1.65.1
   "@types/node": ^26.6.6
   "@types/react": ^19.3.0
   "@types/react-dom": ^19.3.0
