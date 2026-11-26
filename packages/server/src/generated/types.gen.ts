@@ -8677,6 +8677,10 @@ export type Release = {
    */
   readonly id: string;
   /**
+   * Release notes for the release, in markdown. Set on create only. Returned when a single release is read; omitted from list responses.
+   */
+  releaseNote?: string;
+  /**
    * Optional URL-friendly identifier, unique per organization. Auto-generated if not provided.
    */
   slug?: string;
@@ -8715,6 +8719,10 @@ export type ReleaseDelivered = {
    * Unique identifier for the release
    */
   readonly id: string;
+  /**
+   * Release notes for the release, in markdown. Set on create only. Returned when a single release is read; omitted from list responses.
+   */
+  releaseNote?: string;
   /**
    * Optional URL-friendly identifier, unique per organization. Auto-generated if not provided.
    */
@@ -13840,6 +13848,10 @@ export type ReleaseWritable = {
    */
   description?: string;
   /**
+   * Release notes for the release, in markdown. Set on create only. Returned when a single release is read; omitted from list responses.
+   */
+  releaseNote?: string;
+  /**
    * Optional URL-friendly identifier, unique per organization. Auto-generated if not provided.
    */
   slug?: string;
@@ -13866,6 +13878,10 @@ export type ReleaseDeliveredWritable = {
    * Description of the release
    */
   description?: string;
+  /**
+   * Release notes for the release, in markdown. Set on create only. Returned when a single release is read; omitted from list responses.
+   */
+  releaseNote?: string;
   /**
    * Optional URL-friendly identifier, unique per organization. Auto-generated if not provided.
    */
@@ -16721,6 +16737,10 @@ export type ActivateConnectorErrors = {
    */
   404: Problem;
   /**
+   * Conflict
+   */
+  409: Problem;
+  /**
    * Unprocessable Entity
    */
   422: Problem;
@@ -16879,6 +16899,10 @@ export type UpdateConnectorSettingsErrors = {
    */
   404: Problem;
   /**
+   * Conflict
+   */
+  409: Problem;
+  /**
    * Unprocessable Entity
    */
   422: Problem;
@@ -16886,6 +16910,10 @@ export type UpdateConnectorSettingsErrors = {
    * Internal Server Error
    */
   500: Problem;
+  /**
+   * Service Unavailable
+   */
+  503: Problem;
 };
 
 export type UpdateConnectorSettingsError =
@@ -26213,6 +26241,58 @@ export type CreateServiceAccountResponses = {
 
 export type CreateServiceAccountResponse =
   CreateServiceAccountResponses[keyof CreateServiceAccountResponses];
+
+export type DeleteServiceAccountData = {
+  body?: never;
+  path: {
+    /**
+     * Service account slug
+     */
+    serviceAccountSlug: string;
+  };
+  query?: never;
+  url: "/service-accounts/{serviceAccountSlug}";
+};
+
+export type DeleteServiceAccountErrors = {
+  /**
+   * Bad Request
+   */
+  400: Problem;
+  /**
+   * Unauthorized
+   */
+  401: Problem;
+  /**
+   * Forbidden
+   */
+  403: Problem;
+  /**
+   * Not Found
+   */
+  404: Problem;
+  /**
+   * Unprocessable Entity
+   */
+  422: Problem;
+  /**
+   * Internal Server Error
+   */
+  500: Problem;
+};
+
+export type DeleteServiceAccountError =
+  DeleteServiceAccountErrors[keyof DeleteServiceAccountErrors];
+
+export type DeleteServiceAccountResponses = {
+  /**
+   * No Content
+   */
+  204: void;
+};
+
+export type DeleteServiceAccountResponse =
+  DeleteServiceAccountResponses[keyof DeleteServiceAccountResponses];
 
 export type GetServiceAccountData = {
   body?: never;

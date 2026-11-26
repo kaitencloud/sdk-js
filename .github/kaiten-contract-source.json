@@ -1,5 +1,5 @@
 {
   "repository": "kaitencloud/kaiten",
-  "commit": "12d681839ee43d8b228ce2cf592b4b59fb42c021",
-  "headBranch": "feat/patch-instance-metadata"
+  "commit": "285dc3824306f6482d576c2c21ae40a24ebaf496",
+  "headBranch": "feat/delete-service-account"
 }
