@@ -42,7 +42,9 @@ no `transactionId`. Kaiten serves billing's routes from 26.10.7 on. `Public.getP
 and `Public.createCheckoutSession` send a publishable key given in `auth` as
 `Kaiten-Publishable-Key`, which Kaiten reads from 26.11.3 on, and the AI credit routes are in
 Kaiten from 26.11.3 on. The `metadata` member of `Instances.patchInstance`'s body needs a
-Kaiten release that carries the metadata merge, and an earlier one refuses it with a 422. The classes and operations of 1.0.0, OFREP's excepted, are still there
+Kaiten release that carries the metadata merge, and an earlier one refuses it with a 422.
+`ServiceAccounts.deleteServiceAccount` needs a Kaiten release that serves
+`DELETE /service-accounts/{serviceAccountSlug}`. The classes and operations of 1.0.0, OFREP's excepted, are still there
 and work against the Kaiten releases they worked against.
 
 ## Quick start
@@ -263,6 +265,35 @@ written.
 
 `metadata` needs a Kaiten release that carries the metadata merge on
 `PATCH /instances/{instanceSlug}`; an earlier one refuses the key with a 422.
+
+## Service accounts
+
+A service account is a machine user of your organization, and its tokens are what a backend
+or a CI job calls the API with. `ServiceAccounts.deleteServiceAccountToken` revokes one token.
+`ServiceAccounts.deleteServiceAccount` deletes the account and revokes every token it still
+holds, which stop authenticating at once:
+
+```ts
+import { ServiceAccounts } from "@kaitencloud/server";
+
+await ServiceAccounts.deleteServiceAccount({
+  client,
+  path: { serviceAccountSlug: "ci-deployer" },
+});
+```
+
+It answers a 204 with no body, and needs a token that holds `write:tokens`, as creating,
+renaming and revoking do. What the account wrote keeps it as its author, and its slug can be
+given to a new account. A slug the organization holds no account under, one already deleted
+included, throws a `KaitenError` with the status 404 and the code `ServiceAccount.NotFound`.
+
+`ServiceAccounts.createServiceAccount` is refused with a 409
+`CreateServiceAccount.EntitlementLimitReached` when the organization already holds as many
+service accounts as its license allows. On Kaiten Cloud, a deleted account no longer counts
+against that allowance.
+
+`deleteServiceAccount` needs a Kaiten release that serves
+`DELETE /service-accounts/{serviceAccountSlug}`.
 
 ## Invoices and the handoff queue
 

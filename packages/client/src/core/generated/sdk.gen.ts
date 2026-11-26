@@ -210,6 +210,9 @@ import type {
   DeleteRoleData,
   DeleteRoleErrors,
   DeleteRoleResponses,
+  DeleteServiceAccountData,
+  DeleteServiceAccountErrors,
+  DeleteServiceAccountResponses,
   DeleteServiceAccountTokenData,
   DeleteServiceAccountTokenErrors,
   DeleteServiceAccountTokenResponses,
@@ -1749,7 +1752,7 @@ export const deactivateConnector = <ThrowOnError extends boolean = false>(
 /**
  * Activate connector
  *
- * Activates a registered connector for the authenticated organization. Idempotent: activating an already-active connector succeeds without changing when it was first activated. Refused when the organization's license does not include the connector.
+ * Activates a registered connector for the authenticated organization. Idempotent: activating an already-active connector succeeds without changing when it was first activated. Refused when the organization's license does not include the connector (403), or when it already has as many active connectors as its license allows (409 ActivateConnector.LimitReached).
  */
 export const activateConnector = <ThrowOnError extends boolean = false>(
   options: Options<ActivateConnectorData, ThrowOnError>,
@@ -1819,7 +1822,7 @@ export const getConnectorSettings = <ThrowOnError extends boolean = false>(
 /**
  * Upsert connector settings
  *
- * Create or update connector settings for the authenticated organization. Write-only fields (flagged `writeOnly` in the connector settings schema) may be omitted or sent as `***` to keep the stored value; they are returned redacted.
+ * Create or update connector settings for the authenticated organization. Write-only fields (flagged `writeOnly` in the connector settings schema) may be omitted or sent as `***` to keep the stored value; they are returned redacted. Saving settings activates the connector, so it is refused as an activation is: 409 ActivateConnector.LimitReached when the organization already has as many active connectors as its license allows.
  */
 export const updateConnectorSettings = <ThrowOnError extends boolean = false>(
   options: Options<UpdateConnectorSettingsData, ThrowOnError>,
@@ -5980,7 +5983,7 @@ export const getServiceAccounts = <ThrowOnError extends boolean = false>(
 /**
  * Create a new service account
  *
- * Create a new service account (machine user) with the provided name. Service accounts can be used to generate API tokens for programmatic access.
+ * Create a new service account (machine user) with the provided name. Service accounts can be used to generate API tokens for programmatic access. Refused when the organization already holds as many service accounts as its license allows (409 CreateServiceAccount.EntitlementLimitReached).
  */
 export const createServiceAccount = <ThrowOnError extends boolean = false>(
   options: Options<CreateServiceAccountData, ThrowOnError>,
@@ -6003,6 +6006,30 @@ export const createServiceAccount = <ThrowOnError extends boolean = false>(
       "Content-Type": "application/json",
       ...options.headers,
     },
+  });
+
+/**
+ * Delete a service account
+ *
+ * Delete a service account of the organization and revoke every token it still holds: they stop authenticating at once. The rows the account wrote keep it as their author, and its slug can be given to a new account. On Kaiten Cloud, the account no longer counts against the service-accounts allowance of the organization's License. The organization context is derived from the authenticated user's JWT token.
+ */
+export const deleteServiceAccount = <ThrowOnError extends boolean = false>(
+  options: Options<DeleteServiceAccountData, ThrowOnError>,
+): RequestResult<DeleteServiceAccountResponses, DeleteServiceAccountErrors, ThrowOnError> =>
+  (options.client ?? client).delete<
+    DeleteServiceAccountResponses,
+    DeleteServiceAccountErrors,
+    ThrowOnError
+  >({
+    security: [
+      {
+        key: "bearerAuth",
+        scheme: "bearer",
+        type: "http",
+      },
+    ],
+    url: "/service-accounts/{serviceAccountSlug}",
+    ...options,
   });
 
 /**
